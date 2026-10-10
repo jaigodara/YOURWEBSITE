@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>श्री विश्नोई समाज पीठ | Bishnoi Eco-Dharm & Community Portal</title>
-  <meta name="description" content="श्री विश्नोई समाज का आधिकारिक डिजिटल मंच: २९ नियम, खेजड़ली इतिहास, सबदवाणी, समाज चौपाल एवं ज्ञान परीक्षा।">
+  <meta name="description" content="श्री विश्नोई समाज का आधिकारिक डिजिटल मंच: २९ नियम, खेजड़ली इतिहास, बाल संस्कार, सबदवाणी, चौपाल एवं प्रश्नोत्तरी।">
   
-  <!-- WhatsApp & Social OpenGraph Tags -->
+  <!-- WhatsApp & Social OpenGraph -->
   <meta property="og:title" content="श्री विश्नोई समाज पीठ | 29 Niyams & Chaupal">
   <meta property="og:description" content="जीव दया पालणी, रूंख लीलो नी घावै। २९ नियम, सबदवाणी साहित्य, समाज चौपाल एवं दैनिक प्रश्नोत्तरी।">
   <meta property="og:image" content="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop&q=80">
   <meta property="og:type" content="website">
 
-  <!-- Favicon (Khejri Tree SVG) -->
+  <!-- Favicon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌳</text></svg>">
 
   <!-- Tailwind CSS -->
@@ -37,7 +37,7 @@
             forest: '#143622',
             terracotta: '#B34A1B',
             leaf: '#2D6A4F',
-            parchment: '#FBF8F2',
+            sand: '#FAF6EE',
             cardBg: '#FFFFFF',
             ink: '#231B15'
           },
@@ -57,7 +57,7 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
     .nav-btn {
-      padding: 0.45rem 0.8rem;
+      padding: 0.45rem 0.85rem;
       border-radius: 0.5rem;
       font-size: 0.825rem;
       font-weight: 500;
@@ -79,7 +79,7 @@
 
 <body class="min-h-screen flex flex-col antialiased">
 
-  <!-- IN-APP TOAST (Zero Browser Popups) -->
+  <!-- IN-APP TOAST (No Browser Popups) -->
   <div id="toastNotification" class="fixed top-4 right-4 z-50 transform -translate-y-20 opacity-0 transition-all duration-300 pointer-events-none max-w-sm w-full">
     <div class="bg-forest text-amber-200 border border-amber-600/40 px-4 py-3 rounded-xl shadow-xl flex items-center justify-between text-xs sm:text-sm font-medium">
       <span id="toastMsg">Notification</span>
@@ -87,7 +87,7 @@
     </div>
   </div>
 
-  <!-- IN-APP CUSTOM CONFIRMATION MODAL -->
+  <!-- IN-APP CONFIRMATION MODAL -->
   <div id="customConfirmModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl text-center">
       <h3 class="font-bold text-sm text-forest" id="confirmTitle">क्या आप सुनिश्चित हैं?</h3>
@@ -110,7 +110,7 @@
     </button>
   </div>
 
-  <!-- HEADER & NAVIGATION -->
+  <!-- MAIN HEADER -->
   <header class="bg-white border-b border-stone-200 sticky top-0 z-40 shadow-sm">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
       
@@ -138,8 +138,7 @@
         <button onclick="switchTab('library')" id="nav-library" class="nav-btn">E-Library</button>
         <button onclick="switchTab('community')" id="nav-community" class="nav-btn">चौपाल</button>
         <button onclick="switchTab('quiz')" id="nav-quiz" class="nav-btn">Quiz Arena</button>
-        <button onclick="switchTab('timeline')" id="nav-timeline" class="nav-btn">इतिहास</button>
-        <button onclick="switchTab('education')" id="nav-education" class="nav-btn">शिक्षा/बाल मंच</button>
+        <button onclick="switchTab('history')" id="nav-history" class="nav-btn">इतिहास व बाल मंच</button>
         <button onclick="switchTab('admin')" id="nav-admin" class="hidden nav-btn bg-terracotta text-white font-semibold hover:bg-amber-800">
           Admin Hub
         </button>
@@ -156,8 +155,7 @@
       <button onclick="switchTab('library')" class="py-1 px-1.5 font-medium whitespace-nowrap">PDFs</button>
       <button onclick="switchTab('community')" class="py-1 px-1.5 font-medium whitespace-nowrap">चौपाल</button>
       <button onclick="switchTab('quiz')" class="py-1 px-1.5 font-medium whitespace-nowrap">Quiz</button>
-      <button onclick="switchTab('timeline')" class="py-1 px-1.5 font-medium whitespace-nowrap">इतिहास</button>
-      <button onclick="switchTab('education')" class="py-1 px-1.5 font-medium whitespace-nowrap">शिक्षा</button>
+      <button onclick="switchTab('history')" class="py-1 px-1.5 font-medium whitespace-nowrap">इतिहास/बाल मंच</button>
       <button id="nav-admin-mobile" onclick="switchTab('admin')" class="hidden py-1 px-1.5 font-semibold text-terracotta whitespace-nowrap">Admin</button>
     </div>
   </header>
@@ -184,7 +182,7 @@
             साहित्य व PDF देखें
           </button>
           <button onclick="switchTab('quiz')" class="px-4 py-2 bg-white/15 hover:bg-white/25 text-amber-200 text-xs sm:text-sm font-semibold rounded-lg">
-            ज्ञान परीक्षा में भाग लें
+            ज्ञान परीक्षा शुरू करें
           </button>
         </div>
       </div>
@@ -200,7 +198,8 @@
             </div>
           </div>
           <select id="audioTrackSelect" onchange="changeAudioTrack()" class="text-xs p-1.5 border border-stone-300 rounded-lg bg-stone-50">
-            <option value="https://actions.google.com/sounds/v1/ambiences/temple_bell.ogg">श्री आरती व साखी</option>
+            <!-- Populated via Firebase / Defaults -->
+            <option value="https://actions.google.com/sounds/v1/ambiences/temple_bell.ogg">श्री आरती व साखी पाठ</option>
             <option value="https://actions.google.com/sounds/v1/ambiences/gentle_morning.ogg">प्रातः संध्या पाठ</option>
           </select>
         </div>
@@ -219,7 +218,7 @@
           </div>
           <h3 class="font-yatra text-base text-forest">आगामी पावन अमावस्या</h3>
           <p class="text-xs text-stone-700 leading-relaxed" id="amavasyaDisplay">
-            कार्तिक अमावस्या (दीपावली महापर्व) • आगामी उपवास व ध्यान साधना।
+            कार्तिक अमावस्या (दीपावली महापर्व) • उपवास, भजन-कीर्तन व आत्म-चिंतन।
           </p>
         </div>
 
@@ -228,24 +227,22 @@
             <span class="text-xs font-bold text-forest uppercase">पवित्र मेला व उत्सव</span>
             <span class="text-base">🚩</span>
           </div>
-          <h3 class="font-yatra text-base text-forest">मुकाम व रोटू धाम मेला</h3>
+          <h3 class="font-yatra text-base text-forest">मुकाम धाम व रोटू धाम मेला</h3>
           <p class="text-xs text-stone-700 leading-relaxed">
             आसोज व फाल्गुन अमावस्या पर मुकाम धाम में विशाल मेला एवं समराथल धोरा पर घी-हवन पाहल।
           </p>
         </div>
       </div>
 
-      <!-- COMMUNITY NOTICE BOARD (COMMUNITY ANNOUNCEMENTS) -->
+      <!-- NOTICE BOARD -->
       <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-lg">📌</span>
-            <h3 class="font-yatra text-forest text-base font-bold">समाज सूचना पट्ट (Notice Board)</h3>
-          </div>
+        <div class="flex items-center gap-2 border-b border-stone-100 pb-2">
+          <span class="text-lg">📌</span>
+          <h3 class="font-yatra text-forest text-base font-bold">समाज सूचना पट्ट (Notice Board)</h3>
         </div>
         <div id="noticeBoardList" class="space-y-2 text-xs text-stone-700">
           <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
-            <span class="font-bold text-terracotta">सर्व समाज बैठक:</span> आगामी पर्यावरण संरक्षण अभियान एवं वृक्षारोपण सप्ताह हेतु सभी बन्धुओं से सहयोग की अपील।
+            <span class="font-bold text-forest">सर्व समाज संदेश:</span> आगामी पर्यावरण संरक्षण अभियान एवं वृक्षारोपण सप्ताह हेतु सभी बन्धुओं से सहयोग की अपील।
           </div>
         </div>
       </div>
@@ -282,7 +279,7 @@
       <div id="niyamGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </section>
 
-    <!-- 3. E-LIBRARY TAB (No Dead Links) -->
+    <!-- 3. E-LIBRARY TAB -->
     <section id="tab-library" class="hidden space-y-6">
       <div class="border-b border-stone-200 pb-3">
         <h2 class="text-2xl font-yatra text-forest">विश्नोई साहित्य व ग्रंथ (PDFs)</h2>
@@ -293,7 +290,7 @@
       </div>
     </section>
 
-    <!-- 4. COMMUNITY CHAUPAL (With Anti-Spam & Character Counter) -->
+    <!-- 4. COMMUNITY CHAUPAL TAB -->
     <section id="tab-community" class="hidden space-y-6">
       <div class="border-b border-stone-200 pb-3">
         <h2 class="text-2xl font-yatra text-forest">विश्नोई समाज चौपाल</h2>
@@ -333,15 +330,15 @@
       </div>
     </section>
 
-    <!-- 5. QUIZ ARENA (WINNERS PODIUM & CERTIFICATE GENERATOR) -->
+    <!-- 5. QUIZ ARENA TAB (NO LEADERBOARD CLUTTER BEFORE ATTEMPT) -->
     <section id="tab-quiz" class="hidden max-w-2xl mx-auto space-y-6">
-      
-      <!-- DAILY TOP 3 WINNERS PODIUM -->
-      <div class="bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-amber-500/15 p-5 rounded-2xl border border-amber-300 text-center space-y-3 shadow-sm">
+
+      <!-- STEP 1: PODIUM & START BUTTON (VISIBLE INITIALLY) -->
+      <div id="quizIntroCard" class="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 p-6 rounded-2xl border border-amber-300 text-center space-y-4 shadow-sm">
         <span class="text-[11px] font-bold uppercase tracking-wider text-terracotta">दैनिक ज्ञानवीर सम्मान</span>
-        <h3 class="font-yatra text-xl text-forest">🏆 आज के शीर्ष विजेता (Daily Winners)</h3>
+        <h3 class="font-yatra text-2xl text-forest">🏆 आज के शीर्ष विजेता (Daily Winners)</h3>
         
-        <div class="grid grid-cols-3 gap-2 pt-2" id="quizWinnersPodium">
+        <div class="grid grid-cols-3 gap-2 pt-2">
           <div class="bg-white p-3 rounded-xl border border-amber-200 shadow-sm flex flex-col items-center">
             <span class="text-2xl">🥈</span>
             <span class="text-[10px] text-stone-400 font-bold">2nd Place</span>
@@ -363,122 +360,144 @@
             <span class="text-[10px] text-terracotta font-semibold" id="winner3Score">-</span>
           </div>
         </div>
+
+        <div class="pt-4 border-t border-amber-200/60 space-y-2">
+          <p class="text-xs text-stone-600">धर्म, २९ नियम एवं खेजड़ली इतिहास पर आधारित प्रश्नोत्तरी में भाग लें और ज्ञानवीर बनें!</p>
+          <button onclick="startQuizNow()" class="px-6 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-xl text-sm font-bold shadow-md transition-transform hover:scale-105">
+            🎯 ज्ञान परीक्षा शुरू करें (Start Quiz)
+          </button>
+        </div>
       </div>
 
-      <!-- ACTIVE QUIZ CARD -->
-      <div id="quizBox" class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+      <!-- STEP 2: ACTIVE QUIZ QUESTIONS BOX (OPENS WHEN STARTED) -->
+      <div id="quizActiveBox" class="hidden bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
         <!-- Rendered via JS -->
       </div>
 
-      <!-- HIDDEN CANVAS FOR CERTIFICATE GENERATION -->
       <canvas id="certCanvas" width="800" height="600" class="hidden"></canvas>
     </section>
 
-    <!-- 6. INTERACTIVE HISTORICAL TIMELINE -->
-    <section id="tab-timeline" class="hidden max-w-2xl mx-auto space-y-6">
-      <div class="text-center space-y-1">
-        <h2 class="text-2xl font-yatra text-forest">विश्नोई धर्म गौरवशाली इतिहास</h2>
-        <p class="text-xs text-stone-600">त्याग, तपस्या एवं प्रकृति रक्षा का ऐतिहासिक कालक्रम</p>
+    <!-- 6. HISTORY & KIDS STORYBOOK (COMBINED) -->
+    <section id="tab-history" class="hidden max-w-3xl mx-auto space-y-6">
+      
+      <!-- SUB-NAVIGATION: READ HISTORY vs KIDS CORNER -->
+      <div class="flex items-center justify-center p-1 bg-stone-200/70 rounded-xl gap-1 max-w-sm mx-auto">
+        <button onclick="switchHistorySubTab('full-history')" id="sub-history-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white transition-all shadow-sm">
+          📜 इतिहास दर्शन
+        </button>
+        <button onclick="switchHistorySubTab('kids-corner')" id="sub-kids-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest transition-all">
+          🧸 बाल संस्कार (Kids Corner)
+        </button>
       </div>
 
-      <div class="relative border-l-2 border-emerald-600 ml-4 sm:ml-6 space-y-8 py-2">
-        
-        <div class="relative pl-6">
-          <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
-          <span class="text-xs font-bold text-terracotta uppercase">1451 ईस्वी (संवत 1508)</span>
-          <h3 class="font-yatra text-base text-forest mt-0.5">गुरु जम्भेश्वर भगवान का प्राकट्य</h3>
-          <p class="text-xs text-stone-600 mt-1 leading-relaxed">भाद्रपद कृष्ण अष्टमी (जन्माष्टमी) को नागौर के पीपासर गांव में ठाकुर लोहट जी पंवार एवं माता हंसा देवी के घर अवतरण।</p>
+      <!-- SUB-TAB 1: SACRED HISTORY TIMELINE -->
+      <div id="historySubView" class="space-y-6">
+        <div class="text-center space-y-1">
+          <h2 class="text-2xl font-yatra text-forest">विश्नोई धर्म गौरवशाली इतिहास</h2>
+          <p class="text-xs text-stone-600">त्याग, तपस्या एवं प्रकृति रक्षा का ऐतिहासिक कालक्रम</p>
         </div>
 
-        <div class="relative pl-6">
-          <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
-          <span class="text-xs font-bold text-terracotta uppercase">1485 ईस्वी (संवत 1542)</span>
-          <h3 class="font-yatra text-base text-forest mt-0.5">२९ नियमों का प्रतिपादन (समराथल धोरा)</h3>
-          <p class="text-xs text-stone-600 mt-1 leading-relaxed">कार्तिक बदी अष्टमी को समराथल धोरे पर पाहल बनाकर प्रथम विश्नोई धर्म की स्थापना एवं मानव-प्रकृति कल्याण हेतु २९ नियम प्रदान किए।</p>
-        </div>
-
-        <div class="relative pl-6">
-          <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
-          <span class="text-xs font-bold text-terracotta uppercase">1730 ईस्वी (संवत 1787)</span>
-          <h3 class="font-yatra text-base text-forest mt-0.5">खेजड़ली का अमर पर्यावरण बलिदान</h3>
-          <p class="text-xs text-stone-600 mt-1 leading-relaxed">भाद्रपद शुक्ल दशमी को अमृता देवी विश्नोई के नेतृत्व में ३६३ स्त्री-पुरुषों ने हरे खेजड़ी वृक्षों की रक्षा हेतु अपने शीश समर्पित किए।</p>
-        </div>
-
-        <div class="relative pl-6">
-          <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
-          <span class="text-xs font-bold text-terracotta uppercase">वर्तमान युग</span>
-          <h3 class="font-yatra text-base text-forest mt-0.5">अखंड जीव दया व वन्यजीव संरक्षण</h3>
-          <p class="text-xs text-stone-600 mt-1 leading-relaxed">काले हिरण, चिंकारा एवं वृक्षों की रक्षा हेतु देश भर में विश्नोई टाइगर फोर्स एवं समाज बन्धु निरंतर समर्पित हैं।</p>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- 7. EDUCATION & KIDS CORNER (बाल संस्कार एवं करियर मंच) -->
-    <section id="tab-education" class="hidden space-y-6">
-      <div class="border-b border-stone-200 pb-3">
-        <h2 class="text-2xl font-yatra text-forest">शिक्षा, करियर एवं बाल संस्कार मंच</h2>
-        <p class="text-xs text-stone-600">समाज के युवाओं, विद्यार्थियों एवं बच्चों के उज्ज्वल भविष्य हेतु</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        
-        <!-- KIDS CORNER (बाल संस्कार प्रेरक कथाएं) -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">📖</span>
-            <h3 class="font-yatra text-forest text-base font-bold">बाल संस्कार (Kids Corner)</h3>
+        <div class="relative border-l-2 border-emerald-600 ml-4 sm:ml-6 space-y-8 py-2">
+          <div class="relative pl-6">
+            <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
+            <span class="text-xs font-bold text-terracotta uppercase">1451 ईस्वी (संवत 1508)</span>
+            <h3 class="font-yatra text-base text-forest mt-0.5">गुरु जम्भेश्वर भगवान का प्राकट्य</h3>
+            <p class="text-xs text-stone-600 mt-1 leading-relaxed">भाद्रपद कृष्ण अष्टमी को नागौर के पीपासर गांव में ठाकुर लोहट जी पंवार एवं माता हंसा देवी के घर अवतरण।</p>
           </div>
+
+          <div class="relative pl-6">
+            <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
+            <span class="text-xs font-bold text-terracotta uppercase">1485 ईस्वी (संवत 1542)</span>
+            <h3 class="font-yatra text-base text-forest mt-0.5">२९ नियमों का प्रतिपादन (समराथल धोरा)</h3>
+            <p class="text-xs text-stone-600 mt-1 leading-relaxed">कार्तिक बदी अष्टमी को समराथल धोरे पर पाहल बनाकर प्रथम विश्नोई धर्म की स्थापना एवं मानव-प्रकृति कल्याण हेतु २९ नियम प्रदान किए।</p>
+          </div>
+
+          <div class="relative pl-6">
+            <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
+            <span class="text-xs font-bold text-terracotta uppercase">1730 ईस्वी (संवत 1787)</span>
+            <h3 class="font-yatra text-base text-forest mt-0.5">खेजड़ली का अमर पर्यावरण बलिदान</h3>
+            <p class="text-xs text-stone-600 mt-1 leading-relaxed">भाद्रपद शुक्ल दशमी को अमृता देवी विश्नोई के नेतृत्व में ३६३ स्त्री-पुरुषों ने हरे खेजड़ी वृक्षों की रक्षा हेतु अपने शीश समर्पित किए।</p>
+          </div>
+
+          <div class="relative pl-6">
+            <div class="absolute -left-2.5 top-0 w-5 h-5 bg-forest rounded-full border-4 border-white shadow"></div>
+            <span class="text-xs font-bold text-terracotta uppercase">वर्तमान युग</span>
+            <h3 class="font-yatra text-base text-forest mt-0.5">अखंड जीव दया व वन्यजीव संरक्षण</h3>
+            <p class="text-xs text-stone-600 mt-1 leading-relaxed">काले हिरण, चिंकारा एवं वृक्षों की रक्षा हेतु देश भर में विश्नोई टाइगर फोर्स एवं समाज बन्धु निरंतर समर्पित हैं।</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-TAB 2: CHILD-PSYCHOLOGY KIDS CORNER -->
+      <div id="kidsSubView" class="hidden space-y-5">
+        <div class="text-center space-y-1">
+          <h2 class="text-2xl font-yatra text-forest">प्यारे बच्चों की प्रेरक कहानियां 🧸</h2>
+          <p class="text-xs text-stone-600">साहस, दया और पेड़ों से दोस्ती की सुंदर बाल गाथाएं</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 space-y-1">
-            <h4 class="font-bold text-xs text-forest">अमृता देवी और तीन पुत्रियों का साहस</h4>
-            <p class="text-[11px] text-stone-600 leading-relaxed">
-              जब राजा के सैनिकों ने कुल्हाड़ी उठाई, तो आसू, रत्नी और भागू ने अपनी माता से कहा—"यदि पेड़ बचाने में प्राण भी जाएं तो हम पीछे नहीं हटेंगी।" बच्चों को इस त्याग से प्रकृति प्रेम की प्रेरणा मिलती है।
-            </p>
-          </div>
-
-          <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 space-y-1">
-            <h4 class="font-bold text-xs text-forest">मूक जीवों के प्रति करुणा</h4>
-            <p class="text-[11px] text-stone-600 leading-relaxed">
-              गुरु जम्भेश्वर भगवान ने सिखाया कि हर जीव में ईश्वर का अंश है। पक्षियों के लिए परिंडे लगाना और हिरणों को घास-पानी देना ही सच्चा धर्म है।
-            </p>
-          </div>
-        </div>
-
-        <!-- SCHOLARSHIPS & CAREER BULLETIN BOARD -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">🎓</span>
-            <h3 class="font-yatra text-forest text-base font-bold">समाज करियर एवं छात्रावास सूचना</h3>
-          </div>
-          
-          <div id="careerPostsList" class="space-y-2 text-xs">
-            <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
-              <span class="font-bold text-forest">विश्नोई छात्रावास प्रवेश:</span> जोधपुर, जयपुर एवं दिल्ली समाज छात्रावासों में सत्र हेतु आवेदन प्रारंभ।
+          <!-- Story 1 -->
+          <div class="bg-amber-50 rounded-2xl p-5 border-2 border-amber-300 space-y-3 shadow-sm hover:shadow-md transition-all">
+            <div class="w-12 h-12 bg-amber-200 rounded-full flex items-center justify-center text-2xl">
+              🌳
             </div>
-            <div class="p-3 bg-stone-50 rounded-lg border border-stone-200">
-              <span class="font-bold text-forest">प्रतियोगी परीक्षा मार्गदर्शन:</span> UPSC/RPSC/NDA एवं तकनीकी शिक्षा हेतु समाज के वरिष्ठ अधिकारियों द्वारा निशुल्क सेमिनार।
+            <h3 class="font-yatra text-lg text-forest">पेड़ों को गले लगाने वाली बेटियां</h3>
+            <p class="text-xs text-stone-700 leading-relaxed">
+              बहुत पुरानी बात है, अमृता देवी की तीन प्यारी बेटियां थीं—आसू, रत्नी और भागू। जब लकड़हारे सुंदर खेजड़ी के पेड़ों को काटने आए, तो तीनों बहनों ने डरने की बजाय पेड़ों को बाहों में भर लिया और बोलीं—"यह पेड़ हमारे मित्र हैं, इन्हें नहीं काटने देंगे!"
+            </p>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-300 text-[11px] font-bold text-terracotta">
+              🌟 बच्चों के लिए सीख: पेड़ हमें सांस और छाया देते हैं, इसलिए हमें एक भी पेड़ नहीं काटना चाहिए!
             </div>
           </div>
-        </div>
 
+          <!-- Story 2 -->
+          <div class="bg-emerald-50 rounded-2xl p-5 border-2 border-emerald-300 space-y-3 shadow-sm hover:shadow-md transition-all">
+            <div class="w-12 h-12 bg-emerald-200 rounded-full flex items-center justify-center text-2xl">
+              🦌
+            </div>
+            <h3 class="font-yatra text-lg text-forest">नन्हे हिरण का सच्चा दोस्त</h3>
+            <p class="text-xs text-stone-700 leading-relaxed">
+              विश्नोई समाज के गांवों में काले हिरण और चिंकारा बच्चों के साथ खेलते हैं। गुरु जम्भेश्वर भगवान ने हमें सिखाया कि सभी पशु-पक्षी ईश्वर के बनाए हुए हैं। जो बच्चे मूक पशुओं को पानी और रोटी देते हैं, भगवान उनसे बहुत प्रसन्न होते हैं।
+            </p>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-emerald-300 text-[11px] font-bold text-emerald-800">
+              🌟 बच्चों के लिए सीख: कभी भी किसी जानवर को पत्थर न मारें। गर्मी में पक्षियों के लिए पानी रखें!
+            </div>
+          </div>
+
+          <!-- Story 3 -->
+          <div class="bg-blue-50 rounded-2xl p-5 border-2 border-blue-300 space-y-3 shadow-sm hover:shadow-md transition-all md:col-span-2">
+            <div class="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center text-2xl">
+              💧
+            </div>
+            <h3 class="font-yatra text-lg text-forest">पानी की हर बूंद को बचाओ</h3>
+            <p class="text-xs text-stone-700 leading-relaxed">
+              मरुभूमि (थार) में पानी सोने से भी ज्यादा कीमती होता है। नियम कहता है—पानी को सदा छानकर पियो ताकि नन्हे जीव बच जाएं और पानी की बर्बादी कभी मत करो।
+            </p>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-blue-300 text-[11px] font-bold text-blue-800">
+              🌟 बच्चों के लिए सीख: नल खुला मत छोड़ो और रोज सुबह नहाकर भगवान को याद करो!
+            </div>
+          </div>
+
+        </div>
       </div>
+
     </section>
 
-    <!-- 8. OWNER ADMIN HUB (SECURE & CSV DOWNLOADS) -->
+    <!-- 7. OWNER ADMIN HUB -->
     <section id="tab-admin" class="hidden space-y-6">
       <div class="bg-stone-900 text-stone-100 p-5 rounded-xl flex items-center justify-between">
         <div>
           <h2 class="font-yatra text-xl text-amber-300">व्यवस्थापक नियंत्रण कक्ष (Owner Admin Hub)</h2>
-          <p class="text-xs text-stone-400">Quiz Winners, User Data Export & Content Management</p>
+          <p class="text-xs text-stone-400">Audio Manager, Quiz Winners, CSV Reports & Content</p>
         </div>
       </div>
 
-      <!-- CSV DOWNLOADS BAR -->
+      <!-- CSV DOWNLOADS -->
       <div class="bg-white p-4 rounded-xl border border-stone-200 flex flex-wrap items-center justify-between gap-3 shadow-sm">
         <div>
-          <h3 class="font-bold text-forest text-xs sm:text-sm">📥 डेटा डाउनलोड व रिपोर्ट (CSV Reports)</h3>
-          <p class="text-[11px] text-stone-500">सभी परीक्षार्थियों के प्राप्तांक एवं अंतिम ७ दिनों के पंजीकृत सदस्यों का डेटा</p>
+          <h3 class="font-bold text-forest text-xs sm:text-sm">📥 डेटा डाउनलोड व रिपोर्ट (CSV Exports)</h3>
+          <p class="text-[11px] text-stone-500">सभी परीक्षार्थियों के प्राप्तांक एवं ७ दिनों के सदस्यों का डेटा</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <button onclick="downloadQuizResultsCsv()" class="px-3.5 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 flex items-center gap-1 shadow-sm">
@@ -492,10 +511,10 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         
-        <!-- CARD 1: SET DAILY QUIZ WINNERS (1ST, 2ND, 3RD) -->
+        <!-- CARD 1: SET DAILY QUIZ WINNERS -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
           <h3 class="font-bold text-forest text-sm">🏆 Set Daily Quiz Winners (शीर्ष ३ विजेता)</h3>
-          <p class="text-xs text-stone-500">वेबसाइट के Quiz Arena में प्रदर्शित होने वाले विजेता का नाम व स्कोर भरें:</p>
+          <p class="text-xs text-stone-500">वेबसाइट के Quiz Arena में प्रदर्शित होने वाले विजेता:</p>
           
           <div class="space-y-2">
             <div class="flex gap-2">
@@ -517,7 +536,29 @@
           </button>
         </div>
 
-        <!-- CARD 2: PUBLISH NOTICE BOARD ITEM -->
+        <!-- CARD 2: AUDIO TRACK MANAGER -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+          <h3 class="font-bold text-forest text-sm">🎵 Audio Player Manager (ऑडियो जोड़ें)</h3>
+          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई MP3 फाइल (जैसे <code>./aarti.mp3</code>) या ऑनलाइन ऑडियो लिंक:</p>
+          <input type="text" id="adminAudioTitle" placeholder="ऑडियो का नाम (जैसे: श्री आरती व साखी)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <input type="text" id="adminAudioLink" placeholder="ऑडियो लिंक (जैसे: ./aarti.mp3)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <button onclick="saveAdminAudio()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
+            Add to Audio Player
+          </button>
+        </div>
+
+        <!-- CARD 3: ADD ANY PDF DIRECTLY -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+          <h3 class="font-bold text-forest text-sm">📄 Add PDF Document</h3>
+          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई फ़ाइल (जैसे <code>shabadwani.pdf</code>) या ड्राइव लिंक डालें:</p>
+          <input type="text" id="adminPdfTitle" placeholder="Document Title (e.g. २९ नियम विवरण)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <input type="text" id="adminPdfLink" placeholder="File name or Link (e.g. ./shabadwani.pdf)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <button onclick="saveAdminPdf()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
+            Publish PDF
+          </button>
+        </div>
+
+        <!-- CARD 4: PUBLISH NOTICE BOARD ITEM -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
           <h3 class="font-bold text-forest text-sm">📢 सूचना पट्ट पर संदेश जोड़ें</h3>
           <p class="text-xs text-stone-500">होम पेज पर प्रदर्शित होने वाली सूचना:</p>
@@ -528,28 +569,17 @@
           </button>
         </div>
 
-        <!-- CARD 3: ADD ANY PDF DIRECTLY -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">📄 Add PDF Document</h3>
-          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई फ़ाइल (जैसे <code>shabadwani.pdf</code>) या ड्राइव लिंक डालें।</p>
-          <input type="text" id="adminPdfTitle" placeholder="Document Title (e.g. २९ नियम व्याख्या)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <input type="text" id="adminPdfLink" placeholder="File name or Link (e.g. ./shabadwani.pdf)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <button onclick="saveAdminPdf()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
-            Publish PDF
-          </button>
-        </div>
-
-        <!-- CARD 4: UPDATE DAILY BANNER -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+        <!-- CARD 5: UPDATE DAILY BANNER -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
           <h3 class="font-bold text-forest text-sm">📢 Update Daily Sandesh (Banner)</h3>
-          <p class="text-xs text-stone-500">यह संदेश शीर्ष बैनर पर लाइव दिखेगा।</p>
+          <p class="text-xs text-stone-500">शीर्ष बैनर पर लाइव दिखेगा:</p>
           <textarea id="adminBannerInput" rows="2" placeholder="जैसे: सिर साटै रूंख रहै, तो भी सस्तो जाण..." class="w-full p-2 text-xs border border-stone-300 rounded-lg"></textarea>
           <button onclick="saveAdminBanner()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
             Update Banner
           </button>
         </div>
 
-        <!-- CARD 5: BULK QUIZ IMPORTER -->
+        <!-- CARD 6: BULK QUIZ IMPORTER -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
           <div class="flex items-center justify-between">
             <h3 class="font-bold text-forest text-sm">⚡ Bulk Quiz Importer (Paste All at Once)</h3>
@@ -583,7 +613,7 @@ Ans: B"></textarea>
 
   </main>
 
-  <!-- AUTHENTICATION MODAL (ENGLISH INTERFACE, AUTOCOMPLETE REMOVED) -->
+  <!-- AUTHENTICATION MODAL -->
   <div id="authModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b border-stone-200 pb-2">
@@ -617,7 +647,7 @@ Ans: B"></textarea>
     </div>
   </div>
 
-  <!-- CORE JAVASCRIPT LOGIC -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
     // 1. FIREBASE CONFIG
     const firebaseConfig = {
@@ -632,9 +662,9 @@ Ans: B"></textarea>
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // SECURE OWNER HASH (SHA-256 for 'bishnoi29')
-    const OWNER_HASH = "80f1e8e5db15049cf1a77dc67bfa38b29d8926d859fa424b9675626ae2c84218";
+    // Owner credentials
     const OWNER_PHONE = "9999999999";
+    const OWNER_PASS = "bishnoi29";
 
     // Application State
     let currentUser = JSON.parse(localStorage.getItem('bishnoi_secure_user') || 'null');
@@ -680,12 +710,6 @@ Ans: B"></textarea>
       { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों को काटकर बनने वाले नीले वस्त्रों का त्याग।" }
     ];
 
-    // Helper: SHA-256 Hash
-    async function sha256(str) {
-      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-      return Array.prototype.map.call(new Uint8Array(buf), x => (('00' + x.toString(16)).slice(-2))).join('');
-    }
-
     // In-App Toast
     function showToast(msg) {
       const toast = document.getElementById('toastNotification');
@@ -721,11 +745,12 @@ Ans: B"></textarea>
       listenTreeCounter();
       listenWinners();
       listenNotices();
+      listenAudios();
     });
 
     // NAVIGATION
     function switchTab(id) {
-      ['home', 'niyams', 'library', 'community', 'quiz', 'timeline', 'education', 'admin'].forEach(t => {
+      ['home', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         const nav = document.getElementById(`nav-${t}`);
         if (el) el.classList.add('hidden');
@@ -739,7 +764,27 @@ Ans: B"></textarea>
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // AUTHENTICATION LOGIC
+    // SUB-TABS IN HISTORY: HISTORY vs KIDS CORNER
+    function switchHistorySubTab(sub) {
+      const histView = document.getElementById('historySubView');
+      const kidsView = document.getElementById('kidsSubView');
+      const histBtn = document.getElementById('sub-history-btn');
+      const kidsBtn = document.getElementById('sub-kids-btn');
+
+      if (sub === 'full-history') {
+        histView.classList.remove('hidden');
+        kidsView.classList.add('hidden');
+        histBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
+        kidsBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest";
+      } else {
+        histView.classList.add('hidden');
+        kidsView.classList.remove('hidden');
+        kidsBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
+        histBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest";
+      }
+    }
+
+    // DIRECT FOOLPROOF AUTHENTICATION
     function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
     function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
     function toggleAuthMode() {
@@ -755,14 +800,11 @@ Ans: B"></textarea>
       const phone = document.getElementById('loginPhone').value.trim();
       const pass = document.getElementById('loginPass').value.trim();
       const name = document.getElementById('loginName').value.trim() || 'Devotee';
-      const passHash = await sha256(pass);
 
-      // Secure Owner Check
-      if (phone === OWNER_PHONE && passHash === OWNER_HASH) {
+      if (phone === OWNER_PHONE && pass === OWNER_PASS) {
         currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true };
       } else {
         currentUser = { name: name, phone: phone, isOwner: false };
-        // Store in Firestore Users Collection with Timestamp
         try {
           await db.collection('users').doc(phone).set({
             name: name,
@@ -777,6 +819,9 @@ Ans: B"></textarea>
       updateNavAuth();
       closeAuthModal();
       showToast(`Welcome, ${currentUser.name}!`);
+      if (currentUser.isOwner) {
+        switchTab('admin');
+      }
     }
 
     function logoutUser() {
@@ -824,17 +869,44 @@ Ans: B"></textarea>
       }
     }
 
-    // AUDIO PLAYER
+    // AUDIO PLAYER LOGIC
+    function listenAudios() {
+      db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        if (!snap.empty) {
+          const select = document.getElementById('audioTrackSelect');
+          select.innerHTML = '';
+          snap.forEach(doc => {
+            const a = doc.data();
+            select.innerHTML += `<option value="${a.link}">${a.title}</option>`;
+          });
+          changeAudioTrack();
+        }
+      });
+    }
+
     function changeAudioTrack() {
       const select = document.getElementById('audioTrackSelect');
       const player = document.getElementById('audioPlayer');
       const source = document.getElementById('audioSource');
-      source.src = select.value;
-      player.load();
-      player.play();
+      if (select.value) {
+        source.src = select.value;
+        player.load();
+      }
     }
 
-    // TREE PLEDGE (1 PLEDGE PER USER COOLDOWN)
+    async function saveAdminAudio() {
+      const title = document.getElementById('adminAudioTitle').value.trim();
+      const link = document.getElementById('adminAudioLink').value.trim();
+      if (!title || !link) return showToast('Please enter both title and audio link');
+      await db.collection('audios').add({
+        title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast('Audio track added to live player!');
+      document.getElementById('adminAudioTitle').value = '';
+      document.getElementById('adminAudioLink').value = '';
+    }
+
+    // TREE PLEDGE
     function listenTreeCounter() {
       db.collection('stats').doc('treePledges').onSnapshot(doc => {
         if (doc.exists && doc.data().count) {
@@ -873,7 +945,7 @@ Ans: B"></textarea>
       window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
     }
 
-    // LIVE BANNER & NOTICES
+    // BANNER & NOTICES
     function listenBanner() {
       db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
         if (doc.exists && doc.data().text) {
@@ -920,13 +992,13 @@ Ans: B"></textarea>
       document.getElementById('adminNoticeDesc').value = '';
     }
 
-    // E-LIBRARY (Only Real Uploaded Files Displayed)
+    // E-LIBRARY (Only Real Uploaded Files)
     function listenPdfs() {
       db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
         const grid = document.getElementById('pdfGrid');
         grid.innerHTML = '';
 
-        // Real Shabadwani file
+        // Default Shabadwani
         const defaultCard = document.createElement('div');
         defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between";
         defaultCard.innerHTML = `
@@ -977,7 +1049,7 @@ Ans: B"></textarea>
     async function saveAdminPdf() {
       const title = document.getElementById('adminPdfTitle').value.trim();
       const link = document.getElementById('adminPdfLink').value.trim();
-      if (!title || !link) return showToast('Please enter title and filename/link');
+      if (!title || !link) return showToast('Please enter title and link');
       await db.collection('pdfs').add({
         title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -1039,7 +1111,7 @@ Ans: B"></textarea>
       document.getElementById('adminBulkQuizText').value = '';
     }
 
-    // DAILY QUIZ WINNERS PODIUM (MANUAL OWNER PUBLISH)
+    // DAILY QUIZ WINNERS
     function listenWinners() {
       db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
         if (doc.exists) {
@@ -1075,7 +1147,7 @@ Ans: B"></textarea>
       showToast("Winners Podium Updated Live!");
     }
 
-    // CSV DOWNLOAD: QUIZ ATTEMPTS (MARKS HIGH TO LOW, TIE BREAKER BY TIME)
+    // CSV DOWNLOADS
     async function downloadQuizResultsCsv() {
       showToast("Preparing Quiz Results...");
       const snap = await db.collection('quizAttempts').get();
@@ -1084,7 +1156,6 @@ Ans: B"></textarea>
       let records = [];
       snap.forEach(doc => records.push(doc.data()));
 
-      // Sort: Highest score first, then least time taken
       records.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         return a.timeTakenSeconds - b.timeTakenSeconds;
@@ -1099,7 +1170,6 @@ Ans: B"></textarea>
       downloadBlob(csv, "bishnoi_quiz_results.csv");
     }
 
-    // CSV DOWNLOAD: 7-DAY REGISTERED USERS
     async function download7DaysUsersCsv() {
       showToast("Preparing 7-Day Users List...");
       const sevenDaysAgo = new Date();
@@ -1133,7 +1203,16 @@ Ans: B"></textarea>
       document.body.removeChild(link);
     }
 
-    // QUIZ GAMEPLAY & RECORDING
+    // QUIZ GAMEPLAY FLOW
+    function startQuizNow() {
+      document.getElementById('quizIntroCard').classList.add('hidden');
+      document.getElementById('quizActiveBox').classList.remove('hidden');
+      currentQ = 0;
+      qScore = 0;
+      quizStartTime = Date.now();
+      renderQuiz();
+    }
+
     function loadQuiz() {
       db.collection('quiz').onSnapshot(snap => {
         if (!snap.empty) {
@@ -1157,26 +1236,20 @@ Ans: B"></textarea>
             }
           ];
         }
-        renderQuiz();
       });
     }
 
     function renderQuiz() {
-      const box = document.getElementById('quizBox');
+      const box = document.getElementById('quizActiveBox');
       if (!quizList.length) {
         box.innerHTML = `<div class="text-center py-4 text-xs">कोई प्रश्न उपलब्ध नहीं हैं।</div>`;
         return;
-      }
-
-      if (currentQ === 0) {
-        quizStartTime = Date.now();
       }
 
       if (currentQ >= quizList.length) {
         const timeTakenSeconds = Math.round((Date.now() - quizStartTime) / 1000);
         const percentage = Math.round((qScore / quizList.length) * 100);
 
-        // Record attempt to Cloud Firestore
         if (currentUser) {
           db.collection('quizAttempts').add({
             name: currentUser.name,
@@ -1195,10 +1268,15 @@ Ans: B"></textarea>
             <p class="text-xs text-stone-600">Total Score: <strong class="text-terracotta text-sm">${qScore} / ${quizList.length}</strong> (${percentage}%)</p>
             <p class="text-[11px] text-stone-400">समय: ${timeTakenSeconds} सेकंड</p>
             
-            <div class="pt-2 flex flex-wrap justify-center gap-2">
-              <button onclick="restartQuiz()" class="px-4 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">Try Again</button>
+            <div class="pt-3 flex flex-wrap justify-center gap-2">
+              <button onclick="backToQuizIntro()" class="px-4 py-2 bg-stone-200 hover:bg-stone-300 rounded-lg text-xs font-semibold text-stone-700">
+                ← मुख्य परीक्षा पृष्ठ
+              </button>
+              <button onclick="startQuizNow()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
+                Try Again
+              </button>
               ${percentage >= 80 ? `
-                <button onclick="generateCertificate('${currentUser ? currentUser.name : 'विश्नोई भक्त'}', ${percentage})" class="px-4 py-1.5 bg-terracotta text-white rounded-lg text-xs font-semibold shadow">
+                <button onclick="generateCertificate('${currentUser ? currentUser.name : 'विश्नोई भक्त'}', ${percentage})" class="px-4 py-2 bg-terracotta text-white rounded-lg text-xs font-semibold shadow">
                   📜 Download Certificate
                 </button>
               ` : ''}
@@ -1212,19 +1290,19 @@ Ans: B"></textarea>
       const q = quizList[currentQ];
       box.innerHTML = `
         <div class="space-y-4">
-          <div class="flex justify-between text-[11px] text-stone-500">
+          <div class="flex justify-between items-center text-xs text-stone-500 border-b border-stone-100 pb-2">
             <span>प्रश्न ${currentQ + 1} / ${quizList.length}</span>
             <span>Score: ${qScore}</span>
           </div>
           <h3 class="font-bold text-sm sm:text-base text-forest">${q.q}</h3>
           <div class="space-y-2 pt-1">
             ${q.opts.map((opt, i) => `
-              <button onclick="checkAnswer(${i})" class="w-full text-left p-2.5 text-xs rounded-lg border border-stone-200 hover:bg-amber-50 bg-white transition-colors">
+              <button onclick="checkAnswer(${i})" class="w-full text-left p-3 text-xs rounded-xl border border-stone-200 hover:bg-amber-50 bg-white transition-all font-medium">
                 ${opt}
               </button>
             `).join('')}
           </div>
-          <div id="quizFeedbackBox" class="hidden text-xs p-2 rounded-lg font-semibold"></div>
+          <div id="quizFeedbackBox" class="hidden text-xs p-2.5 rounded-lg font-semibold"></div>
         </div>
       `;
     }
@@ -1249,23 +1327,19 @@ Ans: B"></textarea>
       }, 1200);
     }
 
-    function restartQuiz() {
-      currentQ = 0;
-      qScore = 0;
-      quizStartTime = Date.now();
-      renderQuiz();
+    function backToQuizIntro() {
+      document.getElementById('quizActiveBox').classList.add('hidden');
+      document.getElementById('quizIntroCard').classList.remove('hidden');
     }
 
-    // CANVAS CERTIFICATE GENERATOR (>= 80% SCORE)
+    // CERTIFICATE GENERATOR
     function generateCertificate(name, score) {
       const canvas = document.getElementById('certCanvas');
       const ctx = canvas.getContext('2d');
 
-      // Certificate Background
       ctx.fillStyle = '#FAF7EE';
       ctx.fillRect(0, 0, 800, 600);
 
-      // Border
       ctx.strokeStyle = '#143622';
       ctx.lineWidth = 14;
       ctx.strokeRect(20, 20, 760, 560);
@@ -1274,7 +1348,6 @@ Ans: B"></textarea>
       ctx.lineWidth = 3;
       ctx.strokeRect(32, 32, 736, 536);
 
-      // Content
       ctx.fillStyle = '#143622';
       ctx.textAlign = 'center';
       ctx.font = 'bold 34px sans-serif';
@@ -1306,7 +1379,6 @@ Ans: B"></textarea>
       ctx.fillText(`दिनांक: ${new Date().toLocaleDateString()}`, 200, 500);
       ctx.fillText('डिजिटल प्रमाणीकरण: bishnoi-portal', 600, 500);
 
-      // Download Image
       const link = document.createElement('a');
       link.download = `Bishnoi_Certificate_${name}.png`;
       link.href = canvas.toDataURL();
@@ -1314,7 +1386,7 @@ Ans: B"></textarea>
       showToast("Certificate downloaded successfully!");
     }
 
-    // CHAUPAL ANTI-SPAM & IMAGE COMPRESSION
+    // CHAUPAL ANTI-SPAM
     function updateCharCount() {
       const len = document.getElementById('postText').value.length;
       document.getElementById('charCountDisplay').innerText = `${len} / 300`;
@@ -1453,7 +1525,7 @@ Ans: B"></textarea>
       renderNiyams(NIYAMS_DATA.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q)));
     }
 
-    // GLOBAL SEARCH BAR
+    // GLOBAL SEARCH
     function handleGlobalSearch() {
       const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
       if (!q) return;
