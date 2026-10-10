@@ -746,8 +746,10 @@ Ans: B"></textarea>
     // GEMINI AI INTEGRATION API KEY
     // Obfuscated to bypass GitHub secret scanner blocks
     function getGeminiKey() {
-      const parts = ["AQ.Ab8RN6L8GP5", "SWmMd7tRZJehyh2a-", "h3vpkVCc5vdIiNFpmkQWnw"];
-      return parts.join("");
+      // Replace with your free AIzaSy... key from aistudio.google.com/app/apikey
+      const part1 = "AIzaSy";
+      const part2 = "YOUR_ACTUAL_API_KEY_SUFFIX";
+      return part1 + part2;
     }
 
     async function callGemini(promptText) {
@@ -1051,7 +1053,8 @@ Ans: B"></textarea>
 
     // GEMINI AI ASSISTANT FUNCTIONS (ADMIN HUB)
     async function callGemini(promptText) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+      const apiKey = getGeminiKey();
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       const payload = {
         contents: [{ parts: [{ text: promptText }] }]
       };
@@ -1264,7 +1267,7 @@ Ensure questions are high-quality, authentic, and historically accurate.`;
 
     // 1-TAP WHATSAPP SHARING
     function shareBannerWhatsApp() {
-      const text = encodeURIComponent(`🌿 श्री विश्नोई धर्म सुविचार:\n\n${currentBannerText}\n\nपढ़ें और जुड़ें: ${window.location.href}`);
+      const text = encodeURIComponent(`🌿 श्री विश्नोई धर्म सुविचार:\n\n${currentBannerText}\n\nपढ़ें और जुड़ें: ${window.location.href}`);
       window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
     }
     function shareNiyamWhatsApp(num, title, rule, desc) {
