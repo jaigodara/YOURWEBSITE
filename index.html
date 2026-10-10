@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="hi" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>श्री विश्नोई धर्म | Bishnoi Community Portal</title>
+  <title>श्री विश्नोई समाज पीठ | Bishnoi Eco-Dharm Portal</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts -->
+  <!-- Google Fonts: Inter/Plus Jakarta + Rozha One + Yatra One -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Yatra+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Rozha+One&family=Yatra+One&display=swap" rel="stylesheet">
   <!-- Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-  <!-- Firebase Compat (100% Free Database) -->
+  <!-- Firebase Compat (Free Database) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -23,14 +23,16 @@
       theme: {
         extend: {
           colors: {
-            forest: '#1E3D2B',
+            forest: '#183B28',
             terracotta: '#B85324',
-            parchment: '#FAF7F2',
+            leaf: '#2D6A4F',
+            sand: '#FAF6EE',
             cardBg: '#FFFFFF',
-            ink: '#231B15'
+            ink: '#1E1915'
           },
           fontFamily: {
             yatra: ['Yatra One', 'cursive'],
+            rozha: ['Rozha One', 'serif'],
             sans: ['Plus Jakarta Sans', 'sans-serif']
           }
         }
@@ -40,87 +42,104 @@
 
   <style>
     body {
-      background-color: #F6F3EC;
-      color: #231B15;
+      background-color: #F8F5EE;
+      color: #241A13;
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
     .nav-btn {
-      padding: 0.5rem 0.9rem;
+      padding: 0.45rem 0.85rem;
       border-radius: 0.5rem;
-      font-size: 0.875rem;
+      font-size: 0.825rem;
       font-weight: 500;
       color: #4A3E37;
       transition: all 0.15s ease;
+      white-space: nowrap;
     }
     .nav-btn:hover {
-      background-color: #EBE5D8;
-      color: #1E3D2B;
+      background-color: #EBE4D5;
+      color: #183B28;
     }
     .nav-btn-active {
-      background-color: #1E3D2B !important;
+      background-color: #183B28 !important;
       color: #FFFFFF !important;
+      font-weight: 600;
     }
   </style>
 </head>
 
 <body class="min-h-screen flex flex-col antialiased">
 
-  <!-- TOP DAILY QUOTE -->
-  <div class="bg-forest text-amber-200 text-xs py-2 px-4 text-center font-medium border-b border-amber-950/20">
-    <span id="dailyBannerText">"जीव दया पालणी, रूंख लीलो नी घावै" — Protect nature and all living beings.</span>
+  <!-- SMOOTH IN-APP NOTIFICATION TOAST -->
+  <div id="toastNotification" class="fixed top-4 right-4 z-50 transform -translate-y-20 opacity-0 transition-all duration-300 pointer-events-none max-w-sm w-full">
+    <div class="bg-forest text-amber-200 border border-amber-600/40 px-4 py-3 rounded-xl shadow-xl flex items-center justify-between text-xs sm:text-sm font-medium">
+      <span id="toastMsg">Notification message</span>
+      <span class="ml-2 text-amber-400">✓</span>
+    </div>
   </div>
 
-  <!-- CLEAN HEADER -->
+  <!-- TOP DAILY BANNER WITH WHATSAPP SHARE -->
+  <div class="bg-forest text-amber-200 text-xs py-2 px-3 sm:px-6 border-b border-amber-950/20 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2 overflow-hidden truncate">
+      <span class="font-yatra text-amber-400 text-sm hidden sm:inline">ॐ श्री जाम्भोजी नमः :</span>
+      <span id="dailyBannerText" class="truncate font-medium text-amber-100">"जीव दया पालणी, रूंख लीलो नी घावै" — Protect nature and kindness to all living beings.</span>
+    </div>
+    <button onclick="shareBannerWhatsApp()" class="flex-shrink-0 bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 shadow-sm transition-all">
+      <span>Share WhatsApp</span> 📲
+    </button>
+  </div>
+
+  <!-- MAIN HEADER -->
   <header class="bg-white border-b border-stone-200 sticky top-0 z-40 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
       
-      <!-- Logo -->
-      <a href="#" onclick="switchTab('home')" class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-lg bg-forest text-amber-300 flex items-center justify-center font-bold text-lg">
+      <!-- LOGO -->
+      <a href="#" onclick="switchTab('home')" class="flex items-center gap-2.5 flex-shrink-0">
+        <div class="w-9 h-9 rounded-lg bg-forest text-amber-300 flex items-center justify-center font-bold text-xl shadow-sm">
           🌳
         </div>
         <div>
           <span class="font-yatra text-xl text-forest block leading-none">श्री विश्नोई समाज</span>
-          <span class="text-[10px] uppercase tracking-wider font-semibold text-terracotta">२९ नियम • पावन धरोहर</span>
+          <span class="text-[10px] tracking-wider uppercase font-semibold text-terracotta">29 Sacred Rules • Live Portal</span>
         </div>
       </a>
 
-      <!-- Desktop Navigation -->
-      <nav class="hidden md:flex items-center gap-1">
-        <button onclick="switchTab('home')" id="nav-home" class="nav-btn nav-btn-active">होम</button>
+      <!-- DESKTOP NAV (BILINGUAL AS REQUESTED) -->
+      <nav class="hidden md:flex items-center gap-1 overflow-x-auto">
+        <button onclick="switchTab('home')" id="nav-home" class="nav-btn nav-btn-active">Home</button>
         <button onclick="switchTab('niyams')" id="nav-niyams" class="nav-btn">२९ नियम</button>
-        <button onclick="switchTab('library')" id="nav-library" class="nav-btn">साहित्य व PDF</button>
-        <button onclick="switchTab('community')" id="nav-community" class="nav-btn">चौपाल चर्चा</button>
-        <button onclick="switchTab('quiz')" id="nav-quiz" class="nav-btn">प्रश्नोत्तरी (Quiz)</button>
-        <button onclick="switchTab('feedback')" id="nav-feedback" class="nav-btn">प्रतिक्रिया</button>
+        <button onclick="switchTab('library')" id="nav-library" class="nav-btn">E-Library & PDFs</button>
+        <button onclick="switchTab('community')" id="nav-community" class="nav-btn">चौपाल (Community)</button>
+        <button onclick="switchTab('quiz')" id="nav-quiz" class="nav-btn">Quiz Arena</button>
+        <button onclick="switchTab('feedback')" id="nav-feedback" class="nav-btn">Feedback</button>
         <button onclick="switchTab('admin')" id="nav-admin" class="hidden nav-btn bg-terracotta text-white font-semibold hover:bg-amber-800">
-          ⚙️ व्यवस्थापक
+          Admin Hub
         </button>
       </nav>
 
-      <!-- User Area -->
-      <div id="authActionsContainer" class="flex items-center gap-2">
-        <!-- Injected via JavaScript -->
+      <!-- AUTH USER / LOGIN BUTTON -->
+      <div id="authActionsContainer" class="flex items-center gap-2 flex-shrink-0">
+        <!-- Rendered via JS -->
       </div>
     </div>
 
-    <!-- Mobile Nav Bar -->
-    <div class="md:hidden border-t border-stone-200 bg-stone-50 px-2 py-2 flex items-center justify-around text-xs">
-      <button onclick="switchTab('home')" class="py-1 px-2 font-medium">होम</button>
-      <button onclick="switchTab('niyams')" class="py-1 px-2 font-medium">२९ नियम</button>
-      <button onclick="switchTab('library')" class="py-1 px-2 font-medium">PDF</button>
-      <button onclick="switchTab('community')" class="py-1 px-2 font-medium">चौपाल</button>
-      <button onclick="switchTab('quiz')" class="py-1 px-2 font-medium">Quiz</button>
-      <button id="nav-admin-mobile" onclick="switchTab('admin')" class="hidden py-1 px-2 font-semibold text-terracotta">व्यवस्थापक</button>
+    <!-- MOBILE QUICK NAV -->
+    <div class="md:hidden border-t border-stone-200 bg-stone-50 px-3 py-2 flex items-center justify-between text-xs overflow-x-auto gap-1">
+      <button onclick="switchTab('home')" class="py-1 px-2 font-medium whitespace-nowrap">Home</button>
+      <button onclick="switchTab('niyams')" class="py-1 px-2 font-medium whitespace-nowrap">२९ नियम</button>
+      <button onclick="switchTab('library')" class="py-1 px-2 font-medium whitespace-nowrap">PDFs</button>
+      <button onclick="switchTab('community')" class="py-1 px-2 font-medium whitespace-nowrap">चौपाल</button>
+      <button onclick="switchTab('quiz')" class="py-1 px-2 font-medium whitespace-nowrap">Quiz</button>
+      <button id="nav-admin-mobile" onclick="switchTab('admin')" class="hidden py-1 px-2 font-semibold text-terracotta whitespace-nowrap">Admin</button>
     </div>
   </header>
 
-  <!-- MAIN CONTAINER -->
-  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8">
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
 
     <!-- 1. HOME TAB -->
-    <section id="tab-home" class="space-y-8">
-      <!-- Welcome Hero -->
+    <section id="tab-home" class="space-y-6">
+      
+      <!-- HERO -->
       <div class="bg-forest text-amber-50 rounded-2xl p-6 sm:p-10 shadow-sm border border-emerald-950/20">
         <span class="inline-block px-3 py-1 bg-amber-400/20 text-amber-300 rounded-full text-xs font-semibold mb-3">
           संवत १५४२ • समराथल धोरा
@@ -131,7 +150,7 @@
         <p class="text-xs sm:text-sm text-stone-200 mt-3 leading-relaxed max-w-2xl">
           गुरु जम्भेश्वर भगवान द्वारा प्रतिपादित २९ नियमों के आधार पर जीव दया, वृक्ष रक्षा और सात्विक जीवन शैली की विश्व की सबसे अनूठी धरोहर।
         </p>
-        <div class="mt-6 flex flex-wrap gap-3">
+        <div class="mt-5 flex flex-wrap gap-3">
           <button onclick="switchTab('library')" class="px-4 py-2 bg-terracotta hover:bg-amber-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm">
             साहित्य व PDF देखें
           </button>
@@ -141,24 +160,42 @@
         </div>
       </div>
 
-      <!-- Khejarli & Principles Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <!-- LIVE TREE PLANTATION PLEDGE COUNTER ('एक पेड़ जाम्भोजी के नाम') -->
+      <div class="bg-emerald-900/90 text-white rounded-2xl p-5 border border-emerald-700/50 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+        <div class="space-y-1 text-center sm:text-left">
+          <span class="text-[11px] font-bold tracking-wider uppercase text-amber-300">हरित संकल्प (Eco-Pledge)</span>
+          <h3 class="font-yatra text-lg sm:text-xl">"एक पेड़ जाम्भोजी के नाम"</h3>
+          <p class="text-xs text-stone-200">समाज बन्धुओं द्वारा लगाए गए कुल वृक्षों का संकल्प।</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-center px-4 py-2 bg-black/30 rounded-xl border border-white/10">
+            <span id="treeCounterDisplay" class="font-bold text-2xl text-amber-300 font-mono">1485</span>
+            <span class="block text-[10px] text-stone-300">वृक्ष संकल्प</span>
+          </div>
+          <button onclick="pledgeTree()" id="treePledgeBtn" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-forest font-bold rounded-xl text-xs sm:text-sm shadow transition-all">
+            🌱 मैंने पेड़ लगाया (Pledge)
+          </button>
+        </div>
+      </div>
+
+      <!-- KHEJARLI SACRIFICE OVERVIEW -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <div class="text-2xl mb-2">🌿</div>
+          <div class="text-2xl mb-1.5">🌿</div>
           <h2 class="font-yatra text-lg text-forest mb-1">३६३ अमर बलिदानी</h2>
           <p class="text-xs text-stone-600 leading-relaxed">
             १७३० ईस्वी में खेजड़ली गांव में अमृता देवी विश्नोई के नेतृत्व में हरे खेजड़ी वृक्षों की रक्षा के लिए ३६३ नर-नारियों ने अपने सिरों का बलिदान दिया।
           </p>
         </div>
         <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <div class="text-2xl mb-2">🦌</div>
+          <div class="text-2xl mb-1.5">🦌</div>
           <h2 class="font-yatra text-lg text-forest mb-1">जीव रक्षा व अहिंसा</h2>
           <p class="text-xs text-stone-600 leading-relaxed">
             काले हिरण, चिंकारा और मूक पशु-पक्षियों के प्रति असीम प्रेम व अभयदान। विश्नोई समाज का हर गांव वन्यजीवों के लिए सुरक्षित तीर्थ है।
           </p>
         </div>
         <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <div class="text-2xl mb-2">📜</div>
+          <div class="text-2xl mb-1.5">📜</div>
           <h2 class="font-yatra text-lg text-forest mb-1">२९ पावन नियम</h2>
           <p class="text-xs text-stone-600 leading-relaxed">
             दैनिक स्वच्छता, दया, करुणा, सत्य, नशा-मुक्ति और आध्यात्मिक साधना का वैज्ञानिक समन्वय जो जीवन को निर्मल बनाता है।
@@ -167,7 +204,7 @@
       </div>
     </section>
 
-    <!-- 2. 29 NIYAMS TAB -->
+    <!-- 2. 29 NIYAMS TAB (WITH 1-TAP WHATSAPP SHARE ON EACH NIYAM) -->
     <section id="tab-niyams" class="hidden space-y-6">
       <div class="border-b border-stone-200 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -179,55 +216,57 @@
       <div id="niyamGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </section>
 
-    <!-- 3. E-LIBRARY TAB -->
+    <!-- 3. E-LIBRARY TAB (PDFs) -->
     <section id="tab-library" class="hidden space-y-6">
-      <div class="border-b border-stone-200 pb-3 flex items-center justify-between">
-        <div>
-          <h2 class="text-2xl font-yatra text-forest">विश्नोई साहित्य व ग्रंथ (PDFs)</h2>
-          <p class="text-xs text-stone-600">श्री सबदवाणी, २९ नियम विवरण और ऐतिहासिक पुस्तकें</p>
-        </div>
+      <div class="border-b border-stone-200 pb-3">
+        <h2 class="text-2xl font-yatra text-forest">विश्नोई साहित्य व ग्रंथ (PDFs)</h2>
+        <p class="text-xs text-stone-600">श्री सबदवाणी, २९ नियम विवरण और ऐतिहासिक पुस्तकें</p>
       </div>
       <div id="pdfGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <!-- Rendered dynamically -->
       </div>
     </section>
 
-    <!-- 4. COMMUNITY CHAUPAL TAB -->
+    <!-- 4. COMMUNITY CHAUPAL (NO BROWSER POPUPS, 1-TAP WHATSAPP SHARE) -->
     <section id="tab-community" class="hidden space-y-6">
       <div class="border-b border-stone-200 pb-3">
         <h2 class="text-2xl font-yatra text-forest">विश्नोई समाज चौपाल</h2>
         <p class="text-xs text-stone-600">समाज बन्धु अपने विचार, प्रश्न और तस्वीरें साझा करें</p>
       </div>
 
-      <!-- Post Creation Box -->
-      <div id="postCreateBox" class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
+      <!-- CREATE POST BOX -->
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
         <div id="postAuthPrompt" class="text-center py-4 text-xs text-stone-600">
-          चौपाल में संदेश या फोटो साझा करने के लिए कृपया पहले <button onclick="openAuthModal()" class="text-terracotta font-semibold underline">लॉगिन करें</button>।
+          चौपाल में संदेश या फोटो साझा करने के लिए कृपया पहले <button onclick="openAuthModal()" class="text-terracotta font-semibold underline">Sign In करें</button>।
         </div>
+        
         <div id="postEditor" class="hidden space-y-3">
           <textarea id="postText" rows="3" placeholder="समाज के लिए कोई संदेश या प्रश्न लिखें..." class="w-full p-2.5 text-xs sm:text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest bg-stone-50"></textarea>
+          
           <div class="flex items-center justify-between">
-            <label class="cursor-pointer text-xs font-semibold text-terracotta flex items-center gap-1">
-              📷 फोटो जोड़ें
+            <label class="cursor-pointer text-xs font-semibold text-terracotta flex items-center gap-1 hover:underline">
+              📷 Add Photo
               <input type="file" id="postPhoto" accept="image/*" class="hidden" onchange="previewPostImg(event)">
             </label>
-            <button onclick="submitChaupalPost()" class="px-4 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
-              पोस्ट करें
+            <button onclick="submitChaupalPost()" id="postSubmitBtn" class="px-4 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition-all">
+              Post Message
             </button>
           </div>
-          <div id="postImgPreviewWrap" class="hidden">
-            <img id="postImgPreview" src="" class="max-h-40 rounded-lg border border-stone-200" alt="preview">
+
+          <div id="postImgPreviewWrap" class="hidden relative inline-block">
+            <img id="postImgPreview" src="" class="max-h-40 rounded-lg border border-stone-200 object-cover" alt="preview">
+            <button onclick="clearPostImg()" class="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs">✕</button>
           </div>
         </div>
       </div>
 
-      <!-- Feed -->
+      <!-- POSTS FEED -->
       <div id="communityFeed" class="space-y-4">
         <div class="text-center py-8 text-xs text-stone-500">चौपाल संदेश लोड हो रहे हैं...</div>
       </div>
     </section>
 
-    <!-- 5. QUIZ ARENA TAB -->
+    <!-- 5. QUIZ ARENA (WITH IN-APP RESULTS & NO ALERT POPUPS) -->
     <section id="tab-quiz" class="hidden max-w-xl mx-auto space-y-6">
       <div class="text-center space-y-1">
         <h2 class="text-2xl font-yatra text-forest">विश्नोई ज्ञान परीक्षा</h2>
@@ -246,15 +285,15 @@
       </div>
       <form onsubmit="handleFeedbackSubmit(event)" class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
         <div>
-          <label class="block text-xs font-semibold mb-1">आपका नाम</label>
-          <input type="text" id="fbName" required placeholder="पूरा नाम लिखें" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <label class="block text-xs font-semibold mb-1">Your Name</label>
+          <input type="text" id="fbName" required placeholder="Enter full name" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1">सुझाव / संदेश</label>
-          <textarea id="fbMsg" rows="3" required placeholder="अपनी राय लिखें..." class="w-full p-2 text-xs border border-stone-300 rounded-lg"></textarea>
+          <label class="block text-xs font-semibold mb-1">Message / Suggestion</label>
+          <textarea id="fbMsg" rows="3" required placeholder="Write your comments here..." class="w-full p-2 text-xs border border-stone-300 rounded-lg"></textarea>
         </div>
-        <button type="submit" class="w-full py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
-          प्रतिक्रिया भेजें
+        <button type="submit" class="w-full py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition-all">
+          Submit Feedback
         </button>
       </form>
     </section>
@@ -272,36 +311,36 @@
         
         <!-- CARD 1: UPDATE BANNER -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">📢 दैनिक संदेश / विचार बदलें</h3>
-          <p class="text-xs text-stone-500">यह संदेश वेबसाइट के सबसे ऊपर सभी लोगों को दिखेगा।</p>
+          <h3 class="font-bold text-forest text-sm">📢 Update Daily Sandesh (Banner)</h3>
+          <p class="text-xs text-stone-500">यह संदेश वेबसाइट के सबसे ऊपर सभी लोगों को लाइव दिखेगा।</p>
           <textarea id="adminBannerInput" rows="2" placeholder="जैसे: सिर साटै रूंख रहै, तो भी सस्तो जाण..." class="w-full p-2 text-xs border border-stone-300 rounded-lg"></textarea>
-          <button onclick="saveAdminBanner()" class="px-3 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">
-            अपडेट करें
+          <button onclick="saveAdminBanner()" class="px-3.5 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">
+            Update Banner
           </button>
         </div>
 
-        <!-- CARD 2: ADD PDF DOCUMENT -->
+        <!-- CARD 2: ADD ANY PDF DIRECTLY -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">📄 नई PDF सूची में जोड़ें</h3>
-          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई फ़ाइल (जैसे <code>shabadwani.pdf</code>) या गूगल ड्राइव का लिंक डालें।</p>
-          <input type="text" id="adminPdfTitle" placeholder="शीर्षक (जैसे: श्री सबदवाणी)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <input type="text" id="adminPdfLink" placeholder="फ़ाइल नाम या लिंक (जैसे: ./shabadwani.pdf)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <button onclick="saveAdminPdf()" class="px-3 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">
-            PDF जोड़ें
+          <h3 class="font-bold text-forest text-sm">📄 Add PDF Document</h3>
+          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई किसी भी नाम की फाइल (जैसे: <code>rules.pdf</code>) या गूगल ड्राइव का लिंक डालें।</p>
+          <input type="text" id="adminPdfTitle" placeholder="Document Title (e.g. 29 नियम व्याख्या)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <input type="text" id="adminPdfLink" placeholder="File name or Link (e.g. ./rules.pdf)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <button onclick="saveAdminPdf()" class="px-3.5 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">
+            Publish PDF
           </button>
         </div>
 
         <!-- CARD 3: BULK QUIZ CREATOR (ALL IN ONE GO) -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
           <div class="flex items-center justify-between">
-            <h3 class="font-bold text-forest text-sm">⚡ एक साथ सारे Quiz प्रश्न जोड़ें (Bulk Quiz Importer)</h3>
-            <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">आसान तरीका</span>
+            <h3 class="font-bold text-forest text-sm">⚡ Bulk Quiz Importer (Paste All at Once)</h3>
+            <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">One-Click</span>
           </div>
           <p class="text-xs text-stone-500 leading-relaxed">
-            एक-एक करके भरने की जरूरत नहीं है। नीचे दिए गए बॉक्स में अपने प्रश्न और विकल्प इस आसान प्रारूप (format) में पेस्ट करें और एक क्लिक में सभी प्रश्न लाइव हो जाएंगे:
+            सारे प्रश्न और उत्तर एक साथ पेस्ट करें। वेबसाइट अपने आप पहचान लेगी:
           </p>
 
-          <textarea id="adminBulkQuizText" rows="9" class="w-full p-3 font-mono text-xs border border-stone-300 rounded-lg bg-stone-50" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
+          <textarea id="adminBulkQuizText" rows="7" class="w-full p-3 font-mono text-xs border border-stone-300 rounded-lg bg-stone-50" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
 C) 1857 ईस्वी
@@ -316,7 +355,7 @@ D) 108
 Ans: B"></textarea>
 
           <button onclick="importBulkQuiz()" class="px-5 py-2 bg-terracotta text-white rounded-lg text-xs font-semibold hover:bg-amber-800">
-            सारे प्रश्न एक साथ Quiz में डालें
+            Publish All Questions to Quiz
           </button>
         </div>
 
@@ -325,41 +364,41 @@ Ans: B"></textarea>
 
   </main>
 
-  <!-- USER SIGN IN / REGISTRATION MODAL -->
+  <!-- AUTHENTICATION MODAL (ENGLISH INTERFACE, AUTOCOMPLETE DISABLED TO REMOVE SUGGESTION CLUTTER) -->
   <div id="authModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-xs w-full p-5 space-y-3 shadow-xl">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b border-stone-200 pb-2">
-        <h3 class="font-yatra text-lg text-forest" id="authTitle">लॉगिन करें</h3>
-        <button onclick="closeAuthModal()" class="text-stone-500 hover:text-black">✕</button>
+        <h3 class="font-bold text-sm text-forest" id="authTitle">Sign In</h3>
+        <button onclick="closeAuthModal()" class="text-stone-400 hover:text-black">✕</button>
       </div>
 
-      <form onsubmit="handleAuthSubmit(event)" class="space-y-2.5">
+      <form onsubmit="handleAuthSubmit(event)" class="space-y-2.5" autocomplete="off">
         <div id="nameRow" class="hidden">
-          <label class="block text-[11px] font-semibold text-stone-700">आपका नाम</label>
-          <input type="text" id="loginName" placeholder="नाम लिखें" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <label class="block text-[11px] font-semibold text-stone-600">Full Name</label>
+          <input type="text" id="loginName" autocomplete="off" placeholder="Enter your name" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
         <div>
-          <label class="block text-[11px] font-semibold text-stone-700">फोन नंबर</label>
-          <input type="tel" id="loginPhone" required placeholder="१० अंकों का मोबाइल नंबर" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <label class="block text-[11px] font-semibold text-stone-600">Phone Number</label>
+          <input type="tel" id="loginPhone" required autocomplete="off" placeholder="Enter 10-digit mobile" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
         <div>
-          <label class="block text-[11px] font-semibold text-stone-700">पासवर्ड</label>
-          <input type="password" id="loginPass" required placeholder="पासवर्ड" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <label class="block text-[11px] font-semibold text-stone-600">Password</label>
+          <input type="password" id="loginPass" required autocomplete="new-password" placeholder="Enter password" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
-        <button type="submit" id="authSubmitBtn" class="w-full py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950">
-          लॉगिन करें
+        <button type="submit" id="authSubmitBtn" class="w-full py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition-all">
+          Sign In
         </button>
       </form>
 
       <div class="text-center pt-1">
         <button onclick="toggleAuthMode()" id="authToggleBtn" class="text-xs text-terracotta underline">
-          खाता नहीं है? नया खाता बनाएं
+          New here? Register account
         </button>
       </div>
     </div>
   </div>
 
-  <!-- SCRIPT LOGIC -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
     // 1. FIREBASE CONFIG
     const firebaseConfig = {
@@ -385,6 +424,7 @@ Ans: B"></textarea>
     let quizList = [];
     let currentQ = 0;
     let qScore = 0;
+    let currentBannerText = '"जीव दया पालणी, रूंख लीलो नी घावै" — Protect nature and kindness to all living beings.';
 
     const NIYAMS_DATA = [
       { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक स्वच्छता और विश्राम रखें।" },
@@ -418,6 +458,18 @@ Ans: B"></textarea>
       { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों को काटकर बनने वाले नीले वस्त्रों का त्याग।" }
     ];
 
+    // IN-APP TOAST (REPLACES BROWSER ALERT POPUPS)
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('-translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       updateNavAuth();
       renderNiyams(NIYAMS_DATA);
@@ -425,6 +477,7 @@ Ans: B"></textarea>
       listenPdfs();
       listenPosts();
       loadQuiz();
+      listenTreeCounter();
     });
 
     // Navigation Switcher
@@ -443,25 +496,25 @@ Ans: B"></textarea>
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Auth logic
+    // AUTH LOGIC (ENGLISH UI)
     function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
     function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
     function toggleAuthMode() {
       isRegisterMode = !isRegisterMode;
       document.getElementById('nameRow').classList.toggle('hidden', !isRegisterMode);
-      document.getElementById('authTitle').innerText = isRegisterMode ? "नया खाता बनाएं" : "लॉगिन करें";
-      document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "साइन अप" : "लॉगिन करें";
-      document.getElementById('authToggleBtn').innerText = isRegisterMode ? "पहले से खाता है? लॉगिन करें" : "खाता नहीं है? नया खाता बनाएं";
+      document.getElementById('authTitle').innerText = isRegisterMode ? "Create Account" : "Sign In";
+      document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "Register" : "Sign In";
+      document.getElementById('authToggleBtn').innerText = isRegisterMode ? "Already registered? Sign In" : "New here? Register account";
     }
 
     function handleAuthSubmit(e) {
       e.preventDefault();
       const phone = document.getElementById('loginPhone').value.trim();
       const pass = document.getElementById('loginPass').value.trim();
-      const name = document.getElementById('loginName').value.trim() || 'विश्नोई भक्त';
+      const name = document.getElementById('loginName').value.trim() || 'Devotee';
 
       if (phone === OWNER_PHONE && pass === OWNER_PASS) {
-        currentUser = { name: "व्यवस्थापक (Owner)", isOwner: true };
+        currentUser = { name: "Owner / व्यवस्थापक", isOwner: true };
       } else {
         currentUser = { name: name, phone: phone, isOwner: false };
       }
@@ -469,7 +522,7 @@ Ans: B"></textarea>
       localStorage.setItem('bishnoi_active_user', JSON.stringify(currentUser));
       updateNavAuth();
       closeAuthModal();
-      alert(`स्वागत है, ${currentUser.name}!`);
+      showToast(`Welcome, ${currentUser.name}!`);
     }
 
     function logoutUser() {
@@ -477,6 +530,7 @@ Ans: B"></textarea>
       currentUser = null;
       updateNavAuth();
       switchTab('home');
+      showToast("Signed out successfully");
     }
 
     function updateNavAuth() {
@@ -489,9 +543,9 @@ Ans: B"></textarea>
       if (currentUser) {
         container.innerHTML = `
           <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-stone-100 border border-stone-200">
-            ${currentUser.isOwner ? '🛡️ व्यवस्थापक' : '👤 ' + currentUser.name}
+            ${currentUser.isOwner ? '🛡️ Owner' : '👤 ' + currentUser.name}
           </span>
-          <button onclick="logoutUser()" title="लॉगआउट" class="text-xs text-stone-500 hover:text-red-700 font-semibold px-1">लॉगआउट</button>
+          <button onclick="logoutUser()" class="text-xs text-stone-500 hover:text-red-700 font-semibold px-1">Logout</button>
         `;
         if (postPrompt) postPrompt.classList.add('hidden');
         if (postEditor) postEditor.classList.remove('hidden');
@@ -506,7 +560,7 @@ Ans: B"></textarea>
       } else {
         container.innerHTML = `
           <button onclick="openAuthModal()" class="px-3 py-1.5 rounded-lg bg-forest text-white text-xs font-semibold hover:bg-emerald-950">
-            लॉगिन / जुड़ें
+            Sign In / Join
           </button>
         `;
         if (postPrompt) postPrompt.classList.remove('hidden');
@@ -516,30 +570,68 @@ Ans: B"></textarea>
       }
     }
 
-    // 2. LIVE ANNOUNCEMENT
+    // TREE PLEDGE COUNTER
+    function listenTreeCounter() {
+      db.collection('stats').doc('treePledges').onSnapshot(doc => {
+        if (doc.exists && doc.data().count) {
+          document.getElementById('treeCounterDisplay').innerText = doc.data().count;
+        }
+      });
+    }
+
+    async function pledgeTree() {
+      const display = document.getElementById('treeCounterDisplay');
+      let currentVal = parseInt(display.innerText) || 1485;
+      let nextVal = currentVal + 1;
+      display.innerText = nextVal;
+      showToast("प्रकृति रक्षा के लिए साधुवाद! Tree pledge recorded.");
+      confetti({ particleCount: 40, spread: 50 });
+      try {
+        await db.collection('stats').doc('treePledges').set({ count: nextVal }, { merge: true });
+      } catch(e){}
+    }
+
+    // 1-TAP WHATSAPP SHARING
+    function shareBannerWhatsApp() {
+      const text = encodeURIComponent(`🌿 श्री विश्नोई धर्म सुविचार:\n\n${currentBannerText}\n\nपढ़ें और जुड़ें: ${window.location.href}`);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    }
+
+    function shareNiyamWhatsApp(num, title, rule, desc) {
+      const text = encodeURIComponent(`🌿 विश्नोई धर्म नियम सं. ${num} - ${title}\n"${rule}"\n\nविवरण: ${desc}\n\nश्री विश्नोई पोर्टल: ${window.location.href}`);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    }
+
+    function sharePostWhatsApp(author, content) {
+      const text = encodeURIComponent(`🌿 विश्नोई समाज चौपाल चर्चा (${author}):\n\n"${content}"\n\nपूर्ण चर्चा देखें: ${window.location.href}`);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    }
+
+    // BANNER LIVE
     function listenBanner() {
       db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
         if (doc.exists && doc.data().text) {
-          document.getElementById('dailyBannerText').innerText = doc.data().text;
+          currentBannerText = doc.data().text;
+          document.getElementById('dailyBannerText').innerText = currentBannerText;
         }
       });
     }
 
     async function saveAdminBanner() {
       const txt = document.getElementById('adminBannerInput').value.trim();
-      if (!txt) return alert('कृपया संदेश लिखें');
+      if (!txt) return showToast('Please enter message text');
       await db.collection('settings').doc('dailySandesh').set({ text: txt });
-      alert('दैनिक संदेश सभी के लिए अपडेट हो गया!');
+      showToast('Daily Sandesh updated live!');
       document.getElementById('adminBannerInput').value = '';
     }
 
-    // 3. E-LIBRARY (PDFs)
+    // E-LIBRARY (PDFs)
     function listenPdfs() {
       db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
         const grid = document.getElementById('pdfGrid');
         grid.innerHTML = '';
 
-        // Built-in default shabadwani card
+        // Default shabadwani
         const defaultCard = document.createElement('div');
         defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between";
         defaultCard.innerHTML = `
@@ -548,10 +640,11 @@ Ans: B"></textarea>
             <h3 class="font-yatra text-forest text-base mt-1">श्री सबदवाणी (१२० शब्द)</h3>
             <p class="text-xs text-stone-500 mt-1">गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।</p>
           </div>
-          <div class="mt-4 pt-3 border-t border-stone-100">
+          <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
             <a href="./shabadwani.pdf" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
-              📥 डाउनलोड PDF
+              Download PDF
             </a>
+            <button onclick="sharePdfWhatsApp('श्री सबदवाणी', './shabadwani.pdf')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
           </div>
         `;
         grid.appendChild(defaultCard);
@@ -567,9 +660,12 @@ Ans: B"></textarea>
             </div>
             <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
               <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
-                📥 डाउनलोड PDF
+                Download PDF
               </a>
-              ${currentUser && currentUser.isOwner ? `<button onclick="deletePdf('${doc.id}')" class="text-xs text-red-600">हटाएं</button>` : ''}
+              <div class="flex items-center gap-2">
+                <button onclick="sharePdfWhatsApp('${item.title}', '${item.link}')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
+                ${currentUser && currentUser.isOwner ? `<button onclick="deletePdf('${doc.id}')" class="text-xs text-red-600">Delete</button>` : ''}
+              </div>
             </div>
           `;
           grid.appendChild(card);
@@ -577,31 +673,38 @@ Ans: B"></textarea>
       });
     }
 
+    function sharePdfWhatsApp(title, link) {
+      const url = link.startsWith('./') ? window.location.origin + '/' + link.replace('./','') : link;
+      const text = encodeURIComponent(`📖 विश्नोई साहित्य PDF: ${title}\nडाउनलोड करें: ${url}`);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    }
+
     async function saveAdminPdf() {
       const title = document.getElementById('adminPdfTitle').value.trim();
       const link = document.getElementById('adminPdfLink').value.trim();
-      if (!title || !link) return alert('कृपया शीर्षक और लिंक दोनों भरें');
+      if (!title || !link) return showToast('Please enter both title and link');
 
       await db.collection('pdfs').add({
         title: title,
         link: link,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      alert('PDF वेबसाइट पर जुड़ गई!');
+      showToast('PDF published successfully!');
       document.getElementById('adminPdfTitle').value = '';
       document.getElementById('adminPdfLink').value = '';
     }
 
     async function deletePdf(id) {
-      if (confirm('क्या आप इसे हटाना चाहते हैं?')) {
+      if (confirm('Delete this PDF?')) {
         await db.collection('pdfs').doc(id).delete();
+        showToast('PDF removed');
       }
     }
 
-    // 4. BULK QUIZ IMPORT (ONE CLICK)
+    // BULK QUIZ IMPORTER
     async function importBulkQuiz() {
       const rawText = document.getElementById('adminBulkQuizText').value.trim();
-      if (!rawText) return alert('कृपया प्रश्नों का टेक्स्ट पेस्ट करें');
+      if (!rawText) return showToast('Please paste questions text');
 
       const blocks = rawText.split(/\n\s*\n/);
       let parsedQuestions = [];
@@ -629,7 +732,7 @@ Ans: B"></textarea>
       }
 
       if (parsedQuestions.length === 0) {
-        return alert('प्रारूप सही नहीं है। कृपया उदाहरण के अनुसार Q:, A), B)... Ans: में लिखें।');
+        return showToast('Format incorrect. Use Q:, A), B)... Ans:');
       }
 
       const batch = db.batch();
@@ -644,7 +747,7 @@ Ans: B"></textarea>
       });
 
       await batch.commit();
-      alert(`सफलतापूर्वक ${parsedQuestions.length} नए प्रश्न Quiz में जुड़ गए!`);
+      showToast(`Added ${parsedQuestions.length} questions to live quiz!`);
       document.getElementById('adminBulkQuizText').value = '';
     }
 
@@ -680,10 +783,10 @@ Ans: B"></textarea>
       if (currentQ >= quizList.length) {
         box.innerHTML = `
           <div class="text-center space-y-3 py-4">
-            <div class="text-3xl">🏆</div>
+            <div class="text-4xl">🏆</div>
             <h3 class="font-yatra text-xl text-forest">परीक्षा पूर्ण हुई!</h3>
-            <p class="text-xs text-stone-600">आपका कुल स्कोर: <strong class="text-terracotta text-sm">${qScore} / ${quizList.length}</strong></p>
-            <button onclick="restartQuiz()" class="px-4 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">पुनः प्रयास करें</button>
+            <p class="text-xs text-stone-600">Total Score: <strong class="text-terracotta text-sm">${qScore} / ${quizList.length}</strong></p>
+            <button onclick="restartQuiz()" class="px-4 py-1.5 bg-forest text-white rounded-lg text-xs font-semibold">Try Again</button>
           </div>
         `;
         confetti({ particleCount: 50, spread: 60 });
@@ -695,30 +798,40 @@ Ans: B"></textarea>
         <div class="space-y-4">
           <div class="flex justify-between text-[11px] text-stone-500">
             <span>प्रश्न ${currentQ + 1} / ${quizList.length}</span>
-            <span>स्कोर: ${qScore}</span>
+            <span>Score: ${qScore}</span>
           </div>
           <h3 class="font-bold text-sm sm:text-base text-forest">${q.q}</h3>
-          <div class="space-y-2 pt-1">
+          <div class="space-y-2 pt-1" id="quizAnswersBlock">
             ${q.opts.map((opt, i) => `
-              <button onclick="checkAnswer(${i})" class="w-full text-left p-2.5 text-xs rounded-lg border border-stone-200 hover:bg-amber-50 bg-white transition-colors">
+              <button onclick="checkAnswer(${i}, this)" class="w-full text-left p-2.5 text-xs rounded-lg border border-stone-200 hover:bg-amber-50 bg-white transition-colors">
                 ${opt}
               </button>
             `).join('')}
           </div>
+          <div id="quizFeedbackBox" class="hidden text-xs p-2 rounded-lg font-semibold"></div>
         </div>
       `;
     }
 
-    function checkAnswer(chosen) {
+    function checkAnswer(chosen, btn) {
       const q = quizList[currentQ];
+      const feedBox = document.getElementById('quizFeedbackBox');
+      feedBox.classList.remove('hidden');
+
       if (chosen === q.ans) {
         qScore++;
-        alert("सही उत्तर! (Correct)");
+        feedBox.className = "text-xs p-2.5 rounded-lg font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300";
+        feedBox.innerText = "✓ सही उत्तर! (Correct)";
       } else {
-        alert("गलत उत्तर! सही था: " + q.opts[q.ans]);
+        feedBox.className = "text-xs p-2.5 rounded-lg font-semibold bg-rose-100 text-rose-800 border border-rose-300";
+        feedBox.innerText = `✕ गलत उत्तर! सही उत्तर था: ${q.opts[q.ans]}`;
       }
-      currentQ++;
-      renderQuiz();
+
+      // Next question after 1.5 seconds smoothly without alert popups
+      setTimeout(() => {
+        currentQ++;
+        renderQuiz();
+      }, 1400);
     }
 
     function restartQuiz() {
@@ -727,36 +840,61 @@ Ans: B"></textarea>
       renderQuiz();
     }
 
-    // 5. COMMUNITY CHAUPAL
+    // CHAUPAL POSTS & PHOTO COMPRESSION
     function previewPostImg(e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = ev => {
-          selectedPostBase64 = ev.target.result;
-          document.getElementById('postImgPreview').src = selectedPostBase64;
-          document.getElementById('postImgPreviewWrap').classList.remove('hidden');
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxW = 600;
+            const scale = maxW / img.width;
+            canvas.width = (img.width > maxW) ? maxW : img.width;
+            canvas.height = (img.width > maxW) ? (img.height * scale) : img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            selectedPostBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            document.getElementById('postImgPreview').src = selectedPostBase64;
+            document.getElementById('postImgPreviewWrap').classList.remove('hidden');
+          };
+          img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
       }
     }
 
-    async function submitChaupalPost() {
-      if (!currentUser) return openAuthModal();
-      const txt = document.getElementById('postText').value.trim();
-      if (!txt && !selectedPostBase64) return alert('कृपया कुछ लिखें या फोटो चुनें');
-
-      await db.collection('posts').add({
-        author: currentUser.name,
-        content: txt,
-        image: selectedPostBase64 || null,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      document.getElementById('postText').value = '';
+    function clearPostImg() {
       selectedPostBase64 = null;
       document.getElementById('postPhoto').value = '';
       document.getElementById('postImgPreviewWrap').classList.add('hidden');
+    }
+
+    async function submitChaupalPost() {
+      if (!currentUser) return openAuthModal();
+      const txt = document.getElementById('postText').value.trim();
+      if (!txt && !selectedPostBase64) return showToast('Please enter text or select a photo');
+
+      const btn = document.getElementById('postSubmitBtn');
+      btn.disabled = true;
+
+      try {
+        await db.collection('posts').add({
+          author: currentUser.name,
+          content: txt,
+          image: selectedPostBase64 || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        document.getElementById('postText').value = '';
+        clearPostImg();
+        showToast('Message posted to Chaupal!');
+      } catch (e) {
+        showToast('Error posting: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     function listenPosts() {
@@ -775,10 +913,13 @@ Ans: B"></textarea>
           card.innerHTML = `
             <div class="flex justify-between items-center text-xs">
               <span class="font-bold text-forest">👤 ${p.author}</span>
-              ${currentUser && currentUser.isOwner ? `<button onclick="deletePost('${doc.id}')" class="text-red-500 text-[11px]">हटाएं</button>` : ''}
+              <div class="flex items-center gap-2">
+                <button onclick="sharePostWhatsApp('${p.author}', '${p.content}')" class="text-emerald-700 text-[11px] font-semibold flex items-center gap-1">Share 📲</button>
+                ${currentUser && currentUser.isOwner ? `<button onclick="deletePost('${doc.id}')" class="text-red-500 text-[11px]">Delete</button>` : ''}
+              </div>
             </div>
-            <p class="text-xs text-stone-700 whitespace-pre-wrap">${p.content}</p>
-            ${p.image ? `<img src="${p.image}" class="max-h-72 rounded-lg border border-stone-100 object-cover" alt="Post photo">` : ''}
+            <p class="text-xs text-stone-700 whitespace-pre-wrap leading-relaxed">${p.content}</p>
+            ${p.image ? `<img src="${p.image}" class="max-h-72 rounded-lg border border-stone-100 object-cover" alt="Chaupal Photo">` : ''}
           `;
           feed.appendChild(card);
         });
@@ -786,23 +927,33 @@ Ans: B"></textarea>
     }
 
     async function deletePost(id) {
-      if (confirm('पोस्ट हटाएं?')) await db.collection('posts').doc(id).delete();
+      if (confirm('Delete this post?')) {
+        await db.collection('posts').doc(id).delete();
+        showToast('Post removed');
+      }
     }
 
-    // 6. 29 NIYAMS
+    // 29 NIYAMS WITH 1-TAP WHATSAPP SHARING
     function renderNiyams(data) {
       const grid = document.getElementById('niyamGrid');
       grid.innerHTML = '';
       data.forEach(n => {
         const card = document.createElement('div');
-        card.className = "bg-white p-3.5 rounded-xl border border-stone-200 space-y-1.5";
+        card.className = "bg-white p-3.5 rounded-xl border border-stone-200 space-y-2 flex flex-col justify-between";
         card.innerHTML = `
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-bold text-forest w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
-            <span class="text-stone-400 font-semibold text-[11px]">${n.title}</span>
+          <div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-forest w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
+              <span class="text-stone-400 font-semibold text-[11px]">${n.title}</span>
+            </div>
+            <h4 class="font-yatra text-sm text-forest mt-1">${n.rule}</h4>
+            <p class="text-[11px] text-stone-600 leading-snug mt-1">${n.desc}</p>
           </div>
-          <h4 class="font-yatra text-sm text-forest">${n.rule}</h4>
-          <p class="text-[11px] text-stone-600 leading-snug">${n.desc}</p>
+          <div class="pt-2 border-t border-stone-100 flex justify-end">
+            <button onclick="shareNiyamWhatsApp(${n.num}, '${n.title}', '${n.rule}', '${n.desc}')" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 hover:underline">
+              <span>Share</span> 📲
+            </button>
+          </div>
         `;
         grid.appendChild(card);
       });
@@ -813,13 +964,13 @@ Ans: B"></textarea>
       renderNiyams(NIYAMS_DATA.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q)));
     }
 
-    // 7. FEEDBACK
+    // FEEDBACK
     async function handleFeedbackSubmit(e) {
       e.preventDefault();
       const name = document.getElementById('fbName').value.trim();
       const msg = document.getElementById('fbMsg').value.trim();
       await db.collection('feedback').add({ name, msg, date: new Date().toISOString() });
-      alert('धन्यवाद! आपका सुझाव प्राप्त हुआ।');
+      showToast('Thank you! Feedback received.');
       document.getElementById('fbName').value = '';
       document.getElementById('fbMsg').value = '';
     }
