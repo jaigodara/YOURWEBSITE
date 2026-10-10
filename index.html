@@ -746,10 +746,25 @@ Ans: B"></textarea>
     // GEMINI AI INTEGRATION API KEY
     // Obfuscated to bypass GitHub secret scanner blocks
     function getGeminiKey() {
-      // Replace with your free AIzaSy... key from aistudio.google.com/app/apikey
-      const part1 = "AIzaSy";
-      const part2 = "YOUR_ACTUAL_API_KEY_SUFFIX";
-      return part1 + part2;
+      let key = localStorage.getItem('gemini_api_key');
+      if (!key) {
+        key = prompt("कृपया अपनी Gemini API Key यहाँ पेस्ट करें:");
+        if (key && key.trim()) {
+          key = key.trim();
+          localStorage.setItem('gemini_api_key', key);
+        }
+      }
+      return key || "";
+    }function getGeminiKey() {
+      let key = localStorage.getItem('gemini_api_key');
+      if (!key) {
+        key = prompt(AQ.Ab8RN6JmsOafSIQxvLMnquDGkQ1GYujdSMbbFvs9i_qsKOjV_Q);
+        if (key && key.trim()) {
+          key = key.trim();
+          localStorage.setItem('gemini_api_key', key);
+        }
+      }
+      return key || "";
     }
 
     async function callGemini(promptText) {
