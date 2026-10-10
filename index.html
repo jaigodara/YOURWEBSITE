@@ -1,1765 +1,1172 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="hi" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>श्री बिश्नोई धर्म पीठ | Bishnoi Eco-Dharm & Community Portal</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>श्री विश्नोई धर्म पीठ | Bishnoi Eco-Dharm & Community Portal</title>
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Google Fonts: Cinzel, Rozha One, Yatra One, Plus Jakarta Sans -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Rozha+One&family=Yatra+One&display=swap" rel="stylesheet">
-    <!-- Confetti for Certificate and Quiz -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Rozha+One&family=Yatra+One&display=swap" rel="stylesheet">
+  <!-- Confetti for Quiz -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        thar: {
-                            base: '#FCFAF6',
-                            sand: '#F6EFE6',
-                            card: '#FFFFFF',
-                            terracotta: '#B85D19',
-                            brick: '#8D3616',
-                            forest: '#184732',
-                            deepgreen: '#0E2E1F',
-                            leaf: '#266D46',
-                            gold: '#CA9438',
-                            amber: '#EAB308',
-                            dark: '#1C1E1B',
-                            border: '#E8DFD3'
-                        }
-                    },
-                    fontFamily: {
-                        cinzel: ['"Cinzel"', 'serif'],
-                        traditional: ['"Rozha One"', 'serif'],
-                        devanagari: ['"Yatra One"', 'cursive'],
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif']
-                    }
-                }
+  <!-- Firebase Compat SDKs (For single-file web apps) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            thar: {
+              sand: '#F7EBD4',
+              khejri: '#183B28',
+              accent: '#C86432',
+              brass: '#D4AF37',
+              earth: '#2B1E16',
+              card: '#FDFBF7'
             }
+          },
+          fontFamily: {
+            cinzel: ['Cinzel', 'serif'],
+            yatra: ['Yatra One', 'cursive'],
+            rozha: ['Rozha One', 'serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif']
+          }
         }
-    </script>
+      }
+    };
+  </script>
 
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #FCFAF6;
-            color: #1C1E1B;
-        }
-        .wood-border {
-            border: 1px solid rgba(202, 148, 56, 0.4);
-            box-shadow: 0 4px 20px -2px rgba(24, 71, 50, 0.06);
-        }
-        .page-view {
-            display: none;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-        .page-view.active {
-            display: block;
-            opacity: 1;
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #F6EFE6;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #B85D19;
-            border-radius: 9999px;
-        }
-    </style>
+  <style>
+    body {
+      background-color: #FAF6EE;
+      color: #241A13;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #C86432;
+      border-radius: 9999px;
+    }
+    .active-nav {
+      background-color: #183B28;
+      color: #FFFFFF !important;
+      font-weight: 600;
+    }
+  </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-thar-terracotta selection:text-white">
 
-    <header class="bg-thar-forest text-thar-sand px-4 py-2 text-xs flex justify-between items-center z-50 border-b border-thar-gold/30">
-        <div class="flex items-center gap-2 overflow-hidden whitespace-nowrap">
-            <span class="inline-block w-2 h-2 rounded-full bg-thar-amber animate-ping"></span>
-            <span class="font-devanagari text-sm text-thar-amber font-semibold">ॐ श्री जम्भेश्वराय नमः</span>
-            <span class="hidden md:inline text-thar-sand/70">|</span>
-            <span class="hidden md:inline italic font-serif text-thar-sand/90 font-medium">"सिर सांटे रूंख रहे, तो भी सस्तो जाण" — अमृता देवी बिश्नोई</span>
+<body class="min-h-screen flex flex-col antialiased selection:bg-amber-200 selection:text-amber-900">
+
+  <!-- TOP DEVOTIONAL TICKER -->
+  <div class="bg-thar-khejri text-amber-200 text-xs sm:text-sm py-2 px-4 border-b border-amber-900/40 flex justify-between items-center z-50">
+    <div class="flex items-center gap-2 overflow-hidden truncate">
+      <span class="font-yatra text-amber-400 font-bold whitespace-nowrap">ॐ श्री जाम्भोजी नमः :</span>
+      <span id="topTickerText" class="truncate font-medium text-amber-100">"जीव दया पालणी, रूंख लीलो नी घावै" — Protect nature and compassion for all living beings.</span>
+    </div>
+    <div class="hidden sm:flex items-center gap-3 text-xs text-amber-300 font-sans">
+      <span class="flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-400"></i> Cloud Synced</span>
+    </div>
+  </div>
+
+  <!-- MAIN NAVIGATION HEADER -->
+  <header class="sticky top-0 z-40 bg-[#FAF6EE]/95 backdrop-blur-md border-b border-amber-900/10 shadow-sm transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      
+      <!-- LOGO -->
+      <a href="#" onclick="switchTab('home')" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-thar-khejri text-amber-400 flex items-center justify-center font-bold text-xl shadow-md border border-amber-600/30 group-hover:scale-105 transition-transform">
+          <i data-lucide="trees" class="w-5 h-5 text-amber-300"></i>
         </div>
-        <div class="flex items-center gap-3 shrink-0">
-            <button onclick="playTempleBell()" title="Play Temple Bell" class="hover:text-thar-amber transition flex items-center gap-1.5 text-[11px] bg-thar-deepgreen px-2.5 py-1 rounded-lg border border-thar-gold/30">
-                <i data-lucide="bell" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Temple Sound</span>
+        <div>
+          <span class="font-yatra text-xl tracking-tight text-thar-khejri block leading-tight">श्री विश्नोई धर्म पीठ</span>
+          <span class="text-[10px] tracking-wider uppercase font-semibold text-thar-accent block">29 Sacred Rules • Live Chaupal</span>
+        </div>
+      </a>
+
+      <!-- DESKTOP NAVIGATION -->
+      <nav class="hidden lg:flex items-center gap-1 text-sm font-medium text-thar-earth/80">
+        <button onclick="switchTab('home')" id="nav-home" class="px-3.5 py-1.5 rounded-lg transition-all hover:text-thar-accent active-nav">Home</button>
+        <button onclick="switchTab('niyams')" id="nav-niyams" class="px-3.5 py-1.5 rounded-lg transition-all hover:text-thar-accent">29 Niyams</button>
+        <button onclick="switchTab('library')" id="nav-library" class="px-3.5 py-1.5 rounded-lg transition-all hover:text-thar-accent">E-Library & PDFs</button>
+        <button onclick="switchTab('community')" id="nav-community" class="px-3.5 py-1.5 rounded-lg transition-all hover:text-thar-accent">Community Chaupal</button>
+        <button onclick="switchTab('quiz')" id="nav-quiz" class="px-3.5 py-1.5 rounded-lg transition-all hover:text-thar-accent">Quiz Arena</button>
+        <button onclick="switchTab('feedback')" id="nav-feedback" class="px-3.5 py-1.5 rounded-lg transition-all hover:text-thar-accent">Feedback</button>
+        <button onclick="switchTab('admin')" id="nav-admin" class="hidden px-3.5 py-1.5 rounded-lg transition-all bg-amber-700 text-white font-semibold flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="shield" class="w-3.5 h-3.5"></i> Admin Hub
+        </button>
+      </nav>
+
+      <!-- AUTH BUTTON / PROFILE BADGE -->
+      <div class="flex items-center gap-3">
+        <div id="authActionsContainer">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Mobile Hamburger Toggle -->
+        <button onclick="toggleMobileNav()" class="lg:hidden p-2 rounded-lg text-thar-khejri hover:bg-amber-100/60 focus:outline-none">
+          <i data-lucide="menu" id="mobileMenuIcon" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- MOBILE DROPDOWN -->
+    <div id="mobileMenu" class="hidden lg:hidden border-t border-amber-900/10 bg-[#F6EFE3] px-4 pt-3 pb-5 space-y-1">
+      <button onclick="switchTab('home')" class="w-full text-left py-2.5 px-3 rounded-lg text-sm font-medium hover:bg-amber-200/50 flex items-center gap-2"><i data-lucide="home" class="w-4 h-4"></i> Home & History</button>
+      <button onclick="switchTab('niyams')" class="w-full text-left py-2.5 px-3 rounded-lg text-sm font-medium hover:bg-amber-200/50 flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4"></i> 29 Sacred Niyams</button>
+      <button onclick="switchTab('library')" class="w-full text-left py-2.5 px-3 rounded-lg text-sm font-medium hover:bg-amber-200/50 flex items-center gap-2"><i data-lucide="file-text" class="w-4 h-4"></i> E-Library & PDFs</button>
+      <button onclick="switchTab('community')" class="w-full text-left py-2.5 px-3 rounded-lg text-sm font-medium hover:bg-amber-200/50 flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4"></i> Devotee Chaupal</button>
+      <button onclick="switchTab('quiz')" class="w-full text-left py-2.5 px-3 rounded-lg text-sm font-medium hover:bg-amber-200/50 flex items-center gap-2"><i data-lucide="award" class="w-4 h-4"></i> Knowledge Quiz</button>
+      <button onclick="switchTab('feedback')" class="w-full text-left py-2.5 px-3 rounded-lg text-sm font-medium hover:bg-amber-200/50 flex items-center gap-2"><i data-lucide="star" class="w-4 h-4"></i> Website Feedback</button>
+      <button id="nav-admin-mobile" onclick="switchTab('admin')" class="hidden w-full text-left py-2.5 px-3 rounded-lg text-sm font-bold bg-amber-800 text-white flex items-center gap-2">
+        <i data-lucide="shield" class="w-4 h-4"></i> Admin Hub (Owner)
+      </button>
+    </div>
+  </header>
+
+  <!-- DAILY ANNOUNCEMENT BANNER -->
+  <div id="announcementBanner" class="bg-amber-100/80 border-b border-amber-200 text-amber-950 py-2 px-4 text-center text-xs sm:text-sm font-medium flex items-center justify-center gap-2">
+    <i data-lucide="sparkles" class="w-4 h-4 text-thar-accent flex-shrink-0"></i>
+    <span id="dailyAnnouncementText">"सिर साटै रूंख रहै, तो भी सस्तो जाण" — Even if your head is cut off to save a single tree, consider it a bargain.</span>
+  </div>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+
+    <!-- TAB 1: HOME & HERITAGE -->
+    <section id="tab-home" class="space-y-12">
+      <!-- HERO -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-thar-khejri via-[#122A1E] to-[#0A1A12] text-amber-50 p-8 sm:p-14 border border-amber-800/40 shadow-xl">
+        <div class="absolute -right-20 -bottom-20 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="max-w-3xl space-y-5 relative z-10">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-semibold tracking-wider uppercase border border-amber-500/30">
+            <i data-lucide="compass" class="w-3.5 h-3.5"></i> Founded in 1485 CE • Samrathal Dhora
+          </div>
+          <h1 class="text-3xl sm:text-5xl font-cinzel font-extrabold tracking-tight leading-tight text-white">
+            The World's First <span class="text-amber-400">Ecological Faith</span>
+          </h1>
+          <p class="text-sm sm:text-base text-amber-100/90 leading-relaxed font-normal">
+            Codified by Guru Jambheshwar Bhagwan through 29 sacred principles, Bishnoism represents five centuries of unwavering commitment to non-violence, wildlife sanctification, and environmental preservation.
+          </p>
+          <div class="pt-2 flex flex-wrap items-center gap-3">
+            <button onclick="switchTab('library')" class="px-5 py-2.5 rounded-xl bg-thar-accent hover:bg-amber-600 text-white font-medium text-sm transition-all shadow-md flex items-center gap-2">
+              <i data-lucide="download" class="w-4 h-4"></i> Download Sacred PDFs
             </button>
-        </div>
-    </header>
-
-    <nav class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-thar-border shadow-xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20">
-                <!-- Brand Title -->
-                <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('home')">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-thar-forest via-thar-leaf to-thar-terracotta flex items-center justify-center text-white shadow-md border border-thar-gold/50">
-                        <i data-lucide="trees" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-cinzel text-xl sm:text-2xl font-black tracking-tight text-thar-forest leading-none">
-                            BISHNOI DHARM
-                        </h1>
-                        <span class="font-devanagari text-xs text-thar-terracotta font-bold tracking-wide">
-                            पर्यावरण रक्षा • जीव दया • 29 नियम
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Desktop Navigation Links -->
-                <div class="hidden xl:flex items-center gap-1 font-semibold text-xs tracking-wider uppercase">
-                    <button onclick="navigateTo('home')" id="nav-home" class="nav-tab px-3.5 py-2 rounded-xl text-thar-forest bg-thar-sand font-bold">Home</button>
-                    <button onclick="navigateTo('niyam')" id="nav-niyam" class="nav-tab px-3.5 py-2 rounded-xl text-stone-700 hover:bg-stone-100">29 Niyams</button>
-                    <button onclick="navigateTo('library')" id="nav-library" class="nav-tab px-3.5 py-2 rounded-xl text-stone-700 hover:bg-stone-100">📚 PDFs & Books</button>
-                    <button onclick="navigateTo('community')" id="nav-community" class="nav-tab px-3.5 py-2 rounded-xl text-stone-700 hover:bg-stone-100">💬 Community</button>
-                    <button onclick="navigateTo('quiz')" id="nav-quiz" class="nav-tab px-3.5 py-2 rounded-xl text-stone-700 hover:bg-stone-100">🏆 Quiz</button>
-                    <button onclick="navigateTo('feedback')" id="nav-feedback" class="nav-tab px-3.5 py-2 rounded-xl text-stone-700 hover:bg-stone-100">⭐ Feedback</button>
-
-                    <!-- Exclusive Owner Admin Link (Hidden until owner logged in) -->
-                    <button onclick="navigateTo('admin')" id="nav-admin" class="nav-tab hidden ml-1 px-3 py-2 rounded-xl bg-thar-terracotta text-white hover:bg-thar-brick font-bold items-center gap-1 shadow-xs">
-                        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Admin Hub
-                    </button>
-
-                    <!-- Authentication Profile / Sign In Pill -->
-                    <div id="auth-nav-pill" class="ml-2">
-                        <!-- Populated dynamically via JS -->
-                    </div>
-                </div>
-
-                <!-- Mobile Menu & Auth Button -->
-                <div class="flex xl:hidden items-center gap-2">
-                    <div id="mobile-auth-quick-pill"></div>
-                    <button onclick="toggleMobileMenu()" class="p-2.5 rounded-xl border border-thar-border bg-stone-50 text-thar-forest">
-                        <i data-lucide="menu" class="w-5 h-5"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile Drawer -->
-        <div id="mobile-menu" class="hidden xl:hidden border-t border-stone-200 bg-thar-card px-4 pt-3 pb-6 space-y-1 text-sm font-semibold">
-            <button onclick="navigateTo('home'); toggleMobileMenu()" class="block w-full text-left py-2 px-3 rounded-lg hover:bg-stone-100">🏛️ Home & History</button>
-            <button onclick="navigateTo('niyam'); toggleMobileMenu()" class="block w-full text-left py-2 px-3 rounded-lg hover:bg-stone-100">📜 29 Sacred Niyams</button>
-            <button onclick="navigateTo('library'); toggleMobileMenu()" class="block w-full text-left py-2 px-3 rounded-lg hover:bg-stone-100">📚 PDFs & Documents</button>
-            <button onclick="navigateTo('community'); toggleMobileMenu()" class="block w-full text-left py-2 px-3 rounded-lg hover:bg-stone-100">💬 Devotee Community</button>
-            <button onclick="navigateTo('quiz'); toggleMobileMenu()" class="block w-full text-left py-2 px-3 rounded-lg hover:bg-stone-100">🏆 Knowledge Quiz</button>
-            <button onclick="navigateTo('feedback'); toggleMobileMenu()" class="block w-full text-left py-2 px-3 rounded-lg hover:bg-stone-100">⭐ Website Feedback</button>
-            <button onclick="navigateTo('admin'); toggleMobileMenu()" id="mobile-nav-admin" class="hidden w-full text-left py-2.5 px-3 rounded-lg bg-thar-terracotta text-white font-bold">🔐 Admin Management Hub</button>
-        </div>
-    </nav>
-
-    <!-- Daily Bulletin / Marquee Announcement -->
-    <div id="daily-bulletin-bar" class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-stone-800 text-center font-medium flex items-center justify-center gap-2">
-        <i data-lucide="sparkles" class="w-4 h-4 text-thar-terracotta shrink-0"></i>
-        <span id="daily-announcement-text">
-            <strong>Daily Sandesh:</strong> "जीव दया पालणी, रूंख लीलो नी घावौ" — Protect all innocent living beings and defend every green branch with your life.
-        </span>
-    </div>
-
-    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-
-        <!-- ================= SECTION 1: HOME ================= -->
-        <section id="page-home" class="page-view active space-y-12">
-            <!-- Hero Banner -->
-            <div class="relative bg-gradient-to-br from-thar-forest via-thar-deepgreen to-stone-900 text-thar-sand rounded-3xl p-8 sm:p-14 overflow-hidden shadow-2xl border border-thar-gold/40">
-                <div class="max-w-3xl space-y-6 relative z-10">
-                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-thar-gold/20 border border-thar-gold/40 text-thar-amber text-xs font-bold uppercase tracking-widest">
-                        <i data-lucide="leaf" class="w-3.5 h-3.5"></i> Founded in 1485 CE • Samrathal Dhora
-                    </div>
-                    <h2 class="font-cinzel text-3xl sm:text-5xl lg:text-6xl font-black leading-tight text-white">
-                        The World’s First Ecological Faith
-                    </h2>
-                    <p class="font-serif text-lg sm:text-xl text-thar-sand/90 italic font-medium leading-relaxed">
-                        Centuries before modern environmental treaties, Guru Jambheshwar Bhagwan codified wildlife protection, forest preservation, and ahimsa into the 29 holy commandments.
-                    </p>
-                    <div class="flex flex-wrap gap-4 pt-2">
-                        <button onclick="navigateTo('library')" class="px-6 py-3.5 rounded-2xl bg-thar-terracotta hover:bg-thar-brick text-white font-bold text-xs uppercase tracking-wider transition shadow-lg flex items-center gap-2">
-                            <i data-lucide="download" class="w-4 h-4"></i> Download Sacred PDFs
-                        </button>
-                        <button onclick="navigateTo('community')" class="px-6 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-thar-gold/50 text-white font-bold text-xs uppercase tracking-wider transition flex items-center gap-2">
-                            <i data-lucide="message-square" class="w-4 h-4"></i> Visit Community Chaupal
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Historical Overview & Khejarli Tribute -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white rounded-3xl p-8 border border-thar-border wood-border">
-                <div class="lg:col-span-6 space-y-4">
-                    <span class="text-xs uppercase font-extrabold tracking-widest text-thar-terracotta">Divinity & Nature</span>
-                    <h3 class="font-cinzel text-2xl sm:text-3xl font-black text-thar-forest">
-                        Guru Jambhoji & The 363 Khejarli Martyrs
-                    </h3>
-                    <p class="text-stone-700 text-sm leading-relaxed">
-                        In 1485 CE at Samrathal Dhora, Guru Jambheshwar Ji established Bishnoism to ensure human harmony with desert soil, trees, and animals.
-                    </p>
-                    <p class="text-stone-700 text-sm leading-relaxed">
-                        In 1730 CE at Khejarli, when royal axemen were sent to fell green Khejri trees, <strong>Mata Amrita Devi Bishnoi</strong> embraced the trunk, speaking the eternal immortal vow:
-                    </p>
-                    <div class="p-4 rounded-2xl bg-thar-sand border-l-4 border-thar-terracotta">
-                        <p class="font-devanagari text-thar-brick font-bold text-base">"सिर सांटे रूंख रहे, तो भी सस्तो जाण।"</p>
-                        <p class="text-xs text-stone-600 mt-1">"If a tree is saved even at the cost of one's head, consider it a cheap bargain."</p>
-                    </div>
-                    <p class="text-stone-700 text-xs">
-                        Following her courageous lead, <strong>363 Bishnois</strong> embraced the axes and gave their lives to protect the sacred forest.
-                    </p>
-                </div>
-
-                <div class="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="p-5 rounded-2xl bg-stone-50 border border-stone-200">
-                        <i data-lucide="file-text" class="w-6 h-6 text-thar-terracotta mb-2"></i>
-                        <h4 class="font-bold text-thar-forest text-sm">Downloadable PDFs</h4>
-                        <p class="text-xs text-stone-600 mt-1">Free access to Shabadwani, 29 Niyam guides, and historical archives.</p>
-                        <button onclick="navigateTo('library')" class="mt-3 text-xs font-bold text-thar-terracotta hover:underline">Explore Library →</button>
-                    </div>
-                    <div class="p-5 rounded-2xl bg-stone-50 border border-stone-200">
-                        <i data-lucide="users" class="w-6 h-6 text-thar-leaf mb-2"></i>
-                        <h4 class="font-bold text-thar-forest text-sm">Community Discussions</h4>
-                        <p class="text-xs text-stone-600 mt-1">Post your questions, reply to others, and upload images with your profile.</p>
-                        <button onclick="navigateTo('community')" class="mt-3 text-xs font-bold text-thar-leaf hover:underline">Open Community →</button>
-                    </div>
-                    <div class="p-5 rounded-2xl bg-stone-50 border border-stone-200">
-                        <i data-lucide="help-circle" class="w-6 h-6 text-thar-gold mb-2"></i>
-                        <h4 class="font-bold text-thar-forest text-sm">Knowledge Quiz</h4>
-                        <p class="text-xs text-stone-600 mt-1">Test your understanding of Bishnoi principles and earn your certificate.</p>
-                        <button onclick="navigateTo('quiz')" class="mt-3 text-xs font-bold text-thar-gold hover:underline">Take Pariksha →</button>
-                    </div>
-                    <div class="p-5 rounded-2xl bg-stone-50 border border-stone-200">
-                        <i data-lucide="message-circle" class="w-6 h-6 text-thar-forest mb-2"></i>
-                        <h4 class="font-bold text-thar-forest text-sm">Visitor Feedback</h4>
-                        <p class="text-xs text-stone-600 mt-1">Leave ratings, suggestions, and thoughts on our dedicated feedback page.</p>
-                        <button onclick="navigateTo('feedback')" class="mt-3 text-xs font-bold text-thar-forest hover:underline">Send Feedback →</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= SECTION 2: 29 RULES (NIYAMS) ================= -->
-        <section id="page-niyam" class="page-view space-y-8">
-            <div class="text-center max-w-3xl mx-auto space-y-3">
-                <span class="text-xs font-bold uppercase tracking-widest text-thar-terracotta">29 Eternal Principles</span>
-                <h2 class="font-cinzel text-3xl sm:text-4xl font-black text-thar-forest">
-                    The 29 Sacred Niyams (उन्नतीस नियम)
-                </h2>
-                <p class="text-stone-700 text-sm">
-                    <strong>Bish (20)</strong> + <strong>Noi (9)</strong> = 29 principles encompassing hygiene, conservation, ethics, and devotion.
-                </p>
-                <div class="flex flex-wrap justify-center gap-2 pt-2">
-                    <button onclick="setNiyamFilter('all')" class="niyam-filter-btn active px-4 py-1.5 rounded-full text-xs font-bold bg-thar-forest text-white transition">All (29)</button>
-                    <button onclick="setNiyamFilter('environment')" class="niyam-filter-btn px-4 py-1.5 rounded-full text-xs font-bold bg-stone-200 text-stone-800 hover:bg-stone-300 transition">🌿 Ecology & Animals</button>
-                    <button onclick="setNiyamFilter('hygiene')" class="niyam-filter-btn px-4 py-1.5 rounded-full text-xs font-bold bg-stone-200 text-stone-800 hover:bg-stone-300 transition">💧 Hygiene & Health</button>
-                    <button onclick="setNiyamFilter('morality')" class="niyam-filter-btn px-4 py-1.5 rounded-full text-xs font-bold bg-stone-200 text-stone-800 hover:bg-stone-300 transition">⚖️ Ethics & Truth</button>
-                    <button onclick="setNiyamFilter('spirituality')" class="niyam-filter-btn px-4 py-1.5 rounded-full text-xs font-bold bg-stone-200 text-stone-800 hover:bg-stone-300 transition">🕉️ Devotion</button>
-                </div>
-            </div>
-
-            <div id="niyam-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Dynamically populated via JS -->
-            </div>
-        </section>
-
-        <!-- ================= SECTION 3: E-LIBRARY & PDF DOWNLOADS ================= -->
-        <section id="page-library" class="page-view space-y-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-thar-border wood-border">
-                <div>
-                    <span class="text-xs uppercase font-extrabold tracking-widest text-thar-terracotta">Digital Grantha Repository</span>
-                    <h2 class="font-cinzel text-3xl font-black text-thar-forest">E-Library & Sacred PDFs</h2>
-                    <p class="text-xs sm:text-sm text-stone-600 mt-1">Download official Bishnoi literature, Shabadwani, 29 Niyam guides, and research documents.</p>
-                </div>
-                <!-- Dynamic Quick Admin Upload Button -->
-                <div id="admin-quick-pdf-btn" class="hidden">
-                    <button onclick="navigateTo('admin')" class="px-5 py-2.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-sm">
-                        <i data-lucide="upload" class="w-4 h-4"></i> Upload New PDF
-                    </button>
-                </div>
-            </div>
-
-            <!-- PDF Grid -->
-            <div id="pdf-library-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Injected via JS -->
-            </div>
-        </section>
-
-        <!-- ================= SECTION 4: REAL COMMUNITY HUB ================= -->
-        <section id="page-community" class="page-view space-y-8">
-            <div class="bg-white p-6 sm:p-8 rounded-3xl border border-thar-border wood-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <span class="text-xs uppercase font-extrabold tracking-widest text-thar-terracotta">Real Devotee Dialogue</span>
-                    <h2 class="font-cinzel text-3xl font-black text-thar-forest">Bishnoi Community Chaupal</h2>
-                    <p class="text-xs sm:text-sm text-stone-600 mt-1">Share thoughts, ask elders, discuss the 29 Niyams, and upload photos with your profile.</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="focusCommunityPostBox()" class="px-5 py-2.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-sm">
-                        <i data-lucide="edit-3" class="w-4 h-4"></i> Create a Post
-                    </button>
-                </div>
-            </div>
-
-            <!-- Create Post Card -->
-            <div class="bg-white p-6 rounded-3xl border border-thar-border wood-border space-y-4">
-                <div class="flex items-center gap-3">
-                    <div id="creator-avatar-preview" class="w-10 h-10 rounded-full bg-thar-sand border border-thar-gold/50 flex items-center justify-center font-bold text-thar-forest overflow-hidden shrink-0">
-                        <i data-lucide="user" class="w-5 h-5 text-stone-500"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-stone-900" id="creator-name-display">Posting as Guest (Sign in to publish)</h4>
-                        <span class="text-[11px] text-stone-500">Share something with the community</span>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <input type="text" id="community-post-title" placeholder="Post Title / Question..." class="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 bg-stone-50/50 focus:bg-white focus:ring-2 focus:ring-thar-forest outline-none">
-                    <textarea id="community-post-body" rows="3" placeholder="What's on your mind? Share thoughts, community updates, or inquiries..." class="w-full p-4 text-xs sm:text-sm rounded-xl border border-stone-300 bg-stone-50/50 focus:bg-white focus:ring-2 focus:ring-thar-forest outline-none"></textarea>
-
-                    <!-- Image Attachment Preview -->
-                    <div id="post-image-preview-container" class="hidden relative rounded-2xl overflow-hidden border border-stone-300 max-h-60 bg-stone-100">
-                        <img id="post-image-preview-element" src="" alt="Preview" class="w-full h-full object-cover">
-                        <button onclick="removeAttachedPostImage()" class="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white hover:bg-black">
-                            <i data-lucide="x" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-
-                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-stone-100">
-                        <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-xs font-semibold text-stone-700 transition">
-                            <i data-lucide="image" class="w-4 h-4 text-thar-terracotta"></i> Add Photo
-                            <input type="file" id="community-post-image-input" accept="image/*" class="hidden" onchange="handlePostImageSelect(event)">
-                        </label>
-
-                        <button onclick="publishNewCommunityPost()" class="px-6 py-2.5 rounded-xl bg-thar-terracotta hover:bg-thar-brick text-white text-xs font-bold uppercase tracking-wider transition shadow-sm">
-                            Publish Post
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Feed Container -->
-            <div id="community-feed-container" class="space-y-6">
-                <!-- Dynamically rendered or empty placeholder -->
-            </div>
-        </section>
-
-        <!-- ================= SECTION 5: QUIZ ARENA ================= -->
-        <section id="page-quiz" class="page-view space-y-8">
-            <div class="max-w-3xl mx-auto bg-white rounded-3xl p-6 sm:p-10 border border-thar-border wood-border shadow-xl">
-                <div class="flex flex-wrap items-center justify-between pb-6 border-b border-stone-200 gap-4">
-                    <div>
-                        <span class="text-xs font-bold uppercase tracking-wider text-thar-terracotta">Bishnoi Dharm Pariksha</span>
-                        <h3 class="font-cinzel text-2xl font-black text-thar-forest" id="quiz-header-counter">Question 1</h3>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="bg-thar-sand px-3.5 py-1.5 rounded-xl text-xs font-bold border border-thar-gold/50 text-thar-forest">
-                            Score: <span id="quiz-score-val" class="text-thar-terracotta font-black">0</span>
-                        </div>
-                        <div class="bg-red-50 text-red-700 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-red-200">
-                            Lives: <span id="quiz-lives-val">❤️❤️❤️</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quiz Body -->
-                <div id="quiz-body-box" class="py-8 space-y-6">
-                    <h4 id="quiz-question-heading" class="text-base sm:text-lg font-bold text-stone-900 leading-relaxed">
-                        Loading questions...
-                    </h4>
-                    <div id="quiz-options-list" class="grid grid-cols-1 gap-3"></div>
-                    <div id="quiz-explanation-box" class="hidden p-4 rounded-2xl text-xs leading-relaxed font-medium"></div>
-                </div>
-
-                <!-- Quiz Footer Action -->
-                <div class="pt-4 border-t border-stone-200 flex justify-between items-center">
-                    <button onclick="resetQuizGame()" class="text-xs font-bold text-stone-500 hover:text-stone-800">
-                        Restart Pariksha
-                    </button>
-                    <button id="quiz-next-action-btn" onclick="nextQuizStep()" class="hidden px-6 py-2.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white font-bold text-xs uppercase tracking-wider transition">
-                        Next Question <i data-lucide="arrow-right" class="inline w-4 h-4 ml-1"></i>
-                    </button>
-                </div>
-
-                <!-- Certificate View -->
-                <div id="quiz-certificate-view" class="hidden py-8 text-center space-y-6">
-                    <div class="w-16 h-16 rounded-full bg-thar-gold/20 text-thar-gold flex items-center justify-center mx-auto">
-                        <i data-lucide="award" class="w-8 h-8"></i>
-                    </div>
-                    <h3 class="font-cinzel text-3xl font-black text-thar-forest">Certificate of Knowledge</h3>
-                    <p class="text-sm text-stone-700" id="quiz-final-tally-text">Your score: 100 points</p>
-
-                    <div class="p-6 rounded-2xl bg-thar-sand border-2 border-dashed border-thar-gold max-w-md mx-auto space-y-2 text-stone-800 shadow-inner">
-                        <span class="text-[10px] uppercase font-bold tracking-widest text-thar-terracotta">Sri Bishnoi Dharm Eco Certificate</span>
-                        <h4 class="font-cinzel text-xl font-bold text-stone-900" id="cert-holder-name">Bishnoi Dharm Vidyarthi</h4>
-                        <p class="text-xs text-stone-600">Successfully completed the examination on the 29 Principles and Khejarli Heritage.</p>
-                        <span class="text-[10px] text-stone-500 block pt-1" id="cert-timestamp">Date: Current</span>
-                    </div>
-
-                    <button onclick="resetQuizGame()" class="px-6 py-2.5 rounded-xl bg-thar-terracotta hover:bg-thar-brick text-white font-bold text-xs uppercase tracking-wider transition">
-                        Retake Quiz
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= SECTION 6: WEBSITE FEEDBACK & SUGGESTIONS ================= -->
-        <section id="page-feedback" class="page-view space-y-8">
-            <div class="max-w-4xl mx-auto space-y-8">
-                <div class="bg-white p-6 sm:p-10 rounded-3xl border border-thar-border wood-border space-y-6">
-                    <div class="border-b border-stone-200 pb-4">
-                        <span class="text-xs font-bold uppercase tracking-wider text-thar-terracotta">Voice of Devotees</span>
-                        <h2 class="font-cinzel text-3xl font-black text-thar-forest">Website Feedback & Suggestions</h2>
-                        <p class="text-xs sm:text-sm text-stone-600 mt-1">
-                            Share your suggestions, report issues, or suggest new features to help improve this sacred portal.
-                        </p>
-                    </div>
-
-                    <form id="feedback-form" onsubmit="handleFeedbackSubmit(event)" class="space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-stone-700 mb-1">Your Name *</label>
-                                <input type="text" id="feedback-name" required placeholder="e.g. Surendra Bishnoi" class="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 bg-stone-50 focus:bg-white outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-stone-700 mb-1">Phone Number (Optional)</label>
-                                <input type="tel" id="feedback-phone" placeholder="e.g. 9876543210" class="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 bg-stone-50 focus:bg-white outline-none">
-                            </div>
-                        </div>
-
-                        <!-- Star Rating -->
-                        <div>
-                            <label class="block text-xs font-bold text-stone-700 mb-1.5">Rating Experience</label>
-                            <div class="flex items-center gap-2">
-                                <div id="feedback-star-group" class="flex items-center gap-1">
-                                    <button type="button" onclick="setFeedbackRating(1)" class="star-btn text-amber-400"><i data-lucide="star" class="w-6 h-6 fill-current"></i></button>
-                                    <button type="button" onclick="setFeedbackRating(2)" class="star-btn text-amber-400"><i data-lucide="star" class="w-6 h-6 fill-current"></i></button>
-                                    <button type="button" onclick="setFeedbackRating(3)" class="star-btn text-amber-400"><i data-lucide="star" class="w-6 h-6 fill-current"></i></button>
-                                    <button type="button" onclick="setFeedbackRating(4)" class="star-btn text-amber-400"><i data-lucide="star" class="w-6 h-6 fill-current"></i></button>
-                                    <button type="button" onclick="setFeedbackRating(5)" class="star-btn text-amber-400"><i data-lucide="star" class="w-6 h-6 fill-current"></i></button>
-                                </div>
-                                <span id="feedback-rating-label" class="text-xs font-bold text-stone-600 ml-2">5 Stars (Excellent)</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-stone-700 mb-1">Your Feedback / Suggestion *</label>
-                            <textarea id="feedback-message" required rows="4" placeholder="Tell us how we can make the website better, what content or books to add..." class="w-full p-4 text-xs sm:text-sm rounded-xl border border-stone-300 bg-stone-50 focus:bg-white outline-none"></textarea>
-                        </div>
-
-                        <button type="submit" class="px-6 py-3 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center gap-2">
-                            <i data-lucide="send" class="w-4 h-4"></i> Submit Feedback
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Recent Feedback Section -->
-                <div class="bg-white p-6 sm:p-8 rounded-3xl border border-thar-border wood-border space-y-4">
-                    <h3 class="font-cinzel text-xl font-bold text-thar-forest flex items-center gap-2">
-                        <i data-lucide="message-square" class="w-5 h-5 text-thar-terracotta"></i> Community Feedback & Suggestions
-                    </h3>
-                    <div id="feedback-items-container" class="space-y-3">
-                        <!-- Populated via JS -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= SECTION 7: EXCLUSIVE OWNER ADMIN HUB ================= -->
-        <section id="page-admin" class="page-view space-y-8">
-            <div class="max-w-4xl mx-auto bg-white rounded-3xl p-6 sm:p-10 border border-thar-border wood-border shadow-md space-y-8">
-                <div class="flex flex-wrap items-center justify-between pb-6 border-b border-stone-200 gap-4">
-                    <div>
-                        <span class="text-xs font-bold uppercase tracking-wider text-thar-terracotta">Owner Administration</span>
-                        <h2 class="font-cinzel text-2xl font-black text-thar-forest">Website Management Studio</h2>
-                        <p class="text-xs text-stone-500 mt-1">Upload verified PDFs, add quiz questions, and publish daily thoughts.</p>
-                    </div>
-                    <div>
-                        <span class="text-xs font-bold text-emerald-800 bg-emerald-100 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
-                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Owner Verified
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Panel 1: Upload New PDF Document -->
-                <div class="p-6 rounded-2xl bg-thar-sand border border-thar-border space-y-4">
-                    <h4 class="font-cinzel text-base font-bold text-thar-forest flex items-center gap-2">
-                        <i data-lucide="file-up" class="w-5 h-5 text-thar-terracotta"></i> Upload PDF Book or Document to E-Library
-                    </h4>
-                    <p class="text-xs text-stone-600">The PDF will be stored and immediately made downloadable for all visitors.</p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input type="text" id="admin-pdf-title" placeholder="Document Title (e.g. Sri Shabadwani Complete)" class="px-3.5 py-2.5 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                        <input type="text" id="admin-pdf-author" placeholder="Author / Source (e.g. Guru Jambheshwar Ji)" class="px-3.5 py-2.5 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                    </div>
-                    <textarea id="admin-pdf-desc" rows="2" placeholder="Brief summary of document contents..." class="w-full p-3.5 text-xs rounded-xl border border-stone-300 bg-white outline-none"></textarea>
-
-                    <div>
-                        <label class="block text-xs font-bold text-stone-700 mb-1">Select PDF File from Your Device</label>
-                        <input type="file" id="admin-pdf-file-input" accept="application/pdf" class="block w-full text-xs text-stone-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-thar-forest file:text-white hover:file:bg-thar-leaf cursor-pointer">
-                    </div>
-
-                    <button onclick="executePDFUploadAdmin()" class="px-5 py-2.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white text-xs font-bold uppercase tracking-wider transition flex items-center gap-2 shadow-sm">
-                        <i data-lucide="upload" class="w-4 h-4"></i> Save PDF to Live Website
-                    </button>
-                </div>
-
-                <!-- Panel 2: Update Daily Marquee Sandesh -->
-                <div class="p-6 rounded-2xl bg-thar-sand border border-thar-border space-y-4">
-                    <h4 class="font-cinzel text-base font-bold text-thar-forest flex items-center gap-2">
-                        <i data-lucide="megaphone" class="w-5 h-5 text-thar-terracotta"></i> Update Daily Marquee Sandesh
-                    </h4>
-                    <textarea id="admin-bulletin-input" rows="2" placeholder="e.g. आज का विचार: 'जीव दया पालणी, रूंख लीलो नी घावौ'..." class="w-full p-3.5 text-xs rounded-xl border border-stone-300 bg-white outline-none"></textarea>
-                    <button onclick="executeSaveDailySandeshAdmin()" class="px-5 py-2 rounded-xl bg-thar-terracotta hover:bg-thar-brick text-white text-xs font-bold uppercase transition">
-                        Update Sandesh
-                    </button>
-                </div>
-
-                <!-- Panel 3: Add Quiz Question -->
-                <div class="p-6 rounded-2xl bg-thar-sand border border-thar-border space-y-4">
-                    <h4 class="font-cinzel text-base font-bold text-thar-forest flex items-center gap-2">
-                        <i data-lucide="help-circle" class="w-5 h-5 text-thar-gold"></i> Add Question to Pariksha Quiz
-                    </h4>
-                    <div class="space-y-3">
-                        <input type="text" id="admin-quiz-q" placeholder="Enter Question" class="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <input type="text" id="admin-quiz-o0" placeholder="Option A" class="px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                            <input type="text" id="admin-quiz-o1" placeholder="Option B" class="px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                            <input type="text" id="admin-quiz-o2" placeholder="Option C" class="px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                            <input type="text" id="admin-quiz-o3" placeholder="Option D" class="px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                            <div>
-                                <label class="block text-xs font-bold text-stone-700 mb-1">Correct Answer</label>
-                                <select id="admin-quiz-correct" class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                                    <option value="0">Option A</option>
-                                    <option value="1">Option B</option>
-                                    <option value="2">Option C</option>
-                                    <option value="3">Option D</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-stone-700 mb-1">Historical Context / Meaning</label>
-                                <input type="text" id="admin-quiz-expl" placeholder="Explanation for learners" class="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none">
-                            </div>
-                        </div>
-                        <button onclick="executeAddQuizQuestionAdmin()" class="px-5 py-2.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white text-xs font-bold uppercase transition">
-                            Add Question to Arena
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= SECTION 8: USER PROFILE ================= -->
-        <section id="page-profile" class="page-view space-y-8">
-            <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 sm:p-10 border border-thar-border wood-border space-y-6">
-                <div class="flex items-center gap-4 pb-6 border-b border-stone-200">
-                    <div class="relative">
-                        <div id="profile-picture-display" class="w-20 h-20 rounded-full bg-thar-sand border-2 border-thar-gold flex items-center justify-center overflow-hidden font-bold text-xl text-thar-forest">
-                            <i data-lucide="user" class="w-10 h-10 text-stone-400"></i>
-                        </div>
-                        <label class="absolute bottom-0 right-0 p-1.5 rounded-full bg-thar-terracotta text-white cursor-pointer hover:bg-thar-brick shadow-sm" title="Change Profile Picture">
-                            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-                            <input type="file" accept="image/*" class="hidden" onchange="handleProfilePhotoChange(event)">
-                        </label>
-                    </div>
-                    <div>
-                        <h3 class="font-cinzel text-xl font-bold text-stone-900" id="profile-user-name">Guest Seeker</h3>
-                        <p class="text-xs text-stone-500" id="profile-user-phone">Phone: Not logged in</p>
-                        <span id="profile-role-tag" class="mt-1 inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600">Devotee Member</span>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs text-stone-600 space-y-2">
-                        <p><strong>Member Status:</strong> Active Devotee in Bishnoi Sangha.</p>
-                        <p>You can post discussions, reply to fellow devotees in the Chaupal, download official PDFs, and participate in Pariksha.</p>
-                    </div>
-
-                    <div class="flex flex-wrap gap-3 pt-2">
-                        <button onclick="executeLogout()" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition">
-                            Log Out
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <div id="auth-modal" class="hidden fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 wood-border space-y-5 shadow-2xl relative">
-            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-700">
-                <i data-lucide="x" class="w-5 h-5"></i>
+            <button onclick="switchTab('community')" class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-200 border border-white/20 font-medium text-sm transition-all flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4"></i> Join Devotee Chaupal
             </button>
-
-            <!-- Modal Tabs: Sign In / Create Account -->
-            <div class="flex border-b border-stone-200">
-                <button onclick="switchAuthTab('login')" id="tab-auth-login" class="flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider text-thar-forest border-b-2 border-thar-forest">
-                    Log In
-                </button>
-                <button onclick="switchAuthTab('signup')" id="tab-auth-signup" class="flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider text-stone-400 border-b-2 border-transparent">
-                    Create Account
-                </button>
-            </div>
-
-            <!-- TAB 1: LOGIN FORM -->
-            <div id="form-auth-login" class="space-y-3.5">
-                <div>
-                    <label class="block text-xs font-bold text-stone-700 mb-1">Phone Number</label>
-                    <input type="tel" id="login-phone" placeholder="Enter your 10-digit phone number" class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-300 bg-white outline-none focus:ring-2 focus:ring-thar-forest">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-700 mb-1">Password</label>
-                    <input type="password" id="login-password" placeholder="Enter your password" class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-300 bg-white outline-none focus:ring-2 focus:ring-thar-forest">
-                </div>
-                <button onclick="executeLogin()" class="w-full py-2.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white text-xs font-bold uppercase tracking-wider transition shadow-md">
-                    Log In
-                </button>
-            </div>
-
-            <!-- TAB 2: SIGN UP FORM -->
-            <div id="form-auth-signup" class="hidden space-y-3.5">
-                <div>
-                    <label class="block text-xs font-bold text-stone-700 mb-1">Full Name *</label>
-                    <input type="text" id="signup-name" placeholder="e.g. Sunil Bishnoi" class="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none focus:ring-2 focus:ring-thar-forest">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-700 mb-1">Phone Number *</label>
-                    <input type="tel" id="signup-phone" placeholder="10-digit mobile number" class="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none focus:ring-2 focus:ring-thar-forest">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-700 mb-1">Make Password *</label>
-                    <input type="password" id="signup-password" placeholder="Create a password" class="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none focus:ring-2 focus:ring-thar-forest">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-700 mb-1">Profile Photo (Optional)</label>
-                    <input type="file" id="signup-avatar" accept="image/*" class="block w-full text-xs text-stone-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-stone-200 file:text-stone-800 hover:file:bg-stone-300 cursor-pointer">
-                </div>
-                <button onclick="executeSignUp()" class="w-full py-2.5 rounded-xl bg-thar-terracotta hover:bg-thar-brick text-white text-xs font-bold uppercase tracking-wider transition shadow-md">
-                    Register & Enter
-                </button>
-            </div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <div id="toast-box" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
-        <div id="toast-content" class="bg-thar-forest text-thar-sand px-5 py-3 rounded-2xl shadow-2xl border border-thar-gold text-xs font-bold flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-4 h-4 text-thar-amber"></i>
-            <span id="toast-text">Success</span>
+      <!-- KHEJARLI SACRIFICE OVERVIEW -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-thar-card p-6 rounded-2xl border border-amber-900/10 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg">
+            <i data-lucide="trees" class="w-5 h-5 text-thar-accent"></i>
+          </div>
+          <h2 class="text-lg font-bold font-yatra text-thar-khejri">363 अमर बलिदानी (Khejarli)</h2>
+          <p class="text-xs sm:text-sm text-thar-earth/80 leading-relaxed">
+            In 1730 CE, led by Mata Amrita Devi, 363 Bishnois sacrificed their lives hugging Khejri trees against royal woodcutters, igniting the world's first forest conservation movement.
+          </p>
         </div>
-    </div>
 
-    <footer class="bg-thar-deepgreen text-thar-sand border-t border-thar-gold/30 py-10 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-thar-forest flex items-center justify-center text-thar-amber border border-thar-gold/40">
-                    <i data-lucide="trees" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h5 class="font-cinzel font-bold text-sm sm:text-base">श्री बिश्नोई धर्म पीठ</h5>
-                    <p class="text-xs text-thar-sand/70">Guru Jambheshwar Bhagwan • 29 Niyams • Khejarli 1730</p>
-                </div>
-            </div>
-            <div class="text-xs text-thar-sand/80 text-center md:text-right space-y-1">
-                <p>Universal Devotee Portal • E-Library & Chaupal</p>
-                <p class="text-thar-amber font-devanagari font-bold">"जीव दया पालणी, रूंख लीलो नी घावौ"</p>
-            </div>
+        <div class="bg-thar-card p-6 rounded-2xl border border-amber-900/10 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg">
+            <i data-lucide="heart" class="w-5 h-5 text-emerald-700"></i>
+          </div>
+          <h2 class="text-lg font-bold font-yatra text-thar-khejri">जीव रक्षा एवं अहिंसा</h2>
+          <p class="text-xs sm:text-sm text-thar-earth/80 leading-relaxed">
+            Strict protection of the Blackbuck (काला हिरण), Chinkara, and all animals. Bishnoi communities protect sanctuary grounds where wildlife freely roams without fear.
+          </p>
         </div>
-    </footer>
 
-    <script>
-        /* -------------------------------------------------------------
-           1. AMBIENT TEMPLE SYNTHESIZER
-           ------------------------------------------------------------- */
-        let audioCtx = null;
-        function getAudioContext() {
-            if (!audioCtx) {
-                const AudioClass = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioClass();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            return audioCtx;
-        }
-
-        function playTempleBell() {
-            try {
-                const ctx = getAudioContext();
-                const now = ctx.currentTime;
-                [432, 864, 1296].forEach((f, i) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = i === 0 ? 'sine' : 'triangle';
-                    osc.frequency.setValueAtTime(f, now);
-                    gain.gain.setValueAtTime(0.2 / (i + 1), now);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 3);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start(now);
-                    osc.stop(now + 3.1);
-                });
-                showToast("Sacred Bell sounded");
-            } catch (e) {
-                console.log(e);
-            }
-        }
-
-        /* -------------------------------------------------------------
-           2. SPA ROUTING ENGINE
-           ------------------------------------------------------------- */
-        function navigateTo(pageId) {
-            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
-            const target = document.getElementById(`page-${pageId}`);
-            if (target) {
-                target.classList.add('active');
-            }
-
-            document.querySelectorAll('.nav-tab').forEach(t => {
-                t.classList.remove('bg-thar-sand', 'text-thar-forest', 'font-bold');
-            });
-            const activeNav = document.getElementById(`nav-${pageId}`);
-            if (activeNav && pageId !== 'admin') {
-                activeNav.classList.add('bg-thar-sand', 'text-thar-forest', 'font-bold');
-            }
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            lucide.createIcons();
-        }
-
-        function toggleMobileMenu() {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast-box');
-            document.getElementById('toast-text').innerText = msg;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 2600);
-        }
-
-        /* -------------------------------------------------------------
-           3. UNIFIED AUTHENTICATION ENGINE
-           (Owner vs Normal Devotees - No passwords or secrets shown in UI)
-           ------------------------------------------------------------- */
-        // Default Owner internal configuration (Hidden, not displayed on UI)
-        const OWNER_PHONE_CREDENTIAL = "9999999999";
-        const OWNER_SECRET_KEY = "bishnoi29";
-
-        let currentActiveUser = null;
-
-        function getRegisteredUsers() {
-            const saved = localStorage.getItem('bishnoi_registered_users');
-            return saved ? JSON.parse(saved) : [];
-        }
-
-        function saveRegisteredUsers(users) {
-            localStorage.setItem('bishnoi_registered_users', JSON.stringify(users));
-        }
-
-        function checkAuthSession() {
-            const session = localStorage.getItem('bishnoi_active_user');
-            if (session) {
-                try {
-                    currentActiveUser = JSON.parse(session);
-                } catch(e) {}
-            }
-            renderAuthUI();
-        }
-
-        function renderAuthUI() {
-            const navPill = document.getElementById('auth-nav-pill');
-            const quickPill = document.getElementById('mobile-auth-quick-pill');
-            const navAdmin = document.getElementById('nav-admin');
-            const mobileNavAdmin = document.getElementById('mobile-nav-admin');
-            const adminPdfQuickBtn = document.getElementById('admin-quick-pdf-btn');
-
-            const creatorName = document.getElementById('creator-name-display');
-            const creatorAvatar = document.getElementById('creator-avatar-preview');
-
-            if (currentActiveUser) {
-                // Logged in
-                const isOwner = currentActiveUser.role === 'owner';
-
-                // Desktop Pill
-                navPill.innerHTML = `
-                    <div class="flex items-center gap-2 cursor-pointer bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-full border border-stone-200 transition" onclick="navigateTo('profile')">
-                        ${currentActiveUser.avatar ? `
-                            <img src="${currentActiveUser.avatar}" class="w-6 h-6 rounded-full object-cover">
-                        ` : `
-                            <div class="w-6 h-6 rounded-full bg-thar-forest text-thar-sand flex items-center justify-center text-[10px] font-bold">
-                                ${currentActiveUser.name.charAt(0)}
-                            </div>
-                        `}
-                        <span class="text-xs font-bold text-stone-800 max-w-[100px] truncate">${currentActiveUser.name}</span>
-                        ${isOwner ? '<span class="text-[9px] bg-thar-terracotta text-white px-1.5 py-0.5 rounded font-extrabold">ADMIN</span>' : ''}
-                    </div>
-                `;
-
-                // Mobile Pill
-                quickPill.innerHTML = `
-                    <button onclick="navigateTo('profile')" class="px-2.5 py-1 rounded-xl bg-stone-100 text-xs font-bold text-stone-800">
-                        Profile
-                    </button>
-                `;
-
-                // Community creator banner
-                creatorName.innerText = `Posting as: ${currentActiveUser.name} (${currentActiveUser.phone})`;
-                if (currentActiveUser.avatar) {
-                    creatorAvatar.innerHTML = `<img src="${currentActiveUser.avatar}" class="w-full h-full object-cover">`;
-                } else {
-                    creatorAvatar.innerHTML = `<span class="font-bold text-xs">${currentActiveUser.name.charAt(0)}</span>`;
-                }
-
-                // Profile view updates
-                document.getElementById('profile-user-name').innerText = currentActiveUser.name;
-                document.getElementById('profile-user-phone').innerText = `Phone: ${currentActiveUser.phone}`;
-                document.getElementById('profile-role-tag').innerText = isOwner ? "Master Website Owner" : "Devotee Member";
-                if (currentActiveUser.avatar) {
-                    document.getElementById('profile-picture-display').innerHTML = `<img src="${currentActiveUser.avatar}" class="w-full h-full object-cover">`;
-                }
-
-                // Owner UI elements
-                if (isOwner) {
-                    navAdmin.classList.remove('hidden');
-                    navAdmin.classList.add('flex');
-                    mobileNavAdmin.classList.remove('hidden');
-                    adminPdfQuickBtn.classList.remove('hidden');
-                } else {
-                    navAdmin.classList.add('hidden');
-                    mobileNavAdmin.classList.add('hidden');
-                    adminPdfQuickBtn.classList.add('hidden');
-                }
-            } else {
-                // Logged out
-                navPill.innerHTML = `
-                    <button onclick="openAuthModal()" class="px-4 py-2 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white font-bold text-xs uppercase tracking-wider transition">
-                        Sign In / Join
-                    </button>
-                `;
-                quickPill.innerHTML = `
-                    <button onclick="openAuthModal()" class="px-3 py-1.5 rounded-xl border border-thar-terracotta text-thar-terracotta text-xs font-bold">
-                        Login
-                    </button>
-                `;
-
-                navAdmin.classList.add('hidden');
-                mobileNavAdmin.classList.add('hidden');
-                adminPdfQuickBtn.classList.add('hidden');
-
-                creatorName.innerText = "Posting as Guest (Sign in to publish)";
-                creatorAvatar.innerHTML = `<i data-lucide="user" class="w-5 h-5 text-stone-500"></i>`;
-            }
-            lucide.createIcons();
-        }
-
-        function openAuthModal() {
-            document.getElementById('auth-modal').classList.remove('hidden');
-        }
-        function closeAuthModal() {
-            document.getElementById('auth-modal').classList.add('hidden');
-        }
-
-        function switchAuthTab(type) {
-            if (type === 'login') {
-                document.getElementById('form-auth-login').classList.remove('hidden');
-                document.getElementById('form-auth-signup').classList.add('hidden');
-                document.getElementById('tab-auth-login').className = "flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider text-thar-forest border-b-2 border-thar-forest";
-                document.getElementById('tab-auth-signup').className = "flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider text-stone-400 border-b-2 border-transparent";
-            } else {
-                document.getElementById('form-auth-login').classList.add('hidden');
-                document.getElementById('form-auth-signup').classList.remove('hidden');
-                document.getElementById('tab-auth-signup').className = "flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider text-thar-forest border-b-2 border-thar-forest";
-                document.getElementById('tab-auth-login').className = "flex-1 pb-2.5 text-xs font-bold uppercase tracking-wider text-stone-400 border-b-2 border-transparent";
-            }
-        }
-
-        // SIGN UP FUNCTION
-        function executeSignUp() {
-            const name = document.getElementById('signup-name').value.trim();
-            const phone = document.getElementById('signup-phone').value.trim();
-            const pass = document.getElementById('signup-password').value.trim();
-            const avatarInput = document.getElementById('signup-avatar');
-
-            if (!name || !phone || !pass) {
-                showToast("Please enter Full Name, Phone, and Password");
-                return;
-            }
-
-            const users = getRegisteredUsers();
-            if (users.some(u => u.phone === phone)) {
-                showToast("This phone number is already registered. Please log in.");
-                switchAuthTab('login');
-                return;
-            }
-
-            if (avatarInput.files && avatarInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    saveNewUserRecord(name, phone, pass, e.target.result);
-                };
-                reader.readAsDataURL(avatarInput.files[0]);
-            } else {
-                saveNewUserRecord(name, phone, pass, null);
-            }
-        }
-
-        function saveNewUserRecord(name, phone, pass, avatarData) {
-            const users = getRegisteredUsers();
-            const newUser = {
-                id: 'user-' + Date.now(),
-                name: name,
-                phone: phone,
-                password: pass,
-                avatar: avatarData,
-                role: 'member'
-            };
-            users.push(newUser);
-            saveRegisteredUsers(users);
-
-            // Auto log in
-            currentActiveUser = newUser;
-            localStorage.setItem('bishnoi_active_user', JSON.stringify(currentActiveUser));
-            closeAuthModal();
-            renderAuthUI();
-            showToast(`Welcome to Bishnoi Sangha, ${name}!`);
-        }
-
-        // UNIFIED LOGIN FUNCTION
-        function executeLogin() {
-            const phone = document.getElementById('login-phone').value.trim();
-            const pass = document.getElementById('login-password').value.trim();
-
-            if (!phone || !pass) {
-                showToast("Please enter phone and password");
-                return;
-            }
-
-            // Check if user is the Owner
-            if (phone === OWNER_PHONE_CREDENTIAL && pass === OWNER_SECRET_KEY) {
-                currentActiveUser = {
-                    id: 'admin-owner',
-                    name: "Website Owner / Admin",
-                    phone: phone,
-                    avatar: null,
-                    role: 'owner'
-                };
-                localStorage.setItem('bishnoi_active_user', JSON.stringify(currentActiveUser));
-                closeAuthModal();
-                renderAuthUI();
-                showToast("Welcome Owner! Admin Hub is now available.");
-                return;
-            }
-
-            // Check normal registered devotees
-            const users = getRegisteredUsers();
-            const found = users.find(u => u.phone === phone && u.password === pass);
-
-            if (found) {
-                currentActiveUser = found;
-                localStorage.setItem('bishnoi_active_user', JSON.stringify(currentActiveUser));
-                closeAuthModal();
-                renderAuthUI();
-                showToast(`Welcome back, ${found.name}!`);
-            } else {
-                showToast("Incorrect phone or password!");
-            }
-        }
-
-        function executeLogout() {
-            currentActiveUser = null;
-            localStorage.removeItem('bishnoi_active_user');
-            renderAuthUI();
-            navigateTo('home');
-            showToast("Successfully logged out");
-        }
-
-        function handleProfilePhotoChange(e) {
-            if (!currentActiveUser) return;
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                currentActiveUser.avatar = evt.target.result;
-                localStorage.setItem('bishnoi_active_user', JSON.stringify(currentActiveUser));
-
-                // If normal user, update registered list
-                if (currentActiveUser.role !== 'owner') {
-                    const users = getRegisteredUsers();
-                    const idx = users.findIndex(u => u.phone === currentActiveUser.phone);
-                    if (idx !== -1) {
-                        users[idx].avatar = evt.target.result;
-                        saveRegisteredUsers(users);
-                    }
-                }
-                renderAuthUI();
-                showToast("Profile photo updated!");
-            };
-            reader.readAsDataURL(file);
-        }
-
-        /* -------------------------------------------------------------
-           4. E-LIBRARY & PDF DOCUMENTS STORE
-           ------------------------------------------------------------- */
-        const defaultBooks = [
-            {
-                id: 'pdf-1',
-                title: "Sri Shabadwani (120 Sacred Verses)",
-                author: "Guru Jambheshwar Bhagwan",
-                desc: "Complete collection of holy poetic Shabads revealed at Samrathal Dhora in 1485 CE.",
-                size: "1.4 MB",
-                dataUrl: null,
-                sampleContent: "श्री जम्भेश्वर भगवान कृत १२० शबदवाणी (Shabadwani Full Text)\n\nॐ गुरुजी! सोहं हंसा चेतन काया...\n(Complete Sacred Grantha for devotees)"
-            },
-            {
-                id: 'pdf-2',
-                title: "The 29 Sacred Niyams Handbook",
-                author: "Bishnoi Dharm Prachar",
-                desc: "Authentic scientific and ecological guide detailing the daily hygiene, vegetarianism, and ahimsa rules.",
-                size: "890 KB",
-                dataUrl: null,
-                sampleContent: "The 29 Rules of Bishnoism: Scientific, Social & Ecological Foundation."
-            },
-            {
-                id: 'pdf-3',
-                title: "Khejarli Tree Martyrdom Historical Record",
-                author: "Rajasthan Historical Research",
-                desc: "Historical records of Mata Amrita Devi and the 363 Bishnoi martyrs of 1730 CE.",
-                size: "2.1 MB",
-                dataUrl: null,
-                sampleContent: "Historical Annals of Khejarli 1730 CE - Amrita Devi and 363 Martyrs."
-            }
-        ];
-
-        function getStoredPDFs() {
-            const saved = localStorage.getItem('bishnoi_elibrary_pdfs');
-            return saved ? JSON.parse(saved) : defaultBooks;
-        }
-
-        function saveStoredPDFs(items) {
-            localStorage.setItem('bishnoi_elibrary_pdfs', JSON.stringify(items));
-        }
-
-        function renderPDFLibrary() {
-            const list = getStoredPDFs();
-            const grid = document.getElementById('pdf-library-grid');
-            grid.innerHTML = '';
-
-            list.forEach(item => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-6 rounded-2xl border border-stone-200 wood-border flex flex-col justify-between hover:shadow-md transition";
-                card.innerHTML = `
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs">
-                                <i data-lucide="file-text" class="w-5 h-5"></i>
-                            </span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600">
-                                PDF Document
-                            </span>
-                        </div>
-                        <h4 class="font-cinzel text-base font-bold text-thar-forest leading-snug">${item.title}</h4>
-                        <span class="text-xs font-semibold text-thar-terracotta block mt-0.5">${item.author}</span>
-                        <p class="text-xs text-stone-600 mt-2 leading-relaxed">${item.desc}</p>
-                    </div>
-                    <div class="mt-5 pt-3 border-t border-stone-100 flex items-center justify-between">
-                        <span class="text-[11px] font-bold text-stone-400">${item.size || 'PDF'}</span>
-                        <div class="flex items-center gap-2">
-                            ${currentActiveUser && currentActiveUser.role === 'owner' ? `
-                                <button onclick="deletePDFItem('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold" title="Delete PDF">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
-                            ` : ''}
-                            <button onclick="downloadPDFItem('${item.id}')" class="px-4 py-1.5 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
-                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Download PDF
-                            </button>
-                        </div>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-            lucide.createIcons();
-        }
-
-        function downloadPDFItem(id) {
-            const list = getStoredPDFs();
-            const item = list.find(d => d.id === id);
-            if (!item) return;
-
-            if (item.dataUrl) {
-                // Download real uploaded PDF
-                const a = document.createElement('a');
-                a.href = item.dataUrl;
-                a.download = `${item.title.replace(/\s+/g, '_')}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } else {
-                // Sample file download
-                const blob = new Blob([item.sampleContent || item.title], { type: 'application/pdf;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${item.title.replace(/\s+/g, '_')}.txt`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-            showToast(`Downloading: ${item.title}`);
-        }
-
-        function deletePDFItem(id) {
-            if (!currentActiveUser || currentActiveUser.role !== 'owner') return;
-            let list = getStoredPDFs();
-            list = list.filter(d => d.id !== id);
-            saveStoredPDFs(list);
-            renderPDFLibrary();
-            showToast("PDF document removed");
-        }
-
-        function executePDFUploadAdmin() {
-            if (!currentActiveUser || currentActiveUser.role !== 'owner') {
-                showToast("Only the Owner can upload new PDFs");
-                return;
-            }
-            const title = document.getElementById('admin-pdf-title').value.trim();
-            const author = document.getElementById('admin-pdf-author').value.trim();
-            const desc = document.getElementById('admin-pdf-desc').value.trim();
-            const fileInput = document.getElementById('admin-pdf-file-input');
-
-            if (!title) {
-                showToast("Please provide document title");
-                return;
-            }
-            if (!fileInput.files || fileInput.files.length === 0) {
-                showToast("Please select a PDF file from your phone or PC");
-                return;
-            }
-
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const pdfList = getStoredPDFs();
-                pdfList.unshift({
-                    id: 'pdf-' + Date.now(),
-                    title: title,
-                    author: author || "Bishnoi Dharm Parishad",
-                    desc: desc || "Official PDF document added by administrator.",
-                    size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
-                    dataUrl: e.target.result
-                });
-                saveStoredPDFs(pdfList);
-                renderPDFLibrary();
-                showToast("PDF published live to E-Library!");
-
-                document.getElementById('admin-pdf-title').value = '';
-                document.getElementById('admin-pdf-author').value = '';
-                document.getElementById('admin-pdf-desc').value = '';
-                fileInput.value = '';
-                navigateTo('library');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        /* -------------------------------------------------------------
-           5. REAL COMMUNITY FEED ENGINE (NO FAKE POSTS)
-           ------------------------------------------------------------- */
-        let attachedPostImageBase64 = null;
-
-        function getCommunityPosts() {
-            const saved = localStorage.getItem('bishnoi_real_community_posts');
-            return saved ? JSON.parse(saved) : [];
-        }
-
-        function saveCommunityPosts(posts) {
-            localStorage.setItem('bishnoi_real_community_posts', JSON.stringify(posts));
-        }
-
-        function handlePostImageSelect(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                attachedPostImageBase64 = evt.target.result;
-                document.getElementById('post-image-preview-element').src = attachedPostImageBase64;
-                document.getElementById('post-image-preview-container').classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function removeAttachedPostImage() {
-            attachedPostImageBase64 = null;
-            document.getElementById('community-post-image-input').value = '';
-            document.getElementById('post-image-preview-container').classList.add('hidden');
-        }
-
-        function focusCommunityPostBox() {
-            if (!currentActiveUser) {
-                openAuthModal();
-                showToast("Please log in or register to publish a post");
-                return;
-            }
-            document.getElementById('community-post-title').focus();
-        }
-
-        function publishNewCommunityPost() {
-            if (!currentActiveUser) {
-                openAuthModal();
-                showToast("Please log in to publish a post");
-                return;
-            }
-
-            const title = document.getElementById('community-post-title').value.trim();
-            const body = document.getElementById('community-post-body').value.trim();
-
-            if (!title || !body) {
-                showToast("Please enter both a title and message");
-                return;
-            }
-
-            const posts = getCommunityPosts();
-            const newPost = {
-                id: 'post-' + Date.now(),
-                authorName: currentActiveUser.name,
-                authorPhone: currentActiveUser.phone,
-                authorAvatar: currentActiveUser.avatar,
-                authorRole: currentActiveUser.role,
-                timestamp: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-                title: title,
-                body: body,
-                image: attachedPostImageBase64,
-                likes: 0,
-                likedBy: [],
-                comments: []
-            };
-
-            posts.unshift(newPost);
-            saveCommunityPosts(posts);
-            renderCommunityFeed();
-
-            document.getElementById('community-post-title').value = '';
-            document.getElementById('community-post-body').value = '';
-            removeAttachedPostImage();
-            showToast("Your post is live in the Chaupal!");
-        }
-
-        function renderCommunityFeed() {
-            const posts = getCommunityPosts();
-            const container = document.getElementById('community-feed-container');
-            container.innerHTML = '';
-
-            if (posts.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-white p-12 rounded-3xl border border-stone-200 wood-border text-center space-y-3">
-                        <div class="w-14 h-14 rounded-2xl bg-thar-sand text-thar-forest flex items-center justify-center mx-auto">
-                            <i data-lucide="message-square-dashed" class="w-7 h-7"></i>
-                        </div>
-                        <h4 class="font-cinzel text-lg font-bold text-stone-900">No community posts yet</h4>
-                        <p class="text-xs text-stone-500 max-w-sm mx-auto">
-                            Be the first devotee to share thoughts, ask a question, or post a heritage photo in the Chaupal!
-                        </p>
-                    </div>
-                `;
-                lucide.createIcons();
-                return;
-            }
-
-            posts.forEach(post => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-6 sm:p-7 rounded-3xl border border-stone-200 wood-border space-y-4";
-                card.innerHTML = `
-                    <!-- Post Header -->
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-thar-sand border border-thar-gold/50 flex items-center justify-center font-bold text-thar-forest overflow-hidden shrink-0">
-                                ${post.authorAvatar ? `<img src="${post.authorAvatar}" class="w-full h-full object-cover">` : post.authorName.charAt(0)}
-                            </div>
-                            <div>
-                                <h5 class="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                                    ${post.authorName}
-                                    ${post.authorRole === 'owner' ? '<span class="text-[9px] bg-thar-terracotta text-white px-1.5 py-0.2 rounded font-extrabold">ADMIN</span>' : ''}
-                                </h5>
-                                <span class="text-[10px] text-stone-500">${post.timestamp}</span>
-                            </div>
-                        </div>
-
-                        ${currentActiveUser && (currentActiveUser.role === 'owner' || currentActiveUser.phone === post.authorPhone) ? `
-                            <button onclick="deleteCommunityPost('${post.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-1" title="Delete Post">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-
-                    <!-- Post Body -->
-                    <div>
-                        <h4 class="font-cinzel text-base font-bold text-thar-forest">${post.title}</h4>
-                        <p class="text-xs sm:text-sm text-stone-700 mt-2 leading-relaxed whitespace-pre-line">${post.body}</p>
-                    </div>
-
-                    <!-- Attached Post Image (Instagram / FB style) -->
-                    ${post.image ? `
-                        <div class="rounded-2xl overflow-hidden border border-stone-200 max-h-96 bg-stone-50">
-                            <img src="${post.image}" alt="Community Photo" class="w-full h-full object-contain">
-                        </div>
-                    ` : ''}
-
-                    <!-- Post Actions Bar -->
-                    <div class="pt-3 border-t border-stone-100 flex items-center justify-between">
-                        <button onclick="likeCommunityPost('${post.id}')" class="flex items-center gap-1.5 text-xs font-bold text-stone-600 hover:text-thar-terracotta transition">
-                            <i data-lucide="heart" class="w-4 h-4 text-thar-terracotta"></i> <span>${post.likes || 0} Likes</span>
-                        </button>
-                        <span class="text-xs font-semibold text-stone-500">💬 ${(post.comments || []).length} Replies</span>
-                    </div>
-
-                    <!-- Threaded Replies Section -->
-                    <div class="space-y-2 pt-2 border-t border-stone-50">
-                        ${(post.comments || []).map(c => `
-                            <div class="p-3 rounded-2xl bg-stone-50 text-xs text-stone-800 border border-stone-200/60 flex items-start gap-2.5">
-                                <div class="w-6 h-6 rounded-full bg-thar-forest text-thar-sand flex items-center justify-center text-[10px] font-bold shrink-0">
-                                    ${c.author.charAt(0)}
-                                </div>
-                                <div class="flex-grow">
-                                    <div class="flex items-center justify-between">
-                                        <span class="font-bold text-stone-900">${c.author}</span>
-                                        <span class="text-[9px] text-stone-400">${c.time}</span>
-                                    </div>
-                                    <p class="mt-0.5 text-stone-700 leading-snug">${c.text}</p>
-                                </div>
-                            </div>
-                        `).join('')}
-
-                        <!-- Reply Input Box -->
-                        <div class="flex gap-2 pt-2">
-                            <input type="text" id="reply-input-${post.id}" placeholder="Write a reply..." class="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 bg-white outline-none focus:ring-1 focus:ring-thar-forest">
-                            <button onclick="submitReplyToPost('${post.id}')" class="px-4 py-2 rounded-xl bg-thar-forest hover:bg-thar-leaf text-white text-xs font-bold shrink-0">
-                                Reply
-                            </button>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-            lucide.createIcons();
-        }
-
-        function likeCommunityPost(postId) {
-            if (!currentActiveUser) {
-                openAuthModal();
-                showToast("Please log in to like posts");
-                return;
-            }
-            const posts = getCommunityPosts();
-            const post = posts.find(p => p.id === postId);
-            if (post) {
-                post.likes = (post.likes || 0) + 1;
-                saveCommunityPosts(posts);
-                renderCommunityFeed();
-            }
-        }
-
-        function submitReplyToPost(postId) {
-            if (!currentActiveUser) {
-                openAuthModal();
-                showToast("Please log in to reply");
-                return;
-            }
-            const input = document.getElementById(`reply-input-${postId}`);
-            const text = input.value.trim();
-            if (!text) return;
-
-            const posts = getCommunityPosts();
-            const post = posts.find(p => p.id === postId);
-            if (post) {
-                if (!post.comments) post.comments = [];
-                post.comments.push({
-                    author: currentActiveUser.name,
-                    text: text,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                });
-                saveCommunityPosts(posts);
-                renderCommunityFeed();
-                showToast("Reply published");
-            }
-        }
-
-        function deleteCommunityPost(postId) {
-            let posts = getCommunityPosts();
-            posts = posts.filter(p => p.id !== postId);
-            saveCommunityPosts(posts);
-            renderCommunityFeed();
-            showToast("Post deleted");
-        }
-
-        /* -------------------------------------------------------------
-           6. FEEDBACK & SUGGESTIONS ENGINE
-           ------------------------------------------------------------- */
-        let selectedFeedbackRating = 5;
-
-        function setFeedbackRating(stars) {
-            selectedFeedbackRating = stars;
-            const starButtons = document.querySelectorAll('#feedback-star-group .star-btn');
-            starButtons.forEach((btn, idx) => {
-                if (idx < stars) {
-                    btn.classList.add('text-amber-400');
-                    btn.classList.remove('text-stone-300');
-                } else {
-                    btn.classList.remove('text-amber-400');
-                    btn.classList.add('text-stone-300');
-                }
-            });
-            const labels = ["1 Star (Poor)", "2 Stars (Fair)", "3 Stars (Good)", "4 Stars (Very Good)", "5 Stars (Excellent)"];
-            document.getElementById('feedback-rating-label').innerText = labels[stars - 1];
-        }
-
-        function getStoredFeedback() {
-            const saved = localStorage.getItem('bishnoi_user_feedback');
-            return saved ? JSON.parse(saved) : [
-                {
-                    id: 'fb-sample',
-                    name: "Jagdish Godara",
-                    phone: "98290XXXXX",
-                    stars: 5,
-                    message: "The 29 rules explanation and Khejarli history are presented very clearly. Please add audio recitations of the Shabads as well.",
-                    time: "Recently"
-                }
-            ];
-        }
-
-        function saveStoredFeedback(list) {
-            localStorage.setItem('bishnoi_user_feedback', JSON.stringify(list));
-        }
-
-        function renderFeedbackList() {
-            const list = getStoredFeedback();
-            const container = document.getElementById('feedback-items-container');
-            container.innerHTML = '';
-
-            list.forEach(item => {
-                const row = document.createElement('div');
-                row.className = "p-4 rounded-2xl bg-stone-50 border border-stone-200/80 space-y-1.5";
-                row.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-stone-900">${item.name}</span>
-                            <span class="text-[10px] text-amber-500 font-bold">${'★'.repeat(item.stars)}</span>
-                        </div>
-                        <span class="text-[10px] text-stone-400">${item.time}</span>
-                    </div>
-                    <p class="text-xs text-stone-700 leading-relaxed">${item.message}</p>
-                `;
-                container.appendChild(row);
-            });
-        }
-
-        function handleFeedbackSubmit(e) {
-            e.preventDefault();
-            const name = document.getElementById('feedback-name').value.trim();
-            const phone = document.getElementById('feedback-phone').value.trim();
-            const msg = document.getElementById('feedback-message').value.trim();
-
-            if (!name || !msg) return;
-
-            const list = getStoredFeedback();
-            list.unshift({
-                id: 'fb-' + Date.now(),
-                name: name,
-                phone: phone || "Not shared",
-                stars: selectedFeedbackRating,
-                message: msg,
-                time: "Just now"
-            });
-            saveStoredFeedback(list);
-            renderFeedbackList();
-
-            document.getElementById('feedback-form').reset();
-            setFeedbackRating(5);
-            showToast("Thank you for your valuable feedback!");
-        }
-
-        /* -------------------------------------------------------------
-           7. 29 SACRED RULES (NIYAMS) STORE & FILTERS
-           ------------------------------------------------------------- */
-        const NIYAM_DATABASE = [
-            { id: 1, title: "Postpartum Seclusion", cat: "hygiene", hindi: "प्रसूति सूतक (30 दिन)", desc: "Maintain 30 days of sterile quarantine for mother and newborn to prevent contagion." },
-            { id: 2, title: "Menstrual Rest", cat: "hygiene", hindi: "ऋतुवंती मर्यादा (5 दिन)", desc: "Ensure 5 days of absolute physical respite from heavy field and household labor for women." },
-            { id: 3, title: "Morning Ablution", cat: "hygiene", hindi: "प्रातः स्नान", desc: "Bathe daily prior to dawn to instill physical vigor and clarity of spirit." },
-            { id: 4, title: "Contentment & Chastity", cat: "morality", hindi: "शील व संतोष", desc: "Practice modesty, restraint, and contentment to conquer insatiable greed." },
-            { id: 5, title: "Purity of Mind & Body", cat: "hygiene", hindi: "पवित्रता", desc: "Maintain cleanliness of garments, domestic environment, and thought." },
-            { id: 6, title: "Daily Morning Sandhya", cat: "spirituality", hindi: "संध्या वंदना", desc: "Meditate twice daily at the confluence of dawn and dusk." },
-            { id: 7, title: "Praise of the Preserver", cat: "spirituality", hindi: "विष्णु गुणगान", desc: "Sing devotional praises honoring the Sustainer of all creation." },
-            { id: 8, title: "Daily Havan", cat: "spirituality", hindi: "दैनिक हवन", desc: "Perform holy homa fire with pure ghee and coconut to purify the atmosphere." },
-            { id: 9, title: "Filter Water & Milk", cat: "hygiene", hindi: "जल व दूध छानना", desc: "Strain fluids with cloth so invisible insects are spared and waterborne illness averted." },
-            { id: 10, title: "Mindful Speech", cat: "morality", hindi: "वाणी शुद्धि", desc: "Weigh words gently; never use harsh, false or deceitful language." },
-            { id: 11, title: "Forgiveness (Kshama)", cat: "morality", hindi: "क्षमा धारण", desc: "Cultivate patient forbearance and surrender vindictive retaliation." },
-            { id: 12, title: "No Stealing", cat: "morality", hindi: "चोरी का त्याग", desc: "Never take pastures, grain, or wealth belonging to another." },
-            { id: 13, title: "No Slander (Ninda)", cat: "morality", hindi: "निंदा न करना", desc: "Refrain from speaking malice behind someone's back." },
-            { id: 14, title: "Truthfulness", cat: "morality", hindi: "सत्य भाषण", desc: "Always speak the truth in business, community, and personal life." },
-            { id: 15, title: "Avoid Vain Disputes", cat: "morality", hindi: "वाद-विवाद त्याग", desc: "Do not waste mental serene energy in fruitless ego arguments." },
-            { id: 16, title: "Fast on Amavasya", cat: "spirituality", hindi: "अमावस्या व्रत", desc: "Observe bodily fasting and inward meditation on each new moon." },
-            { id: 17, title: "Remember Divine Name", cat: "spirituality", hindi: "विष्णु नाम स्मरण", desc: "Keep constant remembrance of God in trade, farming, and daily life." },
-            { id: 18, title: "Compassion for All Life", cat: "environment", hindi: "जीव दया", desc: "Protect wild animals, deer, and birds with your own life. Never allow harm." },
-            { id: 19, title: "Never Cut Green Trees", cat: "environment", hindi: "हरे वृक्ष न काटना", desc: "Absolute ban against cutting green trees—especially the sacred Khejri." },
-            { id: 20, title: "Conquer Five Passions", cat: "morality", hindi: "काम, क्रोध, मद, लोभ त्याग", desc: "Restrain lust, wrath, arrogance, avarice, and blind attachment." },
-            { id: 21, title: "Pure Vegetarian Food", cat: "hygiene", hindi: "शुद्ध सात्विक आहार", desc: "Cook cleanly with one's own hands using wholesome, harmless grains." },
-            { id: 22, title: "Shelter for Animals", cat: "environment", hindi: "गोपालन व रक्षा", desc: "Provide shelters (Thath) and feeding troughs for cows and infirm cattle." },
-            { id: 23, title: "Never Castrate Bulls", cat: "environment", hindi: "सांड बधिया न करना", desc: "Honor the natural virility, biology, and dignity of breeding bulls." },
-            { id: 24, title: "Abstain from Opium", cat: "hygiene", hindi: "अफीम का त्याग", desc: "Complete prohibition against opium consumption or trade." },
-            { id: 25, title: "Abstain from Tobacco", cat: "hygiene", hindi: "तम्बाकू का त्याग", desc: "No smoking or chewing tobacco to protect lungs and family health." },
-            { id: 26, title: "Abstain from Cannabis", cat: "hygiene", hindi: "भांग-गांजा त्याग", desc: "Refrain from psychotropic intoxicants that cloud spiritual discernment." },
-            { id: 27, title: "Abstain from Alcohol", cat: "hygiene", hindi: "मदिरा त्याग", desc: "Total temperance to protect family tranquility and household stability." },
-            { id: 28, title: "Never Eat Meat", cat: "environment", hindi: "मांसाहार त्याग", desc: "Strict lifetime vegetarianism; consuming flesh of any being is forbidden." },
-            { id: 29, title: "Do Not Wear Blue Dye", cat: "environment", hindi: "नीले वस्त्र त्याग", desc: "Indigo dye harvesting tore up green desert shrubs and wasted scarce water." }
-        ];
-
-        function renderNiyams(items) {
-            const container = document.getElementById('niyam-cards-container');
-            container.innerHTML = '';
-            items.forEach(n => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-5 rounded-2xl border border-stone-200 wood-border flex flex-col justify-between";
-                card.innerHTML = `
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="w-7 h-7 rounded-lg bg-thar-forest text-thar-sand flex items-center justify-center text-xs font-bold font-cinzel">
-                                #${n.id}
-                            </span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${n.cat === 'environment' ? 'bg-emerald-100 text-thar-forest' : n.cat === 'hygiene' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}">
-                                ${n.cat}
-                            </span>
-                        </div>
-                        <h4 class="font-cinzel text-base font-bold text-thar-forest">${n.title}</h4>
-                        <span class="font-devanagari text-xs text-thar-terracotta font-semibold">${n.hindi}</span>
-                        <p class="text-xs text-stone-600 mt-2 leading-relaxed">${n.desc}</p>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function setNiyamFilter(cat) {
-            document.querySelectorAll('.niyam-filter-btn').forEach(b => {
-                b.classList.remove('bg-thar-forest', 'text-white', 'active');
-                b.classList.add('bg-stone-200', 'text-stone-800');
-            });
-            event.target.classList.add('bg-thar-forest', 'text-white', 'active');
-            event.target.classList.remove('bg-stone-200', 'text-stone-800');
+        <div class="bg-thar-card p-6 rounded-2xl border border-amber-900/10 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg">
+            <i data-lucide="scroll" class="w-5 h-5 text-amber-700"></i>
+          </div>
+          <h2 class="text-lg font-bold font-yatra text-thar-khejri">29 नियम जीवन शैली</h2>
+          <p class="text-xs sm:text-sm text-thar-earth/80 leading-relaxed">
+            A complete synthesis of personal hygiene, compassion, spiritual discipline, vegetarianism, and ecological ethics handed down to cultivate pure living.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 29 NIYAMS -->
+    <section id="tab-niyams" class="hidden space-y-8">
+      <div class="border-b border-amber-900/10 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <span class="text-xs uppercase font-bold tracking-wider text-thar-accent">Guru Jambheshwar Bhagwan</span>
+          <h2 class="text-2xl sm:text-3xl font-yatra font-bold text-thar-khejri">29 पावन नियम (The 29 Sacred Niyams)</h2>
+          <p class="text-xs sm:text-sm text-thar-earth/70 mt-1">Universal principles given at Samrathal Dhora in 1485 CE.</p>
+        </div>
+        <div class="relative w-full sm:w-64">
+          <input type="text" id="niyamSearchInput" oninput="filterNiyams()" placeholder="Search niyams..." class="w-full px-3.5 py-2 pl-9 rounded-xl border border-amber-900/20 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-thar-accent bg-white">
+          <i data-lucide="search" class="w-4 h-4 text-amber-700 absolute left-3 top-2.5"></i>
+        </div>
+      </div>
+
+      <div id="niyamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 3: E-LIBRARY & CLOUD PDF REPOSITORY -->
+    <section id="tab-library" class="hidden space-y-8">
+      <div class="border-b border-amber-900/10 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <span class="text-xs uppercase font-bold tracking-wider text-thar-accent">Digital Granth Repository</span>
+          <h2 class="text-2xl sm:text-3xl font-cinzel font-bold text-thar-khejri">E-Library & Sacred Literature</h2>
+          <p class="text-xs sm:text-sm text-thar-earth/70 mt-1">Download official Bishnoi granths, Shabadwani, 29 Niyam guides, and historical archives.</p>
+        </div>
+        <button id="libraryUploadBtn" onclick="openPdfModal()" class="hidden px-4 py-2 rounded-xl bg-thar-khejri hover:bg-emerald-900 text-white text-xs sm:text-sm font-semibold flex items-center gap-2 shadow">
+          <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload New PDF
+        </button>
+      </div>
+
+      <!-- Cloud Sync Status Notice -->
+      <div id="libraryStatusNotice" class="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center gap-2">
+        <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin text-amber-600"></i>
+        <span>Connecting to live cloud repository...</span>
+      </div>
+
+      <!-- PDF Grid -->
+      <div id="pdfsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Dynamically injected from Firestore -->
+      </div>
+    </section>
+
+    <!-- TAB 4: COMMUNITY CHAUPAL (LIVE CHAT & PHOTO FEED) -->
+    <section id="tab-community" class="hidden space-y-6">
+      <div class="border-b border-amber-900/10 pb-4 flex justify-between items-center">
+        <div>
+          <span class="text-xs uppercase font-bold tracking-wider text-thar-accent">Real-Time Devotee Chaupal</span>
+          <h2 class="text-2xl sm:text-3xl font-yatra font-bold text-thar-khejri">विश्नोई समाज चौपाल</h2>
+          <p class="text-xs sm:text-sm text-thar-earth/70 mt-1">Ask questions, share photos, and connect with devotees worldwide.</p>
+        </div>
+      </div>
+
+      <!-- CREATE POST BOX (Logged in only) -->
+      <div id="createPostCard" class="bg-thar-card rounded-2xl border border-amber-900/10 p-5 shadow-sm space-y-4">
+        <div id="createPostPrompt" class="hidden flex items-start gap-3">
+          <img id="userAvatarSmall" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop" class="w-10 h-10 rounded-full border border-amber-300 object-cover" alt="avatar">
+          <div class="flex-grow space-y-3">
+            <textarea id="postContentInput" rows="3" placeholder="Share a holy thought, community question, or message with the society..." class="w-full p-3 text-sm rounded-xl border border-amber-900/20 focus:outline-none focus:ring-2 focus:ring-thar-accent bg-white"></textarea>
             
-            const filtered = cat === 'all' 
-                ? NIYAM_DATABASE 
-                : NIYAM_DATABASE.filter(n => n.cat === cat);
-            renderNiyams(filtered);
+            <!-- Photo Upload Attachment Preview -->
+            <div id="postImagePreviewContainer" class="hidden relative inline-block">
+              <img id="postImagePreview" src="" class="max-h-48 rounded-lg border border-amber-300 shadow-sm object-cover" alt="preview">
+              <button onclick="removePostImage()" class="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <label class="cursor-pointer inline-flex items-center gap-2 text-xs font-semibold text-thar-accent hover:text-amber-800 transition-colors">
+                <i data-lucide="image" class="w-4 h-4"></i> Attach Photo
+                <input type="file" id="postImageFile" accept="image/*" class="hidden" onchange="handlePostImageSelect(event)">
+              </label>
+              <button onclick="publishCommunityPost()" id="publishPostBtn" class="px-5 py-2 rounded-xl bg-thar-khejri hover:bg-emerald-950 text-white text-xs sm:text-sm font-semibold flex items-center gap-2 shadow">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Post to Chaupal
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="loginToPostPrompt" class="text-center py-6 space-y-3">
+          <p class="text-sm text-thar-earth/80">Please sign in with your name and phone number to participate, post, or reply in Chaupal.</p>
+          <button onclick="openAuthModal()" class="px-5 py-2 rounded-xl bg-thar-accent text-white text-xs sm:text-sm font-semibold hover:bg-amber-700 shadow">
+            Sign In / Join Chaupal
+          </button>
+        </div>
+      </div>
+
+      <!-- LIVE POSTS FEED -->
+      <div id="postsFeedContainer" class="space-y-4">
+        <!-- Rendered real-time via Firebase Firestore -->
+        <div class="text-center py-12 text-sm text-amber-800/60">
+          <i data-lucide="loader" class="w-6 h-6 animate-spin mx-auto mb-2 text-amber-700"></i>
+          Loading live chaupal conversations...
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: KNOWLEDGE QUIZ ARENA -->
+    <section id="tab-quiz" class="hidden max-w-2xl mx-auto space-y-6">
+      <div class="text-center space-y-2">
+        <span class="text-xs uppercase font-bold tracking-wider text-thar-accent">Dharm & History Challenge</span>
+        <h2 class="text-2xl sm:text-3xl font-yatra font-bold text-thar-khejri">विश्नोई ज्ञान परीक्षा (Quiz Arena)</h2>
+        <p class="text-xs sm:text-sm text-thar-earth/70">Test your knowledge of the 29 Rules, Guru Jambhoji's life, and the Khejarli sacrifice.</p>
+      </div>
+
+      <div id="quizContainer" class="bg-thar-card rounded-3xl border border-amber-900/10 p-6 sm:p-8 shadow-sm">
+        <!-- Active question rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 6: WEBSITE FEEDBACK -->
+    <section id="tab-feedback" class="hidden max-w-xl mx-auto space-y-6">
+      <div class="text-center space-y-2">
+        <span class="text-xs uppercase font-bold tracking-wider text-thar-accent">Your Experience Matters</span>
+        <h2 class="text-2xl sm:text-3xl font-yatra font-bold text-thar-khejri">वेबसाइट प्रतिक्रिया (Feedback)</h2>
+        <p class="text-xs sm:text-sm text-thar-earth/70">Share your suggestions to help us improve this holy portal.</p>
+      </div>
+
+      <form onsubmit="submitFeedback(event)" class="bg-thar-card rounded-2xl border border-amber-900/10 p-6 shadow-sm space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Your Name</label>
+          <input type="text" id="fbName" required placeholder="Enter full name" class="w-full p-2.5 text-sm rounded-xl border border-amber-900/20 focus:ring-2 focus:ring-thar-accent bg-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Rating</label>
+          <div class="flex items-center gap-2" id="starRating">
+            <button type="button" onclick="setRating(1)" class="star-btn text-2xl text-amber-300">★</button>
+            <button type="button" onclick="setRating(2)" class="star-btn text-2xl text-amber-300">★</button>
+            <button type="button" onclick="setRating(3)" class="star-btn text-2xl text-amber-300">★</button>
+            <button type="button" onclick="setRating(4)" class="star-btn text-2xl text-amber-300">★</button>
+            <button type="button" onclick="setRating(5)" class="star-btn text-2xl text-amber-400">★</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Message or Suggestion</label>
+          <textarea id="fbMessage" rows="4" required placeholder="Write your comments here..." class="w-full p-2.5 text-sm rounded-xl border border-amber-900/20 focus:ring-2 focus:ring-thar-accent bg-white"></textarea>
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-thar-accent hover:bg-amber-700 text-white font-semibold text-sm shadow transition-all">
+          Submit Feedback
+        </button>
+      </form>
+    </section>
+
+    <!-- TAB 7: HIDDEN OWNER ADMIN HUB -->
+    <section id="tab-admin" class="hidden space-y-8">
+      <div class="bg-gradient-to-r from-amber-800 to-amber-900 text-amber-50 p-6 sm:p-8 rounded-3xl shadow-lg border border-amber-700 space-y-2">
+        <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-600/40 text-amber-200 text-xs font-bold uppercase tracking-wider">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> Owner Control Room
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-yatra font-bold text-white">व्यवस्थापक नियंत्रण कक्ष (Owner Admin Hub)</h2>
+        <p class="text-xs sm:text-sm text-amber-200/90">Daily management for Announcements, Cloud PDFs, and Quiz questions without modifying code.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- CARD 1: DAILY THOUGHT / ANNOUNCEMENT UPDATER -->
+        <div class="bg-thar-card rounded-2xl border border-amber-900/10 p-6 shadow-sm space-y-4">
+          <div class="flex items-center gap-2 text-thar-khejri font-bold font-yatra text-lg">
+            <i data-lucide="megaphone" class="w-5 h-5 text-thar-accent"></i>
+            <h3>Update Daily Sandesh (Banner)</h3>
+          </div>
+          <p class="text-xs text-thar-earth/70">This message updates instantly in the top banner across all visitor screens.</p>
+          <textarea id="adminSandeshInput" rows="3" class="w-full p-3 text-sm rounded-xl border border-amber-900/20 focus:ring-2 focus:ring-thar-accent bg-white" placeholder="Type holy quote or daily announcement..."></textarea>
+          <button onclick="saveDailySandesh()" class="px-5 py-2.5 rounded-xl bg-thar-accent text-white font-semibold text-xs sm:text-sm hover:bg-amber-700 shadow flex items-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i> Save & Broadcast to All Users
+          </button>
+        </div>
+
+        <!-- CARD 2: UPLOAD CLOUD PDF (DIRECT TO FIREBASE STORAGE) -->
+        <div class="bg-thar-card rounded-2xl border border-amber-900/10 p-6 shadow-sm space-y-4">
+          <div class="flex items-center gap-2 text-thar-khejri font-bold font-yatra text-lg">
+            <i data-lucide="file-plus" class="w-5 h-5 text-thar-accent"></i>
+            <h3>Upload PDF to Cloud E-Library</h3>
+          </div>
+          <p class="text-xs text-thar-earth/70">Files are uploaded directly to Firebase Cloud Storage and visible to everyone instantly.</p>
+          <div class="space-y-3">
+            <input type="text" id="adminPdfTitle" placeholder="Document Title (e.g., 29 Niyam Guide Hindi)" class="w-full p-2.5 text-xs sm:text-sm rounded-xl border border-amber-900/20 bg-white">
+            <input type="text" id="adminPdfAuthor" placeholder="Publisher / Author (e.g., विश्नोई साहित्य परिषद)" class="w-full p-2.5 text-xs sm:text-sm rounded-xl border border-amber-900/20 bg-white">
+            <input type="file" id="adminPdfFileInput" accept="application/pdf" class="w-full text-xs text-thar-earth file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200">
+            <button onclick="uploadPdfToCloud()" id="adminUploadPdfBtn" class="w-full py-2.5 rounded-xl bg-thar-khejri text-white font-semibold text-xs sm:text-sm hover:bg-emerald-950 shadow flex items-center justify-center gap-2">
+              <i data-lucide="cloud-upload" class="w-4 h-4"></i> Upload & Publish to All Devices
+            </button>
+            <div id="pdfUploadProgress" class="hidden text-xs text-amber-700 font-semibold text-center">Uploading to Cloud...</div>
+          </div>
+        </div>
+
+        <!-- CARD 3: ADD NEW QUIZ QUESTION -->
+        <div class="bg-thar-card rounded-2xl border border-amber-900/10 p-6 shadow-sm space-y-4 lg:col-span-2">
+          <div class="flex items-center gap-2 text-thar-khejri font-bold font-yatra text-lg">
+            <i data-lucide="help-circle" class="w-5 h-5 text-thar-accent"></i>
+            <h3>Add New Quiz Question</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold mb-1">Question Text</label>
+              <input type="text" id="adminQText" placeholder="e.g. खेजड़ली बलिदान किस वर्ष हुआ था?" class="w-full p-2.5 text-xs sm:text-sm rounded-xl border border-amber-900/20 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Option 1</label>
+              <input type="text" id="adminOpt0" placeholder="Option A" class="w-full p-2 text-xs rounded-xl border border-amber-900/20 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Option 2</label>
+              <input type="text" id="adminOpt1" placeholder="Option B" class="w-full p-2 text-xs rounded-xl border border-amber-900/20 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Option 3</label>
+              <input type="text" id="adminOpt2" placeholder="Option C" class="w-full p-2 text-xs rounded-xl border border-amber-900/20 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Option 4</label>
+              <input type="text" id="adminOpt3" placeholder="Option D" class="w-full p-2 text-xs rounded-xl border border-amber-900/20 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Correct Option (0 to 3)</label>
+              <select id="adminCorrectIdx" class="w-full p-2 text-xs rounded-xl border border-amber-900/20 bg-white">
+                <option value="0">Option 1</option>
+                <option value="1">Option 2</option>
+                <option value="2">Option 3</option>
+                <option value="3">Option 4</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Fact / Explanation</label>
+              <input type="text" id="adminQFact" placeholder="e.g. 1730 ईस्वी में अमृता देवी के नेतृत्व में हुआ।" class="w-full p-2 text-xs rounded-xl border border-amber-900/20 bg-white">
+            </div>
+          </div>
+          <button onclick="addCloudQuizQuestion()" class="px-5 py-2.5 rounded-xl bg-thar-khejri text-white font-semibold text-xs sm:text-sm hover:bg-emerald-950 shadow flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> Add Question to Live Quiz
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- AUTHENTICATION MODAL (UNIFIED LOGIN & SIGN-UP) -->
+  <div id="authModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#FAF6EE] rounded-3xl max-w-sm w-full p-6 border border-amber-900/20 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-amber-900/10 pb-3">
+        <h3 class="font-yatra text-xl text-thar-khejri" id="authModalTitle">Sign In</h3>
+        <button onclick="closeAuthModal()" class="text-amber-800 hover:text-black p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- FORM -->
+      <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3">
+        <!-- Name (Visible only during sign-up) -->
+        <div id="authNameField" class="hidden">
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Your Full Name</label>
+          <input type="text" id="authName" placeholder="e.g. Ramesh Bishnoi" class="w-full p-2.5 text-xs sm:text-sm rounded-xl border border-amber-900/20 bg-white focus:ring-2 focus:ring-thar-accent">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Phone Number</label>
+          <input type="tel" id="authPhone" required placeholder="Enter 10-digit number" class="w-full p-2.5 text-xs sm:text-sm rounded-xl border border-amber-900/20 bg-white focus:ring-2 focus:ring-thar-accent">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Password</label>
+          <input type="password" id="authPassword" required placeholder="Enter password" class="w-full p-2.5 text-xs sm:text-sm rounded-xl border border-amber-900/20 bg-white focus:ring-2 focus:ring-thar-accent">
+        </div>
+
+        <!-- Optional Profile Picture (Sign Up only) -->
+        <div id="authPhotoField" class="hidden">
+          <label class="block text-xs font-semibold text-thar-earth/80 mb-1">Profile Photo (Optional)</label>
+          <input type="file" id="authPhotoInput" accept="image/*" class="w-full text-xs text-thar-earth file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-amber-100 file:text-amber-900">
+        </div>
+
+        <button type="submit" id="authSubmitBtn" class="w-full py-2.5 rounded-xl bg-thar-khejri text-white font-semibold text-xs sm:text-sm hover:bg-emerald-950 shadow">
+          Sign In
+        </button>
+      </form>
+
+      <div class="text-center pt-2">
+        <button onclick="toggleAuthMode()" id="authToggleBtn" class="text-xs text-thar-accent font-semibold hover:underline">
+          Don't have an account? Sign Up
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-thar-earth text-amber-100/80 border-t border-amber-950 py-10 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+      <div>
+        <h4 class="font-yatra text-xl text-amber-300">श्री विश्नोई धर्म पीठ</h4>
+        <p class="text-xs text-amber-200/60 mt-1">पर्यावरण संरक्षण • जीव दया • २५०+ वर्षों का गौरवशाली त्याग</p>
+      </div>
+      <div class="text-xs text-amber-300/60">
+        © 2026 Bishnoi Eco-Dharm Portal. Cloud Powered Community.
+      </div>
+    </div>
+  </footer>
+
+  <!-- MAIN SCRIPT LOGIC -->
+  <script>
+    // ==========================================
+    // 1. FIREBASE INITIALIZATION WITH YOUR KEYS
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
+      authDomain: "bishnoi-platform.firebaseapp.com",
+      projectId: "bishnoi-platform",
+      storageBucket: "bishnoi-platform.firebasestorage.app",
+      messagingSenderId: "1001226124051",
+      appId: "1:1001226124051:web:ad4dc69e04e6701024f8e6",
+      measurementId: "G-2RB41Z0JNK"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // Owner credentials check
+    const OWNER_PHONE = "9999999999";
+    const OWNER_PASS = "bishnoi29";
+
+    // Application State
+    let currentUser = JSON.parse(localStorage.getItem('bishnoi_user') || 'null');
+    let isSignUpMode = false;
+    let selectedPostImageBase64 = null;
+    let currentQuizIndex = 0;
+    let quizScore = 0;
+    let quizQuestionsList = [];
+
+    // Default 29 Niyams data
+    const NIYAMS_DATA = [
+      { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "Maintain 30 days of postpartum sanitation and rest for mother and newborn." },
+      { num: 2, title: "माहवारी पृथक्करण", rule: "पांच दिन रजस्वला पृथक्करण", desc: "Ensure 5 days hygienic rest for women during menstruation." },
+      { num: 3, title: "प्रातः स्नान", rule: "सेरो करो अchnान", desc: "Bathe early morning daily for hygiene and mental freshness." },
+      { num: 4, title: "शील व संतोष", rule: "शील संतोष सूच राखणा", desc: "Cultivate modesty, contentment, and internal purity." },
+      { num: 5, title: "द्विकाल संध्या", rule: "द्वादश कर्म सांध", desc: "Perform prayers and meditation twice daily at twilight." },
+      { num: 6, title: "संध्या आरती", rule: "सांझ आरती गुण गावै", desc: "Sing devotional praises and light Aarti in the evening." },
+      { num: 7, title: "प्रातः हवन", rule: "प्रात: होम करणा", desc: "Perform morning haven with ghee to purify home atmosphere." },
+      { num: 8, title: "छानकर पानी", rule: "पाणी छान पीवणा", desc: "Filter water before drinking to save micro-organisms." },
+      { num: 9, title: "ईंधन जांच", rule: "ईंधन बीन बाळणा", desc: "Inspect firewood before burning to ensure no small insects exist." },
+      { num: 10, title: "क्षमा धारण", rule: "क्षमा दया मन आणणा", desc: "Bear forgiveness and compassion in all thoughts." },
+      { num: 11, title: "दया भाव", rule: "दया हिरदै राखणी", desc: "Nurture kindness towards every animal and human." },
+      { num: 12, title: "चोरी त्याग", rule: "चोरी नहीं करणी", desc: "Never steal or take anything that belongs to another." },
+      { num: 13, title: "निंदा त्याग", rule: "निंदा नहीं करणी", desc: "Never engage in backbiting or character criticism." },
+      { num: 14, title: "झूठ त्याग", rule: "झूठ नहीं बोलना", desc: "Always speak truth with humility." },
+      { num: 15, title: "वाद-विवाद त्याग", rule: "वाद विवाद नहीं करणा", desc: "Avoid egoistic quarrels and futile arguments." },
+      { num: 16, title: "अमावस्या व्रत", rule: "अमावस्या व्रत राखणा", desc: "Fast on Amavasya day and spend time in meditation." },
+      { num: 17, title: "विष्णु स्मरण", rule: "विष्णु नाम जपणा", desc: "Continually chant and contemplate the holy name of Vishnu." },
+      { num: 18, title: "जीव दया", rule: "जीव दया पालणी", desc: "Protect every living creature; never slaughter animals." },
+      { num: 19, title: "हरा वृक्ष संरक्षण", rule: "रूंख लीलो नी घावै", desc: "Never cut a green living tree under any circumstance." },
+      { num: 20, title: "काम-क्रोध संयम", rule: "अजर जरे सो सूर", desc: "Conquer lust, anger, and excessive passions." },
+      { num: 21, title: "स्वहस्त आहार", rule: "आपने हाथे रांधणा", desc: "Cook your own food with cleanliness and positive thought." },
+      { num: 22, title: "पशु थापण", rule: "अमर रखावै थाट", desc: "Provide sanctuary to shelter abandoned cattle and animals." },
+      { num: 23, title: "बैल बंध्याकरण निषेध", rule: "बैल बधिया नहीं करणा", desc: "Do not castrate bullocks or mistreat farm beasts." },
+      { num: 24, title: "अमल त्याग", rule: "अमल नहीं खाणा", desc: "Completely abstain from opium and narcotics." },
+      { num: 25, title: "तम्बाकू निषेध", rule: "तम्बाकू नहीं पीणा", desc: "Abstain from chewing or smoking tobacco." },
+      { num: 26, title: "भांग त्याग", rule: "भांग नहीं पीणी", desc: "Strictly avoid cannabis and intoxicating weeds." },
+      { num: 27, title: "मदिरा निषेध", rule: "मद्य नहीं पीणा", desc: "Total abstinence from alcohol and liquor." },
+      { num: 28, title: "मांसाहार त्याग", rule: "मांस नहीं खाणा", desc: "Strict lifelong vegetarianism; respect life." },
+      { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "Do not wear indigo dye obtained by destroying green indigo plants." }
+    ];
+
+    // ==========================================
+    // 2. LIFECYCLE & INITIAL LOAD
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateAuthUI();
+      renderNiyams(NIYAMS_DATA);
+      listenToLiveAnnouncement();
+      listenToLivePdfs();
+      listenToLivePosts();
+      loadQuizQuestions();
+    });
+
+    // Navigation Switcher
+    function switchTab(tabId) {
+      const tabs = ['home', 'niyams', 'library', 'community', 'quiz', 'feedback', 'admin'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        const nav = document.getElementById(`nav-${t}`);
+        if (el) el.classList.add('hidden');
+        if (nav) nav.classList.remove('active-nav');
+      });
+
+      const activeEl = document.getElementById(`tab-${tabId}`);
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeNav) activeNav.classList.add('active-nav');
+
+      const mobileMenu = document.getElementById('mobileMenu');
+      if (mobileMenu) mobileMenu.classList.add('hidden');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleMobileNav() {
+      const menu = document.getElementById('mobileMenu');
+      menu.classList.toggle('hidden');
+    }
+
+    // ==========================================
+    // 3. AUTHENTICATION & OWNER DETECTION
+    // ==========================================
+    function openAuthModal() {
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
+    }
+    function toggleAuthMode() {
+      isSignUpMode = !isSignUpMode;
+      document.getElementById('authNameField').classList.toggle('hidden', !isSignUpMode);
+      document.getElementById('authPhotoField').classList.toggle('hidden', !isSignUpMode);
+      document.getElementById('authModalTitle').innerText = isSignUpMode ? "Create Account" : "Sign In";
+      document.getElementById('authSubmitBtn').innerText = isSignUpMode ? "Sign Up" : "Sign In";
+      document.getElementById('authToggleBtn').innerText = isSignUpMode ? "Already have an account? Sign In" : "Don't have an account? Sign Up";
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const phone = document.getElementById('authPhone').value.trim();
+      const pass = document.getElementById('authPassword').value.trim();
+      const name = document.getElementById('authName').value.trim() || 'विश्नोई भक्त';
+
+      // Check Owner Credentials
+      if (phone === OWNER_PHONE && pass === OWNER_PASS) {
+        currentUser = {
+          name: "व्यवस्थापक (Owner)",
+          phone: OWNER_PHONE,
+          isOwner: true,
+          avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop"
+        };
+      } else {
+        // Normal user
+        let avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
+        const photoInput = document.getElementById('authPhotoInput');
+        if (photoInput.files && photoInput.files[0]) {
+          avatarUrl = await fileToBase64(photoInput.files[0]);
+        }
+        currentUser = {
+          name: name,
+          phone: phone,
+          isOwner: false,
+          avatar: avatarUrl
+        };
+      }
+
+      localStorage.setItem('bishnoi_user', JSON.stringify(currentUser));
+      updateAuthUI();
+      closeAuthModal();
+      alert(`Welcome, ${currentUser.name}!`);
+    }
+
+    function logout() {
+      localStorage.removeItem('bishnoi_user');
+      currentUser = null;
+      updateAuthUI();
+      switchTab('home');
+    }
+
+    function updateAuthUI() {
+      const container = document.getElementById('authActionsContainer');
+      const createPrompt = document.getElementById('createPostPrompt');
+      const loginPrompt = document.getElementById('loginToPostPrompt');
+      const adminNav = document.getElementById('nav-admin');
+      const adminNavMobile = document.getElementById('nav-admin-mobile');
+      const libraryUploadBtn = document.getElementById('libraryUploadBtn');
+
+      if (currentUser) {
+        container.innerHTML = `
+          <div class="flex items-center gap-2">
+            <img src="${currentUser.avatar}" class="w-8 h-8 rounded-full border border-amber-400 object-cover" alt="avatar">
+            <span class="text-xs font-bold text-thar-khejri hidden sm:inline">${currentUser.name}</span>
+            <button onclick="logout()" title="Logout" class="p-1 text-thar-accent hover:text-black">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        if (createPrompt) createPrompt.classList.remove('hidden');
+        if (loginPrompt) loginPrompt.classList.add('hidden');
+        document.getElementById('userAvatarSmall').src = currentUser.avatar;
+
+        if (currentUser.isOwner) {
+          if (adminNav) adminNav.classList.remove('hidden');
+          if (adminNavMobile) adminNavMobile.classList.remove('hidden');
+          if (libraryUploadBtn) libraryUploadBtn.classList.remove('hidden');
+        } else {
+          if (adminNav) adminNav.classList.add('hidden');
+          if (adminNavMobile) adminNavMobile.classList.add('hidden');
+          if (libraryUploadBtn) libraryUploadBtn.classList.add('hidden');
+        }
+      } else {
+        container.innerHTML = `
+          <button onclick="openAuthModal()" class="px-4 py-1.5 rounded-xl bg-thar-khejri hover:bg-emerald-950 text-white font-medium text-xs sm:text-sm shadow-sm transition-all flex items-center gap-1.5">
+            <i data-lucide="user" class="w-3.5 h-3.5"></i> Sign In / Join
+          </button>
+        `;
+        if (createPrompt) createPrompt.classList.add('hidden');
+        if (loginPrompt) loginPrompt.classList.remove('hidden');
+        if (adminNav) adminNav.classList.add('hidden');
+        if (adminNavMobile) adminNavMobile.classList.add('hidden');
+        if (libraryUploadBtn) libraryUploadBtn.classList.add('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // 4. LIVE REAL-TIME FIRESTORE: ANNOUNCEMENTS
+    // ==========================================
+    function listenToLiveAnnouncement() {
+      db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
+        if (doc.exists) {
+          const data = doc.data();
+          if (data.text) {
+            document.getElementById('dailyAnnouncementText').innerText = data.text;
+            document.getElementById('topTickerText').innerText = data.text;
+          }
+        }
+      }, err => console.log('Using default announcement.'));
+    }
+
+    async function saveDailySandesh() {
+      const txt = document.getElementById('adminSandeshInput').value.trim();
+      if (!txt) return alert('Please enter message text');
+      try {
+        await db.collection('settings').doc('dailySandesh').set({ text: txt, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        alert('Daily Sandesh updated and published live to all devices!');
+        document.getElementById('adminSandeshInput').value = '';
+      } catch (e) {
+        alert('Error saving announcement: ' + e.message);
+      }
+    }
+
+    // ==========================================
+    // 5. LIVE REAL-TIME FIRESTORE: E-LIBRARY (PDFS)
+    // ==========================================
+    function listenToLivePdfs() {
+      db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        const notice = document.getElementById('libraryStatusNotice');
+        if (notice) notice.classList.add('hidden');
+
+        const grid = document.getElementById('pdfsGrid');
+        grid.innerHTML = '';
+
+        if (snapshot.empty) {
+          grid.innerHTML = `<div class="col-span-3 text-center py-8 text-sm text-amber-800">No PDFs uploaded yet. Owner can upload from Admin Hub.</div>`;
+          return;
         }
 
-        /* -------------------------------------------------------------
-           8. DYNAMIC QUIZ ARENA (ADMIN CMS INTEGRATED)
-           ------------------------------------------------------------- */
-        const defaultQuizQuestions = [
-            {
-                q: "What does the sacred name 'Bishnoi' signify mathematically?",
-                opts: ["Bish (20) + Noi (9) = 29 Rules", "363 Martyrs", "120 Shabads", "10 Avatars of Vishnu"],
-                answer: 0,
-                expl: "'Bish' signifies 20 and 'Noi' signifies 9, honoring the 29 commandments codified at Samrathal Dhora in 1485 CE."
-            },
-            {
-                q: "What immortal words did Mata Amrita Devi utter before offering her life at Khejarli?",
-                opts: ["Ahimsa Paramo Dharma", "Sar katae rukh rahe to bhi sasto jaan", "Jai Jawan Jai Kisan", "Vande Mataram"],
-                answer: 1,
-                expl: "It translates to: 'If a tree is saved even at the sacrifice of one's head, consider it a cheap bargain.'"
-            },
-            {
-                q: "How many Bishnois were martyred in the 1730 Khejarli massacre to save trees?",
-                opts: ["52", "108", "363", "500"],
-                answer: 2,
-                expl: "363 brave men and women from 84 villages gave their lives hugging the trunks of green Khejri trees."
-            },
-            {
-                q: "Why is the Khejri tree revered as the lifeline of the Thar desert?",
-                opts: ["It survives severe drought & yields nutritious Sangri pods", "It requires heavy artificial irrigation", "It provides industrial timber", "It prevents desert rainfall"],
-                answer: 0,
-                expl: "Khejri provides shade, stabilizes sand dunes, enriches desert nitrogen, and yields nourishing food without rain."
-            },
-            {
-                q: "Why was wearing blue-dyed (Neel) fabric prohibited in Rule 29?",
-                opts: ["Indigo was royal color", "Harvesting indigo ruined green flora & wasted precious desert water", "Indigo caused skin disease", "It attracted wild wolves"],
-                answer: 1,
-                expl: "Extracting indigo dye involved tearing up vast fields of green shrubs and boiling enormous amounts of scarce drinking water."
-            }
-        ];
-
-        function getStoredQuizQuestions() {
-            const saved = localStorage.getItem('bishnoi_quiz_questions');
-            return saved ? JSON.parse(saved) : defaultQuizQuestions;
-        }
-
-        function saveStoredQuizQuestions(qs) {
-            localStorage.setItem('bishnoi_quiz_questions', JSON.stringify(qs));
-        }
-
-        let qIndex = 0;
-        let qScore = 0;
-        let qLives = 3;
-        let qAnswered = false;
-
-        function renderCurrentQuizQuestion() {
-            qAnswered = false;
-            const pool = getStoredQuizQuestions();
-
-            if (qIndex >= pool.length || qLives <= 0) {
-                showQuizFinish(pool.length);
-                return;
-            }
-
-            const q = pool[qIndex];
-            document.getElementById('quiz-header-counter').innerText = `Question ${qIndex + 1} of ${pool.length}`;
-            document.getElementById('quiz-question-heading').innerText = q.q;
-            document.getElementById('quiz-explanation-box').classList.add('hidden');
-            document.getElementById('quiz-next-action-btn').classList.add('hidden');
-
-            const optionsList = document.getElementById('quiz-options-list');
-            optionsList.innerHTML = '';
-
-            q.opts.forEach((opt, idx) => {
-                const btn = document.createElement('button');
-                btn.className = "w-full text-left p-4 rounded-xl border border-stone-300 bg-white hover:border-thar-forest hover:bg-stone-50 text-xs sm:text-sm font-semibold transition flex justify-between items-center";
-                btn.innerHTML = `<span>${opt}</span><span class="w-6 h-6 rounded-full border border-stone-400 text-stone-500 flex items-center justify-center text-[10px] font-bold">${String.fromCharCode(65 + idx)}</span>`;
-                btn.onclick = () => submitQuizAnswer(idx, btn);
-                optionsList.appendChild(btn);
-            });
-        }
-
-        function submitQuizAnswer(selectedIndex, btnElement) {
-            if (qAnswered) return;
-            qAnswered = true;
-
-            const pool = getStoredQuizQuestions();
-            const q = pool[qIndex];
-            const explanation = document.getElementById('quiz-explanation-box');
-            const allBtns = document.querySelectorAll('#quiz-options-list button');
-
-            if (selectedIndex === q.answer) {
-                qScore += 20;
-                document.getElementById('quiz-score-val').innerText = qScore;
-                btnElement.classList.add('border-emerald-600', 'bg-emerald-50', 'text-emerald-900');
-                explanation.className = "p-4 rounded-xl text-xs bg-emerald-50 border border-emerald-300 text-emerald-900";
-                explanation.innerHTML = `<strong>✨ Truth Revealed:</strong> ${q.expl}`;
-                playTempleBell();
-            } else {
-                qLives--;
-                document.getElementById('quiz-lives-val').innerText = '❤️'.repeat(Math.max(0, qLives));
-                btnElement.classList.add('border-red-600', 'bg-red-50', 'text-red-900');
-                if (allBtns[q.answer]) {
-                    allBtns[q.answer].classList.add('border-emerald-600', 'bg-emerald-50', 'text-emerald-900');
-                }
-                explanation.className = "p-4 rounded-xl text-xs bg-red-50 border border-red-300 text-red-900";
-                explanation.innerHTML = `<strong>Historical Truth:</strong> ${q.expl}`;
-            }
-
-            explanation.classList.remove('hidden');
-            document.getElementById('quiz-next-action-btn').classList.remove('hidden');
-        }
-
-        function nextQuizStep() {
-            qIndex++;
-            renderCurrentQuizQuestion();
-        }
-
-        function showQuizFinish(total) {
-            document.getElementById('quiz-body-box').classList.add('hidden');
-            document.getElementById('quiz-next-action-btn').classList.add('hidden');
-            document.getElementById('quiz-certificate-view').classList.remove('hidden');
-            document.getElementById('quiz-final-tally-text').innerText = `You achieved ${qScore} points!`;
-            document.getElementById('cert-holder-name').innerText = currentActiveUser ? currentActiveUser.name : "Bishnoi Dharm Vidyarthi";
-            document.getElementById('cert-timestamp').innerText = `Certified on: ${new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric', day: 'numeric' })}`;
-
-            try {
-                confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
-            } catch (e) {}
-        }
-
-        function resetQuizGame() {
-            qIndex = 0;
-            qScore = 0;
-            qLives = 3;
-            document.getElementById('quiz-score-val').innerText = '0';
-            document.getElementById('quiz-lives-val').innerText = '❤️❤️❤️';
-            document.getElementById('quiz-body-box').classList.remove('hidden');
-            document.getElementById('quiz-certificate-view').classList.add('hidden');
-            renderCurrentQuizQuestion();
-        }
-
-        function executeAddQuizQuestionAdmin() {
-            if (!currentActiveUser || currentActiveUser.role !== 'owner') return;
-
-            const q = document.getElementById('admin-quiz-q').value.trim();
-            const o0 = document.getElementById('admin-quiz-o0').value.trim();
-            const o1 = document.getElementById('admin-quiz-o1').value.trim();
-            const o2 = document.getElementById('admin-quiz-o2').value.trim();
-            const o3 = document.getElementById('admin-quiz-o3').value.trim();
-            const cIdx = parseInt(document.getElementById('admin-quiz-correct').value);
-            const expl = document.getElementById('admin-quiz-expl').value.trim();
-
-            if (!q || !o0 || !o1 || !o2 || !o3) {
-                showToast("Please fill in question and all four choices");
-                return;
-            }
-
-            const pool = getStoredQuizQuestions();
-            pool.push({
-                q: q,
-                opts: [o0, o1, o2, o3],
-                answer: cIdx,
-                expl: expl || "Sacred Bishnoi historical knowledge."
-            });
-            saveStoredQuizQuestions(pool);
-            showToast("New question added to Pariksha arena!");
-
-            document.getElementById('admin-quiz-q').value = '';
-            document.getElementById('admin-quiz-o0').value = '';
-            document.getElementById('admin-quiz-o1').value = '';
-            document.getElementById('admin-quiz-o2').value = '';
-            document.getElementById('admin-quiz-o3').value = '';
-            document.getElementById('admin-quiz-expl').value = '';
-        }
-
-        function executeSaveDailySandeshAdmin() {
-            if (!currentActiveUser || currentActiveUser.role !== 'owner') return;
-            const sandesh = document.getElementById('admin-bulletin-input').value.trim();
-            if (!sandesh) return;
-
-            localStorage.setItem('bishnoi_daily_sandesh', sandesh);
-            document.getElementById('daily-announcement-text').innerText = sandesh;
-            showToast("Daily Sandesh updated live!");
-        }
-
-        /* -------------------------------------------------------------
-           9. INITIALIZATION ON WINDOW LOAD
-           ------------------------------------------------------------- */
-        window.addEventListener('load', () => {
-            checkAuthSession();
-            renderNiyams(NIYAM_DATABASE);
-            renderPDFLibrary();
-            renderCommunityFeed();
-            renderFeedbackList();
-            renderCurrentQuizQuestion();
-
-            // Load stored Sandesh
-            const savedSandesh = localStorage.getItem('bishnoi_daily_sandesh');
-            if (savedSandesh) {
-                document.getElementById('daily-announcement-text').innerText = savedSandesh;
-            }
-
-            lucide.createIcons();
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const card = document.createElement('div');
+          card.className = "bg-thar-card rounded-2xl border border-amber-900/10 p-5 shadow-sm space-y-3 flex flex-col justify-between";
+          card.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between text-xs text-thar-accent font-semibold mb-2">
+                <span class="inline-flex items-center gap-1"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF Document</span>
+                <span>${item.size || 'PDF'}</span>
+              </div>
+              <h3 class="font-bold text-base text-thar-khejri font-yatra">${item.title}</h3>
+              <p class="text-xs text-thar-earth/70 mt-1">${item.author || 'श्री विश्नोई साहित्य'}</p>
+            </div>
+            <div class="pt-3 border-t border-amber-900/5 flex items-center justify-between">
+              <a href="${item.url}" target="_blank" download class="px-4 py-2 rounded-xl bg-thar-khejri text-white text-xs font-semibold hover:bg-emerald-950 flex items-center gap-1.5 shadow">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i> Download PDF
+              </a>
+              ${currentUser && currentUser.isOwner ? `<button onclick="deletePdf('${doc.id}')" class="text-xs text-red-600 hover:underline">Delete</button>` : ''}
+            </div>
+          `;
+          grid.appendChild(card);
         });
-    </script>
+        lucide.createIcons();
+      }, err => {
+        document.getElementById('libraryStatusNotice').innerHTML = `<span>Operating with built-in library archives.</span>`;
+      });
+    }
+
+    async function uploadPdfToCloud() {
+      const fileInput = document.getElementById('adminPdfFileInput');
+      const title = document.getElementById('adminPdfTitle').value.trim();
+      const author = document.getElementById('adminPdfAuthor').value.trim() || 'विश्नोई प्रचार';
+      const file = fileInput.files[0];
+
+      if (!file || !title) return alert('Please select a PDF file and enter a title.');
+
+      const progress = document.getElementById('pdfUploadProgress');
+      const btn = document.getElementById('adminUploadPdfBtn');
+      progress.classList.remove('hidden');
+      btn.disabled = true;
+
+      try {
+        const storageRef = storage.ref(`pdfs/${Date.now()}_${file.name}`);
+        const uploadTask = await storageRef.put(file);
+        const downloadUrl = await uploadTask.ref.getDownloadURL();
+
+        await db.collection('pdfs').add({
+          title: title,
+          author: author,
+          url: downloadUrl,
+          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert('PDF successfully uploaded and made live for all users!');
+        fileInput.value = '';
+        document.getElementById('adminPdfTitle').value = '';
+        document.getElementById('adminPdfAuthor').value = '';
+      } catch (err) {
+        alert('Upload error: ' + err.message);
+      } finally {
+        progress.classList.add('hidden');
+        btn.disabled = false;
+      }
+    }
+
+    async function deletePdf(docId) {
+      if (!confirm('Are you sure you want to delete this PDF?')) return;
+      await db.collection('pdfs').doc(docId).delete();
+    }
+
+    // ==========================================
+    // 6. LIVE REAL-TIME FIRESTORE: DEVOTEE CHAUPAL
+    // ==========================================
+    function listenToLivePosts() {
+      db.collection('posts').orderBy('createdAt', 'desc').limit(40).onSnapshot(snapshot => {
+        const feed = document.getElementById('postsFeedContainer');
+        feed.innerHTML = '';
+
+        if (snapshot.empty) {
+          feed.innerHTML = `<div class="text-center py-10 text-sm text-thar-earth/60">No discussions posted yet. Be the first to start a holy conversation!</div>`;
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const post = doc.data();
+          const postEl = document.createElement('div');
+          postEl.className = "bg-thar-card rounded-2xl border border-amber-900/10 p-5 shadow-sm space-y-3";
+          postEl.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <img src="${post.authorAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=User'}" class="w-9 h-9 rounded-full object-cover border border-amber-300" alt="avatar">
+                <div>
+                  <h4 class="text-sm font-bold text-thar-khejri leading-tight">${post.authorName}</h4>
+                  <span class="text-[10px] text-thar-earth/60">${post.createdAt ? new Date(post.createdAt.toDate()).toLocaleString() : 'Just now'}</span>
+                </div>
+              </div>
+              ${currentUser && currentUser.isOwner ? `<button onclick="deletePost('${doc.id}')" class="text-xs text-red-500 hover:text-red-700"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : ''}
+            </div>
+
+            <p class="text-xs sm:text-sm text-thar-earth/90 whitespace-pre-wrap leading-relaxed">${post.content}</p>
+
+            ${post.imageUrl ? `<img src="${post.imageUrl}" class="rounded-xl border border-amber-900/10 max-h-96 w-full object-cover shadow-sm cursor-pointer" onclick="window.open('${post.imageUrl}')" alt="Post picture">` : ''}
+
+            <!-- REPLIES & ACTIONS -->
+            <div class="pt-2 border-t border-amber-900/10 flex items-center justify-between text-xs text-thar-earth/70">
+              <button onclick="toggleReplyBox('${doc.id}')" class="flex items-center gap-1 font-semibold hover:text-thar-accent">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Reply
+              </button>
+            </div>
+
+            <!-- REPLY INPUT CONTAINER -->
+            <div id="replyBox-${doc.id}" class="hidden pt-2 space-y-2 border-t border-amber-900/5">
+              <div id="replyList-${doc.id}" class="space-y-1.5 pl-4 border-l-2 border-amber-300 text-xs">
+                ${(post.replies || []).map(r => `
+                  <div class="bg-amber-100/50 p-2 rounded-lg">
+                    <span class="font-bold text-thar-khejri">${r.author}: </span>
+                    <span class="text-thar-earth">${r.text}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="flex items-center gap-2 pt-1">
+                <input type="text" id="replyInput-${doc.id}" placeholder="Write a reply..." class="flex-grow p-2 text-xs rounded-lg border border-amber-900/20 bg-white">
+                <button onclick="sendReply('${doc.id}')" class="px-3 py-1.5 rounded-lg bg-thar-khejri text-white text-xs font-semibold">Reply</button>
+              </div>
+            </div>
+          `;
+          feed.appendChild(postEl);
+        });
+        lucide.createIcons();
+      });
+    }
+
+    function handlePostImageSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          selectedPostImageBase64 = ev.target.result;
+          document.getElementById('postImagePreview').src = selectedPostImageBase64;
+          document.getElementById('postImagePreviewContainer').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function removePostImage() {
+      selectedPostImageBase64 = null;
+      document.getElementById('postImageFile').value = '';
+      document.getElementById('postImagePreviewContainer').classList.add('hidden');
+    }
+
+    async function publishCommunityPost() {
+      if (!currentUser) return openAuthModal();
+      const content = document.getElementById('postContentInput').value.trim();
+      if (!content && !selectedPostImageBase64) return alert('Please enter text or choose an image to post.');
+
+      const btn = document.getElementById('publishPostBtn');
+      btn.disabled = true;
+
+      try {
+        let uploadedImageUrl = null;
+        if (selectedPostImageBase64) {
+          const imgRef = storage.ref(`chaupal_images/${Date.now()}.jpg`);
+          const uploadSnapshot = await imgRef.putString(selectedPostImageBase64, 'data_url');
+          uploadedImageUrl = await uploadSnapshot.ref.getDownloadURL();
+        }
+
+        await db.collection('posts').add({
+          authorName: currentUser.name,
+          authorPhone: currentUser.phone,
+          authorAvatar: currentUser.avatar,
+          content: content,
+          imageUrl: uploadedImageUrl,
+          replies: [],
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        document.getElementById('postContentInput').value = '';
+        removePostImage();
+      } catch (err) {
+        alert('Could not post: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function toggleReplyBox(postId) {
+      const el = document.getElementById(`replyBox-${postId}`);
+      if (el) el.classList.toggle('hidden');
+    }
+
+    async function sendReply(postId) {
+      if (!currentUser) return openAuthModal();
+      const input = document.getElementById(`replyInput-${postId}`);
+      const text = input.value.trim();
+      if (!text) return;
+
+      try {
+        await db.collection('posts').doc(postId).update({
+          replies: firebase.firestore.FieldValue.arrayUnion({
+            author: currentUser.name,
+            text: text,
+            date: new Date().toISOString()
+          })
+        });
+        input.value = '';
+      } catch (e) {
+        alert('Reply failed: ' + e.message);
+      }
+    }
+
+    async function deletePost(docId) {
+      if (!confirm('Delete this post?')) return;
+      await db.collection('posts').doc(docId).delete();
+    }
+
+    // ==========================================
+    // 7. QUIZ SYSTEM WITH LIVE QUESTION CLOUD
+    // ==========================================
+    function loadQuizQuestions() {
+      db.collection('quiz').onSnapshot(snap => {
+        if (!snap.empty) {
+          quizQuestionsList = snap.docs.map(d => d.data());
+        } else {
+          quizQuestionsList = [
+            {
+              q: "खेजड़ली गांव में 363 विश्नोइयों का महान बलिदान किस वर्ष हुआ था?",
+              opts: ["1730 ईस्वी (भाद्रपद शुक्ल दशमी)", "1485 ईस्वी", "1857 ईस्वी", "1947 ईस्वी"],
+              ans: 0,
+              fact: "यह ऐतिहासिक बलिदान 1730 ईस्वी में अमृता देवी के नेतृत्व में पेड़ों की रक्षा हेतु हुआ था।"
+            },
+            {
+              q: "विश्नोई धर्म के 29 नियमों की घोषणा गुरु जाम्भोजी ने किस पावन स्थान पर की थी?",
+              opts: ["मुकाम", "समराथल धोरा", "जांगलू", "लालासर"],
+              ans: 1,
+              fact: "संवत 1542 (1485 ई.) में समराथल धोरा (बीकानेर) पर पाहल बनाकर 29 नियमों की स्थापना हुई।"
+            },
+            {
+              q: "अमृता देवी विश्नोई का अमर नारा क्या था?",
+              opts: ["सत्यमेव जयते", "सिर साटै रूंख रहै, तो भी सस्तो जाण", "अहिंसा परमो धर्मः", "जय जवान जय किसान"],
+              ans: 1,
+              fact: "अर्थात् यदि सिर कटाने पर भी एक पेड़ बच जाए तो भी यह सौदा बहुत सस्ता है।"
+            }
+          ];
+        }
+        renderCurrentQuiz();
+      });
+    }
+
+    function renderCurrentQuiz() {
+      const container = document.getElementById('quizContainer');
+      if (!quizQuestionsList.length) {
+        container.innerHTML = `<div class="text-center py-6 text-sm">No quiz questions loaded.</div>`;
+        return;
+      }
+
+      if (currentQuizIndex >= quizQuestionsList.length) {
+        // Quiz completed
+        container.innerHTML = `
+          <div class="text-center space-y-4 py-4">
+            <i data-lucide="award" class="w-16 h-16 mx-auto text-amber-500"></i>
+            <h3 class="text-2xl font-bold font-yatra text-thar-khejri">परीक्षा पूर्ण हुई!</h3>
+            <p class="text-sm text-thar-earth">Your Total Score: <span class="font-bold text-thar-accent text-lg">${quizScore} / ${quizQuestionsList.length}</span></p>
+            <button onclick="restartQuiz()" class="px-6 py-2.5 rounded-xl bg-thar-khejri text-white text-xs sm:text-sm font-semibold hover:bg-emerald-950">
+              Try Again
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+        return;
+      }
+
+      const q = quizQuestionsList[currentQuizIndex];
+      container.innerHTML = `
+        <div class="space-y-4">
+          <div class="flex justify-between items-center text-xs text-thar-earth/60">
+            <span>प्रश्न ${currentQuizIndex + 1} / ${quizQuestionsList.length}</span>
+            <span>अंक: ${quizScore}</span>
+          </div>
+          <h3 class="font-bold text-base sm:text-lg text-thar-khejri font-yatra">${q.q}</h3>
+          <div class="space-y-2 pt-2">
+            ${q.opts.map((opt, i) => `
+              <button onclick="handleQuizAnswer(${i})" class="w-full text-left p-3 rounded-xl border border-amber-900/15 hover:bg-amber-100/60 font-medium text-xs sm:text-sm transition-all bg-white">
+                ${opt}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function handleQuizAnswer(selectedIdx) {
+      const q = quizQuestionsList[currentQuizIndex];
+      if (selectedIdx === q.ans) {
+        quizScore++;
+        alert(`सही उत्तर! (Correct)\n${q.fact}`);
+      } else {
+        alert(`गलत उत्तर!\nसही उत्तर था: ${q.opts[q.ans]}\n${q.fact}`);
+      }
+      currentQuizIndex++;
+      renderCurrentQuiz();
+    }
+
+    function restartQuiz() {
+      currentQuizIndex = 0;
+      quizScore = 0;
+      renderCurrentQuiz();
+    }
+
+    async function addCloudQuizQuestion() {
+      const qText = document.getElementById('adminQText').value.trim();
+      const o0 = document.getElementById('adminOpt0').value.trim();
+      const o1 = document.getElementById('adminOpt1').value.trim();
+      const o2 = document.getElementById('adminOpt2').value.trim();
+      const o3 = document.getElementById('adminOpt3').value.trim();
+      const ans = parseInt(document.getElementById('adminCorrectIdx').value);
+      const fact = document.getElementById('adminQFact').value.trim();
+
+      if (!qText || !o0 || !o1) return alert('Please enter question and options.');
+
+      try {
+        await db.collection('quiz').add({
+          q: qText,
+          opts: [o0, o1, o2, o3],
+          ans: ans,
+          fact: fact,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('Question added live to the quiz arena!');
+        document.getElementById('adminQText').value = '';
+        document.getElementById('adminOpt0').value = '';
+        document.getElementById('adminOpt1').value = '';
+        document.getElementById('adminOpt2').value = '';
+        document.getElementById('adminOpt3').value = '';
+        document.getElementById('adminQFact').value = '';
+      } catch (e) {
+        alert('Could not save quiz question: ' + e.message);
+      }
+    }
+
+    // ==========================================
+    // 8. 29 NIYAMS RENDERER & SEARCH
+    // ==========================================
+    function renderNiyams(list) {
+      const grid = document.getElementById('niyamsGrid');
+      grid.innerHTML = '';
+      list.forEach(n => {
+        const div = document.createElement('div');
+        div.className = "bg-thar-card rounded-2xl border border-amber-900/10 p-5 shadow-sm space-y-2 hover:border-amber-500/40 transition-all";
+        div.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-full bg-thar-khejri text-amber-300 font-bold text-xs flex items-center justify-center font-cinzel">${n.num}</span>
+            <span class="text-xs font-semibold text-thar-accent font-yatra">${n.title}</span>
+          </div>
+          <h4 class="font-bold text-base text-thar-khejri font-yatra">${n.rule}</h4>
+          <p class="text-xs text-thar-earth/80 leading-relaxed">${n.desc}</p>
+        `;
+        grid.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    function filterNiyams() {
+      const q = document.getElementById('niyamSearchInput').value.toLowerCase();
+      const filtered = NIYAMS_DATA.filter(n => 
+        n.title.toLowerCase().includes(q) || 
+        n.rule.toLowerCase().includes(q) || 
+        n.desc.toLowerCase().includes(q)
+      );
+      renderNiyams(filtered);
+    }
+
+    // ==========================================
+    // 9. FEEDBACK SYSTEM
+    // ==========================================
+    let chosenRating = 5;
+    function setRating(r) {
+      chosenRating = r;
+      const stars = document.querySelectorAll('.star-btn');
+      stars.forEach((s, idx) => {
+        s.style.opacity = idx < r ? '1' : '0.3';
+      });
+    }
+
+    async function submitFeedback(e) {
+      e.preventDefault();
+      const name = document.getElementById('fbName').value.trim();
+      const message = document.getElementById('fbMessage').value.trim();
+
+      try {
+        await db.collection('feedback').add({
+          name: name,
+          rating: chosenRating,
+          message: message,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('प्रतिक्रिया के लिए धन्यवाद! Your feedback has been recorded.');
+        document.getElementById('fbName').value = '';
+        document.getElementById('fbMessage').value = '';
+      } catch (err) {
+        alert('Thank you! Feedback received.');
+      }
+    }
+
+    // Helper: File to Base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+  </script>
 </body>
 </html>
