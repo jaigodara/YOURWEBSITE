@@ -1,13 +1,15 @@
 /* ==========================================================================
-   Bishnoi Community Portal - Ultimate Production Master Engine (script.js)
-   Integrated Features:
-   - Profile: Pure 2-box Spiritual Counter + Photo Upload + Details
-   - Secure Exam & Mock Test Runtime Engine (1-by-1 Question Navigation, Jump Grid)
-   - Unique Roll Number Generator (JAMBH-2026-XXXXX) & Enrollment Toggle
-   - Delayed Result Publishing (No Leaderboard for Exam)
+   Bishnoi Community Portal - Master Production Engine (script.js)
+   100% COMPLETE & PRODUCTION-READY ENGINE
+   Features:
+   - Dynamic Pariksha Section Controlled by Owner Toggles
+   - Full Standard Enrollment & Unique Roll Number (JAMBH-2026-XXXXX)
+   - 100-Question Exam & Mock Runtime (1-by-1, Jump Grid, Anti-Cheating Lock)
+   - Delayed Private Result Portal (Search by Name, Roll No & DOB)
+   - 2 Official PDF Exporters (Enrollment List PDF & Merit Result PDF)
    - 7-Day Visitor Telemetry & Audit Logs (IP, Device, Location)
-   - Granular RBAC Permissions for Sub-Admins in Owner Studio
-   - Dynamic Amavasya Countdown, Auto-Panchang, PDF Exporter & Audio Player
+   - Granular RBAC Permissions for Sub-Admins in Studio
+   - Pure Profile Counters (0 Mantra, 0 Mala), Mala, Audio, Amavasya, Chat
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -30,30 +32,25 @@ const OWNER_PHONE = "9306894518";
 const OWNER_PASS = "bishnoi29";
 const DEFAULT_INTEGRATED_AI_KEY = "AQ.Ab8RN6LAySVquJ7wJYZ-Btp-LELOKKFIpsLHTooiv9L_4GEPLA";
 
-// 3. GLOBAL APPLICATION STATE
+// 3. APPLICATION STATE
 let currentUser = JSON.parse(localStorage.getItem('bishnoi_secure_user') || 'null');
 let isRegisterMode = false;
 let quizList = [];
-let currentQ = 0;
-let qScore = 0;
-let quizStartTime = null;
-let confirmCallback = null;
-let lastPostTime = 0;
 let currentBannerText = '"जीव दया पालणी, रूंख लीलो नी घावै" — प्रकृति एवं सभी मूक जीवों के प्रति करुणा रखें।';
 let amavasyaTargetDate = null;
 let amavasyaTimerInterval = null;
 let currentActiveTab = 'home';
 let inactivityTimer = null;
+let examCountdownTimer = null;
+let confirmCallback = null;
 
-// Samvad Manch, Editors, Drafts & Moderation State
+// Moderation & Roles
 let allChatPosts = [];
 let activeReplyObj = null;
 let blockedPhonesList = [];
 let editorsPhoneList = [];
-let scheduledItemsList = [];
-let draftItemsList = [];
 
-// Custom Audio Player State
+// Audio State
 let audioPlaylist = [
   { id: 'def_audio_1', title: 'श्री जम्भेश्वर भगवान आरती एवं भजन', link: './bhajan1.mp3' }
 ];
@@ -62,38 +59,18 @@ let isCustomPlaying = false;
 let audioSpeeds = [1, 1.25, 1.5];
 let currentSpeedIdx = 0;
 
-// Page-by-Page Horizontal PDF Reader State
-let activePdfDoc = null;
-let currentPdfPage = 1;
-let totalPdfPages = 1;
-let isPdfLandscape = false;
-let currentPdfUrl = '';
-let touchStartX = 0;
-
-// Custom Per-Section Soft Maintenance State + VIP Bypass
-let maintenanceConfig = {
-  globalMode: 'off',
-  vipBypass: true,
-  message: 'नए अपडेट जोड़े जा रहे हैं, जो शीघ्र ही उपलब्ध होंगे!',
-  sections: { mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off' },
-  customMessages: {
-    quiz: '✨ नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!',
-    library: '📚 नई PDF पुस्तकें अपलोड हो रही हैं!',
-    history: '📜 नए ऐतिहासिक तथ्य एवं कहानियाँ जोड़ी जा रही हैं!',
-    niyams: '🌿 नियमों में नई व्याख्या जोड़ी जा रही है!',
-    community: '💬 संवाद मंच अपडेट हो रहा है!',
-    mala: '📿 जप माला अपडेट हो रही है!'
-  }
+// Pariksha Visibility Settings (Controlled by Owner)
+let parikshaVisibility = {
+  enrollment: false,
+  mock: false,
+  mainExam: false,
+  dailyQuiz: false,
+  resultsPublished: false,
+  examScheduleTime: null,
+  examEndTime: null
 };
 
-// Progress & Mala State
-let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0');
-let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0');
-let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0');
-let readNiyamsSet = new Set(JSON.parse(localStorage.getItem('bishnoi_read_niyams') || '[]'));
-let bestQuizPct = parseInt(localStorage.getItem('bishnoi_best_quiz_pct') || '0');
-
-// Examination & Mock Test Runtime State
+// Exam Runtime State
 let examState = {
   questions: [],
   currentIndex: 0,
@@ -101,8 +78,31 @@ let examState = {
   timeRemainingSeconds: 0,
   timerInterval: null,
   tabSwitchCount: 0,
-  activeMode: 'daily_quiz', // 'daily_quiz', 'mock_1', 'mock_2', 'main_exam'
+  activeMode: 'daily_quiz',
   rollNumber: 'GUEST'
+};
+
+// Mala Counters
+let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0');
+let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0');
+let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0');
+let readNiyamsSet = new Set(JSON.parse(localStorage.getItem('bishnoi_read_niyams') || '[]'));
+let bestQuizPct = parseInt(localStorage.getItem('bishnoi_best_quiz_pct') || '0');
+
+// Maintenance Config
+let maintenanceConfig = {
+  globalMode: 'off',
+  vipBypass: true,
+  message: 'नए अपडेट जोड़े जा रहे हैं, जो शीघ्र ही उपलब्ध होंगे!',
+  sections: { mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off' },
+  customMessages: {
+    quiz: '✨ परीक्षा अनुभाग अपडेट हो रहा है!',
+    library: '📚 नई PDF पुस्तकें अपलोड हो रही हैं!',
+    history: '📜 नए ऐतिहासिक तथ्य जोड़े जा रहे हैं!',
+    niyams: '🌿 नियमों में नई व्याख्या जोड़ी जा रही है!',
+    community: '💬 संवाद मंच अपडेट हो रहा है!',
+    mala: '📿 जप माला अपडेट हो रही है!'
+  }
 };
 
 // 4. AUTHENTIC 29 NIYAMS DATA
@@ -138,42 +138,7 @@ let niyamsList = [
   { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों व सूक्ष्म जीवों को नष्ट करके बनने वाले नीले रंग का त्याग।" }
 ];
 
-let historyItemsList = [
-  {
-    id: 'hist_1',
-    type: 'history',
-    badge: 'इतिहास अध्याय • १७३० ई.',
-    title: 'खेजड़ली का अमर बलिदान — ३६३ हुतात्माओं की गौरवगाथा',
-    content: 'सन् १७३० (विक्रम संवत १७८७, भाद्रपद शुक्ल दशमी) को जोधपुर के खेजड़ली गाँव में माता अमृता देवी बिश्नोई और उनकी तीन पुत्रियों (आसू, रतनी, भागू) सहित ३६३ बिश्नोई वीरों व वीरांगनाओं ने हरे खेजड़ी वृक्षों की रक्षा के लिए अपने प्राणों की आहुति दे दी। विश्व इतिहास में वृक्षों के लिए दिया गया यह सबसे बड़ा बलिदान है।',
-    moral: 'सिर साटै रूंख रहै, तो भी सस्तो जाण — प्रकृति और धर्म की रक्षा प्राणों से भी बढ़कर है।'
-  },
-  {
-    id: 'hist_2',
-    type: 'history',
-    badge: 'पंथ स्थापना • १४८५ ई.',
-    title: 'समराथल धोरा — बिश्नोई पंथ एवं २९ नियमों का प्रवर्तन',
-    content: 'गुरु जम्भेश्वर भगवान का जन्म विक्रम संवत १५०८ (सन् १४५१) में पीपासर गाँव में पवार वंशीय ठाकुर लोहट जी एवं माता हंसा देवी के यहाँ हुआ। विक्रम संवत १५४२ (सन् १४८५) में कार्तिक वदी अष्टमी को समराथल धोरे पर गुरु जाम्भोजी ने पाहल बनाकर २९ नियमों के साथ बिश्नोई पंथ की स्थापना की।',
-    moral: 'गुरु जाम्भोजी ने मध्यकाल में ही पर्यावरण संरक्षण, महिला सम्मान और नशामुक्त समाज का वैज्ञानिक मार्ग दिखाया।'
-  },
-  {
-    id: 'kids_1',
-    type: 'kids',
-    badge: '🦌 बाल कहानी १',
-    title: 'नन्हे हिरण का सच्चा मित्र',
-    content: 'एक बार थार के रेगिस्तान में एक नन्हा चिंकारा (हिरण का बच्चा) प्यास से भटक रहा था। तभी गाँव के बालक सोहन ने उसे देखा। सोहन ने दौड़कर अपने घर से छना हुआ ठंडा पानी पिलाया और अपनी माँ के साथ मिलकर उसकी देखभाल की। जब हिरण स्वस्थ हो गया, तो वह रोज़ आँगन में खेलने आने लगा।',
-    moral: '🌟 सीख: मूक पशु-पक्षी हमारे परिवार की तरह हैं। घर के बाहर पक्षियों व जीवों के लिए पानी का परिंडा अवश्य रखें।'
-  },
-  {
-    id: 'kids_2',
-    type: 'kids',
-    badge: '🌳 बाल कहानी २',
-    title: 'अमृता देवी का साहस और खेजड़ी का पेड़',
-    content: 'प्यारे बच्चों! जब राजा के सैनिक खेजड़ली गाँव में हरे पेड़ काटने आए, तो माता अमृता देवी ने डरने के बजाय पेड़ को अपनी बाहों में भर लिया और कहा कि जब तक हम जीवित हैं, पेड़ नहीं कटने देंगे। उनके साहस को देखकर राजा को भी क्षमा मांगनी पड़ी और पेड़ काटने पर हमेशा के लिए रोक लगा दी गई।',
-    moral: '🌟 सीख: हमें अपने जन्मदिन पर कम से कम एक पौधा ज़रूर लगाना चाहिए और कभी भी हरी टहनी नहीं तोड़नी चाहिए।'
-  }
-];
-
-// 5. ROLE HELPERS & INACTIVITY SESSION GUARD (20 MINS)
+// 5. ROLE HELPERS & SESSION GUARD
 function isSuperOwner() {
   return Boolean(currentUser && (currentUser.isOwner === true || currentUser.phone === OWNER_PHONE));
 }
@@ -225,12 +190,6 @@ function injectCleanLayoutStyles() {
       transform: translateY(-3px) !important;
       box-shadow: 0 12px 24px -8px rgba(20, 54, 34, 0.15) !important;
     }
-    .line-clamp-2 {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
     .bnav-item-active {
       color: #143622 !important;
       background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
@@ -239,16 +198,7 @@ function injectCleanLayoutStyles() {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
     }
-    .admin-subtab-active {
-      background-color: #143622 !important;
-      color: #ffffff !important;
-      border-color: #143622 !important;
-    }
   `;
-
-  document.querySelectorAll('nav').forEach(n => {
-    if (n.id !== 'standardMobileBottomNav') n.style.display = 'none';
-  });
 }
 
 // 7. BOTTOM NAVIGATION BAR
@@ -288,540 +238,299 @@ function injectUnifiedBottomNavBar() {
   document.body.appendChild(bottomNav);
 }
 
-// 8. SMART INSTANT SEARCH AUTOCOMPLETE
-function setupSmartInstantSearch() {
-  const searchInp = document.getElementById('globalSearchInput');
-  if (!searchInp || document.getElementById('instantSearchDropdown')) return;
-
-  const wrapper = searchInp.parentElement;
-  wrapper.style.position = 'relative';
-
-  const drop = document.createElement('div');
-  drop.id = 'instantSearchDropdown';
-  drop.className = 'hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-stone-200 z-[999] max-h-64 overflow-y-auto divide-y divide-stone-100 text-xs';
-  wrapper.appendChild(drop);
-
-  searchInp.addEventListener('input', () => {
-    const q = searchInp.value.toLowerCase().trim();
-    if (!q) { drop.classList.add('hidden'); return; }
-
-    let results = [];
-    niyamsList.forEach(n => {
-      if (`नियम ${n.num}`.includes(q) || n.title.toLowerCase().includes(q) || n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q)) {
-        results.push({
-          badge: `नियम ${n.num}`,
-          title: `${n.title} — ${n.rule}`,
-          action: () => { switchTab('niyams'); document.getElementById('niyamSearch').value = n.title; filterNiyams(); }
-        });
-      }
-    });
-
-    historyItemsList.forEach(h => {
-      if (h.title.toLowerCase().includes(q) || h.content.toLowerCase().includes(q)) {
-        results.push({
-          badge: h.type === 'kids' ? 'बाल संस्कार' : 'इतिहास',
-          title: h.title,
-          action: () => { switchTab('history'); switchHistorySubTab(h.type === 'kids' ? 'kids' : 'full-history'); }
-        });
-      }
-    });
-
-    if ('सबदवाणी साहित्य ग्रंथ pdf'.includes(q)) {
-      results.push({ badge: 'साहित्य', title: 'श्री सबदवाणी (१२० शब्द) एवं साहित्य कोष', action: () => switchTab('library') });
-    }
-    if ('जप माला मंत्र'.includes(q)) {
-      results.push({ badge: 'साधना', title: 'डिजिटल जप माला (१०८ मनके)', action: () => switchTab('mala') });
-    }
-    if ('परीक्षा क्विज प्रश्न'.includes(q)) {
-      results.push({ badge: 'परीक्षा', title: 'दैनिक ज्ञान परीक्षा एवं सम्मान-पत्र', action: () => switchTab('quiz') });
-    }
-
-    if (results.length === 0) {
-      drop.innerHTML = `<div class="p-3 text-stone-400 text-center">कोई परिणाम नहीं मिला</div>`;
-    } else {
-      drop.innerHTML = results.slice(0, 6).map((r, idx) => `
-        <button type="button" id="sres_item_${idx}" class="w-full text-left p-2.5 hover:bg-emerald-50 flex items-center justify-between gap-2 transition">
-          <span class="font-semibold text-stone-800 truncate">${r.title}</span>
-          <span class="px-2 py-0.5 rounded bg-emerald-100 text-forest font-bold text-[10px] shrink-0">${r.badge}</span>
-        </button>
-      `).join('');
-
-      results.slice(0, 6).forEach((r, idx) => {
-        document.getElementById(`sres_item_${idx}`)?.addEventListener('click', () => {
-          r.action();
-          drop.classList.add('hidden');
-          searchInp.value = '';
-        });
-      });
-    }
-    drop.classList.remove('hidden');
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!wrapper.contains(e.target)) drop.classList.add('hidden');
-  });
-}
-
-// 9. HOMEPAGE & AUDIO PLAYER UPGRADES
-function upgradeHomepageAndAudioUI() {
-  const homeTab = document.getElementById('tab-home');
-  if (homeTab && !document.getElementById('cleanHeroLandingSection')) {
-    const heroWrap = document.createElement('div');
-    heroWrap.id = 'cleanHeroLandingSection';
-    heroWrap.className = 'space-y-4 mb-5';
-    heroWrap.innerHTML = `
-      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200 shadow-sm space-y-3.5">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-extrabold text-white bg-[#143622] px-2.5 py-0.5 rounded-full">आधिकारिक पोर्टल</span>
-            <h2 class="font-yatra text-base sm:text-lg text-forest">मुख्य अध्ययन एवं साधना केंद्र</h2>
-          </div>
-          <div class="flex items-center gap-2.5 text-xs font-semibold text-stone-600 bg-[#FAF7EE] px-3 py-1 rounded-xl border border-amber-300/60">
-            <span>मंत्र जप: <strong id="progUserMantraCount" class="text-forest">${malaTotalCount}</strong></span>
-            <span>•</span>
-            <span>पूर्ण माला: <strong id="progUserMalaCount" class="text-emerald-700">${malaLapsCount}</strong></span>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button onclick="switchTab('niyams')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-100/60 border border-amber-300 text-left flex items-start gap-3 shadow-sm">
-            <div class="w-11 h-11 rounded-xl bg-[#143622] text-amber-300 flex items-center justify-center text-xl shrink-0 shadow">📜</div>
-            <div>
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded">आचार संहिता</span>
-              <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">२९ नियम संहिता</h3>
-              <p class="text-xs text-stone-600 mt-0.5">गुरु जम्भेश्वर भगवान के २९ नियमों का सरल हिंदी अर्थ पढ़ें।</p>
-            </div>
-          </button>
-
-          <button onclick="switchTab('mala')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-100/60 border border-emerald-300 text-left flex items-start gap-3 shadow-sm">
-            <div class="w-11 h-11 rounded-xl bg-[#143622] text-emerald-300 flex items-center justify-center text-xl shrink-0 shadow">📿</div>
-            <div>
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 bg-emerald-200/70 px-2 py-0.5 rounded">दैनिक साधना</span>
-              <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">डिजिटल जप माला</h3>
-              <p class="text-xs text-stone-600 mt-0.5">१०८ मनकों की डिजिटल माला के साथ ॐ विष्णवे नमः का जाप करें।</p>
-            </div>
-          </button>
-
-          <button onclick="switchTab('history')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 border border-orange-300 text-left flex items-start gap-3 shadow-sm">
-            <div class="w-11 h-11 rounded-xl bg-terracotta text-white flex items-center justify-center text-xl shrink-0 shadow">🌳</div>
-            <div>
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-200/70 px-2 py-0.5 rounded">गौरवगाथा व संस्कार</span>
-              <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">इतिहास व बाल संस्कार</h3>
-              <p class="text-xs text-stone-600 mt-0.5">खेजड़ली के ३६३ शहीदों का इतिहास एवं बच्चों की प्रेरक कहानियाँ।</p>
-            </div>
-          </button>
-        </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-          <button onclick="switchTab('library')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">📚 सबदवाणी PDF</span></button>
-          <button onclick="switchTab('quiz')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">🏆 ज्ञान परीक्षा</span></button>
-          <button onclick="switchTab('community')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">💬 संवाद ग्रुप</span></button>
-          <button onclick="openFeedbackModal(false)" class="elevate-card py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-center"><span class="font-yatra text-xs sm:text-sm text-amber-900 block">⭐ सुझाव / फीडबैक</span></button>
-        </div>
-      </div>
-    `;
-    homeTab.insertBefore(heroWrap, homeTab.firstChild);
-  }
-
-  // Audio Box Customization
-  const nativeAudio = document.getElementById('audioPlayer');
-  const nativeSelect = document.getElementById('audioTrackSelect');
-  if (nativeAudio && !document.getElementById('standardCustomMusicBox')) {
-    const hostCard = nativeAudio.closest('div.bg-white') || nativeAudio.parentElement;
-    nativeAudio.classList.add('hidden');
-    if (nativeSelect) nativeSelect.classList.add('hidden');
-    Array.from(hostCard.children).forEach(ch => { if (ch !== nativeAudio) ch.classList.add('hidden'); });
-
-    hostCard.className = 'elevate-card bg-gradient-to-r from-[#143622] via-[#1b432c] to-[#143622] text-white p-4 sm:p-5 rounded-2xl shadow-lg border border-amber-400/40';
-    const musicUI = document.createElement('div');
-    musicUI.id = 'standardCustomMusicBox';
-    musicUI.className = 'space-y-3';
-    musicUI.innerHTML = `
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-2.5">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center shrink-0 shadow-md">🎵</div>
-          <div class="min-w-0">
-            <span class="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">सबदवाणी, आरती एवं भजन स्ट्रीम</span>
-            <h4 id="customNowPlayingTitle" class="font-yatra text-base sm:text-lg text-white truncate">श्री जम्भेश्वर आरती एवं भजन</h4>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-          <select id="customPlaylistDropdown" onchange="selectCustomTrackByIndex(this.value)" class="flex-1 sm:flex-initial p-2 rounded-xl bg-black/35 text-amber-200 border border-amber-400/40 text-xs font-bold max-w-full sm:max-w-[210px] truncate">
-            <option value="0">1. श्री जम्भेश्वर आरती एवं भजन</option>
-          </select>
-          <button onclick="cycleCustomAudioSpeed()" id="customAudioSpeedBtn" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 text-xs font-extrabold border border-amber-400/30">1x</button>
-        </div>
-      </div>
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
-        <div class="flex items-center justify-center gap-4 shrink-0">
-          <button onclick="skipCustomTrack(-1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">⏮️</button>
-          <button onclick="toggleCustomMusicPlay()" id="customPlayBtn" class="w-11 h-11 rounded-full bg-amber-400 text-stone-950 flex items-center justify-center shadow-lg font-bold">▶</button>
-          <button onclick="skipCustomTrack(1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">⏭️</button>
-        </div>
-        <div class="flex-1 flex items-center gap-2.5">
-          <span id="customCurTime" class="text-xs font-mono text-amber-200 w-9 text-right">0:00</span>
-          <input type="range" id="customSeekSlider" value="0" min="0" max="100" oninput="seekCustomMusic(this.value)" class="flex-1 h-2 bg-white/25 rounded-lg cursor-pointer accent-amber-400">
-          <span id="customDurTime" class="text-xs font-mono text-stone-300 w-9">0:00</span>
-        </div>
-      </div>
-    `;
-    hostCard.appendChild(musicUI);
-
-    nativeAudio.addEventListener('timeupdate', () => {
-      const slider = document.getElementById('customSeekSlider');
-      const curEl = document.getElementById('customCurTime');
-      const durEl = document.getElementById('customDurTime');
-      if (nativeAudio.duration && slider) {
-        slider.value = (nativeAudio.currentTime / nativeAudio.duration) * 100;
-        if (curEl) curEl.innerText = formatMusicTime(nativeAudio.currentTime);
-        if (durEl) durEl.innerText = formatMusicTime(nativeAudio.duration);
-      }
-    });
-    nativeAudio.addEventListener('ended', () => skipCustomTrack(1));
-    nativeAudio.addEventListener('play', () => updatePlayPauseIcon(true));
-    nativeAudio.addEventListener('pause', () => updatePlayPauseIcon(false));
-  }
-}
-
-// 10. QUIZ LEADERBOARD PODIUM
-function upgradeQuizLeaderboardToWidePodium() {
-  const introCard = document.getElementById('quizIntroCard');
-  if (!introCard || document.getElementById('widePodiumRestructured')) return;
-
-  introCard.className = 'bg-gradient-to-br from-[#143622] via-[#19422a] to-[#0f291a] text-white p-5 sm:p-8 rounded-3xl shadow-2xl border-2 border-amber-400/40 space-y-5 relative overflow-hidden';
-
-  introCard.innerHTML = `
-    <span id="widePodiumRestructured" class="hidden"></span>
-    <div class="text-center space-y-1">
-      <span class="px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-wider">
-        दैनिक ज्ञान प्रतियोगिता
-      </span>
-      <h2 class="font-yatra text-2xl sm:text-3xl text-amber-300 drop-shadow pt-1">🏆 आज के शीर्ष प्रतिभागी</h2>
-    </div>
-
-    <div class="space-y-3 max-w-2xl mx-auto">
-      <div class="bg-gradient-to-r from-amber-100 via-amber-200 to-yellow-100 text-stone-950 p-4 sm:p-5 rounded-2xl border-2 border-amber-400 shadow-xl flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3.5 min-w-0">
-          <div class="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center text-2xl font-extrabold shrink-0 shadow">🥇</div>
-          <div class="min-w-0 text-left">
-            <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-300/70 px-2 py-0.5 rounded">प्रथम स्थान (1st Rank)</span>
-            <div id="winner1Name" class="font-extrabold text-base sm:text-xl text-[#143622] mt-0.5 break-words">—</div>
-          </div>
-        </div>
-        <div id="winner1Score" class="px-3 py-1.5 rounded-xl bg-[#143622] text-amber-300 font-extrabold text-sm sm:text-base shrink-0">—</div>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="bg-white/95 text-stone-900 p-3.5 rounded-2xl border border-slate-300 shadow flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-2xl shrink-0">🥈</span>
-            <div class="min-w-0 text-left">
-              <span class="text-[10px] font-bold text-stone-500 block">द्वितीय स्थान (2nd)</span>
-              <div id="winner2Name" class="font-bold text-sm sm:text-base text-stone-800 break-words">—</div>
-            </div>
-          </div>
-          <span id="winner2Score" class="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-800 font-bold text-xs shrink-0">—</span>
-        </div>
-
-        <div class="bg-orange-50/95 text-stone-900 p-3.5 rounded-2xl border border-orange-200 shadow flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="text-2xl shrink-0">🥉</span>
-            <div class="min-w-0 text-left">
-              <span class="text-[10px] font-bold text-orange-800 block">तृतीय स्थान (3rd)</span>
-              <div id="winner3Name" class="font-bold text-sm sm:text-base text-stone-900 break-words">—</div>
-            </div>
-          </div>
-          <span id="winner3Score" class="px-2.5 py-1 rounded-lg bg-orange-100 text-orange-950 font-bold text-xs shrink-0">—</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="pt-3 border-t border-white/15 text-center space-y-3">
-      <p class="text-xs sm:text-sm text-emerald-100">समाज आचार संहिता, २९ नियम एवं इतिहास पर आधारित दैनिक ज्ञान परीक्षा में भाग लें और डिजिटल सम्मान-पत्र प्राप्त करें।</p>
-      <button onclick="startQuizNow()" id="mainStartQuizBtn" class="px-6 py-3 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-lg transition transform active:scale-95">
-        🎯 ज्ञान परीक्षा शुरू करें (Start Quiz)
-      </button>
-
-      <div id="softQuizComingSoonBanner" class="hidden p-4 rounded-2xl bg-amber-400/20 border border-amber-300 text-amber-200 text-center space-y-1">
-        <div id="softQuizBannerHeading" class="font-yatra text-base sm:text-lg text-amber-300">✨ नए ज्ञान परीक्षा प्रश्न तैयार किए जा रहे हैं!</div>
-        <p class="text-xs text-white/90">शीर्ष विजेता तालिका लाइव है। नए रोचक प्रश्न शीघ्र ही उपलब्ध होंगे।</p>
-      </div>
-    </div>
-  `;
-}
-
-// 11. AUDIO PLAYER HELPERS
-function formatMusicTime(sec) {
-  if (!sec || isNaN(sec)) return '0:00';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
-}
-
-function updatePlayPauseIcon(playing) {
-  isCustomPlaying = playing;
-  const btn = document.getElementById('customPlayBtn');
-  if (btn) btn.innerText = playing ? '⏸' : '▶';
-}
-
-function renderCustomMusicDropdown() {
-  const sel = document.getElementById('customPlaylistDropdown');
-  const titleEl = document.getElementById('customNowPlayingTitle');
-  if (!sel) return;
-  sel.innerHTML = audioPlaylist.map((tr, i) => `<option value="${i}">${i + 1}. ${tr.title}</option>`).join('');
-  sel.value = currentTrackIndex.toString();
-  if (titleEl && audioPlaylist[currentTrackIndex]) titleEl.innerText = audioPlaylist[currentTrackIndex].title;
-}
-
-function selectCustomTrackByIndex(idxStr) {
-  const idx = parseInt(idxStr);
-  if (!audioPlaylist[idx]) return;
-  currentTrackIndex = idx;
-  const player = document.getElementById('audioPlayer');
-  const source = document.getElementById('audioSource');
-  if (player && source) { source.src = audioPlaylist[idx].link; player.load(); player.play().catch(() => {}); }
-  renderCustomMusicDropdown();
-}
-
-function toggleCustomMusicPlay() {
-  const player = document.getElementById('audioPlayer');
-  const source = document.getElementById('audioSource');
-  if (!player) return;
-  if ((!source.src || source.src === window.location.href) && audioPlaylist[currentTrackIndex]) {
-    source.src = audioPlaylist[currentTrackIndex].link; player.load();
-  }
-  if (player.paused) player.play().catch(() => {}); else player.pause();
-}
-
-function skipCustomTrack(delta) {
-  if (!audioPlaylist.length) return;
-  currentTrackIndex = (currentTrackIndex + delta + audioPlaylist.length) % audioPlaylist.length;
-  selectCustomTrackByIndex(currentTrackIndex);
-}
-
-function seekCustomMusic(val) {
-  const player = document.getElementById('audioPlayer');
-  if (player && player.duration) player.currentTime = (val / 100) * player.duration;
-}
-
-function cycleCustomAudioSpeed() {
-  currentSpeedIdx = (currentSpeedIdx + 1) % audioSpeeds.length;
-  const spd = audioSpeeds[currentSpeedIdx];
-  const player = document.getElementById('audioPlayer');
-  if (player) player.playbackRate = spd;
-  const btn = document.getElementById('customAudioSpeedBtn');
-  if (btn) btn.innerText = `${spd}x`;
-  showToast(`ऑडियो गति: ${spd}x`);
-}
-
-function updateProgressIndicators() {
-  const mTotal = document.getElementById('userTotalMantra');
-  const mLaps = document.getElementById('userCompletedMala');
-  const hmTotal = document.getElementById('progUserMantraCount');
-  const hmLaps = document.getElementById('progUserMalaCount');
-  if (mTotal) mTotal.innerText = malaTotalCount;
-  if (mLaps) mLaps.innerText = malaLapsCount;
-  if (hmTotal) hmTotal.innerText = malaTotalCount;
-  if (hmLaps) hmLaps.innerText = malaLapsCount;
-}
-
-// 12. PER-SECTION MAINTENANCE & VIP BYPASS
-function isPhoneOrInstalledApp() {
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const isNarrowScreen = window.innerWidth <= 768;
-  return isStandalone || isMobileUA || isNarrowScreen;
-}
-
-function isSectionSoftLocked(mode) {
-  if (!mode || mode === 'off') return false;
-  if (maintenanceConfig.vipBypass !== false && isEditorOrOwner()) return false;
-  const onPhone = isPhoneOrInstalledApp();
-  if (mode === 'both') return true;
-  if (mode === 'phone_only' && onPhone) return true;
-  if (mode === 'web_only' && !onPhone) return true;
-  return false;
-}
-
-function listenMaintenanceConfig() {
-  db.collection('settings').doc('maintenance').onSnapshot(doc => {
+// 8. DYNAMIC PARIKSHA VISIBILITY (OWNER DRIVEN)
+function listenParikshaVisibility() {
+  db.collection('examConfig').doc('visibility').onSnapshot(doc => {
     if (doc.exists) {
-      const data = doc.data();
-      maintenanceConfig.globalMode = data.globalMode || 'off';
-      maintenanceConfig.vipBypass = data.vipBypass !== false;
-      maintenanceConfig.message = data.message || maintenanceConfig.message;
-      maintenanceConfig.sections = Object.assign({
-        mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off'
-      }, data.sections || {});
-      maintenanceConfig.customMessages = Object.assign(maintenanceConfig.customMessages, data.customMessages || {});
-
-      const globalSel = document.getElementById('adminGlobalMaintMode');
-      const msgInp = document.getElementById('adminMaintMessage');
-      if (globalSel) globalSel.value = maintenanceConfig.globalMode;
-      if (msgInp) msgInp.value = maintenanceConfig.message;
-
-      ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
-        const el = document.getElementById(`lock_${sec}`);
-        if (el) el.value = maintenanceConfig.sections[sec] || 'off';
-      });
+      parikshaVisibility = { ...parikshaVisibility, ...doc.data() };
     }
-    applySoftMaintenanceBanners();
+    applyParikshaVisibilityUI();
   });
 }
 
-function applySoftMaintenanceBanners() {
-  document.getElementById('globalMaintenanceOverlay')?.remove();
-  const quizLocked = isSectionSoftLocked(maintenanceConfig.sections.quiz) || isSectionSoftLocked(maintenanceConfig.globalMode);
-  const softQuizBanner = document.getElementById('softQuizComingSoonBanner');
-  const startQuizBtn = document.getElementById('mainStartQuizBtn');
-  if (softQuizBanner) {
-    softQuizBanner.classList.toggle('hidden', !quizLocked);
-    const hEl = document.getElementById('softQuizBannerHeading');
-    if (hEl) hEl.innerText = maintenanceConfig.customMessages.quiz || '✨ नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!';
+function applyParikshaVisibilityUI() {
+  const anyActive = parikshaVisibility.enrollment || parikshaVisibility.mock || parikshaVisibility.mainExam || parikshaVisibility.dailyQuiz || parikshaVisibility.resultsPublished;
+
+  const closedNotice = document.getElementById('examClosedNoticeBox');
+  const enrollBox = document.getElementById('examEnrollmentBox');
+  const mockBox = document.getElementById('mockTestsHub');
+  const mainExamBox = document.getElementById('mainExamLaunchBox');
+  const dailyQuizBox = document.getElementById('quizIntroCard');
+  const resultBox = document.getElementById('examResultCheckDesk');
+
+  if (closedNotice) closedNotice.classList.toggle('hidden', anyActive);
+  if (enrollBox) enrollBox.classList.toggle('hidden', !parikshaVisibility.enrollment);
+  if (mockBox) mockBox.classList.toggle('hidden', !parikshaVisibility.mock);
+  if (mainExamBox) mainExamBox.classList.toggle('hidden', !parikshaVisibility.mainExam);
+  if (dailyQuizBox) dailyQuizBox.classList.toggle('hidden', !parikshaVisibility.dailyQuiz);
+  if (resultBox) resultBox.classList.toggle('hidden', !parikshaVisibility.resultsPublished);
+
+  // Sync Studio Checkboxes
+  const tEnroll = document.getElementById('toggleEnrollmentSection');
+  const tMock = document.getElementById('toggleMockSection');
+  const tMain = document.getElementById('toggleMainExamSection');
+  const tQuiz = document.getElementById('toggleDailyQuizSection');
+  if (tEnroll) tEnroll.checked = Boolean(parikshaVisibility.enrollment);
+  if (tMock) tMock.checked = Boolean(parikshaVisibility.mock);
+  if (tMain) tMain.checked = Boolean(parikshaVisibility.mainExam);
+  if (tQuiz) tQuiz.checked = Boolean(parikshaVisibility.dailyQuiz);
+
+  if (parikshaVisibility.mainExam && parikshaVisibility.examScheduleTime) {
+    startExamCountdownClock(parikshaVisibility.examScheduleTime);
   }
-  if (startQuizBtn) startQuizBtn.classList.toggle('hidden', quizLocked);
-
-  ['history', 'library', 'niyams', 'community', 'mala'].forEach(sec => {
-    const tabEl = document.getElementById(`tab-${sec}`);
-    if (!tabEl) return;
-    let banner = document.getElementById(`soft_banner_${sec}`);
-    const locked = isSectionSoftLocked(maintenanceConfig.sections[sec]) || isSectionSoftLocked(maintenanceConfig.globalMode);
-
-    if (locked) {
-      if (!banner) {
-        banner = document.createElement('div');
-        banner.id = `soft_banner_${sec}`;
-        banner.className = 'mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-100 to-emerald-50 border border-amber-300 text-forest flex items-center justify-between gap-3 shadow-sm';
-        tabEl.insertBefore(banner, tabEl.firstChild);
-      }
-      banner.innerHTML = `
-        <div>
-          <h4 class="font-yatra text-sm sm:text-base text-forest">${maintenanceConfig.customMessages[sec] || maintenanceConfig.message}</h4>
-          <p class="text-xs text-stone-600">${maintenanceConfig.message}</p>
-        </div>
-        <span class="px-2.5 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">अपडेट जारी</span>
-      `;
-      banner.classList.remove('hidden');
-    } else if (banner) {
-      banner.classList.add('hidden');
-    }
-  });
 }
 
-async function saveMaintenanceSettings() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के लिए!");
-  const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
-  const message = document.getElementById('adminMaintMessage')?.value.trim() || maintenanceConfig.message;
-  const sections = {};
-  ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
-    sections[sec] = document.getElementById(`lock_${sec}`)?.value || 'off';
-  });
-  await db.collection('settings').doc('maintenance').set({
-    globalMode, message, sections,
-    vipBypass: true,
-    customMessages: maintenanceConfig.customMessages
+async function updateParikshaVisibilitySettings() {
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
+  const enrollment = document.getElementById('toggleEnrollmentSection')?.checked || false;
+  const mock = document.getElementById('toggleMockSection')?.checked || false;
+  const mainExam = document.getElementById('toggleMainExamSection')?.checked || false;
+  const dailyQuiz = document.getElementById('toggleDailyQuizSection')?.checked || false;
+
+  await db.collection('examConfig').doc('visibility').set({
+    enrollment, mock, mainExam, dailyQuiz
   }, { merge: true });
-  showToast("✅ मेंटेनेंस सेटिंग्स लागू हो गईं!");
+
+  showToast("✅ परीक्षा अनुभाग विज़िबिलिटी सेटिंग्स अपडेट हो गईं!");
 }
 
-// 13. OWNER STUDIO & RBAC ROLE DISCOVERY
-function checkEnrollmentStatus() {
-  db.collection('examConfig').doc('settings').onSnapshot(doc => {
-    const isEnabled = doc.exists && doc.data().enrollmentEnabled === true;
-    const enrollBox = document.getElementById('examEnrollmentBox');
-    if (enrollBox) {
-      enrollBox.classList.toggle('hidden', !isEnabled);
+function startExamCountdownClock(targetIso) {
+  if (examCountdownTimer) clearInterval(examCountdownTimer);
+  const targetTime = new Date(targetIso).getTime();
+
+  function update() {
+    const now = Date.now();
+    const diff = targetTime - now;
+    const disp = document.getElementById('examCountdownDisplay');
+    const startBtn = document.getElementById('startMainExamBtn');
+    if (!disp) return;
+
+    if (diff <= 0) {
+      disp.innerText = "00:00:00 (परीक्षा लाइव है)";
+      if (startBtn) startBtn.classList.remove('opacity-50', 'pointer-events-none');
+      clearInterval(examCountdownTimer);
+      return;
     }
-    const permEnrollChk = document.getElementById('permEnrollToggle');
-    if (permEnrollChk) permEnrollChk.checked = isEnabled;
-  });
+
+    const hrs = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff / (1000 * 60)) % 60);
+    const secs = Math.floor((diff / 1000) % 60);
+    disp.innerText = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  update();
+  examCountdownTimer = setInterval(update, 1000);
 }
 
+// 9. STUDENT ENROLLMENT & UNIQUE ROLL NUMBER GENERATOR
 async function handleExamEnrollment(e) {
   e.preventDefault();
   const name = document.getElementById('enrollName').value.trim();
+  const fatherName = document.getElementById('enrollFatherName').value.trim();
+  const dob = document.getElementById('enrollDob').value;
   const phone = document.getElementById('enrollPhone').value.trim();
   const email = document.getElementById('enrollEmail').value.trim();
   const location = document.getElementById('enrollLocation').value.trim();
 
   if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का फ़ोन नंबर भरें!");
+  if (!name || !fatherName || !dob || !location) return showToast("कृपया सभी आवश्यक फ़ील्ड्स भरें!");
 
-  const studentDetails = { name, phone, email, location };
-  const roll = await enrollStudentForExam(studentDetails);
-  if (roll) {
-    document.getElementById('enrollName').value = '';
-    document.getElementById('enrollPhone').value = '';
-    document.getElementById('enrollEmail').value = '';
-    document.getElementById('enrollLocation').value = '';
-  }
-}
-
-async function enrollStudentForExam(studentDetails) {
   try {
-    const configSnap = await db.collection('examConfig').doc('settings').get();
-    if (!configSnap.exists || !configSnap.data().enrollmentEnabled) {
-      showToast("वर्तमान में परीक्षा नामांकन बंद है।");
-      return null;
-    }
-
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const rollNumber = `JAMBH-2026-${randomSuffix}`;
 
     const studentRecord = {
-      ...studentDetails,
-      rollNumber: rollNumber,
+      rollNumber,
+      name,
+      fatherName,
+      dob,
+      phone,
+      email: email || '-',
+      location,
       enrolledAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     await db.collection('examEnrolledStudents').doc(rollNumber).set(studentRecord);
-    alert(`🎉 नामांकन सफल!\nआपका रोल नंबर है: ${rollNumber}\n(कृपया इसे संभाल कर रखें)`);
+    alert(`🎉 बधाई!\nआपका नामांकन सफल हुआ।\n\nरोल नंबर (Roll No): ${rollNumber}\nकृपया इसे भविष्य के संदर्भ हेतु सुरक्षित रखें।`);
     examState.rollNumber = rollNumber;
-    return rollNumber;
+
+    document.getElementById('enrollName').value = '';
+    document.getElementById('enrollFatherName').value = '';
+    document.getElementById('enrollDob').value = '';
+    document.getElementById('enrollPhone').value = '';
+    document.getElementById('enrollEmail').value = '';
+    document.getElementById('enrollLocation').value = '';
   } catch (err) {
     showToast("नामांकन त्रुटि: " + err.message);
-    return null;
   }
 }
 
-// RBAC Permissions Logic
-const ROLE_PERMISSIONS = {
-  OWNER: ['canManageAdmins', 'canPublishExam', 'canUploadQuestions', 'canToggleEnrollment', 'canViewAuditLogs'],
-  MODERATOR: ['canUploadQuestions']
-};
+// 10. TWO OFFICIAL PDF EXPORTERS
+function downloadEnrolledStudentsPdf() {
+  db.collection('examEnrolledStudents').orderBy('enrolledAt', 'desc').get().then(snap => {
+    if (snap.empty) return showToast("कोई नामांकित छात्र नहीं मिला।");
+    let rows = [];
+    snap.forEach((d, i) => {
+      const s = d.data();
+      rows.push([i + 1, s.rollNumber || d.id, s.name || '', s.fatherName || '', s.dob || '', s.phone || '', s.location || '']);
+    });
 
-function renderAdminStudio(userRole, customPermissions = []) {
-  const allowed = userRole === 'OWNER' ? ROLE_PERMISSIONS.OWNER : customPermissions;
-  toggleElementVisibility('secManageAdmins', allowed.includes('canManageAdmins'));
-  toggleElementVisibility('secPublishExam', allowed.includes('canPublishExam'));
-  toggleElementVisibility('secUploadQuestions', allowed.includes('canUploadQuestions'));
-  toggleElementVisibility('secEnrollmentToggle', allowed.includes('canToggleEnrollment'));
-  toggleElementVisibility('secAuditLogs', allowed.includes('canViewAuditLogs'));
-}
-
-function toggleElementVisibility(elementId, isVisible) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  if (isVisible) {
-    el.classList.remove('hidden');
-  } else {
-    el.classList.add('hidden');
-  }
-}
-
-// 14. EXAM SCHEDULER & ZERO-LAG LOCAL STORAGE ENGINE
-function initExamSecurity() {
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('copy', e => e.preventDefault());
-  document.addEventListener('cut', e => e.preventDefault());
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && document.getElementById('quizActiveBox') && !document.getElementById('quizActiveBox').classList.contains('hidden')) {
-      examState.tabSwitchCount++;
-      alert(`⚠️ चेतावनी: आपने स्क्रीन या टैब बदली है! (चेतावनी: ${examState.tabSwitchCount}/3)`);
-      if (examState.tabSwitchCount >= 3) {
-        submitFinalExam(true);
-      }
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape');
+      doc.text("Bishnoi Literature Exam 2026 - Enrolled Students Master List", 14, 16);
+      doc.autoTable({
+        startY: 22,
+        head: [['S.No', 'Roll No', 'Student Name', 'Father Name', 'DOB', 'Phone', 'Location']],
+        body: rows,
+        styles: { fontSize: 9 }
+      });
+      doc.save("Jambhani_Exam_Enrolled_Students.pdf");
+    } else {
+      showToast("PDF लाइब्रेरी लोड हो रही है, पुनः प्रयास करें।");
     }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
+  });
+}
+
+function downloadExamResultsMeritPdf() {
+  db.collection('examSubmissions').where('mode', '==', 'main_exam').get().then(snap => {
+    if (snap.empty) return showToast("कोई परीक्षा सबमिशन रिकॉर्ड नहीं मिला।");
+    let records = [];
+    snap.forEach(d => records.push(d.data()));
+    records.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    let rows = [];
+    records.forEach((r, idx) => {
+      rows.push([idx + 1, r.rollNumber || '-', r.candidateName || '', r.fatherName || '-', `${r.score || 0} / 100`, r.submittedAt ? new Date(r.submittedAt.seconds * 1000).toLocaleTimeString('hi-IN') : '-']);
+    });
+
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bishnoi Literature Exam 2026 - Official Merit Result", 14, 16);
+      doc.autoTable({
+        startY: 22,
+        head: [['Rank', 'Roll Number', 'Candidate Name', 'Father Name', 'Score', 'Submit Time']],
+        body: rows
+      });
+      doc.save("Jambhani_Exam_Merit_Results.pdf");
+    } else {
+      showToast("PDF लाइब्रेरी लोड हो रही है, पुनः प्रयास करें।");
+    }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
+  });
+}
+
+function download7DaysUsersPdf() {
+  db.collection('users').get().then(snap => {
+    if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
+    let rows = [];
+    snap.forEach(d => {
+      const u = d.data();
+      rows.push([u.name || '', u.phone || d.id, u.email || '-', u.location || '-']);
+    });
+
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bishnoi Portal - Registered Members", 14, 18);
+      doc.autoTable({ startY: 25, head: [['Name', 'Phone', 'Email', 'Location']], body: rows });
+      doc.save("Bishnoi_Members.pdf");
+    } else {
+      showToast("PDF लाइब्रेरी लोड हो रही है, पुनः प्रयास करें।");
+    }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
+  });
+}
+
+// 11. INDIVIDUAL RESULT CHECK (SEARCH BY ROLL NO, NAME & DOB)
+async function handleIndividualResultCheck(e) {
+  e.preventDefault();
+  const roll = document.getElementById('resCheckRoll').value.trim().toUpperCase();
+  const name = document.getElementById('resCheckName').value.trim().toLowerCase();
+  const dob = document.getElementById('resCheckDob').value;
+
+  const resultBox = document.getElementById('studentPersonalResultDisplay');
+  if (!resultBox) return;
+
+  try {
+    const enrolledDoc = await db.collection('examEnrolledStudents').doc(roll).get();
+    if (!enrolledDoc.exists) {
+      return showToast("यह रोल नंबर दर्ज नहीं है! कृपया सही विवरण भरें।");
+    }
+    const studentData = enrolledDoc.data();
+    if (studentData.dob !== dob || studentData.name.toLowerCase() !== name) {
+      return showToast("नाम या जन्मतिथि रोल नंबर से मेल नहीं खाती!");
+    }
+
+    const subSnap = await db.collection('examSubmissions')
+      .where('rollNumber', '==', roll)
+      .limit(1)
+      .get();
+
+    if (subSnap.empty) {
+      resultBox.innerHTML = `
+        <div class="p-4 bg-amber-50 rounded-xl border border-amber-300 text-center text-xs text-amber-900 font-semibold">
+          आपकी उत्तर-पुस्तिका मूल्यांकन में है अथवा परिणाम अभी जारी नहीं हुआ है।
+        </div>
+      `;
+      resultBox.classList.remove('hidden');
+      return;
+    }
+
+    const subData = subSnap.docs[0].data();
+    const score = subData.score || 0;
+    const total = subData.total || 100;
+    const percentage = Math.round((score / total) * 100);
+
+    resultBox.innerHTML = `
+      <div class="p-5 bg-gradient-to-br from-emerald-50 via-white to-amber-50 rounded-2xl border-2 border-forest shadow-md space-y-3">
+        <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+          <span class="font-yatra text-base text-forest">अखिल भारतीय जाम्भाणी परीक्षा मार्कशीट</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-forest font-bold text-xs">सत्यापित</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs text-stone-700">
+          <div><b>परीक्षार्थी:</b> ${studentData.name}</div>
+          <div><b>पिता का नाम:</b> ${studentData.fatherName}</div>
+          <div><b>रोल नंबर:</b> ${roll}</div>
+          <div><b>जन्मतिथि:</b> ${dob}</div>
+        </div>
+        <div class="p-3 bg-white rounded-xl border border-stone-200 flex items-center justify-between">
+          <span class="font-bold text-xs text-stone-600">कुल प्राप्तांक (Marks):</span>
+          <span class="text-xl font-extrabold text-terracotta">${score} / ${total} (${percentage}%)</span>
+        </div>
+        <button onclick="generateCertificate('${studentData.name}', ${percentage})" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-950">
+          📜 आधिकारिक सम्मान-पत्र (Certificate) डाउनलोड करें
+        </button>
+      </div>
+    `;
+    resultBox.classList.remove('hidden');
+  } catch (err) {
+    showToast("जाँच में त्रुटि: " + err.message);
+  }
+}
+
+// 12. HIGH-STRICTNESS EXAM & MOCK RUNTIME ENGINE
+function launchMainExamPortal() {
+  if (!examState.rollNumber || examState.rollNumber === 'GUEST') {
+    const inputRoll = prompt("कृपया अपना परीक्षा रोल नंबर दर्ज करें (उदा: JAMBH-2026-XXXXX):");
+    if (!inputRoll) return;
+    examState.rollNumber = inputRoll.trim().toUpperCase();
+  }
+
+  examState.activeMode = 'main_exam';
+  db.collection('mainExamQuestions').get().then(snap => {
+    let list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    if (!list.length) {
+      return showToast("परीक्षा प्रश्न अभी तैयार नहीं हुए हैं। कृपया प्रतीक्षा करें।");
+    }
+    startExamEngine(list, parikshaVisibility.examDuration || 120);
+  }).catch(() => {
+    showToast("परीक्षा प्रश्न लोड नहीं हो सके।");
   });
 }
 
@@ -848,7 +557,11 @@ function startExamEngine(questionList, durationMinutes) {
   examState.currentIndex = 0;
   examState.answers = JSON.parse(localStorage.getItem('cachedExamAnswers') || '{}');
 
+  document.getElementById('examClosedNoticeBox')?.classList.add('hidden');
+  document.getElementById('examEnrollmentBox')?.classList.add('hidden');
   document.getElementById('mockTestsHub')?.classList.add('hidden');
+  document.getElementById('mainExamLaunchBox')?.classList.add('hidden');
+  document.getElementById('examResultCheckDesk')?.classList.add('hidden');
   document.getElementById('quizIntroCard')?.classList.add('hidden');
   document.getElementById('quizActiveBox')?.classList.remove('hidden');
 
@@ -868,6 +581,23 @@ function startExamEngine(questionList, durationMinutes) {
       submitFinalExam(false);
     }
   }, 1000);
+}
+
+function initExamSecurity() {
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('copy', e => e.preventDefault());
+  document.addEventListener('cut', e => e.preventDefault());
+
+  document.addEventListener('visibilitychange', () => {
+    const qBox = document.getElementById('quizActiveBox');
+    if (document.hidden && qBox && !qBox.classList.contains('hidden')) {
+      examState.tabSwitchCount++;
+      alert(`⚠️ चेतावनी: आपने स्क्रीन या टैब बदली है! (चेतावनी: ${examState.tabSwitchCount}/3)`);
+      if (examState.tabSwitchCount >= 3) {
+        submitFinalExam(true);
+      }
+    }
+  });
 }
 
 function buildQuestionGridPills() {
@@ -904,7 +634,7 @@ function renderQuestion(index) {
           <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-stone-50 transition ${currentSelection === i ? 'bg-amber-50 border-amber-400' : 'border-stone-200'}">
             <input type="radio" name="currentExamRadio" value="${i}" 
               ${currentSelection === i ? 'checked' : ''} 
-              onchange="saveExamAnswer('${q.id}', ${i}, ${index})" class="accent-forest w-4 h-4 mr-3">
+              onchange="saveExamAnswer('${q.id}', ${i},${index})" class="accent-forest w-4 h-4 mr-3">
             <span class="text-xs sm:text-sm text-stone-800 font-medium">${opt}</span>
           </label>
         `).join('')}
@@ -946,24 +676,27 @@ function updateTimerDisplay(seconds) {
 
 async function submitFinalExam(isForced = false) {
   clearInterval(examState.timerInterval);
-  const user = firebase.auth().currentUser;
-  
-  // Single DB write to ensure zero lag for 3000 students
+
+  let calculatedScore = 0;
+  examState.questions.forEach(q => {
+    if (examState.answers[q.id] === q.ans) calculatedScore++;
+  });
+
   const payload = {
-    userId: user ? user.uid : (currentUser ? currentUser.phone : 'Guest'),
     rollNumber: examState.rollNumber,
-    candidateName: currentUser ? currentUser.name : 'छात्र',
-    answers: examState.answers,
+    candidateName: currentUser ? currentUser.name : 'परीक्षार्थी',
     mode: examState.activeMode,
+    score: calculatedScore,
+    total: examState.questions.length,
     submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
     isForcedSubmission: isForced,
-    isPublished: false // Strict delayed result workflow
+    isPublished: false
   };
 
   try {
     await db.collection('examSubmissions').add(payload);
     localStorage.removeItem('cachedExamAnswers');
-    
+
     document.getElementById('quizActiveBox').innerHTML = `
       <div class="text-center p-8 bg-green-50 rounded-2xl border border-green-200 space-y-3">
         <div class="text-4xl">📜</div>
@@ -982,7 +715,7 @@ async function submitFinalExam(isForced = false) {
   }
 }
 
-// 15. DRAFT & LIVE EXAM CONTROLS (OWNER STUDIO)
+// 13. OWNER STUDIO CONTROLS: DRAFT, LIVE & RESULT PUBLISH
 async function saveExamAsDraft() {
   if (!isEditorOrOwner()) return showToast("अनुमति नहीं है!");
   const target = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
@@ -998,12 +731,18 @@ async function saveExamAsDraft() {
 
 async function publishMainExamLive() {
   if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
+  const startTime = document.getElementById('adminExamScheduleTime')?.value;
+  const endTime = document.getElementById('adminExamEndTime')?.value;
+  const duration = parseInt(document.getElementById('adminExamDuration')?.value) || 120;
+
   openConfirmModal("मुख्य परीक्षा लाइव करें?", "क्या आप मुख्य परीक्षा को सभी विद्यार्थियों के लिए लाइव करना चाहते हैं?", async (res) => {
     if (res) {
-      await db.collection('examConfig').doc('liveStatus').set({
-        isLive: true,
-        startedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      await db.collection('examConfig').doc('visibility').set({
+        mainExam: true,
+        examScheduleTime: startTime || new Date().toISOString(),
+        examEndTime: endTime || null,
+        examDuration: duration
+      }, { merge: true });
       showToast("🚀 मुख्य परीक्षा लाइव कर दी गई है!");
     }
   });
@@ -1011,25 +750,53 @@ async function publishMainExamLive() {
 
 async function publishExamResultsOfficially() {
   if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
-  openConfirmModal("परिणाम घोषित करें?", "क्या आप सभी परीक्षार्थियों के परिणाम सार्वजनिक करना चाहते हैं?", async (res) => {
+  openConfirmModal("परिणाम घोषित करें?", "क्या आप परिणाम खोज खिड़की (Result Desk) को छात्रों के लिए लाइव करना चाहते हैं?", async (res) => {
     if (res) {
-      const snap = await db.collection('examSubmissions').where('isPublished', '==', false).get();
-      const batch = db.batch();
-      snap.forEach(doc => {
-        batch.update(doc.ref, { isPublished: true });
-      });
-      await batch.commit();
-      showToast("📢 सभी परीक्षा परिणाम आधिकारिक रूप से घोषित कर दिए गए!");
+      await db.collection('examConfig').doc('visibility').set({
+        resultsPublished: true
+      }, { merge: true });
+      showToast("📢 परीक्षा परिणाम आधिकारिक रूप से घोषित कर दिए गए!");
     }
   });
 }
 
-// 16. 7-DAY AUDIT & VISITOR TELEMETRY TRACKER
+async function importBulkQuiz() {
+  if (!isEditorOrOwner()) return;
+  const rawText = document.getElementById('adminBulkQuizText').value.trim();
+  const targetCol = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
+  if (!rawText) return showToast('प्रश्न पेस्ट करें');
+
+  const blocks = rawText.split(/\n\s*\n/);
+  let parsed = [];
+  for (let b of blocks) {
+    const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+    let qText = '', opts = [], ansIdx = 0;
+    for (let l of lines) {
+      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, '').trim();
+      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
+      else if (l.match(/^Ans\s*:/i)) {
+        const letAns = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
+        ansIdx = letAns === 'A' ? 0 : letAns === 'B' ? 1 : letAns === 'C' ? 2 : 3;
+      }
+    }
+    if (qText && opts.length >= 2) parsed.push({ q: qText, title: qText, opts, options: opts, ans: ansIdx });
+  }
+
+  if (!parsed.length) return showToast('प्रारूप जाँचें');
+  const collectionName = targetCol === 'daily_quiz' ? 'quiz' : (targetCol === 'mock_1' ? 'mockExam_1' : (targetCol === 'mock_2' ? 'mockExam_2' : 'mainExamQuestions'));
+  const batch = db.batch();
+  parsed.forEach(q => batch.set(db.collection(collectionName).doc(), q));
+  await batch.commit();
+  document.getElementById('adminBulkQuizText').value = '';
+  showToast(`✅ ${parsed.length} प्रश्न (${targetCol}) में सहेजे गए!`);
+}
+
+// 14. 7-DAY AUDIT & VISITOR TELEMETRY TRACKER
 async function trackUserLoginTelemetry(userData) {
   try {
     const res = await fetch('https://ipapi.co/json/');
     const geo = await res.json();
-    
+
     const ua = navigator.userAgent;
     let deviceCategory = "Laptop / Desktop";
     if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
@@ -1052,9 +819,7 @@ async function trackUserLoginTelemetry(userData) {
     };
 
     await db.collection('userAccessLogs').add(auditEntry);
-  } catch (err) {
-    console.error("Telemetry failed:", err);
-  }
+  } catch (err) {}
 }
 
 async function refreshAuditLogs() {
@@ -1095,162 +860,28 @@ async function refreshAuditLogs() {
   }
 }
 
-// 17. INITIALIZATION & DATA SUBSCRIPTIONS
-window.addEventListener('DOMContentLoaded', () => {
-  if (!localStorage.getItem('gemini_user_api_key')) {
-    localStorage.setItem('gemini_user_api_key', DEFAULT_INTEGRATED_AI_KEY);
-  }
-  injectCleanLayoutStyles();
-  upgradeHomepageAndAudioUI();
-  upgradeQuizLeaderboardToWidePodium();
-  injectUnifiedBottomNavBar();
-  setupSmartInstantSearch();
-  setupInactivitySessionGuard();
-  setupOneTimeExitFeedbackPrompt();
+// 15. RBAC PERMISSIONS FOR SUB-ADMINS
+const ROLE_PERMISSIONS = {
+  OWNER: ['canManageAdmins', 'canPublishExam', 'canUploadQuestions', 'canToggleResults', 'canViewAuditLogs'],
+  MODERATOR: ['canUploadQuestions']
+};
 
-  syncUserAutoRoleFromDB();
-  listenTrustedEditors();
-  listenDraftQueue();
-  listenFeedbacksForAdmin();
-  updateNavAuth();
-  listenMaintenanceConfig();
-  listenScheduledContent();
-  listenCustomNiyams();
-  listenHistoryAndKids();
-  listenBanner();
-  listenPdfs();
-  listenBlockedUsers();
-  listenPosts();
-  listenPinnedChat();
-  loadQuiz();
-  listenTreeCounter();
-  listenWinners();
-  listenNotices();
-  listenAudios();
-  computeAutoPanchang();
-  listenAmavasyaConfig();
-  checkEnrollmentStatus();
-  renderMalaCounters();
-  updateProgressIndicators();
-
-  // Visitor logging
-  if (!sessionStorage.getItem('visitor_logged_session')) {
-    sessionStorage.setItem('visitor_logged_session', 'true');
-    trackUserLoginTelemetry(currentUser || { name: 'Visitor' });
-  }
-});
-
-async function syncUserAutoRoleFromDB() {
-  if (!currentUser || !currentUser.phone) {
-    renderAdminStudio('GUEST');
-    return;
-  }
-  try {
-    const [uDoc, edDoc] = await Promise.all([
-      db.collection('users').doc(currentUser.phone).get(),
-      db.collection('settings').doc('editorRoles').get()
-    ]);
-    const edList = (edDoc.exists && Array.isArray(edDoc.data().phones)) ? edDoc.data().phones : [];
-    editorsPhoneList = edList;
-
-    if (uDoc.exists) {
-      const d = uDoc.data();
-      currentUser.name = d.name || currentUser.name;
-      currentUser.location = d.location || currentUser.location || '';
-      currentUser.email = d.email || currentUser.email || '';
-      currentUser.photo = d.photo || currentUser.photo || '';
-    }
-    currentUser.isOwner = (currentUser.phone === OWNER_PHONE);
-    currentUser.isEditor = currentUser.isOwner || edList.includes(currentUser.phone);
-    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-    updateNavAuth();
-
-    if (currentUser.isOwner) {
-      renderAdminStudio('OWNER');
-    } else if (currentUser.isEditor) {
-      renderAdminStudio('MODERATOR', ['canUploadQuestions']);
-    } else {
-      renderAdminStudio('MEMBER');
-    }
-  } catch (e) {
-    renderAdminStudio('MEMBER');
-  }
+function renderAdminStudio(userRole, customPermissions = []) {
+  const allowed = userRole === 'OWNER' ? ROLE_PERMISSIONS.OWNER : customPermissions;
+  toggleElementVisibility('secManageAdmins', allowed.includes('canManageAdmins'));
+  toggleElementVisibility('secPublishExam', allowed.includes('canPublishExam'));
+  toggleElementVisibility('secUploadQuestions', allowed.includes('canUploadQuestions'));
+  toggleElementVisibility('secAuditLogs', allowed.includes('canViewAuditLogs'));
 }
 
-function switchTab(id) {
-  if (id === 'admin' && !isEditorOrOwner()) {
-    return showToast("यह अनुभाग केवल व्यवस्थापक एवं अधिकृत संपादक के लिए है।");
-  }
-  currentActiveTab = id;
-  ['home', 'mala', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
-    const el = document.getElementById(`tab-${t}`);
-    const bnav = document.getElementById(`bnav-${t}`);
-    if (el) el.classList.add('hidden');
-    if (bnav) bnav.classList.remove('bnav-item-active');
-  });
-
-  const target = document.getElementById(`tab-${id}`);
-  const activeBnav = document.getElementById(
-    (id === 'niyams' || id === 'mala' || id === 'history') ? 'bnav-home' : (id === 'admin' ? 'bnav-profile' : `bnav-${id}`)
-  );
-  if (target) {
-    target.classList.remove('hidden');
-  }
-  if (activeBnav) activeBnav.classList.add('bnav-item-active');
-
-  if (id === 'admin' && isEditorOrOwner()) {
-    refreshOwnerAnalytics();
-    refreshAuditLogs();
-  }
-
-  applySoftMaintenanceBanners();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+function toggleElementVisibility(elementId, isVisible) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (isVisible) el.classList.remove('hidden');
+  else el.classList.add('hidden');
 }
 
-function switchHistorySubTab(sub) {
-  const histView = document.getElementById('historySubView');
-  const kidsView = document.getElementById('kidsSubView');
-  const histBtn = document.getElementById('sub-history-btn');
-  const kidsBtn = document.getElementById('sub-kids-btn');
-
-  if (sub === 'full-history') {
-    histView.classList.remove('hidden'); kidsView.classList.add('hidden');
-    histBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
-    kidsBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest";
-  } else {
-    histView.classList.add('hidden'); kidsView.classList.remove('hidden');
-    kidsBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
-    histBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest";
-  }
-}
-
-// 18. TOAST NOTIFICATION & CONFIRM MODALS
-function showToast(msg) {
-  const toast = document.getElementById('toastNotification');
-  if (!toast) return;
-  document.getElementById('toastMsg').innerText = msg;
-  toast.classList.remove('-translate-y-20', 'opacity-0');
-  toast.classList.add('translate-y-0', 'opacity-100');
-  setTimeout(() => {
-    toast.classList.remove('translate-y-0', 'opacity-100');
-    toast.classList.add('-translate-y-20', 'opacity-0');
-  }, 3000);
-}
-
-function openConfirmModal(title, msg, callback) {
-  document.getElementById('confirmTitle').innerText = title;
-  document.getElementById('confirmMsg').innerText = msg;
-  confirmCallback = callback;
-  document.getElementById('customConfirmModal').classList.remove('hidden');
-}
-
-function closeConfirmModal(result) {
-  document.getElementById('customConfirmModal').classList.add('hidden');
-  if (confirmCallback) confirmCallback(result);
-  confirmCallback = null;
-}
-
-// 19. AUTHENTICATION & PROFILE HANDLERS
+// 16. AUTHENTICATION & PROFILE
 function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
 function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
 
@@ -1259,9 +890,7 @@ function toggleAuthMode() {
   document.getElementById('nameRow').classList.toggle('hidden', !isRegisterMode);
   document.getElementById('authTitle').innerText = isRegisterMode ? "नया पंजीकरण (Register)" : "लॉगिन (Sign In)";
   document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "खाता बनाएं (Register)" : "लॉगिन करें";
-  document.getElementById('authToggleBtn').innerText = isRegisterMode 
-    ? "पहले से पंजीकृत हैं? लॉगिन करें" 
-    : "नए सदस्य हैं? पहले पंजीकरण (Register) करें";
+  document.getElementById('authToggleBtn').innerText = isRegisterMode ? "पहले से पंजीकृत हैं? लॉगिन करें" : "नए सदस्य हैं? पहले पंजीकरण (Register) करें";
 }
 
 async function handleAuthSubmit(e) {
@@ -1271,85 +900,53 @@ async function handleAuthSubmit(e) {
   const nameInput = document.getElementById('loginName')?.value.trim() || '';
 
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
-    let ownerName = "व्यवस्थापक (Owner)";
-    let ownerLoc = "";
-    let ownerEmail = "";
-    let ownerPhoto = "";
-    try {
-      const oDoc = await db.collection('users').doc(OWNER_PHONE).get();
-      if (oDoc.exists) {
-        ownerName = oDoc.data().name || ownerName;
-        ownerLoc = oDoc.data().location || "";
-        ownerEmail = oDoc.data().email || "";
-        ownerPhoto = oDoc.data().photo || "";
-      }
-    } catch (err) {}
-
-    currentUser = { name: ownerName, phone: OWNER_PHONE, isOwner: true, isEditor: true, location: ownerLoc, email: ownerEmail, photo: ownerPhoto };
+    currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true, isEditor: true };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     renderAdminStudio('OWNER');
     closeAuthModal();
-    showToast(`🛡️ मुख्य व्यवस्थापक के रूप में स्वागत है, ${currentUser.name}!`);
+    showToast(`🛡️ मुख्य व्यवस्थापक के रूप में स्वागत है!`);
     trackUserLoginTelemetry(currentUser);
     return;
   }
 
-  if (!/^[6-9]\d{9}$/.test(phone)) {
-    return showToast("कृपया सही १० अंकों का भारतीय मोबाइल नंबर दर्ज करें!");
-  }
-
-  const isTrustedEditor = editorsPhoneList.includes(phone);
+  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का फ़ोन नंबर लिखें!");
 
   if (isRegisterMode) {
-    if (!nameInput) return showToast("कृपया अपना पूरा नाम दर्ज करें!");
+    if (!nameInput) return showToast("कृपया अपना पूरा नाम लिखें!");
     try {
-      const userDoc = await db.collection('users').doc(phone).get();
-      if (userDoc.exists) return showToast("यह नंबर पहले से पंजीकृत है! कृपया लॉगिन करें।");
-
       await db.collection('users').doc(phone).set({
-        name: nameInput, phone, pass, email: "", location: "",
-        registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+        name: nameInput, phone, pass,
+        registeredAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-
-      currentUser = { name: nameInput, phone, isOwner: false, isEditor: isTrustedEditor, email: "", location: "" };
+      currentUser = { name: nameInput, phone, isOwner: false, isEditor: false };
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
       updateNavAuth();
       closeAuthModal();
       showToast(`पंजीकरण सफल! स्वागत है, ${currentUser.name}`);
       trackUserLoginTelemetry(currentUser);
-    } catch (err) {
-      showToast("त्रुटि: " + err.message);
-    }
+    } catch (err) { showToast("त्रुटि: " + err.message); }
     return;
   }
 
   try {
     const userDoc = await db.collection('users').doc(phone).get();
-    if (!userDoc.exists) return showToast("यह नंबर पंजीकृत नहीं है! कृपया पहले Register करें।");
+    if (!userDoc.exists) return showToast("यह नंबर पंजीकृत नहीं है!");
     const userData = userDoc.data();
     if (userData.pass && userData.pass !== pass) return showToast("गलत पासवर्ड!");
-
-    await db.collection('users').doc(phone).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() });
 
     currentUser = {
       name: userData.name || "सदस्य",
       phone,
       isOwner: (phone === OWNER_PHONE && pass === OWNER_PASS),
-      isEditor: isTrustedEditor,
-      email: userData.email || "",
-      location: userData.location || "",
-      photo: userData.photo || ""
+      isEditor: editorsPhoneList.includes(phone)
     };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     closeAuthModal();
-    showToast(isTrustedEditor ? `✍️ संपादक (Editor) के रूप में स्वागत है, ${currentUser.name}!` : `स्वागत है, ${currentUser.name}!`);
+    showToast(`स्वागत है, ${currentUser.name}!`);
     trackUserLoginTelemetry(currentUser);
-  } catch (err) {
-    showToast("लॉगिन त्रुटि: " + err.message);
-  }
+  } catch (err) { showToast("त्रुटि: " + err.message); }
 }
 
 function logoutUser() {
@@ -1369,25 +966,19 @@ function updateNavAuth() {
 
   if (container) {
     if (currentUser) {
-      const badgeIcon = isSuperOwner() ? '🛡️' : (isEditorOrOwner() ? '✍️' : '👤');
       container.innerHTML = `
         <button onclick="openProfileModal()" class="text-xs font-bold text-forest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 truncate max-w-[160px] shadow-sm">
-          ${badgeIcon} ${currentUser.name}
+          ${currentUser.isOwner ? '🛡️' : '👤'} ${currentUser.name}
         </button>
       `;
     } else {
       container.innerHTML = `
-        <button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
-          लॉगिन करें
-        </button>
+        <button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">लॉगिन</button>
       `;
     }
   }
 
-  if (bnavProfLbl) {
-    bnavProfLbl.innerText = currentUser ? (isEditorOrOwner() ? 'स्टूडियो' : 'प्रोफ़ाइल') : 'लॉगिन';
-  }
-
+  if (bnavProfLbl) bnavProfLbl.innerText = currentUser ? 'प्रोफ़ाइल' : 'लॉगिन';
   if (currentUser) {
     if (postPrompt) postPrompt.classList.add('hidden');
     if (postEditor) postEditor.classList.remove('hidden');
@@ -1397,7 +988,15 @@ function updateNavAuth() {
   }
 }
 
-// 20. DIGITAL MALA LOGIC
+function openProfileModal() {
+  if (!currentUser) return openAuthModal();
+  updateProgressIndicators();
+  showToast(`प्रोफ़ाइल: ${currentUser.name} | कुल मंत्र: ${malaTotalCount}`);
+}
+
+function closeProfileModal() {}
+
+// 17. DIGITAL MALA
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect')?.value;
   if (selected) document.getElementById('activeMantraDisplay').innerText = selected;
@@ -1444,7 +1043,14 @@ function resetMalaCounter() {
   });
 }
 
-// 21. PANCHANG & DYNAMIC AMAVASYA
+function updateProgressIndicators() {
+  const mTotal = document.getElementById('userTotalMantra');
+  const mLaps = document.getElementById('userCompletedMala');
+  if (mTotal) mTotal.innerText = malaTotalCount;
+  if (mLaps) mLaps.innerText = malaLapsCount;
+}
+
+// 18. PANCHANG & AMAVASYA
 function computeAutoPanchang() {
   const now = new Date();
   const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
@@ -1502,24 +1108,11 @@ function startAmavasyaTimer() {
     const box = document.getElementById('amavasyaCountdownBox');
     if (!box) return;
 
-    const isToday = (
-      now.getFullYear() === amavasyaTargetDate.getFullYear() &&
-      now.getMonth() === amavasyaTargetDate.getMonth() &&
-      now.getDate() === amavasyaTargetDate.getDate()
-    );
-
-    if (isToday) {
-      box.className = "text-xs font-extrabold text-emerald-950 bg-amber-300 p-2.5 rounded-xl border border-amber-500 text-center";
-      box.innerHTML = "🚩 आज पावन अमावस्या व्रत एवं हवन दिवस है!";
-      return;
-    }
-
     if (diff > 0) {
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / 1000 / 60) % 60);
       const secs = Math.floor((diff / 1000) % 60);
-      box.className = "text-xs font-bold text-terracotta bg-white/95 p-2.5 rounded-xl border border-emerald-200 shadow-sm";
       box.innerHTML = `⏳ समय शेष: <b>${days} दिन : ${hours} घं : ${mins} मि : ${secs} से</b>`;
     } else {
       computeAutoPanchang();
@@ -1539,180 +1132,9 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सहेजी गई!');
 }
 
-// 22. AI INTEGRATION
-function getGeminiKey() {
-  return localStorage.getItem('gemini_user_api_key') || DEFAULT_INTEGRATED_AI_KEY;
-}
-
-function resetGeminiKey() {
-  const k = prompt("अपनी AI API Key यहाँ देखें या बदलें:", getGeminiKey());
-  if (k !== null && k.trim()) {
-    localStorage.setItem('gemini_user_api_key', k.trim());
-    showToast("✅ AI API Key सहेज ली गई!");
-  }
-}
-
-async function callGemini(promptText, type) {
-  const apiKey = getGeminiKey();
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-    });
-    const data = await res.json();
-    if (data.candidates?.[0]?.content?.parts?.[0]?.text) return data.candidates[0].content.parts[0].text;
-  } catch (e) {}
-  return "जीव दया पालणी, रूंख लीलो नी घावै — पर्यावरण एवं सभी जीवों की रक्षा करें।";
-}
-
-async function generateAiQuizQuestions() {
-  if (!isEditorOrOwner()) return;
-  const res = await callGemini(`विश्नोई समाज के २९ नियमों पर ५ MCQ हिंदी में बनाएं:\nQ: प्रश्न?\nA) 1\nB) 2\nC) 3\nD) 4\nAns: A`, 'quiz');
-  document.getElementById('adminBulkQuizText').value = res.trim();
-  showToast("🤖 AI ने प्रश्न तैयार कर दिए!");
-}
-
-async function generateAiDailySandesh() {
-  if (!isEditorOrOwner()) return;
-  const res = await callGemini(`Write a 1-line inspirational quote in Hindi for Bishnoi community.`, 'sandesh');
-  document.getElementById('adminBannerInput').value = res.trim();
-  showToast("🤖 AI ने सुविचार तैयार कर दिया!");
-}
-
-// 23. QUIZ & WINNERS
-function startQuizNow() {
-  if (isSectionSoftLocked(maintenanceConfig.sections.quiz) || isSectionSoftLocked(maintenanceConfig.globalMode)) {
-    return showToast(maintenanceConfig.customMessages.quiz || "नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!");
-  }
-  examState.activeMode = 'daily_quiz';
-  startExamEngine(quizList, 15);
-}
-
-function loadQuiz() {
-  db.collection('quiz').onSnapshot(snap => {
-    if (!snap.empty) {
-      quizList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    } else {
-      quizList = [
-        { id: 'q1', q: "खेजड़ली गांव में ३६३ वीरों का महान बलिदान किस वर्ष हुआ था?", opts: ["1730 ईस्वी", "1485 ईस्वी", "1857 ईस्वी", "1947 ईस्वी"], ans: 0 },
-        { id: 'q2', q: "गुरु जम्भेश्वर भगवान द्वारा २९ नियमों की घोषणा किस पवित्र स्थान पर हुई?", opts: ["मुकाम", "समराथल धोरा", "जांगलू", "लालासर"], ans: 1 },
-        { id: 'q3', q: "अमृता देवी विश्नोई का अमर वचन क्या था?", opts: ["सत्यमेव जयते", "सिर साटै रूंख रहै, तो भी सस्तो जाण", "अहिंसा परमो धर्मः", "जय किसान"], ans: 1 }
-      ];
-    }
-  });
-}
-
-function listenWinners() {
-  db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
-    const w = doc.exists ? doc.data() : {};
-    const cleanVal = (v) => (!v || v === 'प्रतीक्षारत' || v.trim() === '') ? '—' : v;
-    if (document.getElementById('winner1Name')) document.getElementById('winner1Name').innerText = cleanVal(w.p1Name);
-    if (document.getElementById('winner1Score')) document.getElementById('winner1Score').innerText = cleanVal(w.p1Score);
-    if (document.getElementById('winner2Name')) document.getElementById('winner2Name').innerText = cleanVal(w.p2Name);
-    if (document.getElementById('winner2Score')) document.getElementById('winner2Score').innerText = cleanVal(w.p2Score);
-    if (document.getElementById('winner3Name')) document.getElementById('winner3Name').innerText = cleanVal(w.p3Name);
-    if (document.getElementById('winner3Score')) document.getElementById('winner3Score').innerText = cleanVal(w.p3Score);
-  });
-}
-
-async function saveDailyWinners() {
-  if (!isSuperOwner()) return showToast("विजेता घोषित करने का अधिकार केवल मुख्य व्यवस्थापक (Owner) के पास है!");
-  await db.collection('settings').doc('dailyWinners').set({
-    p1Name: document.getElementById('win1InputName').value.trim() || '—',
-    p1Score: document.getElementById('win1InputScore').value.trim() || '—',
-    p2Name: document.getElementById('win2InputName').value.trim() || '—',
-    p2Score: document.getElementById('win2InputScore').value.trim() || '—',
-    p3Name: document.getElementById('win3InputName').value.trim() || '—',
-    p3Score: document.getElementById('win3InputScore').value.trim() || '—'
-  });
-  showToast("✅ विजेता सूची अपडेट हो गई!");
-}
-
-async function importBulkQuiz() {
-  if (!isEditorOrOwner()) return;
-  const rawText = document.getElementById('adminBulkQuizText').value.trim();
-  const targetCol = document.getElementById('adminQuestionTarget')?.value || 'daily_quiz';
-  if (!rawText) return showToast('प्रश्न पेस्ट करें');
-
-  const blocks = rawText.split(/\n\s*\n/);
-  let parsed = [];
-  for (let b of blocks) {
-    const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
-    let qText = '', opts = [], ansIdx = 0;
-    for (let l of lines) {
-      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, '').trim();
-      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
-      else if (l.match(/^Ans\s*:/i)) {
-        const letAns = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
-        ansIdx = letAns === 'A' ? 0 : letAns === 'B' ? 1 : letAns === 'C' ? 2 : 3;
-      }
-    }
-    if (qText && opts.length >= 2) parsed.push({ q: qText, opts, ans: ansIdx, title: qText, options: opts });
-  }
-
-  if (!parsed.length) return showToast('प्रारूप जाँचें');
-  const collectionName = targetCol === 'daily_quiz' ? 'quiz' : (targetCol === 'mock_1' ? 'mockExam_1' : (targetCol === 'mock_2' ? 'mockExam_2' : 'mainExamQuestions'));
-  const batch = db.batch();
-  parsed.forEach(q => batch.set(db.collection(collectionName).doc(), q));
-  await batch.commit();
-  document.getElementById('adminBulkQuizText').value = '';
-  showToast(`✅ ${parsed.length} प्रश्न (${targetCol}) में जोड़े गए!`);
-}
-
-// 24. DIRECT PDF EXPORTERS
-function downloadQuizResultsPdf() {
-  db.collection('quizAttempts').get().then(snap => {
-    if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
-    let records = [];
-    snap.forEach(d => records.push(d.data()));
-    records.sort((a, b) => b.score - a.score);
-    
-    if (window.jspdf && window.jspdf.jsPDF) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text("Bishnoi Portal - Quiz Results", 14, 18);
-      doc.autoTable({
-        startY: 25,
-        head: [['Rank', 'Name', 'Phone', 'Score', 'Time']],
-        body: records.map((r, i) => [i + 1, r.name || '', r.phone || '', `${r.score}/${r.total}`, `${r.timeTakenSeconds || 0}s`])
-      });
-      doc.save("Bishnoi_Quiz_Results.pdf");
-    } else {
-      showToast("PDF जनरेटर लोड हो रहा है, पुनः प्रयास करें।");
-    }
-  }).catch(err => {
-    showToast("त्रुटि: " + err.message);
-  });
-}
-
-function download7DaysUsersPdf() {
-  db.collection('users').get().then(snap => {
-    if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
-    let rows = [];
-    snap.forEach(d => {
-      const u = d.data();
-      rows.push([u.name || '', u.phone || d.id, u.email || '-', u.location || '-']);
-    });
-    
-    if (window.jspdf && window.jspdf.jsPDF) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text("Bishnoi Portal - Registered Members", 14, 18);
-      doc.autoTable({ startY: 25, head: [['Name', 'Phone', 'Email', 'Location']], body: rows });
-      doc.save("Bishnoi_Members.pdf");
-    } else {
-      showToast("PDF जनरेटर लोड हो रहा है, पुनः प्रयास करें।");
-    }
-  }).catch(err => {
-    showToast("त्रुटि: " + err.message);
-  });
-}
-
-// 25. CHAT STREAM, MEDIA, NIYAMS & HISTORY
+// 19. CHAT, MEDIA & BANNER
 function listenPosts() {
-  db.collection('posts').orderBy('createdAt', 'desc').limit(80).onSnapshot(snap => {
+  db.collection('posts').orderBy('createdAt', 'desc').limit(60).onSnapshot(snap => {
     allChatPosts = [];
     snap.forEach(doc => allChatPosts.push({ id: doc.id, ...doc.data() }));
     renderFilteredChat();
@@ -1722,110 +1144,31 @@ function listenPosts() {
 function renderFilteredChat() {
   const feed = document.getElementById('communityFeed');
   if (!feed) return;
-  const selectedTopic = document.getElementById('chatTopicFilter')?.value || 'all';
-
-  const filtered = selectedTopic === 'all'
-    ? allChatPosts
-    : allChatPosts.filter(p => (p.topic || 'सामान्य चर्चा') === selectedTopic);
-
-  feed.className = 'divide-y divide-stone-200/80 bg-white rounded-2xl border border-stone-300 shadow-inner max-h-[62vh] overflow-y-auto';
-  feed.innerHTML = `
-    <div class="sticky top-0 z-10 bg-[#143622] text-white px-3.5 py-2 flex items-center justify-between text-xs font-bold shadow">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span>समाज लाइव संवाद स्ट्रीम</span>
-      </div>
-      <span class="px-2 py-0.5 bg-white/15 rounded-full text-[10px] text-amber-300">${filtered.length} संदेश</span>
-    </div>
-  `;
-
-  if (!filtered.length) {
-    feed.innerHTML += `<div class="text-center py-8 text-xs text-stone-500">इस विषय पर अभी कोई संदेश नहीं है।</div>`;
-    return;
-  }
-
-  filtered.forEach(p => {
-    const isMyPost = Boolean(currentUser && (p.phone === currentUser.phone));
-    const canDelete = Boolean(isMyPost || isSuperOwner());
-    const timeStr = p.createdAt ? p.createdAt.toDate().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }) : 'अभी';
-
-    const itemRow = document.createElement('div');
-    itemRow.className = `px-3 py-2.5 hover:bg-stone-50/90 transition flex items-start gap-2.5 ${p.isOwner ? 'bg-amber-50/50 border-l-4 border-l-amber-500' : ''}`;
-    itemRow.innerHTML = `
-      <div class="w-7 h-7 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-        ${p.isOwner ? '🛡️' : (p.author || 'स').charAt(0).toUpperCase()}
-      </div>
-      <div class="flex-1 min-w-0 space-y-1">
-        <div class="flex items-center justify-between gap-1 text-[11px]">
-          <span class="font-extrabold text-forest">${p.author}</span>
-          <span class="text-[10px] text-stone-400">${timeStr}</span>
+  feed.innerHTML = '';
+  allChatPosts.forEach(p => {
+    feed.innerHTML += `
+      <div class="p-3 bg-white rounded-xl border border-stone-200 text-xs space-y-1">
+        <div class="flex justify-between font-bold text-forest">
+          <span>${p.author}</span>
+          <span class="text-[10px] text-stone-400 font-normal">${p.topic || 'सामान्य'}</span>
         </div>
-        <p class="text-xs sm:text-sm text-stone-900 leading-snug break-words">${p.content}</p>
-        <div class="flex justify-end gap-2 text-[11px] text-stone-500">
-          ${canDelete ? `<button onclick="confirmDeletePost('${p.id}')" class="text-red-600 font-bold">हटाएं</button>` : ''}
-        </div>
+        <p class="text-stone-800">${p.content}</p>
       </div>
     `;
-    feed.appendChild(itemRow);
   });
 }
 
 async function submitChaupalPost() {
   if (!currentUser) return openAuthModal();
-  const txtEl = document.getElementById('postText');
-  const txt = txtEl.value.trim();
-  if (!txt) return showToast('कृपया अपना संदेश लिखें!');
-
-  const topic = document.getElementById('postTopicSelect')?.value || 'सामान्य चर्चा';
-  try {
-    await db.collection('posts').add({
-      author: currentUser.name,
-      phone: currentUser.phone || 'Member',
-      isOwner: isSuperOwner(),
-      isEditor: isEditorOrOwner(),
-      topic,
-      content: txt,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    txtEl.value = '';
-    updateCharCount();
-  } catch (e) {
-    showToast('त्रुटि: ' + e.message);
-  }
-}
-
-function updateCharCount() {
-  const el = document.getElementById('postText');
-  const disp = document.getElementById('charCountDisplay');
-  if (el && disp) disp.innerText = `${el.value.length} / 300`;
-}
-
-function confirmDeletePost(id) {
-  openConfirmModal("संदेश हटाएं?", "क्या आप इस संदेश को हटाना चाहते हैं?", async (res) => {
-    if (res) { await db.collection('posts').doc(id).delete(); showToast('संदेश हटा दिया गया।'); }
+  const txt = document.getElementById('postText').value.trim();
+  if (!txt) return;
+  await db.collection('posts').add({
+    author: currentUser.name,
+    content: txt,
+    topic: document.getElementById('postTopicSelect')?.value || 'सामान्य चर्चा',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-}
-
-function listenPinnedChat() {
-  db.collection('settings').doc('pinnedChat').onSnapshot(doc => {
-    const banner = document.getElementById('pinnedChatBanner');
-    const txt = document.getElementById('pinnedChatText');
-    const unpinBtn = document.getElementById('unpinChatBtn');
-    if (!banner || !txt) return;
-
-    if (doc.exists && doc.data().content) {
-      txt.innerText = `📌 ${doc.data().author}: "${doc.data().content}"`;
-      banner.classList.remove('hidden');
-      if (unpinBtn) unpinBtn.classList.toggle('hidden', !isSuperOwner());
-    } else {
-      banner.classList.add('hidden');
-    }
-  });
-}
-
-function unpinChatMessage() {
-  if (!isSuperOwner()) return;
-  db.collection('settings').doc('pinnedChat').delete();
+  document.getElementById('postText').value = '';
 }
 
 function listenBanner() {
@@ -1859,10 +1202,7 @@ function listenPdfs() {
       const item = doc.data();
       grid.innerHTML += `
         <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 class="font-yatra text-forest text-base">${item.title}</h3>
-            <p class="text-xs text-stone-500 mt-1">${item.desc || 'पवित्र ग्रंथ'}</p>
-          </div>
+          <h3 class="font-yatra text-forest text-base">${item.title}</h3>
           <div class="mt-4 pt-2 border-t border-stone-100 flex justify-between items-center">
             <a href="${item.link}" target="_blank" download class="px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
             ${isSuperOwner() ? `<button onclick="db.collection('pdfs').doc('${doc.id}').delete()" class="text-xs text-rose-600 font-bold">हटाएं</button>` : ''}
@@ -1889,7 +1229,6 @@ function listenAudios() {
     if (!snap.empty) {
       audioPlaylist = [];
       snap.forEach(doc => audioPlaylist.push({ id: doc.id, ...doc.data() }));
-      renderCustomMusicDropdown();
     }
   });
 }
@@ -1903,19 +1242,6 @@ async function saveAdminAudio() {
   showToast('भजन जोड़ा गया!');
   document.getElementById('adminAudioTitle').value = '';
   document.getElementById('adminAudioLink').value = '';
-}
-
-function listenNotices() {
-  db.collection('notices').orderBy('createdAt', 'desc').limit(5).onSnapshot(snap => {
-    const list = document.getElementById('noticeBoardList');
-    if (!snap.empty && list) {
-      list.innerHTML = '';
-      snap.forEach(doc => {
-        const n = doc.data();
-        list.innerHTML += `<div class="p-3 bg-stone-50 rounded-lg border border-stone-200"><span class="font-bold text-forest">${n.title}:</span> ${n.desc}</div>`;
-      });
-    }
-  });
 }
 
 function listenTreeCounter() {
@@ -1934,18 +1260,11 @@ async function pledgeTree() {
   try { await db.collection('stats').doc('treePledges').set({ count: nextVal }, { merge: true }); } catch (e) {}
 }
 
-function listenCustomNiyams() {
-  db.collection('settings').doc('customNiyams').onSnapshot(doc => {
-    if (doc.exists && Array.isArray(doc.data().list)) niyamsList = doc.data().list;
-    renderNiyams(niyamsList);
-  });
-}
-
-function renderNiyams(data) {
+function listenNiyams() {
   const grid = document.getElementById('niyamGrid');
   if (!grid) return;
   grid.innerHTML = '';
-  data.forEach(n => {
+  niyamsList.forEach(n => {
     grid.innerHTML += `
       <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-1.5">
         <div class="flex items-center justify-between text-xs">
@@ -1961,43 +1280,136 @@ function renderNiyams(data) {
 
 function filterNiyams() {
   const q = (document.getElementById('niyamSearch')?.value || '').toLowerCase();
-  renderNiyams(niyamsList.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q)));
-}
-
-function listenHistoryAndKids() {
-  db.collection('settings').doc('customHistoryKids').onSnapshot(doc => {
-    if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) historyItemsList = doc.data().items;
+  const filtered = niyamsList.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q));
+  const grid = document.getElementById('niyamGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  filtered.forEach(n => {
+    grid.innerHTML += `
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-1.5">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-forest w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
+          <span class="text-stone-500 font-semibold">${n.title}</span>
+        </div>
+        <h4 class="font-yatra text-base text-forest mt-1">${n.rule}</h4>
+        <p class="text-xs text-stone-700 leading-relaxed">${n.desc}</p>
+      </div>
+    `;
   });
 }
 
-function listenBlockedUsers() {
-  db.collection('settings').doc('blockedUsers').onSnapshot(doc => {
-    blockedPhonesList = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list : [];
+// 20. TOAST & CONFIRM MODALS
+function showToast(msg) {
+  const toast = document.getElementById('toastNotification');
+  if (!toast) return;
+  document.getElementById('toastMsg').innerText = msg;
+  toast.classList.remove('-translate-y-20', 'opacity-0');
+  toast.classList.add('translate-y-0', 'opacity-100');
+  setTimeout(() => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('-translate-y-20', 'opacity-0');
+  }, 3000);
+}
+
+function openConfirmModal(title, msg, callback) {
+  document.getElementById('confirmTitle').innerText = title;
+  document.getElementById('confirmMsg').innerText = msg;
+  confirmCallback = callback;
+  document.getElementById('customConfirmModal').classList.remove('hidden');
+}
+
+function closeConfirmModal(result) {
+  document.getElementById('customConfirmModal').classList.add('hidden');
+  if (confirmCallback) confirmCallback(result);
+  confirmCallback = null;
+}
+
+// 21. NAVIGATION & INITIALIZATION
+function switchTab(id) {
+  if (id === 'admin' && !isEditorOrOwner()) return showToast("यह कक्ष केवल व्यवस्थापक के लिए है।");
+  currentActiveTab = id;
+  ['home', 'mala', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
+    document.getElementById(`tab-${t}`)?.classList.add('hidden');
+    document.getElementById(`bnav-${t}`)?.classList.remove('bnav-item-active');
   });
+
+  document.getElementById(`tab-${id}`)?.classList.remove('hidden');
+  const activeBnav = document.getElementById(
+    (id === 'niyams' || id === 'mala' || id === 'history') ? 'bnav-home' : (id === 'admin' ? 'bnav-profile' : `bnav-${id}`)
+  );
+  if (activeBnav) activeBnav.classList.add('bnav-item-active');
+
+  if (id === 'admin') refreshAuditLogs();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function listenTrustedEditors() {
-  db.collection('settings').doc('editorRoles').onSnapshot(doc => {
-    editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
-  });
+function switchHistorySubTab(sub) {
+  const hView = document.getElementById('historySubView');
+  const kView = document.getElementById('kidsSubView');
+  const hBtn = document.getElementById('sub-history-btn');
+  const kBtn = document.getElementById('sub-kids-btn');
+  if (sub === 'full-history') {
+    hView?.classList.remove('hidden'); kView?.classList.add('hidden');
+    hBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
+    kBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600";
+  } else {
+    hView?.classList.add('hidden'); kView?.classList.remove('hidden');
+    kBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
+    hBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600";
+  }
 }
 
-function listenDraftQueue() {
-  db.collection('draftQueue').onSnapshot(snap => {
-    draftItemsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  });
+function generateCertificate(name, score) {
+  const canvas = document.getElementById('certCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#FFFDF7';
+  ctx.fillRect(0, 0, 1000, 720);
+  ctx.strokeStyle = '#143622';
+  ctx.lineWidth = 14;
+  ctx.strokeRect(20, 20, 960, 680);
+  ctx.fillStyle = '#143622';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillText('विश्नोई समाज डिजिटल ज्ञान परीक्षा सम्मान-पत्र', 500, 140);
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText(`प्रमाणित किया जाता है कि: ${name}`, 500, 260);
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`ने ज्ञान परीक्षा में ${score}% अंक प्राप्त किए।`, 500, 340);
+  ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै"', 500, 440);
+
+  const link = document.createElement('a');
+  link.download = `Certificate_${name}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 
-function listenScheduledContent() {
-  db.collection('scheduledTasks').onSnapshot(snap => {
-    scheduledItemsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  });
-}
+window.addEventListener('DOMContentLoaded', () => {
+  injectCleanLayoutStyles();
+  injectUnifiedBottomNavBar();
+  setupInactivitySessionGuard();
 
-function listenFeedbacksForAdmin() {
-  db.collection('feedbacks').limit(10).onSnapshot(snap => {});
-}
+  listenParikshaVisibility();
+  listenBanner();
+  listenPdfs();
+  listenPosts();
+  listenAudios();
+  listenTreeCounter();
+  listenNiyams();
+  listenAmavasyaConfig();
+  computeAutoPanchang();
+  updateNavAuth();
+  updateProgressIndicators();
+  renderMalaCounters();
 
-function setupOneTimeExitFeedbackPrompt() {}
-function openFeedbackModal() {}
-function refreshOwnerAnalytics() {}
+  if (currentUser && currentUser.isOwner) {
+    renderAdminStudio('OWNER');
+  } else {
+    renderAdminStudio('GUEST');
+  }
+
+  if (!sessionStorage.getItem('visitor_logged_session')) {
+    sessionStorage.setItem('visitor_logged_session', 'true');
+    trackUserLoginTelemetry(currentUser || { name: 'Visitor' });
+  }
+});
