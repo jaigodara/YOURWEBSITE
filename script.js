@@ -464,8 +464,8 @@ async function callGemini(promptText) {
     throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
   }
 
-  // Active Gemini 3.8 Flash endpoint with URL query parameter authentication
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  // Uses the stable auto-updating model alias accepted by Google REST API
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
   const payload = {
     contents: [{ parts: [{ text: promptText }] }]
   };
@@ -483,7 +483,6 @@ async function callGemini(promptText) {
     return data.candidates[0].content.parts[0].text;
   }
   
-  // If rejected for invalid authorization, clear the key so the user can re-enter it
   if (response.status === 400 || response.status === 401 || response.status === 403) {
     localStorage.removeItem('gemini_user_api_key');
   }
