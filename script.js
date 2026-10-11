@@ -1,13 +1,14 @@
 /* ==========================================================================
-   Bishnoi Community Portal - Elder-Friendly Master Engine (script.js)
-   Includes:
-   - Global Elder Font-Size Controller (A- / Normal / A+ / A++ Elder Mode)
-   - Smart Shabadwani Digital Reader (Auto-Fit Text, No Pinch-Zoom, Read Aloud)
-   - Full-Screen Auto-Fit PDF.js Canvas Viewer for all other PDFs
-   - Multi-Line Quiz Leaderboard Winner Names (Fixes Long Name Cutting)
-   - Owner Login (9306894518 / bishnoi29) + 1-Click Google Login + Forgot Pass
-   - Text-Only Samvad Manch + User Profile + Live Maintenance Engine
-   - Audio Manager with Admin Track Delete List
+   Bishnoi Community Portal - Complete Master Engine (script.js)
+   Features:
+   - Clean Responsive Navbar (No Elder Bar clutter, No Status Card button)
+   - Spotify / JioSaavn Style Audio Player (Playlist, Prev/Play/Next, Speed, Seekbar)
+   - Page-by-Page Horizontal Book PDF Reader + Landscape Mode (Native Pinch-Zoom)
+   - Full Admin Edit/Delete on ALL PDFs (Including 1st Shabadwani Card)
+   - Editable 29 Niyams (With Category Filters & Practical Significance)
+   - Editable History & Kids Corner (With Audio Storyteller & Moral Box)
+   - Quiz Question Manager + Multi-line Winner Names + Maintenance Control
+   - Owner Login (9306894518 / bishnoi29) + 1-Click Google Login + Forgot Password
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -41,15 +42,26 @@ let amavasyaTargetDate = null;
 let amavasyaTimerInterval = null;
 let currentActiveTab = 'home';
 
-// Elder Font Scale State
-let appFontZoom = parseInt(localStorage.getItem('bishnoi_elder_font_zoom') || '115');
-let readerFontPx = parseInt(localStorage.getItem('bishnoi_reader_font_px') || '22');
-let pdfCanvasScale = 1.3;
-let currentPdfUrl = '';
-
-// Samvad Manch Chat State
+// Samvad Manch State
 let allChatPosts = [];
 let activeReplyObj = null;
+
+// Spotify/JioSaavn Audio Player State
+let audioPlaylist = [
+  { id: 'default_1', title: 'श्री जम्भेश्वर आरती एवं भजन', link: './bhajan1.mp3' }
+];
+let currentTrackIndex = 0;
+let isAudioPlaying = false;
+let audioSpeeds = [1, 1.25, 1.5];
+let currentSpeedIdx = 0;
+
+// Page-by-Page Horizontal PDF Reader State
+let activePdfDoc = null;
+let currentPdfPage = 1;
+let totalPdfPages = 1;
+let isPdfLandscape = false;
+let currentPdfUrl = '';
+let touchStartX = 0;
 
 // Maintenance State
 let maintenanceConfig = {
@@ -65,83 +77,90 @@ let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0');
 let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0');
 let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0');
 
-// 29 Niyams Static Data
-const NIYAMS_DATA = [
-  { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक स्वच्छता और विश्राम रखें।" },
-  { num: 2, title: "ऋतुवंती पृथक्करण", rule: "पांच दिन रजस्वला पृथक्करण", desc: "माहवारी के दौरान ५ दिन का गृह-कार्य से विश्राम।" },
-  { num: 3, title: "प्रातः स्नान", rule: "सेरो करो अस्नान", desc: "प्रतिदिन प्रातःकाल स्नान कर पवित्र रहें।" },
-  { num: 4, title: "शील व संतोष", rule: "शील संतोष सूच राखणा", desc: "सदाचारी, शांत और संतोषी स्वभाव रखें।" },
-  { num: 5, title: "द्विकाल संध्या", rule: "द्वादश कर्म सांध", desc: "सुबह-शाम दोनों समय संध्या और ईश्वर स्मरण करें।" },
-  { num: 6, title: "सांझ आरती", rule: "सांझ आरती गुण गावै", desc: "संध्या समय आरती व भगवान के गुणों का गायन करें।" },
-  { num: 7, title: "प्रातः होम", rule: "प्रात: होम करणा", desc: "प्रतिदिन प्रातःकाल घी और सामग्री से हवन करें।" },
-  { num: 8, title: "पानी छानना", rule: "पाणी छान पीवणा", desc: "सूक्ष्म जीवों की रक्षा के लिए पानी सदा छानकर पियें।" },
-  { num: 9, title: "ईंधन जांच", rule: "ईंधन बीन बाळणा", desc: "चूल्हे में लकड़ी कीट-पतंगों को देखकर व झाड़कर ही जलाएं।" },
-  { num: 10, title: "क्षमा धारण", rule: "क्षमा दया मन आणणा", desc: "मन में सदा क्षमा और सहनशीलता बनाए रखें।" },
-  { num: 11, title: "दया भाव", rule: "दया हिरदै राखणी", desc: "प्रत्येक जीव और मनुष्य के प्रति दयालु रहें।" },
-  { num: 12, title: "चोरी त्याग", rule: "चोरी नहीं करणी", desc: "पराई वस्तु कभी न चुराएं।" },
-  { num: 13, title: "निंदा त्याग", rule: "निंदा नहीं करणी", desc: "किसी की पीठ पीछे बुराई न करें।" },
-  { num: 14, title: "झूठ त्याग", rule: "झूठ नहीं बोलना", desc: "सदा सत्य और मधुर वाणी बोलें।" },
-  { num: 15, title: "वाद-विवाद त्याग", rule: "वाद विवाद नहीं करणा", desc: "व्यर्थ के झगड़े और अहंकार भरी बहस से बचें।" },
-  { num: 16, title: "अमावस्या व्रत", rule: "अमावस्या व्रत राखणा", desc: "अमावस्या के दिन उपवास रखें और आत्म-चिंतन करें।" },
-  { num: 17, title: "विष्णु स्मरण", rule: "विष्णु नाम जपणा", desc: "हृदय में ॐ विष्णवे नमः का निरंतर स्मरण रखें।" },
-  { num: 18, title: "जीव दया", rule: "जीव दया पालणी", desc: "मूक जीवों की रक्षा करें, किसी जीव की हत्या न करें।" },
-  { num: 19, title: "हरा वृक्ष रक्षा", rule: "रूंख लीलो नी घावै", desc: "हरे-भरे पेड़ों को कभी न काटें।" },
-  { num: 20, title: "काम-क्रोध संयम", rule: "अजर जरे सो सूर", desc: "काम, क्रोध और वासनाओं पर नियंत्रण रखें।" },
-  { num: 21, title: "स्वहस्त आहार", rule: "आपने हाथे रांधणा", desc: "पवित्रता के साथ अपने हाथों से बना शुद्ध भोजन करें।" },
-  { num: 22, title: "पशु थापण", rule: "अमर रखावै थाट", desc: "निराश्रित और वृद्ध पशुओं को आश्रय दें।" },
-  { num: 23, title: "बैल बधिया निषेध", rule: "बैल बधिया नहीं करणा", desc: "बैलों का बंध्याकरण न करें।" },
-  { num: 24, title: "अमल त्याग", rule: "अमल नहीं खाणा", desc: "अफीम और नशे की वस्तुओं का पूर्ण त्याग करें।" },
-  { num: 25, title: "तम्बाकू त्याग", rule: "तम्बाकू नहीं पीणा", desc: "तम्बाकू, बीड़ी, सिगरेट आदि का पूर्ण निषेध।" },
-  { num: 26, title: "भांग त्याग", rule: "भांग नहीं पीणी", desc: "भांग और गांजे का सेवन कभी न करें।" },
-  { num: 27, title: "मदिरा त्याग", rule: "मद्य नहीं पीणा", desc: "शराब का पूरी तरह त्याग करें।" },
-  { num: 28, title: "मांस त्याग", rule: "मांस नहीं खाणा", desc: "पूर्णतः शाकाहारी रहें, मांस कभी न छुएं।" },
-  { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों को काटकर बनने वाले नीले वस्त्रों का त्याग।" }
+// 4. DEFAULT 29 NIYAMS DATA (Editable by Owner via Firestore)
+let niyamsList = [
+  { num: 1, cat: "daily", title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक माता व शिशु की स्वच्छता और विश्राम रखें।" },
+  { num: 2, cat: "daily", title: "ऋतुवंती पृथक्करण", rule: "पांच दिन रजस्वला पृथक्करण", desc: "माहवारी के दौरान ५ दिन का गृह-कार्य से पूर्ण विश्राम एवं स्वास्थ्य रक्षा।" },
+  { num: 3, cat: "daily", title: "प्रातः स्नान", rule: "सेरो करो अस्नान", desc: "प्रतिदिन सूर्योदय से पूर्व प्रातःकाल स्नान कर तन-मन से पवित्र रहें।" },
+  { num: 4, cat: "conduct", title: "शील व संतोष", rule: "शील संतोष सूच राखणा", desc: "सदाचारी, शांत, पवित्र और संतोषी स्वभाव बनाए रखें।" },
+  { num: 5, cat: "daily", title: "द्विकाल संध्या", rule: "द्वादश कर्म सांध", desc: "सुबह-शाम दोनों समय संध्या-वंदन और ईश्वर स्मरण करें।" },
+  { num: 6, cat: "daily", title: "सांझ आरती", rule: "सांझ आरती गुण गावै", desc: "संध्या समय आरती व भगवान के पावन गुणों का गायन करें।" },
+  { num: 7, cat: "daily", title: "प्रातः होम", rule: "प्रात: होम करणा", desc: "वातावरण शुद्धि एवं आत्मिक शांति हेतु प्रतिदिन प्रातःकाल घी से हवन करें।" },
+  { num: 8, cat: "nature", title: "पानी छानना", rule: "पाणी छान पीवणा", desc: "सूक्ष्म जीवों की रक्षा व स्वास्थ्य के लिए पानी सदा छानकर पियें और वाणी भी छानकर बोलें।" },
+  { num: 9, cat: "nature", title: "ईंधन जांच", rule: "ईंधन बीन बाळणा", desc: "चूल्हे में लकड़ी व गोबर के उपले कीट-पतंगों को देखकर व झाड़कर ही जलाएं।" },
+  { num: 10, cat: "conduct", title: "क्षमा धारण", rule: "क्षमा दया मन आणणा", desc: "मन में सदा क्षमा और सहनशीलता का भाव बनाए रखें।" },
+  { num: 11, cat: "conduct", title: "दया भाव", rule: "दया हिरदै राखणी", desc: "प्रत्येक प्राणी और मनुष्य के प्रति हृदय में करुणा व दयालुता रखें।" },
+  { num: 12, cat: "conduct", title: "चोरी त्याग", rule: "चोरी नहीं करणी", desc: "पराई वस्तु कभी न चुराएं और ईमानदारी से जीवन यापन करें।" },
+  { num: 13, cat: "conduct", title: "निंदा त्याग", rule: "निंदा नहीं करणी", desc: "किसी की पीठ पीछे बुराई या चुगली न करें।" },
+  { num: 14, cat: "conduct", title: "झूठ त्याग", rule: "झूठ नहीं बोलना", desc: "सदा सत्य, हितकारी और मधुर वाणी बोलें।" },
+  { num: 15, cat: "conduct", title: "वाद-विवाद त्याग", rule: "वाद विवाद नहीं करणा", desc: "व्यर्थ के झगड़े और अहंकार भरी बहस से दूर रहें।" },
+  { num: 16, cat: "daily", title: "अमावस्या व्रत", rule: "अमावस्या व्रत राखणा", desc: "प्रत्येक अमावस्या के दिन उपवास रखें, पर्यावरण चिंतन और हरि स्मरण करें।" },
+  { num: 17, cat: "daily", title: "विष्णु स्मरण", rule: "विष्णु नाम जपणा", desc: "हृदय में ॐ विष्णवे नमः का निरंतर स्मरण रखें।" },
+  { num: 18, cat: "nature", title: "जीव दया", rule: "जीव दया पालणी", desc: "सभी मूक पशु-पक्षियों की रक्षा करें, किसी जीव को कष्ट न दें।" },
+  { num: 19, cat: "nature", title: "हरा वृक्ष रक्षा", rule: "रूंख लीलो नी घावै", desc: "पर्यावरण संतुलन हेतु हरे-भरे पेड़ों को कभी न काटें।" },
+  { num: 20, cat: "conduct", title: "काम-क्रोध संयम", rule: "अजर जरे सो सूर", desc: "काम, क्रोध, लोभ और अहंकार पर नियंत्रण रखें।" },
+  { num: 21, cat: "daily", title: "स्वहस्त आहार", rule: "आपने हाथे रांधणा", desc: "पवित्रता और सात्विकता के साथ शुद्ध बना भोजन ग्रहण करें।" },
+  { num: 22, cat: "nature", title: "पशु थापण", rule: "अमर रखावै थाट", desc: "निराश्रित और असहाय पशुओं को कटने से बचाएं और आश्रय दें।" },
+  { num: 23, cat: "nature", title: "बैल बधिया निषेध", rule: "बैल बधिया नहीं करणा", desc: "पशुओं पर क्रूरता न करें, बैलों का बंध्याकरण न करें।" },
+  { num: 24, cat: "conduct", title: "अमल त्याग", rule: "अमल नहीं खाणा", desc: "अफीम और किसी भी प्रकार के नशे का पूर्ण त्याग करें।" },
+  { num: 25, cat: "conduct", title: "तम्बाकू त्याग", rule: "तम्बाकू नहीं पीणा", desc: "तम्बाकू, बीड़ी, सिगरेट, गुटखा आदि का पूर्ण निषेध रखें।" },
+  { num: 26, cat: "conduct", title: "भांग त्याग", rule: "भांग नहीं पीणी", desc: "भांग और गांजे जैसे मादक पदार्थों का सेवन कभी न करें।" },
+  { num: 27, cat: "conduct", title: "मदिरा त्याग", rule: "मद्य नहीं पीणा", desc: "शराब का पूरी तरह त्याग करें।" },
+  { num: 28, cat: "conduct", title: "मांस त्याग", rule: "मांस नहीं खाणा", desc: "पूर्णतः शाकाहारी रहें, मांस-अंडा कभी न छुएं।" },
+  { num: 29, cat: "nature", title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों व सूक्ष्म जीवों को नष्ट करके बनने वाले नीले रंग का त्याग।" }
+];
+let activeNiyamCategory = 'all';
+
+// Default History & Kids Stories (Editable by Owner)
+let historyItemsList = [
+  {
+    id: 'hist_1',
+    type: 'history',
+    badge: '🌿 महान बलिदान (१७३० ई.)',
+    title: 'खेजड़ली का अमर बलिदान — ३६३ हुतात्माओं की गौरवगाथा',
+    content: 'सन् १७३० (विक्रम संवत १७८७, भाद्रपद शुक्ल दशमी) को जोधपुर के खेजड़ली गाँव में माता अमृता देवी बिश्नोई और उनकी तीन पुत्रियों (आसू, रतनी, भागू) सहित ३६३ बिश्नोई वीरों व वीरांगनाओं ने हरे खेजड़ी वृक्षों की रक्षा के लिए अपने प्राणों की आहुति दे दी। विश्व इतिहास में वृक्षों के लिए दिया गया यह सबसे बड़ा बलिदान है।',
+    moral: 'सिर साटै रूंख रहै, तो भी सस्तो जाण — प्रकृति और धर्म की रक्षा प्राणों से भी बढ़कर है।'
+  },
+  {
+    id: 'hist_2',
+    type: 'history',
+    badge: '🚩 पंथ स्थापना (१४८५ ई.)',
+    title: 'समराथल धोरा — बिश्नोई पंथ एवं २९ नियमों का प्रवर्तन',
+    content: 'गुरु जम्भेश्वर भगवान का जन्म विक्रम संवत १५०८ (सन् १४५१) में पीपासर गाँव में पवार वंशीय ठाकुर लोहट जी एवं माता हंसा देवी के यहाँ हुआ। विक्रम संवत १५४२ (सन् १४८५) में कार्तिक वदी अष्टमी को समराथल धोरे पर गुरु जाम्भोजी ने पाहल बनाकर २९ नियमों के साथ बिश्नोई पंथ की स्थापना की।',
+    moral: 'गुरु जाम्भोजी ने मध्यकाल में ही पर्यावरण संरक्षण, महिला सम्मान और नशामुक्त समाज का वैज्ञानिक मार्ग दिखाया।'
+  },
+  {
+    id: 'kids_1',
+    type: 'kids',
+    badge: '🦌 बाल कहानी १',
+    title: 'नन्हे हिरण का सच्चा मित्र',
+    content: 'एक बार थार के रेगिस्तान में एक नन्हा चिंकारा (हिरण का बच्चा) प्यास से भटक रहा था। तभी गाँव के बालक सोहन ने उसे देखा। सोहन ने दौड़कर अपने घर से छना हुआ ठंडा पानी पिलाया और अपनी माँ के साथ मिलकर उसकी देखभाल की। जब हिरण स्वस्थ हो गया, तो वह रोज़ आँगन में खेलने आने लगा।',
+    moral: '🌟 सीख: मूक पशु-पक्षी हमारे परिवार की तरह हैं। घर के बाहर पक्षियों व जीवों के लिए पानी का परिंडा अवश्य रखें।'
+  },
+  {
+    id: 'kids_2',
+    type: 'kids',
+    badge: '🌳 बाल कहानी २',
+    title: 'अमृता देवी का साहस और खेजड़ी का पेड़',
+    content: 'प्यारे बच्चों! जब राजा के सैनिक खेजड़ली गाँव में हरे पेड़ काटने आए, तो माता अमृता देवी ने डरने के बजाय पेड़ को अपनी बाहों में भर लिया और कहा कि जब तक हम जीवित हैं, पेड़ नहीं कटने देंगे। उनके साहस को देखकर राजा को भी क्षमा मांगनी पड़ी और पेड़ काटने पर हमेशा के लिए रोक लगा दी गई।',
+    moral: '🌟 सीख: हमें अपने जन्मदिन पर कम से कम एक पौधा ज़रूर लगाना चाहिए और कभी भी हरी टहनी नहीं तोड़नी चाहिए।'
+  }
 ];
 
-// श्री सबदवाणी डिजिटल पाठ (बुजुर्गों के लिए बिना ज़ूम किए स्क्रीन-फिट पढ़ने हेतु)
-const SHABADWANI_DIGITAL_BOOK = [
-  { id: 0, title: "प्रस्तावना एवं परिचय", text: "॥ श्री गुरु जम्भेश्वराय नमः ॥\nश्री गुरु जांभोजी (गुरु जम्भेश्वर) की सबद वाणी उनकी स्वयं की अनुभूत सत्य पर आधारित एक अद्वितीय ग्रंथ है[cite: 7, 8]। इसमें ज्ञान, कर्म और भक्ति का सुंदर समन्वय देखने को मिलता है[cite: 8]। गुरु जी ने कर्म पर विशेष बल देते हुए कहा था — 'खेत मुकति ले किसना अरथै, जै कंध हरै तो हरियां' अर्थात मोक्ष प्राप्त करने के लिए हमें उत्तम कर्म करने होंगे[cite: 8]।\n\nनीचे दिए गए बटनों से आप अक्षर बड़ा (अ+) कर सकते हैं, किसी भी सबद पर सीधे जा सकते हैं, या पूरा PDF पृष्ठ भी देख सकते हैं।" },
-  { id: 1, title: "सबद - 1 (गुरु महिमा)", text: "ओ३म् गुरु चीन्हों गुरु चिन्ह पुरोहित, गुरु मुख धर्म बखांणी[cite: 10]। जो गुरु होयवा सहजै शीले शब्दे नादे वेदे, तिहिं गुरु का आलिंकार पिछाणी[cite: 10]। छव दरशण जिहिं के रुपण थापण, संसार बरतण निज कर थरप्या, सो गुरु प्रत्यक्ष जाणी[cite: 10]। जिहिं के खरतर गोठ निरोतर वाचा, रहिया रुद्र समाणी[cite: 10]। गुरु आप संतोषी अवरां पोषी, तत्त्व महारस बाणी[cite: 10]। के के अलिया बासण होत हुताषण तामै क्षीर दुहीजूं[cite: 10]। रसुवन गोरस घीय न लीयूं तहां दूध न पाणी[cite: 10]। गुरु ध्याइयेरे ज्ञानी[cite: 10]। तोड्त मोहा अति खुरसांणी, छीजत लोहा पाणी[cite: 10]। छल तेरी खाल पखाला, सतगुरु तोडे मन का साला[cite: 10]। सतगुरु है तो सहज पिछाणी, कृष्ण चरित्र बिन काचे करवे रह्यो न रहसी पाणी ॥1॥[cite: 10]" },
-  { id: 2, title: "सबद - 2 (स्वरूप बोध)", text: "ओ३म् मोरे छाया न माया लोहू न मांसू रक्तुं न धातुं[cite: 10]। मोरे माई न बापूं आपण आपूं[cite: 10]। रोही न रापूं, कोपूं न कलापूं, दुःख न सरापूं[cite: 10]। लोई अलोई, त्यूं तृलोई, ऐसा न कोई जपां भी सोई[cite: 10]। जिहीं जपे आवागवण न होई[cite: 10]। मोरी आद न जाणत, महियल धूवां बखाणत[cite: 10]। उर्ध ठाकले तृसूलूं[cite: 10]। आद अनाद तो हम रचिलो[cite: 10]। हमें सिरजीलो सैकौण[cite: 10]। म्हे जोगी के भोगी के अल्प अहारी[cite: 10]। ज्ञानी के ध्यानी, के निज कर्म धारी[cite: 10]। सोषी के पोषी के जल बिंबधारी[cite: 10]। दया धर्म थापले निज बाला ब्रह्मचारी ॥2॥[cite: 10]" },
-  { id: 3, title: "सबद - 3 (अहिंसा व दया)", text: "ओ३म् मोरे अंग न अलसी तेल न मलियो[cite: 10]। ना परमल पीसीयों[cite: 10]। जीमत पीवत भोगत बिलसत[cite: 10]। दीसां नाहीं महा पण को आधारुं[cite: 10]। अड़सठ तीरथ हिरदा भीतर, बाहर लोका चारुं[cite: 10]। नान्हीं मोटी जीया जूंणी[cite: 10]। एती सास फुरन्ते सारुं[cite: 10]। बासन्दर क्यूं एक भणिजै[cite: 10]। जिहिं के पावन पिराणों[cite: 10]। आला सूका मेल्हे नाहीं, जिहीं दिश करै मुहाणों[cite: 10]। पापै गुन्है वीहै नाहीं[cite: 10]। रीस करै रिसाणौं[cite: 10]। बहुली दौरे लावण हारुं[cite: 10, 11]। भावे जाण मैं जाणूं[cite: 11]। न तूं सुर नर न तूं शंकर[cite: 11]। न तूं रावन राणौं[cite: 11]। काचै पिंड अकाजे चलावें महा अधूरत दाणों[cite: 11]। मोरै छुरी न धारुं, लोह न सारुं, न हथियारुं[cite: 11]। सुरज का रिपु बिहंडा नाहीं, तातै कहा उठावत भारुं[cite: 11]। जिहीं हाकणड़ी बलद जूं हाके, न लोहे की आरु ॥3॥[cite: 11]" },
-  { id: 4, title: "सबद - 4 (सृष्टि रचना)", text: "ओ३म् जद पवन न होता पाणी न होता[cite: 11]। न होता धर गैणारूं[cite: 11]। चन्द न होता सूर न होता, न होता गंगदर तारूं[cite: 11]। गउ न गोरुं माया जाल न होता[cite: 11]। न होता हेत पियारुं[cite: 11]। माय न बाप न बहण न भाई, साखण सैण न होता[cite: 11]। न होता पख परवारुं[cite: 11]। लख चौरासी जीया जूणी न होती[cite: 11]। न होती बणी अठारा भारुं[cite: 11]। सप्त पताल फुणीद न होता[cite: 11]। न होता सागर खारुं[cite: 11]। अजिया सजिया जीया जुणी न होती[cite: 11]। न होती कुड़ी भरतारुं[cite: 11]। अर्थ न गर्थ न गर्व न होता[cite: 11]। न होता तेजी तुरंग तुखारुं[cite: 11]। हाट पण बाजार न होता[cite: 11]। न होता राजदवारुं[cite: 11]। चाव न चहन न कोह का बाण न होता[cite: 11]। तद होता एक निरंजन शंभू[cite: 11]। के होता धंधुकारुं[cite: 11]। बात कदो की पुछे लोई[cite: 11]। जुग छतीसूं विचारुं[cite: 11]। ताह परै रे अवर छतीसूं[cite: 11]। पहला अन्त न पारुं[cite: 11]। म्हे तद पण होता अब पण आछै, बल-बल होयसां[cite: 11]। कह कद कद का करूं विचारु ॥4॥[cite: 11]" },
-  { id: 5, title: "सबद - 5 (एक निरंजन शंभु)", text: "ओ३म् अइया लो अपरं पर बाणी[cite: 11]। म्हे जपां न जाया जीऊं[cite: 11]। नव अवतार नमो नारायण, तेपण रुप हमारा थीयूं[cite: 11]। जपी तपी तक पीर ऋषेश्वर कायं जपीजै तेपण जाया जीऊं[cite: 11]। खेचर भूचर षेत्रपाला परगट गुप्ता[cite: 11]। कायं जपीजै तेपण जाया जीऊं[cite: 11]। बासग शेष गुणिन्दा फुणिन्दा[cite: 11]। कायं जपीजै तेपण जाया जीऊं[cite: 11]। चौसट जोगनि बावन बीरुं[cite: 11]। कायं जपिजै तेपण जाया जीऊं[cite: 11]। जपां तो एक निरालंभ शंभु[cite: 11]। जिहीं के माई न पीऊं[cite: 11]। न तन रक्तुं न तन धातुं[cite: 11]। न तान ताव न सीऊं[cite: 11]। सर्व सिरजत मरत बिबरजात[cite: 11]। तासन मुलज लेणा कीयों[cite: 11]। अइया लो अपरं पर बाणी[cite: 11]। म्हे जपां न जाया जीऊं ॥5॥[cite: 11]" },
-  { id: 6, title: "सबद - 6 (समभाव दर्शन)", text: "ओ३म् भवन भवन म्हे एका जोती[cite: 12]। चुन चुन लीया रतना मोती[cite: 12]। म्हे खोजी थापण होजी नाहीं, खोज लहां धुरुं खोजूं[cite: 12]। अलाह अलेख अडाल अजोनी स्वयंभू[cite: 12]। जिहिं का किसा बिनाणी[cite: 12]। म्हे शरै न बैठा सीख न पूछी, निरत सुरत सब जाणी[cite: 12]। उप्पत्ति हिन्दू जरणा जोगी, किया ब्राह्मण, दिल दरबेसां उन्मुन मुद्रा अकल मिसलमानी ॥6॥[cite: 12]" },
-  { id: 7, title: "सबद - 7 (हरि स्मरण व वृक्ष रक्षा)", text: "ओ३म् हिन्दू होयके हर क्यूं ना जंप्यो[cite: 12]। कायं दह दिश दिल पसरायों[cite: 12]। सोम अमावस आदितवारी[cite: 12]। कायं काटी बनरायों[cite: 12]। गहण गहंते, बहण बहंते, निर्जल ग्यारस मूल बहंते[cite: 12]। कायं रे मुरखां तें पालंग सेज निहाल बिछाई[cite: 12]। जा दिन तेरे होम न जाप न तप न किया[cite: 12]। जाण के भागी कपिला गाई[cite: 12]। कूड़ तणों जे करतब कीयो, नातें लाव न सायों[cite: 12]। भूला प्राणी आल बखाणी[cite: 12]। न जंप्यो सुररायों[cite: 12]। छंदे कहां तो बहुता भावे[cite: 12]। खरतर को पतियायों[cite: 12]। हिव की बेलां हिव न जाग्यो, शंक रह्यो कदरायों[cite: 12]। ठाढी बेलां ठार न जाग्यो, ताती बैलां तायों[cite: 12]। बिम्बे बेलां विष्णु न जंप्यों, ताछे का चीन्हों कछु कमायों[cite: 12]। अति आलस भोला वे भूला, न चीन्हों सुर रायों[cite: 12]। पारब्रह्म की सुध न जाणीं, तो नागे जोग न पायो परशुराम के अर्थ न मुवा, ताकी निश्चय सरी न कायों ॥7॥[cite: 12]" },
-  { id: 8, title: "सबद - 8 (जीव दया उपदेश)", text: "ओ३म् सुणरे काजी सुणरे मुल्लां[cite: 12]। सुणरे बकर कसाई[cite: 12]। किणरी थरपी छाली रोसो किणरी गाडर गाई[cite: 12]। सुल चुभीजै करक दुहेली तो है है जायो जीव न घाई[cite: 12]। थे तुर्की छुर्की भिस्ती दावो, खायवा खाज अखाजूं[cite: 12]। चर फिर आवे सहज दुहावे तिसका क्षीर हलाली[cite: 12]। जिसके गले करद क्यूं सारो थे पढ़ सुण रहिया खाली ॥8॥[cite: 12]" },
-  { id: 9, title: "सबद - 9 (मूक जीव करुणा)", text: "ओ३म् दील साबत हज कोबा नड़ै[cite: 13]। क्या उलबंग पुकारो[cite: 13]। भाई नाऊं बलद पियारो[cite: 13]। ताके गले करद क्यूं सारो[cite: 13]। बिन चिन्हें खुदाय बिबरजत केहा मुसलमानों[cite: 13]। काफर मूकर होयकर राह गमायो[cite: 13]। जोय जोय गाफल करै धिगाणो[cite: 13]। ज्यूं थे पच्छिम दिशा उलबंग पुकारो, भलजे यों चीन्हों रहमाणों[cite: 13]। तो रुंह चलंते पिंड पडंते[cite: 13]। आवे भिस्त बिमाणों[cite: 13]। चढ-चढ भीते मड़ी मसीते क्या उलबंग पुकारो[cite: 13]। काहे काजे गऊ बिणासो[cite: 13]। तो करीम गऊ क्यूं चारी[cite: 13]। काहीं लीयूं दुधुं दहियूं, काहे लीयों घियूं महियूं[cite: 13]। काहे लीयूं हाडूं मासूं[cite: 13]। काहे लीयूं रक्तुं रुंहियूं[cite: 13]। सुणरे काजे सुणरे मुल्ला[cite: 13]। यामै कौन भया मुरदारुं[cite: 13]। जीवां ऊपर जोर करीजै[cite: 13]। अंतकाल होयसी भारू ॥9॥[cite: 13]" },
-  { id: 10, title: "सबद - 10 (सच्चा ईमान)", text: "ओ३म् बिसमिल्ला रहमान रहीम[cite: 13]। जिहिं के सदके भीना भीन तो भेटीलो रहमान रहीम[cite: 13]। करीम काया दिल करणी[cite: 13]। कलमा करतब कौल कुराणों[cite: 13]। दिल खोजो दरवेश भईलो[cite: 13]। तइया मुसलमाणों[cite: 13]। पीरां पुरुषा जमी मुसल्लां[cite: 13]। कर्तब लेक सलामों[cite: 13]। हम दिल लिल्ला तुम दिल लिल्ला[cite: 13]। रहम करे रहमाणों[cite: 13]। इतने मिसले चालो मीयां[cite: 13]। तो पावो भिस्त इमाणों ॥10॥[cite: 13]" },
-  { id: 15, title: "सबद - 15 (विष्णु नाम मूल)", text: "ओ३म् सुरमां लेणां झीणा शब्दूं, म्हे भूल न भाख्या थूलूं[cite: 15]। सो पति बिरषा सींच प्राणी, जिंहीं का मीठा मूल समूलूं[cite: 15]। पाते भूला मूल न खोजो, सींचों कांय कुमूलूं[cite: 15]। विष्णु विष्णु भण अजर जरीजे, यह जीवन का मूलूं[cite: 15]। खोज प्राणी ऐसा बिनाणी केवल ज्ञानी ज्ञान गहीरूं[cite: 15]। जिहिं के गुणै न लाभत छैहूं[cite: 15]। गुरु गेंवर गरवा शीतल नीरूं मेवा ही अति मेऊं[cite: 15]। हिरदै मुक्ता कमल सन्तोषी, टेवा ही अति टेऊं[cite: 15]। चढकर बोहिता भव जल पार लंघावै[cite: 15]। सो गुरु खेवट खेवा खेहूं ॥15॥[cite: 15]" },
-  { id: 20, title: "सबद - 20 (दया धर्म विचार)", text: "ओ३म् जां जां दया न मया तां तां बिकरम कया[cite: 16]। जां जां आव न वैसूं[cite: 16]। तां तां स्वर्ग न जैसूं[cite: 16]। जां जां जीव न जोती[cite: 16]। तां तां मोक्ष न मुक्ति[cite: 16]। जां जां दया न धर्मू[cite: 16, 17]। तां तां बिकरम कर्मू[cite: 17]। जां जां पाले न शीलूं[cite: 17]। तां तां कर्म कुचीलूं[cite: 17]। जां जां खोज्या न मूलूं[cite: 17]। तां तां प्रत्यक्ष थूलूं[cite: 17]। जां जां भेद्यां न भेदूं[cite: 17]। तो स्वर्गे किसी उमेदूं[cite: 17]। जां जां घमण्डे स घमण्डूं[cite: 17]। ताकै ताव न छायों सूते सास नसायों ॥20॥[cite: 17]" },
-  { id: 23, title: "सबद - 23 (सतपंथ व आचार)", text: "ओ३म् साल्हिया हुआ मरण भय भागा, गाफिल मरणे घणा डरे[cite: 18]। सतगुरु मिलियो सतपंथ बतायो, भ्रांत चुकाई, मरणे बहु उपकार करे[cite: 18]। रतन काया सोभंति लाभे, पार गिराये जीव तिरे[cite: 18]। पार गिरायें सनेही करणी[cite: 18]। जंपो विष्णु न दोय दिल करणी[cite: 18]। जंपो विष्णु न निन्दा करणी[cite: 18]। मांडो कांध विष्णु के सरणे[cite: 18]। अतरा बोल करो जे सांचा[cite: 18]। तो पार गिराये गुरु की वाचा[cite: 18]। रवणा ठवणा चवरा भवणा[cite: 18]। ताहि परेरै रतन काया छै, लाभे किसे बिचारे[cite: 18]। जे नवीये नवणी, खवीये खवणी, जरिये जरणी, करिये करणी, तो सीख हुआ घर जाइये[cite: 18]। रतन काया साचे की ढोली गुरु परसादे केवल ज्ञाने[cite: 18]। धर्म अचारे शीले संजमें सतगुरु तुठे पाइये ॥23॥[cite: 18]" },
-  { id: 29, title: "सबद - 29 (इलोल सागर)", text: "ओ३म् गुरु के शब्द असंख्य प्रबोधी खार समन्द परीलो[cite: 20]। खार समन्द परे परे रै चैखण्ड खारूं, पहला अन्त न पारूं[cite: 20]। अनन्त क्रोड़ गुरु की दावण बिलंबी, करणी साच तरीलो[cite: 20]। सांझे जमों सवेरे थापण, गुरु की नाथ डरीलो[cite: 20]। भगवीं टोपी थल शिर आयो, हेत मिलाण करीलो[cite: 20]। अम्बाराय बधाई बाजे, हृदय हरि सिंवरीलो[cite: 20]। कृष्ण मया चैखण्ड कृषांणी, जम्बूदीप चरीलो[cite: 20]। म्हे अवधू निरपख जोगी, सहज नगर का रायों[cite: 20]। जो आवे सो त्यूं थरपां, साचा सूं सत भायों[cite: 20, 21]। म्हारे मन ही मुद्रा तन ही कंथा, जोग मारग सहलीयों[cite: 21]। डाकण साकण निद्रा खुद्या, ये मेरे मूल न थीयों ॥29॥[cite: 21]" },
-  { id: 30, title: "सबद - 30 (कूंचीवाला)", text: "ओ३म् आयो हंकारो जीवड़ो बुलायो[cite: 21]। कह जीवड़ा क्या करण कमायो[cite: 21]। थरहर कंपै जीवड़ो डोलै, उतमाई पीव न कोई बोलै[cite: 21]। सुकरत साथ संगाई चालै, स्वामी पवणा पाणी नवण करंतो[cite: 21]। चन्दे सूरे शीस नवन्तो, विष्णु सुरां पोह पूछ लहन्तो[cite: 21]। इंहिं खोटे जन मन्तर स्वामी, अहनिश तेरो नाम जपन्तो[cite: 21]। पहले क्रिया आप कमाइये, तो औरां ने फरमाइये[cite: 21]। जो कुछ कीजै मरणे पहले, मत भल कहिं मर जाइये[cite: 21]। शौच स्नान करो क्यूं नाहीं, जिवड़ा काजै न्हाइये[cite: 21]। जे नविये नवणी, खविये खवणी, जरिये जरणी, करिये करणी[cite: 21]। तो सीख हुआं घर जाइये ॥30॥[cite: 21]" },
-  { id: 67, title: "सबद - 67 (शुक्ल हंस)", text: "ओ३म् श्री गढ़ आल मोत पुर पाटण भुय नागोरी[cite: 34]। म्हे ऊंडे नीरे अवतार लियो[cite: 34]। होम करीलो दिन ठावीलो, सहस रचीलो[cite: 34]। राय विष्णु से बाद न कीजै[cite: 34]। कांय बधारों दैत्य कुलू[cite: 34]। मेरे मांय न बाप न बहण न भाई[cite: 34]। साख न सैण न लोक जणो[cite: 34]। बैकुण्ठे विश्वास बिलम्बण[cite: 34]। पार गिराये मात खिणूं[cite: 34]। विष्णु विष्णु तू भण रे प्राणी[cite: 34]। विष्णु भणन्ता अनन्त गुणूं[cite: 34]। दया रूप म्हे आप बखाणां[cite: 35]। संहार रूप म्हे आप हती ॥67॥[cite: 35]" },
-  { id: 101, title: "सबद - 101 (नित ही मावस)", text: "ओ३म् नितही मावस नित संकरांति, नितही नवग्रह वैसे पांति[cite: 46]। नितही गंग हिलोरे जाय, सतगुरु चीन्है सहजै न्हाय[cite: 46]। निरमल पाणी निरमल घाट, निरमल धोबी पांड्यो पाट[cite: 46]। जे यो धोबी जाणै धोय, घर में मैला वस्त्र रहे न कोय[cite: 46]। एकमन एकचित साबण लावै पहरंतो गाहक अति सुख पावै[cite: 46]। तिल में तेल पहुप में वास, पांच तत्त्व में लियो प्रकाश[cite: 46]। सतगुरु ऐसा तत्त्व बतावै, जुग जुग जीवै बहुर न आव ॥101॥[cite: 46]" },
-  { id: 102, title: "सबद - 102 (अजर जरीजै)", text: "ओ३म् विष्णु-विष्णु भण अजर जरीजै, धर्म हुवै पापां छूटीजै[cite: 46]। हरि पर हरि को नाम जपीजै, हरियालो हरि आण हरूं[cite: 46]। हरी नारायण देव नरूं[cite: 46]। आशा सास निराश भईलो, पाईलो मोक्ष द्वार खिणं ॥102॥[cite: 46]" },
-  { id: 119, title: "सबद - 119 (रतन काया)", text: "ओ३म् विष्णु विष्णु तू भणरे प्राणी, पैंके लाख उपाजूं[cite: 51]। रतन काया बैकुण्ठे बासो, तेरा जरा मरण भय भाजूं ॥119॥[cite: 51]" },
-  { id: 120, title: "सबद - 120 (अंतिम पावन वाणी)", text: "ओ३म् विष्णु विष्णु तू भणरे प्राणी, इस जीवन के हावैं क्षण क्षण आव घटंती जावै, मरण दिनों दिन आवै[cite: 51]। पालटीयो घट कांय न चेत्यो, घाती रोल भनावै[cite: 51]। गुरु मुख मुरखा चढै न पोहण, मन मुख भार उठावै[cite: 51]। ज्यूं लाज दुनी की लाजै, त्यूं त्यूं दाब्यो दाबै[cite: 51]। भलिया होय सो भली बुध आवै बुरिया बुरी कमावे ॥120॥[cite: 51]" }
-];
-
-// 4. ELDER-FRIENDLY FONT SIZE & ACCESSIBILITY ENGINE
-function applyGlobalElderFont(zoomPercent) {
-  appFontZoom = Math.min(150, Math.max(95, zoomPercent));
-  localStorage.setItem('bishnoi_elder_font_zoom', appFontZoom.toString());
-
-  let styleEl = document.getElementById('elderDynamicFontStyle');
+// 5. LAYOUT & NAVBAR OVERFLOW FIX (Clean CSS Injection)
+function injectCleanLayoutStyles() {
+  let styleEl = document.getElementById('cleanPortalFixStyles');
   if (!styleEl) {
     styleEl = document.createElement('style');
-    styleEl.id = 'elderDynamicFontStyle';
+    styleEl.id = 'cleanPortalFixStyles';
     document.head.appendChild(styleEl);
   }
-
-  const ratio = appFontZoom / 100;
   styleEl.innerHTML = `
-    html { font-size: ${16 * ratio}px !important; }
-    .text-\\[10px\\], .text-\\[11px\\] { font-size: ${Math.max(12, Math.round(12 * ratio))}px !important; line-height: 1.5 !important; }
-    .text-xs { font-size: ${Math.max(13, Math.round(14 * ratio))}px !important; line-height: 1.55 !important; }
-    .text-sm { font-size: ${Math.max(15, Math.round(16 * ratio))}px !important; line-height: 1.6 !important; }
-    /* Fix Quiz Leaderboard Long Names Cutting */
+    /* Prevent horizontal overflow of icons and buttons */
+    html, body { max-width: 100vw; overflow-x: hidden; }
+    header > div, nav > div { flex-wrap: wrap !important; gap: 6px !important; }
+    #authActionsContainer { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    /* Multi-line Quiz Winner Names so Sher Singh / Rammohan Singh Bishnoi never cut */
     #winner1Name, #winner2Name, #winner3Name {
       white-space: normal !important;
       overflow: visible !important;
@@ -149,45 +168,11 @@ function applyGlobalElderFont(zoomPercent) {
       word-break: break-word !important;
       line-height: 1.35 !important;
       display: block !important;
-      min-height: 2.2em;
     }
   `;
-
-  const badge = document.getElementById('elderFontStatusBadge');
-  if (badge) badge.innerText = `${appFontZoom}%`;
 }
 
-function injectElderAccessibilityBar() {
-  if (document.getElementById('elderAccessibilityBar')) return;
-  const bar = document.createElement('div');
-  bar.id = 'elderAccessibilityBar';
-  bar.className = 'bg-[#0f291a] text-white px-3 py-1.5 border-b border-amber-500/30 flex flex-wrap items-center justify-between gap-2 text-xs sticky top-0 z-[90]';
-  bar.innerHTML = `
-    <div class="flex items-center gap-1.5 font-semibold text-amber-300">
-      <span>👓</span>
-      <span>अक्षर आकार (बुजुर्ग सुविधा):</span>
-      <span id="elderFontStatusBadge" class="px-1.5 py-0.5 bg-black/40 rounded text-[11px] text-white">${appFontZoom}%</span>
-    </div>
-    <div class="flex items-center gap-1.5">
-      <button onclick="applyGlobalElderFont(appFontZoom - 10)" class="px-2.5 py-1 rounded bg-stone-700 hover:bg-stone-600 text-white font-bold border border-stone-500">
-        अ- छोटा
-      </button>
-      <button onclick="applyGlobalElderFont(105)" class="px-2.5 py-1 rounded bg-stone-700 hover:bg-stone-600 text-white font-semibold border border-stone-500">
-        सामान्य
-      </button>
-      <button onclick="applyGlobalElderFont(appFontZoom + 10)" class="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold shadow">
-        अ+ बड़ा करें
-      </button>
-      <button onclick="applyGlobalElderFont(135)" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold border border-emerald-400">
-        👴 बुजुर्ग मोड
-      </button>
-    </div>
-  `;
-  document.body.insertBefore(bar, document.body.firstChild);
-  applyGlobalElderFont(appFontZoom);
-}
-
-// 5. DEVICE DETECTION & MAINTENANCE ENGINE
+// 6. DEVICE DETECTION & MAINTENANCE ENGINE
 function isPhoneOrInstalledApp() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -206,9 +191,13 @@ function shouldLockForCurrentDevice(mode) {
 }
 
 function injectDynamicModalsAndUI() {
-  injectElderAccessibilityBar();
+  injectCleanLayoutStyles();
 
-  // Load PDF.js Library dynamically for smooth full-width mobile PDF rendering
+  // Remove any old Elder Bar or Status Card button if left in DOM
+  document.getElementById('elderAccessibilityBar')?.remove();
+  document.getElementById('statusCardGenBtn')?.remove();
+
+  // Load PDF.js Library for Page-by-Page Horizontal Book Rendering
   if (!window.pdfjsLib) {
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -252,7 +241,7 @@ function injectDynamicModalsAndUI() {
       <p id="sectionMaintMsgText" class="text-sm text-stone-600 leading-relaxed">
         इस सेक्शन में सुधार एवं नए अपडेट जोड़े जा रहे हैं। कृपया अन्य सेक्शन का उपयोग करें या कुछ समय बाद पुनः प्रयास करें।
       </p>
-      <button onclick="switchTab('home')" class="mt-2 px-4 py-2 bg-forest text-white rounded-lg text-sm font-semibold hover:bg-emerald-950 transition">
+      <button onclick="switchTab('home')" class="mt-2 px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
         🏠 मुख्य पृष्ठ पर जाएं
       </button>
     `;
@@ -260,78 +249,73 @@ function injectDynamicModalsAndUI() {
     mainEl.appendChild(secCard);
   }
 
-  // 3. ELDER-FRIENDLY FULL-SCREEN SMART BOOK & PDF READER MODAL
+  // 3. PAGE-BY-PAGE HORIZONTAL BOOK PDF READER (With Landscape Mode & Native Hand Pinch-Zoom)
   if (!document.getElementById('inbuiltPdfModal')) {
     const pdfModal = document.createElement('div');
     pdfModal.id = 'inbuiltPdfModal';
-    pdfModal.className = 'fixed inset-0 z-[9990] bg-[#FAF7EE] hidden flex-col';
+    pdfModal.className = 'fixed inset-0 z-[9990] bg-stone-950 hidden flex-col select-none';
     pdfModal.innerHTML = `
-      <!-- Top Control Header -->
-      <div class="bg-[#143622] text-white px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-lg border-b-2 border-amber-500">
-        <div class="flex items-center gap-2 truncate max-w-[60%]">
-          <span class="text-xl">📖</span>
-          <h3 id="pdfViewerTitle" class="font-yatra text-base sm:text-lg text-amber-300 truncate">साहित्य पाठक</h3>
+      <!-- Top Bar -->
+      <div class="bg-[#143622] text-white px-3 py-2.5 flex items-center justify-between gap-2 border-b border-amber-500/40 shadow-md shrink-0">
+        <div class="flex items-center gap-2 truncate">
+          <span class="text-lg">📖</span>
+          <h3 id="pdfViewerTitle" class="font-yatra text-sm sm:text-base text-amber-300 truncate">साहित्य पाठक</h3>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <a id="pdfModalDownloadBtn" href="#" download class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold border border-emerald-400">
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="togglePdfLandscapeMode()" id="landscapeModeBtn" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow flex items-center gap-1">
+            <span>🔄</span> <span id="landscapeBtnText">लैंडस्केप (आड़ा मोड)</span>
+          </button>
+          <a id="pdfModalDownloadBtn" href="#" download class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold border border-emerald-400">
             📥 डाउनलोड
           </a>
-          <button onclick="closeInbuiltPdfViewer()" class="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold shadow">
+          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold">
             ✕ बंद करें
           </button>
         </div>
       </div>
 
-      <!-- Elder Toolbar (Font Size, Mode Switch, Audio Speak) -->
-      <div id="smartReaderToolbar" class="bg-amber-100 border-b border-amber-300 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div id="shabadSelectWrap" class="flex items-center gap-1.5">
-          <label class="font-bold text-forest">चुनें:</label>
-          <select id="shabadJumpSelect" onchange="renderSelectedShabadView()" class="p-1.5 rounded-lg border border-amber-400 bg-white font-bold text-forest">
-            <option value="all">📜 सभी प्रमुख सबद एक साथ</option>
-          </select>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-1.5">
-          <button onclick="adjustReaderFont(-3)" class="px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-900 rounded-lg font-extrabold border border-stone-400 shadow-sm">
-            अ- छोटा
-          </button>
-          <button onclick="adjustReaderFont(3)" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg font-extrabold border border-amber-600 shadow-sm">
-            अ+ अक्षर बड़ा करें
-          </button>
-          <button id="speakShabadBtn" onclick="speakCurrentReaderText()" class="px-3 py-1.5 bg-forest hover:bg-emerald-900 text-white rounded-lg font-bold shadow-sm">
-            🔊 सुनें
-          </button>
-          <button id="togglePdfModeBtn" onclick="switchToRawPdfCanvasMode()" class="px-2.5 py-1.5 bg-stone-700 hover:bg-stone-800 text-white rounded-lg font-semibold">
-            📄 मूल PDF पृष्ठ देखें
-          </button>
-        </div>
+      <!-- Center Single-Page Book Viewport (Supports Native Two-Finger Pinch Zoom & Swipe) -->
+      <div id="pdfSinglePageViewport" class="flex-1 overflow-auto flex items-center justify-center p-2 sm:p-4 bg-stone-900 relative" style="touch-action: pan-x pan-y pinch-zoom;">
+        <div id="pdfLoadingSpinner" class="text-amber-300 text-sm font-bold animate-pulse">⏳ पृष्ठ खुल रहा है...</div>
+        <canvas id="pdfSinglePageCanvas" class="bg-white rounded shadow-2xl max-w-full h-auto hidden"></canvas>
+        <iframe id="pdfDriveFallbackFrame" class="hidden w-full h-full border-0 bg-white rounded"></iframe>
       </div>
 
-      <!-- Mode A: Elder-Friendly Auto-Fit Digital Text Container (Zero Horizontal Scroll) -->
-      <div id="digitalBookContainer" class="flex-1 overflow-y-auto p-4 sm:p-8 max-w-4xl w-full mx-auto space-y-6"></div>
+      <!-- Bottom Horizontal Page-Turn Bar -->
+      <div id="pdfBottomNavBar" class="bg-[#143622] text-white px-4 py-2.5 border-t border-amber-500/30 flex items-center justify-between gap-3 shrink-0">
+        <button onclick="changePdfPage(-1)" id="pdfPrevBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow transition flex items-center gap-1">
+          ⬅️ पिछला पन्ना
+        </button>
 
-      <!-- Mode B: Full-Width Canvas PDF Renderer (Auto-Fits Mobile Width + Easy +/- Buttons) -->
-      <div id="pdfCanvasContainer" class="hidden flex-1 overflow-y-auto bg-stone-800 p-2 sm:p-4 flex-col items-center gap-4">
-        <div class="sticky top-2 z-20 bg-black/80 text-white px-4 py-2 rounded-full flex items-center gap-3 shadow-xl border border-white/20">
-          <button onclick="zoomPdfCanvas(-0.25)" class="px-3 py-1 bg-stone-700 rounded-lg font-bold text-sm">➖ छोटा</button>
-          <span id="pdfZoomLabel" class="text-xs font-bold text-amber-300">Auto-Fit</span>
-          <button onclick="zoomPdfCanvas(0.25)" class="px-3 py-1 bg-amber-500 text-black rounded-lg font-extrabold text-sm">➕ बड़ा करें (Zoom)</button>
+        <div class="flex items-center gap-1.5 text-xs sm:text-sm font-bold">
+          <span>पृष्ठ</span>
+          <input type="number" id="pdfPageJumpInput" min="1" value="1" onchange="jumpToPdfPage(this.value)" class="w-14 text-center py-1 rounded bg-stone-800 text-amber-300 border border-amber-400/40 font-extrabold">
+          <span id="pdfTotalPagesLabel">/ 1</span>
         </div>
-        <div id="pdfPagesHolder" class="w-full max-w-4xl flex flex-col items-center gap-4"></div>
-        <iframe id="pdfFallbackIframe" class="hidden w-full h-[82vh] bg-white rounded-xl border-0"></iframe>
+
+        <button onclick="changePdfPage(1)" id="pdfNextBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow transition flex items-center gap-1">
+          अगला पन्ना ➡️
+        </button>
       </div>
     `;
     document.body.appendChild(pdfModal);
 
-    // Populate Shabad Dropdown
-    const sel = document.getElementById('shabadJumpSelect');
-    if (sel) {
-      SHABADWANI_DIGITAL_BOOK.forEach((item, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx.toString();
-        opt.innerText = item.title;
-        sel.appendChild(opt);
-      });
+    // Attach Horizontal Swipe Gesture for Page Turning
+    const vp = document.getElementById('pdfSinglePageViewport');
+    if (vp) {
+      vp.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+      vp.addEventListener('touchend', e => {
+        if (e.changedTouches.length === 1 && touchStartX > 0) {
+          const diffX = e.changedTouches[0].clientX - touchStartX;
+          if (Math.abs(diffX) > 75) {
+            if (diffX < 0) changePdfPage(1);  // Swipe Left -> Next Page
+            else changePdfPage(-1);          // Swipe Right -> Prev Page
+          }
+        }
+        touchStartX = 0;
+      }, { passive: true });
     }
   }
 
@@ -440,12 +424,6 @@ function injectDynamicModalsAndUI() {
           <button type="button" onclick="verifyGoogleAndResetPassword()" class="w-full py-2.5 px-3 bg-forest hover:bg-emerald-950 text-white rounded-xl font-bold shadow flex items-center justify-center gap-2 transition">
             <span>🌐</span> <span>Google से सत्यापित कर पासवर्ड बदलें</span>
           </button>
-
-          <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-stone-600 space-y-1.5">
-            <div class="font-bold text-amber-900">💡 Google लिंक नहीं किया था?</div>
-            <p>१. आप बिना पासवर्ड के सीधे <b>"🌐 Google से 1-Click लॉगिन करें"</b> बटन दबाकर अंदर जा सकते हैं।</p>
-            <p>२. अथवा व्यवस्थापक (Admin) से अपना पासवर्ड रीसेट करवा सकते हैं।</p>
-          </div>
         </div>
       </div>
     `;
@@ -470,42 +448,253 @@ function injectDynamicModalsAndUI() {
     authForm.appendChild(extraDiv);
   }
 
-  // 7. Inject Admin User Password Reset & Audio Delete Manager in #tab-admin
-  const adminTab = document.getElementById('tab-admin');
-  if (adminTab && !document.getElementById('adminUserPassResetCard')) {
-    const resetCard = document.createElement('div');
-    resetCard.id = 'adminUserPassResetCard';
-    resetCard.className = 'bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3 mt-4';
-    resetCard.innerHTML = `
-      <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट (Admin User Password Reset)</h3>
-      <p class="text-xs text-stone-500">यदि कोई सदस्य अपना पासवर्ड भूल गया है, तो यहाँ से उसका नया पासवर्ड सेट करें:</p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-        <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="सदस्य का 10-अंकों का नंबर" class="p-2 rounded-lg border border-stone-300">
-        <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड (उदा: 123456)" class="p-2 rounded-lg border border-stone-300">
-        <button onclick="adminResetMemberPassword()" class="py-2 px-4 bg-terracotta hover:bg-orange-800 text-white font-bold rounded-lg shadow transition">
-          पासवर्ड बदलें
-        </button>
-      </div>
-      <div class="pt-3 border-t border-stone-100">
-        <h4 class="font-bold text-xs text-forest mb-2">🎵 अपलोड किए गए भजन / ऑडियो सूची:</h4>
-        <div id="adminAudioManageList" class="space-y-1.5 text-xs"></div>
-      </div>
-    `;
-    adminTab.appendChild(resetCard);
+  // 7. Upgrade PDF Upload Box in Admin Hub (Add Category Tag & Subtitle Inputs so every PDF looks like Card 1)
+  const pdfTitleInp = document.getElementById('adminPdfTitle');
+  if (pdfTitleInp && !document.getElementById('adminPdfTag')) {
+    const tagInp = document.createElement('input');
+    tagInp.type = 'text';
+    tagInp.id = 'adminPdfTag';
+    tagInp.placeholder = 'श्रेणी टैग (उदा: पवित्र ग्रंथ या साहित्य)';
+    tagInp.className = pdfTitleInp.className;
+    pdfTitleInp.parentElement.insertBefore(tagInp, pdfTitleInp);
+
+    const descInp = document.createElement('input');
+    descInp.type = 'text';
+    descInp.id = 'adminPdfDesc';
+    descInp.placeholder = 'छोटा विवरण (उदा: गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी)';
+    descInp.className = pdfTitleInp.className;
+    pdfTitleInp.insertAdjacentElement('afterend', descInp);
   }
 
-  // 8. Inject Status Card Download Button next to Banner
-  const bannerTextEl = document.getElementById('dailyBannerText');
-  if (bannerTextEl && bannerTextEl.parentElement && !document.getElementById('statusCardGenBtn')) {
-    const btn = document.createElement('button');
-    btn.id = 'statusCardGenBtn';
-    btn.onclick = downloadSuvicharStatusCard;
-    btn.className = 'mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 text-xs font-semibold border border-amber-300/30 transition';
-    btn.innerHTML = '🖼️ स्टेटस कार्ड डाउनलोड करें';
-    bannerTextEl.parentElement.appendChild(btn);
+  // 8. Inject Admin Management Cards (History/Kids Manager, Quiz Question Manager, Password Reset, Audio Delete)
+  const adminTab = document.getElementById('tab-admin');
+  if (adminTab && !document.getElementById('adminMasterControlCards')) {
+    const wrap = document.createElement('div');
+    wrap.id = 'adminMasterControlCards';
+    wrap.className = 'space-y-4 mt-4';
+    wrap.innerHTML = `
+      <!-- 📜 इतिहास दर्शन एवं 🧸 बाल संस्कार प्रबंधक -->
+      <div class="bg-white p-4 rounded-xl border-2 border-emerald-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">📜 इतिहास दर्शन एवं 🧸 बाल संस्कार प्रबंधक (Add / Edit)</h3>
+        <p class="text-xs text-stone-500">यहाँ से नया इतिहास अध्याय या बच्चों के लिए प्रेरक कहानी जोड़ें:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <select id="adminHistType" class="p-2 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50">
+            <option value="history">📜 इतिहास दर्शन (History)</option>
+            <option value="kids">🧸 बाल संस्कार मंच (Kids Story)</option>
+          </select>
+          <input type="text" id="adminHistBadge" placeholder="छोटा बैज (उदा: 🌿 महान बलिदान या 🦌 बाल कहानी)" class="p-2 rounded-lg border border-stone-300">
+        </div>
+        <input type="text" id="adminHistTitle" placeholder="मुख्य शीर्षक (Title)" class="w-full p-2 text-xs rounded-lg border border-stone-300 font-semibold">
+        <textarea id="adminHistContent" rows="3" placeholder="पूरी जानकारी या कहानी यहाँ लिखें..." class="w-full p-2 text-xs rounded-lg border border-stone-300"></textarea>
+        <input type="text" id="adminHistMoral" placeholder="🌟 मुख्य सीख / संदेश (Moral for Children & Youth)" class="w-full p-2 text-xs rounded-lg border border-stone-300">
+        <button onclick="saveAdminHistoryOrKidsItem()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-lg shadow transition">
+          ➕ इतिहास / बाल कहानी प्रकाशित करें
+        </button>
+      </div>
+
+      <!-- 🏆 ज्ञान परीक्षा प्रश्न प्रबंधक (Manage/Delete Existing Quiz Questions) -->
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="font-yatra text-base text-forest">🏆 वर्तमान ज्ञान परीक्षा प्रश्न सूची (Quiz Manager)</h3>
+          <button onclick="clearAllQuizQuestions()" class="px-2.5 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200">सभी प्रश्न हटाएं</button>
+        </div>
+        <div id="adminQuizManageList" class="space-y-1.5 max-h-52 overflow-y-auto text-xs"></div>
+      </div>
+
+      <!-- 🔑 सदस्य पासवर्ड रीसेट एवं ऑडियो प्रबंधक -->
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट एवं 🎵 भजन सूची</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="सदस्य का 10-अंकों का नंबर" class="p-2 rounded-lg border border-stone-300">
+          <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड (उदा: 123456)" class="p-2 rounded-lg border border-stone-300">
+          <button onclick="adminResetMemberPassword()" class="py-2 px-4 bg-terracotta hover:bg-orange-800 text-white font-bold rounded-lg shadow transition">
+            पासवर्ड बदलें
+          </button>
+        </div>
+        <div class="pt-2 border-t border-stone-100">
+          <h4 class="font-bold text-xs text-forest mb-1.5">🎵 अपलोड किए गए भजन (Audio Playlist):</h4>
+          <div id="adminAudioManageList" class="space-y-1.5 text-xs"></div>
+        </div>
+      </div>
+    `;
+    adminTab.appendChild(wrap);
   }
 }
 
+// 7. SPOTIFY / JIOSAAVN STYLE MODERN MINI AUDIO PLAYER (ON HOME PAGE)
+function injectModernSpotifyAudioPlayer() {
+  const oldPlayer = document.getElementById('audioPlayer');
+  if (!oldPlayer) return;
+  const hostBox = oldPlayer.closest('div.bg-white') || oldPlayer.parentElement;
+  if (!hostBox || document.getElementById('jioSaavnPlayerCard')) return;
+
+  // Keep hidden native audio element for playback engine
+  oldPlayer.classList.add('hidden');
+  oldPlayer.id = 'audioPlayer';
+
+  const modernUI = document.createElement('div');
+  modernUI.id = 'jioSaavnPlayerCard';
+  modernUI.className = 'bg-gradient-to-br from-[#143622] via-[#0f291a] to-stone-900 text-white p-4 rounded-2xl shadow-xl border border-amber-400/30 space-y-3';
+  modernUI.innerHTML = `
+    <!-- Top Header & Speed Button -->
+    <div class="flex items-center justify-between border-b border-white/10 pb-2">
+      <div class="flex items-center gap-2 truncate">
+        <div id="musicVisualizerIcon" class="w-8 h-8 rounded-full bg-amber-400 text-stone-950 flex items-center justify-center font-bold text-sm shadow">
+          🎵
+        </div>
+        <div class="truncate">
+          <span class="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">भजन एवं आरती स्ट्रीम</span>
+          <h4 id="modernNowPlayingTitle" class="font-yatra text-sm sm:text-base text-white truncate">श्री जम्भेश्वर आरती एवं भजन</h4>
+        </div>
+      </div>
+      <button onclick="cycleAudioPlaybackSpeed()" id="audioSpeedBtn" class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-amber-300 text-xs font-extrabold border border-amber-400/30 shrink-0">
+        1x
+      </button>
+    </div>
+
+    <!-- Mini Scrollable Playlist Above Controls -->
+    <div class="space-y-1">
+      <span class="text-[10px] text-stone-300 font-semibold">📋 प्लेलिस्ट (चुनने के लिए टैप करें):</span>
+      <div id="modernMiniPlaylist" class="max-h-24 overflow-y-auto space-y-1 pr-1"></div>
+    </div>
+
+    <!-- Progress Seekbar & Timestamps -->
+    <div class="space-y-1 pt-1">
+      <input type="range" id="modernAudioSeek" value="0" min="0" max="100" oninput="seekModernAudio(this.value)" class="w-full h-1.5 bg-white/20 rounded-lg cursor-pointer accent-amber-400">
+      <div class="flex justify-between text-[10px] text-stone-300 font-mono">
+        <span id="modernCurrentTime">0:00</span>
+        <span id="modernDurationTime">0:00</span>
+      </div>
+    </div>
+
+    <!-- Bottom Spotify/JioSaavn Controls (Prev, Play/Pause, Next) -->
+    <div class="flex items-center justify-center gap-6 pt-1">
+      <button onclick="playPrevNextTrack(-1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm transition" title="पिछला भजन">
+        ⏮️
+      </button>
+      <button onclick="toggleModernPlayPause()" id="modernPlayPauseBtn" class="w-12 h-12 rounded-full bg-amber-400 hover:bg-amber-300 text-stone-950 flex items-center justify-center text-lg font-extrabold shadow-lg transition transform active:scale-95" title="चलाएं / रोकें">
+        ▶️
+      </button>
+      <button onclick="playPrevNextTrack(1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm transition" title="अगला भजन">
+        ⏭️
+      </button>
+    </div>
+  `;
+
+  // Hide old dropdown if present and insert Modern Card
+  const oldSelect = document.getElementById('audioTrackSelect');
+  if (oldSelect) oldSelect.classList.add('hidden');
+  oldPlayer.insertAdjacentElement('beforebegin', modernUI);
+
+  // Bind Audio Events
+  oldPlayer.addEventListener('timeupdate', () => {
+    const seek = document.getElementById('modernAudioSeek');
+    const curEl = document.getElementById('modernCurrentTime');
+    const durEl = document.getElementById('modernDurationTime');
+    if (oldPlayer.duration && seek) {
+      seek.value = (oldPlayer.currentTime / oldPlayer.duration) * 100;
+      if (curEl) curEl.innerText = formatAudioSec(oldPlayer.currentTime);
+      if (durEl) durEl.innerText = formatAudioSec(oldPlayer.duration);
+    }
+  });
+
+  oldPlayer.addEventListener('ended', () => playPrevNextTrack(1));
+  oldPlayer.addEventListener('play', () => {
+    isAudioPlaying = true;
+    const btn = document.getElementById('modernPlayPauseBtn');
+    if (btn) btn.innerText = '⏸️';
+  });
+  oldPlayer.addEventListener('pause', () => {
+    isAudioPlaying = false;
+    const btn = document.getElementById('modernPlayPauseBtn');
+    if (btn) btn.innerText = '▶️';
+  });
+
+  renderModernPlaylistUI();
+}
+
+function formatAudioSec(sec) {
+  if (!sec || isNaN(sec)) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function renderModernPlaylistUI() {
+  const listEl = document.getElementById('modernMiniPlaylist');
+  const titleEl = document.getElementById('modernNowPlayingTitle');
+  if (!listEl) return;
+
+  listEl.innerHTML = audioPlaylist.map((tr, idx) => {
+    const active = idx === currentTrackIndex;
+    return `
+      <button onclick="selectTrackFromPlaylist(${idx})" class="w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition ${active ? 'bg-amber-400 text-stone-950 font-extrabold shadow' : 'bg-white/5 hover:bg-white/10 text-stone-200'}">
+        <span class="truncate">${idx + 1}. ${tr.title}</span>
+        <span class="text-[10px] shrink-0 ml-2">${active ? (isAudioPlaying ? '🔊 बज रहा है' : '⏸️ चयनित') : '▶️'}</span>
+      </button>
+    `;
+  }).join('');
+
+  if (titleEl && audioPlaylist[currentTrackIndex]) {
+    titleEl.innerText = audioPlaylist[currentTrackIndex].title;
+  }
+}
+
+function selectTrackFromPlaylist(idx) {
+  if (!audioPlaylist[idx]) return;
+  currentTrackIndex = idx;
+  const player = document.getElementById('audioPlayer');
+  const source = document.getElementById('audioSource');
+  if (player && source) {
+    source.src = audioPlaylist[idx].link;
+    player.load();
+    player.play().catch(() => {});
+  }
+  renderModernPlaylistUI();
+}
+
+function toggleModernPlayPause() {
+  const player = document.getElementById('audioPlayer');
+  const source = document.getElementById('audioSource');
+  if (!player) return;
+
+  if (!source.src && audioPlaylist[currentTrackIndex]) {
+    source.src = audioPlaylist[currentTrackIndex].link;
+    player.load();
+  }
+
+  if (player.paused) {
+    player.play().catch(() => showToast("ऑडियो फ़ाइल लोड हो रही है या लिंक जाँचें।"));
+  } else {
+    player.pause();
+  }
+  renderModernPlaylistUI();
+}
+
+function playPrevNextTrack(dir) {
+  if (!audioPlaylist.length) return;
+  currentTrackIndex = (currentTrackIndex + dir + audioPlaylist.length) % audioPlaylist.length;
+  selectTrackFromPlaylist(currentTrackIndex);
+}
+
+function seekModernAudio(val) {
+  const player = document.getElementById('audioPlayer');
+  if (player && player.duration) {
+    player.currentTime = (val / 100) * player.duration;
+  }
+}
+
+function cycleAudioPlaybackSpeed() {
+  currentSpeedIdx = (currentSpeedIdx + 1) % audioSpeeds.length;
+  const newSpeed = audioSpeeds[currentSpeedIdx];
+  const player = document.getElementById('audioPlayer');
+  if (player) player.playbackRate = newSpeed;
+  const btn = document.getElementById('audioSpeedBtn');
+  if (btn) btn.innerText = `${newSpeed}x`;
+  showToast(`ऑडियो गति: ${newSpeed}x`);
+}
+
+// 8. OWNER BYPASS & MAINTENANCE LISTENERS
 function ownerEmergencyUnlock() {
   const phone = prompt("व्यवस्थापक मोबाइल नंबर (Owner Phone):");
   const pass = prompt("पासवर्ड (Owner Password):");
@@ -596,7 +785,7 @@ async function saveMaintenanceSettings() {
   showToast("🛠️ मेंटेनेंस सेटिंग्स लाइव लागू हो गईं!");
 }
 
-// 6. TOAST & MODAL UTILITIES
+// 9. TOAST & MODAL UTILITIES
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
@@ -622,13 +811,15 @@ function closeConfirmModal(result) {
   confirmCallback = null;
 }
 
-// 7. APPLICATION INITIALIZATION
+// 10. APPLICATION INITIALIZATION
 window.addEventListener('DOMContentLoaded', () => {
   injectDynamicModalsAndUI();
+  injectModernSpotifyAudioPlayer();
   syncOwnerCustomName();
   updateNavAuth();
   listenMaintenanceConfig();
-  renderNiyams(NIYAMS_DATA);
+  listenCustomNiyams();
+  listenHistoryAndKids();
   listenBanner();
   listenPdfs();
   listenPosts();
@@ -660,7 +851,7 @@ async function syncOwnerCustomName() {
   }
 }
 
-// 8. NAVIGATION CONTROLS
+// 11. NAVIGATION CONTROLS
 function switchTab(id) {
   currentActiveTab = id;
   ['home', 'mala', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
@@ -701,7 +892,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 9. AUTHENTICATION, 1-CLICK GOOGLE LOGIN & 3-LEVEL FORGOT PASSWORD
+// 12. AUTHENTICATION, 1-CLICK GOOGLE LOGIN & FORGOT PASSWORD
 function openAuthModal() {
   document.getElementById('authModal').classList.remove('hidden');
 }
@@ -744,18 +935,18 @@ async function handleAuthSubmit(e) {
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     applyMaintenanceRules();
+    renderNiyams(niyamsList);
+    renderHistoryAndKidsViews();
     closeAuthModal();
     showToast(`🛡️ व्यवस्थापक के रूप में स्वागत है, ${currentUser.name}!`);
     switchTab('admin');
     return;
   }
 
-  // 2. REGULAR 10-DIGIT MOBILE CHECK
   if (!/^[6-9]\d{9}$/.test(phone)) {
     return showToast("कृपया सही १० अंकों का भारतीय मोबाइल नंबर दर्ज करें!");
   }
 
-  // Registration Mode
   if (isRegisterMode) {
     if (!nameInput) return showToast("कृपया अपना पूरा नाम दर्ज करें!");
     try {
@@ -785,7 +976,6 @@ async function handleAuthSubmit(e) {
     return;
   }
 
-  // Sign In Mode
   try {
     const userDoc = await db.collection('users').doc(phone).get();
     if (!userDoc.exists) {
@@ -810,6 +1000,8 @@ async function handleAuthSubmit(e) {
     };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
+    renderNiyams(niyamsList);
+    renderHistoryAndKidsViews();
     closeAuthModal();
     showToast(`स्वागत है, ${currentUser.name}!`);
   } catch (err) {
@@ -871,6 +1063,8 @@ async function signInOrVerifyWithGoogle() {
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     applyMaintenanceRules();
+    renderNiyams(niyamsList);
+    renderHistoryAndKidsViews();
     closeAuthModal();
     showToast(`✅ Google लॉगिन सफल! स्वागत है, ${currentUser.name}`);
   } catch (err) {
@@ -910,9 +1104,7 @@ async function verifyGoogleAndResetPassword() {
   try {
     const userRef = db.collection('users').doc(phone);
     const userDoc = await userRef.get();
-    if (!userDoc.exists) {
-      return showToast("यह मोबाइल नंबर पंजीकृत नहीं है!");
-    }
+    if (!userDoc.exists) return showToast("यह मोबाइल नंबर पंजीकृत नहीं है!");
 
     const userData = userDoc.data();
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -921,7 +1113,7 @@ async function verifyGoogleAndResetPassword() {
     if (!gUser || !gUser.email) return;
 
     if (userData.email && userData.email.toLowerCase() !== gUser.email.toLowerCase()) {
-      return showToast("⚠️ यह Google खाता इस मोबाइल नंबर से मेल नहीं खाता! कृपया सही Google खाता चुनें।");
+      return showToast("⚠️ यह Google खाता इस मोबाइल नंबर से मेल नहीं खाता!");
     }
 
     await userRef.set({
@@ -942,7 +1134,7 @@ async function verifyGoogleAndResetPassword() {
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     closeForgotPassModal();
-    showToast("✅ पासवर्ड सफलतापूर्वक बदल गया और आप लॉगिन हो गए हैं!");
+    showToast("✅ पासवर्ड बदल गया और आप लॉगिन हो गए हैं!");
   } catch (err) {
     showToast("पासवर्ड रीसेट त्रुटि: " + err.message);
   }
@@ -988,7 +1180,7 @@ async function linkGoogleAccount() {
         googleVerified: true
       }, { merge: true });
       openProfileModal();
-      showToast(`✅ Google ईमेल (${gUser.email}) सफलतापूर्वक जुड़ गया!`);
+      showToast(`✅ Google ईमेल (${gUser.email}) जुड़ गया!`);
     }
   } catch (err) {
     showToast("Google खाता जोड़ने में त्रुटि: " + err.message);
@@ -1067,6 +1259,8 @@ function logoutUser() {
   currentUser = null;
   updateNavAuth();
   applyMaintenanceRules();
+  renderNiyams(niyamsList);
+  renderHistoryAndKidsViews();
   switchTab('home');
   showToast("सफलतापूर्वक लॉगआउट किया गया।");
 }
@@ -1080,12 +1274,12 @@ function updateNavAuth() {
 
   if (currentUser) {
     container.innerHTML = `
-      <button onclick="openProfileModal()" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 transition flex items-center gap-1 shadow-sm" title="प्रोफ़ाइल व नाम बदलें">
+      <button onclick="openProfileModal()" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 transition inline-flex items-center gap-1 shadow-sm max-w-full" title="प्रोफ़ाइल व नाम बदलें">
         <span>${currentUser.isOwner ? '🛡️' : '👤'}</span>
-        <span class="max-w-[140px] truncate">${currentUser.name}</span>
+        <span class="max-w-[115px] truncate">${currentUser.name}</span>
         <span class="text-[10px] text-stone-400">✎</span>
       </button>
-      <button onclick="logoutUser()" class="text-xs text-stone-500 hover:text-red-700 font-semibold px-1 transition">लॉगआउट</button>
+      <button onclick="logoutUser()" class="text-xs text-stone-600 hover:text-red-700 font-bold px-2 py-1 rounded bg-stone-100 hover:bg-red-50 transition">लॉगआउट</button>
     `;
     if (postPrompt) postPrompt.classList.add('hidden');
     if (postEditor) postEditor.classList.remove('hidden');
@@ -1110,7 +1304,7 @@ function updateNavAuth() {
   }
 }
 
-// 10. DIGITAL JAAP MALA LOGIC
+// 13. DIGITAL JAAP MALA LOGIC
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect').value;
   document.getElementById('activeMantraDisplay').innerText = selected;
@@ -1160,7 +1354,7 @@ function resetMalaCounter() {
   });
 }
 
-// 11. AUTOMATED DAILY PANCHANG & AMAVASYA
+// 14. AUTOMATED DAILY PANCHANG & AMAVASYA
 function computeAutoPanchang() {
   const now = new Date();
   const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
@@ -1250,7 +1444,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सफलतापूर्वक सहेजी गई!');
 }
 
-// 12. GEMINI AI CLIENT
+// 15. GEMINI AI CLIENT
 function getGeminiKey() {
   let key = localStorage.getItem('gemini_user_api_key');
   if (!key) {
@@ -1353,7 +1547,7 @@ async function generateAiDailySandesh() {
   }
 }
 
-// 13. DIRECT PDF EXPORTS
+// 16. DIRECT PDF EXPORTS
 async function downloadQuizResultsPdf() {
   showToast("Quiz परिणाम PDF तैयार हो रहा है...");
   const snap = await db.collection('quizAttempts').get();
@@ -1445,7 +1639,7 @@ async function download7DaysUsersPdf() {
   doc.save("Bishnoi_Registered_Users_7Days.pdf");
 }
 
-// 14. CERTIFICATE & SUVICHAR STATUS CARD
+// 17. CERTIFICATE GENERATOR
 function generateCertificate(name, score) {
   const canvas = document.getElementById('certCanvas');
   const ctx = canvas.getContext('2d');
@@ -1499,68 +1693,7 @@ function generateCertificate(name, score) {
   showToast("सम्मान पत्र डाउनलोड हो गया!");
 }
 
-function downloadSuvicharStatusCard() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1080;
-  const ctx = canvas.getContext('2d');
-
-  const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
-  grad.addColorStop(0, '#143622');
-  grad.addColorStop(1, '#091c11');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 1080, 1080);
-
-  ctx.strokeStyle = '#F59E0B';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(45, 45, 990, 990);
-
-  ctx.fillStyle = '#FDE68A';
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 46px sans-serif';
-  ctx.fillText('🌿 विश्नोई समाज डिजिटल मंच 🌿', 540, 160);
-
-  ctx.fillStyle = '#D6D3D1';
-  ctx.font = '28px sans-serif';
-  ctx.fillText('आज का पावन संदेश एवं सुविचार', 540, 220);
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 42px sans-serif';
-  const words = currentBannerText.split(' ');
-  let line = '';
-  let lines = [];
-  for (let i = 0; i < words.length; i++) {
-    const testLine = line + words[i] + ' ';
-    if (ctx.measureText(testLine).width > 820 && i > 0) {
-      lines.push(line);
-      line = words[i] + ' ';
-    } else {
-      line = testLine;
-    }
-  }
-  lines.push(line);
-
-  let startY = 500 - ((lines.length - 1) * 35);
-  lines.forEach((l, idx) => {
-    ctx.fillText(l.trim(), 540, startY + (idx * 70));
-  });
-
-  ctx.fillStyle = '#F59E0B';
-  ctx.font = 'bold 30px sans-serif';
-  ctx.fillText('गुरु जम्भेश्वर भगवान की जय • २९ नियम धर्म संहिता', 540, 900);
-
-  ctx.fillStyle = '#A8A29E';
-  ctx.font = '24px sans-serif';
-  ctx.fillText('bishnoism.vercel.app', 540, 960);
-
-  const link = document.createElement('a');
-  link.download = `Bishnoi_Suvichar_${new Date().toLocaleDateString('en-GB')}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  showToast("🖼️ WhatsApp स्टेटस कार्ड डाउनलोड हो गया!");
-}
-
-// 15. QUIZ ARENA & MULTI-LINE WINNER LEADERBOARD
+// 18. UPGRADED QUIZ ARENA & ADMIN QUESTION MANAGER
 function startQuizNow() {
   document.getElementById('quizIntroCard').classList.add('hidden');
   document.getElementById('quizActiveBox').classList.remove('hidden');
@@ -1572,8 +1705,22 @@ function startQuizNow() {
 
 function loadQuiz() {
   db.collection('quiz').onSnapshot(snap => {
+    const adminList = document.getElementById('adminQuizManageList');
+    if (adminList) adminList.innerHTML = '';
+
     if (!snap.empty) {
-      quizList = snap.docs.map(d => d.data());
+      quizList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (adminList) {
+        snap.docs.forEach((doc, idx) => {
+          const qData = doc.data();
+          adminList.innerHTML += `
+            <div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200 gap-2">
+              <span class="truncate font-medium">${idx + 1}. ${qData.q}</span>
+              <button onclick="deleteSingleQuizQuestion('${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">🗑️ हटाएं</button>
+            </div>
+          `;
+        });
+      }
     } else {
       quizList = [
         {
@@ -1592,6 +1739,26 @@ function loadQuiz() {
           ans: 1
         }
       ];
+      if (adminList) {
+        adminList.innerHTML = `<div class="text-stone-400">डिफ़ॉल्ट ३ प्रश्न सक्रिय हैं।</div>`;
+      }
+    }
+  });
+}
+
+async function deleteSingleQuizQuestion(id) {
+  await db.collection('quiz').doc(id).delete();
+  showToast("प्रश्न हटा दिया गया!");
+}
+
+async function clearAllQuizQuestions() {
+  openConfirmModal("सभी प्रश्न हटाएं?", "क्या आप वर्तमान सभी परीक्षा प्रश्नों को हटाना चाहते हैं?", async (res) => {
+    if (res) {
+      const snap = await db.collection('quiz').get();
+      const batch = db.batch();
+      snap.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      showToast("सभी प्रश्न हटा दिए गए!");
     }
   });
 }
@@ -1645,17 +1812,23 @@ function renderQuiz() {
   }
 
   const q = quizList[currentQ];
+  const progressPct = Math.round(((currentQ + 1) / quizList.length) * 100);
+
   box.innerHTML = `
     <div class="space-y-4">
-      <div class="flex justify-between items-center text-xs text-stone-500 border-b border-stone-100 pb-2">
-        <span>प्रश्न ${currentQ + 1} / ${quizList.length}</span>
-        <span>Score: ${qScore}</span>
+      <!-- Progress Bar -->
+      <div class="w-full h-2 bg-stone-200 rounded-full overflow-hidden">
+        <div class="h-full bg-forest transition-all duration-300" style="width: ${progressPct}%"></div>
       </div>
-      <h3 class="font-bold text-base sm:text-lg text-forest leading-snug">${q.q}</h3>
-      <div class="space-y-2.5 pt-1">
+      <div class="flex justify-between items-center text-xs text-stone-500 border-b border-stone-100 pb-2">
+        <span class="font-bold text-forest">प्रश्न ${currentQ + 1} / ${quizList.length}</span>
+        <span class="px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold">प्राप्तांक: ${qScore}</span>
+      </div>
+      <h3 class="font-bold text-sm sm:text-base text-forest leading-snug">${q.q}</h3>
+      <div class="space-y-2 pt-1">
         ${q.opts.map((opt, i) => `
-          <button onclick="checkAnswer(${i})" class="w-full text-left p-3.5 text-sm rounded-xl border border-stone-300 hover:bg-amber-50 bg-white transition-all font-semibold">
-            ${opt}
+          <button onclick="checkAnswer(${i})" class="w-full text-left p-3 text-xs sm:text-sm rounded-xl border border-stone-200 hover:bg-amber-50 bg-white transition-all font-medium shadow-sm">
+            <span class="font-bold text-terracotta mr-1">${['A','B','C','D'][i]}.</span> ${opt}
           </button>
         `).join('')}
       </div>
@@ -1672,10 +1845,10 @@ function checkAnswer(chosen) {
   if (chosen === q.ans) {
     qScore++;
     feed.className = "text-xs p-2.5 rounded-lg font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300";
-    feed.innerText = "✓ सही उत्तर! (Correct)";
+    feed.innerText = "✓ बिल्कुल सही उत्तर! साधुवाद!";
   } else {
     feed.className = "text-xs p-2.5 rounded-lg font-semibold bg-rose-100 text-rose-800 border border-rose-300";
-    feed.innerText = `✕ गलत उत्तर! सही उत्तर था: ${q.opts[q.ans]}`;
+    feed.innerText = `✕ गलत उत्तर! सही उत्तर है: ${q.opts[q.ans]}`;
   }
 
   setTimeout(() => {
@@ -1733,14 +1906,12 @@ async function importBulkQuiz() {
 }
 
 function listenWinners() {
-  // Ensure Winner Name Elements Never Truncate Long Names
   ['winner1Name', 'winner2Name', 'winner3Name'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.classList.remove('truncate', 'whitespace-nowrap');
       el.style.whiteSpace = 'normal';
       el.style.wordBreak = 'break-word';
-      el.style.overflow = 'visible';
     }
   });
 
@@ -1778,7 +1949,7 @@ async function saveDailyWinners() {
   showToast("शीर्ष विजेता सूची अपडेट हो गई!");
 }
 
-// 16. UPGRADED TEXT-ONLY SAMVAD MANCH
+// 19. SAMVAD MANCH (TEXT-ONLY CHAT)
 const BAD_WORDS_LIST = ['गाली', 'मूर्ख', 'पागल', 'अभद्र', 'idiot', 'stupid', 'abuse'];
 
 function containsBadWords(text) {
@@ -1952,21 +2123,21 @@ function renderFilteredChat() {
 
       ${p.replyTo ? `
         <div class="p-2 rounded bg-stone-100 border-l-2 border-forest text-xs text-stone-600">
-          <span class="font-bold text-forest">↩️ ${p.replyTo.author}:</span>${p.replyTo.snippet}
+          <span class="font-bold text-forest">↩️ ${p.replyTo.author}:</span> ${p.replyTo.snippet}
         </div>
       ` : ''}
 
-      <p class="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed font-medium">${p.content}</p>
+      <p class="text-xs sm:text-sm text-stone-800 whitespace-pre-wrap leading-relaxed">${p.content}</p>
 
       <div class="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex items-center gap-1.5">
-          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-amber-100 border border-stone-200 transition">
+          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2.5 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 border border-stone-200 transition">
             🙏 ${pranamCnt || ''}
           </button>
-          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-emerald-100 border border-stone-200 transition">
+          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2.5 py-0.5 rounded-full bg-stone-100 hover:bg-emerald-100 border border-stone-200 transition">
             🌿 ${natureCnt || ''}
           </button>
-          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-rose-100 border border-stone-200 transition">
+          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2.5 py-0.5 rounded-full bg-stone-100 hover:bg-rose-100 border border-stone-200 transition">
             ❤️ ${heartCnt || ''}
           </button>
         </div>
@@ -1992,213 +2163,294 @@ function confirmDeletePost(id) {
   });
 }
 
-// 17. ELDER-FRIENDLY SMART BOOK & AUTO-FIT PDF.JS READER
-function openInbuiltPdfViewer(title, link) {
+// 20. PAGE-BY-PAGE HORIZONTAL PDF READER + CARD-1 STYLE LIBRARY WITH FULL EDIT/DELETE
+async function openInbuiltPdfViewer(title, link) {
   const modal = document.getElementById('inbuiltPdfModal');
   const titleEl = document.getElementById('pdfViewerTitle');
   const dlBtn = document.getElementById('pdfModalDownloadBtn');
+  const spinner = document.getElementById('pdfLoadingSpinner');
+  const canvas = document.getElementById('pdfSinglePageCanvas');
+  const driveFrame = document.getElementById('pdfDriveFallbackFrame');
+  const bottomBar = document.getElementById('pdfBottomNavBar');
   if (!modal) return;
 
   titleEl.innerText = title;
   dlBtn.href = link;
   currentPdfUrl = link;
+  isPdfLandscape = false;
+  updateLandscapeButtonLabel();
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
 
-  // If opening Shabadwani, launch Elder-Friendly Smart Text Reader by default (No Pinch-Zoom needed!)
-  if (link.includes('shabadwani') || title.includes('सबदवाणी')) {
-    document.getElementById('shabadSelectWrap')?.classList.remove('hidden');
-    document.getElementById('speakShabadBtn')?.classList.remove('hidden');
-    document.getElementById('togglePdfModeBtn')?.classList.remove('hidden');
-    document.getElementById('digitalBookContainer')?.classList.remove('hidden');
-    document.getElementById('pdfCanvasContainer')?.classList.add('hidden');
-    renderSelectedShabadView();
-  } else {
-    // For other PDFs, open directly in Full-Width Auto-Fit Canvas Mode
-    document.getElementById('shabadSelectWrap')?.classList.add('hidden');
-    document.getElementById('speakShabadBtn')?.classList.add('hidden');
-    document.getElementById('togglePdfModeBtn')?.classList.add('hidden');
-    switchToRawPdfCanvasMode();
-  }
-}
-
-function renderSelectedShabadView() {
-  const container = document.getElementById('digitalBookContainer');
-  const sel = document.getElementById('shabadJumpSelect')?.value || 'all';
-  if (!container) return;
-
-  const items = sel === 'all'
-    ? SHABADWANI_DIGITAL_BOOK
-    : [SHABADWANI_DIGITAL_BOOK[parseInt(sel)]];
-
-  container.innerHTML = items.map(item => `
-    <div class="bg-white p-5 sm:p-7 rounded-2xl border-2 border-amber-300 shadow-md space-y-3">
-      <div class="flex items-center justify-between border-b border-amber-200 pb-2">
-        <h4 class="font-yatra text-xl sm:text-2xl text-forest">${item.title}</h4>
-        <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-full text-xs font-bold">श्री सबदवाणी</span>
-      </div>
-      <p class="shabad-Elder-Text text-stone-900 font-semibold whitespace-pre-wrap" style="font-size: ${readerFontPx}px; line-height: 1.85; word-break: break-word;">${item.text}</p>
-    </div>
-  `).join('');
-}
-
-function adjustReaderFont(delta) {
-  readerFontPx = Math.min(38, Math.max(16, readerFontPx + delta));
-  localStorage.setItem('bishnoi_reader_font_px', readerFontPx.toString());
-  document.querySelectorAll('.shabad-Elder-Text').forEach(el => {
-    el.style.fontSize = `${readerFontPx}px`;
-  });
-  showToast(`अक्षर आकार: ${readerFontPx}px`);
-}
-
-function speakCurrentReaderText() {
-  if (!('speechSynthesis' in window)) {
-    return showToast("आपके फोन में वॉइस रीडर उपलब्ध नहीं है।");
-  }
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    showToast("🔇 ऑडियो पाठ रोका गया।");
-    return;
-  }
-  const sel = document.getElementById('shabadJumpSelect')?.value || '0';
-  const targetIdx = sel === 'all' ? 1 : parseInt(sel);
-  const textToRead = SHABADWANI_DIGITAL_BOOK[targetIdx]?.text || '';
-
-  const utter = new SpeechSynthesisUtterance(textToRead);
-  utter.lang = 'hi-IN';
-  utter.rate = 0.85; // Slower & clearer for elders
-  window.speechSynthesis.speak(utter);
-  showToast("🔊 सबद पाठ सुनाया जा रहा है... (रोकने के लिए पुनः दबाएं)");
-}
-
-async function switchToRawPdfCanvasMode() {
-  document.getElementById('digitalBookContainer')?.classList.add('hidden');
-  const canvasWrap = document.getElementById('pdfCanvasContainer');
-  const pagesHolder = document.getElementById('pdfPagesHolder');
-  const fallbackFrame = document.getElementById('pdfFallbackIframe');
-  if (!canvasWrap || !pagesHolder) return;
-
-  canvasWrap.classList.remove('hidden');
-  canvasWrap.classList.add('flex');
-  pagesHolder.innerHTML = `<div class="text-white py-10 text-base font-bold animate-pulse">⏳ पुस्तक के पृष्ठ बड़े आकार में लोड हो रहे हैं...</div>`;
-
-  // Handle Google Drive links
-  if (currentPdfUrl.includes('drive.google.com/file/d/')) {
-    const match = currentPdfUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  // Google Drive Preview Handling
+  if (link.includes('drive.google.com/file/d/')) {
+    const match = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      pagesHolder.innerHTML = '';
-      fallbackFrame.src = `https://drive.google.com/file/d/${match[1]}/preview`;
-      fallbackFrame.classList.remove('hidden');
+      spinner.classList.add('hidden');
+      canvas.classList.add('hidden');
+      bottomBar.classList.add('hidden');
+      driveFrame.src = `https://drive.google.com/file/d/${match[1]}/preview`;
+      driveFrame.classList.remove('hidden');
       return;
     }
   }
 
-  fallbackFrame.classList.add('hidden');
+  driveFrame.classList.add('hidden');
+  bottomBar.classList.remove('hidden');
+  canvas.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  spinner.innerText = '⏳ पुस्तक का पृष्ठ स्पष्ट आकार में खुल रहा है...';
+
   try {
-    if (!window.pdfjsLib) throw new Error("PDF.js loading");
-    const loadingTask = window.pdfjsLib.getDocument(currentPdfUrl);
-    const pdf = await loadingTask.promise;
-    pagesHolder.innerHTML = '';
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const containerWidth = Math.min(window.innerWidth - 24, 860);
-      const unscaledViewport = page.getViewport({ scale: 1 });
-      const autoFitScale = (containerWidth / unscaledViewport.width) * pdfCanvasScale;
-      const viewport = page.getViewport({ scale: autoFitScale });
-
-      const canvas = document.createElement('canvas');
-      canvas.className = 'bg-white rounded-lg shadow-lg max-w-full';
-      const context = canvas.getContext('2d');
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      pagesHolder.appendChild(canvas);
-      await page.render({ canvasContext: context, viewport: viewport }).promise;
-    }
+    if (!window.pdfjsLib) throw new Error("PDF.js लोड हो रहा है");
+    const loadingTask = window.pdfjsLib.getDocument(link);
+    activePdfDoc = await loadingTask.promise;
+    totalPdfPages = activePdfDoc.numPages;
+    currentPdfPage = 1;
+    await renderSinglePdfPage(currentPdfPage);
   } catch (err) {
-    pagesHolder.innerHTML = '';
-    const fullUrl = currentPdfUrl.startsWith('http') ? currentPdfUrl : (window.location.origin + '/' + currentPdfUrl.replace(/^\.\//, ''));
-    fallbackFrame.src = isPhoneOrInstalledApp()
+    spinner.classList.add('hidden');
+    bottomBar.classList.add('hidden');
+    const fullUrl = link.startsWith('http') ? link : (window.location.origin + '/' + link.replace(/^\.\//, ''));
+    driveFrame.src = isPhoneOrInstalledApp()
       ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}`
       : fullUrl;
-    fallbackFrame.classList.remove('hidden');
+    driveFrame.classList.remove('hidden');
   }
 }
 
-function zoomPdfCanvas(delta) {
-  pdfCanvasScale = Math.min(2.5, Math.max(0.8, pdfCanvasScale + delta));
-  document.getElementById('pdfZoomLabel').innerText = `${Math.round(pdfCanvasScale * 100)}%`;
-  switchToRawPdfCanvasMode();
+async function renderSinglePdfPage(pageNum) {
+  if (!activePdfDoc) return;
+  const spinner = document.getElementById('pdfLoadingSpinner');
+  const canvas = document.getElementById('pdfSinglePageCanvas');
+  const jumpInp = document.getElementById('pdfPageJumpInput');
+  const totalLbl = document.getElementById('pdfTotalPagesLabel');
+  const prevBtn = document.getElementById('pdfPrevBtn');
+  const nextBtn = document.getElementById('pdfNextBtn');
+
+  spinner.classList.remove('hidden');
+  const page = await activePdfDoc.getPage(pageNum);
+
+  // Render at high 2.2x DPI resolution so hand pinch-zoom is crystal clear!
+  const viewport = page.getViewport({ scale: 2.2 });
+  const ctx = canvas.getContext('2d');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+
+  // Fit cleanly in viewport; in Landscape mode allow full width scrolling
+  if (isPdfLandscape) {
+    canvas.style.width = '96vw';
+    canvas.style.maxHeight = 'none';
+  } else {
+    canvas.style.width = 'auto';
+    canvas.style.maxHeight = '78vh';
+  }
+
+  await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+  spinner.classList.add('hidden');
+  canvas.classList.remove('hidden');
+
+  if (jumpInp) {
+    jumpInp.max = totalPdfPages;
+    jumpInp.value = pageNum;
+  }
+  if (totalLbl) totalLbl.innerText = `/ ${totalPdfPages}`;
+  if (prevBtn) prevBtn.disabled = (pageNum <= 1);
+  if (nextBtn) nextBtn.disabled = (pageNum >= totalPdfPages);
+
+  // Scroll viewport back to top-left on page turn
+  const vp = document.getElementById('pdfSinglePageViewport');
+  if (vp) vp.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+}
+
+function changePdfPage(delta) {
+  if (!activePdfDoc) return;
+  const next = currentPdfPage + delta;
+  if (next >= 1 && next <= totalPdfPages) {
+    currentPdfPage = next;
+    renderSinglePdfPage(currentPdfPage);
+  }
+}
+
+function jumpToPdfPage(val) {
+  if (!activePdfDoc) return;
+  const p = parseInt(val);
+  if (p >= 1 && p <= totalPdfPages) {
+    currentPdfPage = p;
+    renderSinglePdfPage(currentPdfPage);
+  }
+}
+
+async function togglePdfLandscapeMode() {
+  isPdfLandscape = !isPdfLandscape;
+  updateLandscapeButtonLabel();
+
+  try {
+    if (isPdfLandscape) {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen().catch(() => {});
+      }
+      if (screen.orientation && screen.orientation.lock) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+      showToast("🔄 लैंडस्केप (आड़ा मोड) सक्रिय! आप दो उंगलियों से ज़ूम कर सकते हैं।");
+    } else {
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen().catch(() => {});
+      }
+    }
+  } catch (e) {}
+
+  if (activePdfDoc) renderSinglePdfPage(currentPdfPage);
+}
+
+function updateLandscapeButtonLabel() {
+  const txt = document.getElementById('landscapeBtnText');
+  if (txt) txt.innerText = isPdfLandscape ? 'पोर्ट्रेट (सीधा मोड)' : 'लैंडस्केप (आड़ा मोड)';
 }
 
 function closeInbuiltPdfViewer() {
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  activePdfDoc = null;
+  if (screen.orientation && screen.orientation.unlock) {
+    try { screen.orientation.unlock(); } catch (e) {}
+  }
+  if (document.fullscreenElement && document.exitFullscreen) {
+    try { document.exitFullscreen(); } catch (e) {}
+  }
   const modal = document.getElementById('inbuiltPdfModal');
   if (!modal) return;
   modal.classList.add('hidden');
   modal.classList.remove('flex');
 }
 
+// E-Library with Card-1 Style & Edit/Delete for ALL Cards (Including First PDF)
 function listenPdfs() {
   db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
     const grid = document.getElementById('pdfGrid');
     if (!grid) return;
     grid.innerHTML = '';
 
-    const defaultCard = document.createElement('div');
-    defaultCard.className = "bg-white p-4 rounded-xl border-2 border-amber-300 flex flex-col justify-between shadow-sm";
-    defaultCard.innerHTML = `
-      <div>
-        <span class="text-xs font-bold text-terracotta uppercase">पवित्र ग्रंथ (बुजुर्ग-अनुकूल स्मार्ट पाठ)</span>
-        <h3 class="font-yatra text-forest text-lg mt-1">श्री सबदवाणी (१२० शब्द)</h3>
-        <p class="text-xs text-stone-600 mt-1">बिना ज़ूम किए बड़े अक्षरों में आराम से पढ़ें अथवा ऑडियो में सुनें।</p>
-      </div>
-      <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <button onclick="openInbuiltPdfViewer('श्री सबदवाणी (१२० शब्द)', './shabadwani.pdf')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow transition">
-            📖 बड़े अक्षरों में पढ़ें
-          </button>
-          <a href="./shabadwani.pdf" download class="inline-block px-3 py-2 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
-            📥 डाउनलोड
-          </a>
-        </div>
-        <button onclick="sharePdfWhatsApp('श्री सबदवाणी', './shabadwani.pdf')" class="text-emerald-700 text-xs font-bold">Share 📲</button>
-      </div>
-    `;
-    grid.appendChild(defaultCard);
+    const hideDefault = localStorage.getItem('hide_default_shabadwani_card') === '1';
 
+    // Default First Card (Can now be Edited or Deleted by Owner!)
+    if (!hideDefault) {
+      const defTag = localStorage.getItem('def_pdf_tag') || 'पवित्र ग्रंथ';
+      const defTitle = localStorage.getItem('def_pdf_title') || 'श्री सबदवाणी (१२० शब्द)';
+      const defDesc = localStorage.getItem('def_pdf_desc') || 'गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।';
+      const defLink = localStorage.getItem('def_pdf_link') || './shabadwani.pdf';
+
+      const defaultCard = document.createElement('div');
+      defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
+      defaultCard.innerHTML = `
+        <div>
+          <span class="text-[11px] font-bold text-terracotta uppercase tracking-wide">${defTag}</span>
+          <h3 class="font-yatra text-forest text-lg mt-1">${defTitle}</h3>
+          <p class="text-xs text-stone-500 mt-1 leading-relaxed">${defDesc}</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <button onclick="openInbuiltPdfViewer('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow-sm transition">
+              📖 ऐप में पढ़ें
+            </button>
+            <a href="${defLink}" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
+              📥 डाउनलोड
+            </a>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="sharePdfWhatsApp('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="text-emerald-700 text-xs font-bold">Share 📲</button>
+            ${currentUser && currentUser.isOwner ? `
+              <button onclick="editDefaultPdfCard()" class="text-xs text-amber-700 font-bold hover:underline">✏️ Edit</button>
+              <button onclick="deleteDefaultPdfCard()" class="text-xs text-red-600 font-bold hover:underline">Delete</button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+      grid.appendChild(defaultCard);
+    }
+
+    // Render All Uploaded PDFs in exact Card-1 Style
     snap.forEach(doc => {
       const item = doc.data();
-      const safeTitle = (item.title || 'साहित्य').replace(/'/g, "\\'");
+      const tag = item.tag || 'पवित्र साहित्य';
+      const title = item.title || 'साहित्य ग्रंथ';
+      const desc = item.desc || 'अध्ययन एवं डाउनलोड करने हेतु उपलब्ध पावन साहित्य।';
+      const safeTitle = title.replace(/'/g, "\\'");
       const safeLink = (item.link || '').replace(/'/g, "\\'");
 
       const card = document.createElement('div');
       card.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
       card.innerHTML = `
         <div>
-          <span class="text-xs font-bold text-terracotta uppercase">साहित्य</span>
-          <h3 class="font-yatra text-forest text-lg mt-1">${item.title}</h3>
+          <span class="text-[11px] font-bold text-terracotta uppercase tracking-wide">${tag}</span>
+          <h3 class="font-yatra text-forest text-lg mt-1">${title}</h3>
+          <p class="text-xs text-stone-500 mt-1 leading-relaxed">${desc}</p>
         </div>
         <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow transition">
+            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow-sm transition">
               📖 ऐप में पढ़ें
             </button>
-            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-2 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
+            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
               📥 डाउनलोड
             </a>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="sharePdfWhatsApp('${safeTitle}', '${safeLink}')" class="text-emerald-700 text-xs font-bold">Share 📲</button>
-            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
+            ${currentUser && currentUser.isOwner ? `
+              <button onclick="editUploadedPdf('${doc.id}', '${tag.replace(/'/g, "\\'")}', '${safeTitle}', '${desc.replace(/'/g, "\\'")}')" class="text-xs text-amber-700 font-bold hover:underline">✏️ Edit</button>
+              <button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold hover:underline">Delete</button>
+            ` : ''}
           </div>
         </div>
       `;
       grid.appendChild(card);
     });
   });
+}
+
+function editDefaultPdfCard() {
+  const newTag = prompt("ऊपरी टैग (Tag):", localStorage.getItem('def_pdf_tag') || 'पवित्र ग्रंथ');
+  if (newTag === null) return;
+  const newTitle = prompt("पुस्तक का मुख्य नाम (Title):", localStorage.getItem('def_pdf_title') || 'श्री सबदवाणी (१२० शब्द)');
+  if (!newTitle) return;
+  const newDesc = prompt("छोटा विवरण (Subtitle):", localStorage.getItem('def_pdf_desc') || 'गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।');
+  const newLink = prompt("PDF फाइल लिंक:", localStorage.getItem('def_pdf_link') || './shabadwani.pdf');
+
+  localStorage.setItem('def_pdf_tag', newTag.trim());
+  localStorage.setItem('def_pdf_title', newTitle.trim());
+  localStorage.setItem('def_pdf_desc', (newDesc || '').trim());
+  localStorage.setItem('def_pdf_link', (newLink || './shabadwani.pdf').trim());
+  listenPdfs();
+  showToast("✅ प्रथम PDF कार्ड अपडेट हो गया!");
+}
+
+function deleteDefaultPdfCard() {
+  openConfirmModal("प्रथम PDF हटाएं?", "क्या आप डिफ़ॉल्ट 'श्री सबदवाणी' कार्ड को हटाना चाहते हैं?", (res) => {
+    if (res) {
+      localStorage.setItem('hide_default_shabadwani_card', '1');
+      listenPdfs();
+      showToast("प्रथम PDF कार्ड हटा दिया गया।");
+    }
+  });
+}
+
+async function editUploadedPdf(id, oldTag, oldTitle, oldDesc) {
+  const tag = prompt("श्रेणी टैग बदलें:", oldTag);
+  if (tag === null) return;
+  const title = prompt("पुस्तक का मुख्य नाम बदलें:", oldTitle);
+  if (!title) return;
+  const desc = prompt("छोटा विवरण बदलें:", oldDesc);
+
+  await db.collection('pdfs').doc(id).update({
+    tag: tag.trim() || 'पवित्र साहित्य',
+    title: title.trim(),
+    desc: (desc || '').trim()
+  });
+  showToast("✅ PDF कार्ड अपडेट हो गया!");
 }
 
 function sharePdfWhatsApp(title, link) {
@@ -2208,14 +2460,20 @@ function sharePdfWhatsApp(title, link) {
 }
 
 async function saveAdminPdf() {
+  const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
   const title = document.getElementById('adminPdfTitle').value.trim();
+  const desc = document.getElementById('adminPdfDesc')?.value.trim() || 'गुरु जम्भेश्वर भगवान की पावन शिक्षाएं एवं साहित्य।';
   const link = document.getElementById('adminPdfLink').value.trim();
-  if (!title || !link) return showToast('कृपया शीर्षक और लिंक दर्ज करें');
+
+  if (!title || !link) return showToast('कृपया पुस्तक का नाम और लिंक दर्ज करें');
   await db.collection('pdfs').add({
-    title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    tag, title, desc, link,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  showToast('PDF साहित्य सफलतापूर्वक जोड़ा गया!');
+  showToast('PDF साहित्य कार्ड-१ के सुंदर डिज़ाइन में जोड़ा गया!');
+  if (document.getElementById('adminPdfTag')) document.getElementById('adminPdfTag').value = '';
   document.getElementById('adminPdfTitle').value = '';
+  if (document.getElementById('adminPdfDesc')) document.getElementById('adminPdfDesc').value = '';
   document.getElementById('adminPdfLink').value = '';
 }
 
@@ -2228,18 +2486,17 @@ function confirmDeletePdf(id) {
   });
 }
 
-// 18. AUDIO PLAYER & ADMIN TRACK DELETE LIST
+// 21. AUDIO LISTENERS & ADMIN AUDIO DELETE
 function listenAudios() {
   db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    const select = document.getElementById('audioTrackSelect');
     const adminList = document.getElementById('adminAudioManageList');
     if (adminList) adminList.innerHTML = '';
 
-    if (!snap.empty && select) {
-      select.innerHTML = '';
+    if (!snap.empty) {
+      audioPlaylist = [];
       snap.forEach(doc => {
         const a = doc.data();
-        select.innerHTML += `<option value="${a.link}">${a.title}</option>`;
+        audioPlaylist.push({ id: doc.id, title: a.title, link: a.link });
         if (adminList) {
           adminList.innerHTML += `
             <div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200">
@@ -2249,7 +2506,16 @@ function listenAudios() {
           `;
         }
       });
-      changeAudioTrack();
+      currentTrackIndex = 0;
+      const source = document.getElementById('audioSource');
+      const player = document.getElementById('audioPlayer');
+      if (source && player && audioPlaylist[0]) {
+        source.src = audioPlaylist[0].link;
+        player.load();
+      }
+      renderModernPlaylistUI();
+    } else {
+      renderModernPlaylistUI();
     }
   });
 }
@@ -2264,23 +2530,17 @@ async function deleteAdminAudio(id) {
 }
 
 function changeAudioTrack() {
-  const select = document.getElementById('audioTrackSelect');
-  const player = document.getElementById('audioPlayer');
-  const source = document.getElementById('audioSource');
-  if (select && select.value) {
-    source.src = select.value;
-    player.load();
-  }
+  selectTrackFromPlaylist(0);
 }
 
 async function saveAdminAudio() {
   const title = document.getElementById('adminAudioTitle').value.trim();
   const link = document.getElementById('adminAudioLink').value.trim();
-  if (!title || !link) return showToast('कृपया शीर्षक और ऑडियो लिंक दोनों भरें');
+  if (!title || !link) return showToast('कृपया भजन का नाम और ऑडियो लिंक दोनों भरें');
   await db.collection('audios').add({
     title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  showToast('ऑडियो ट्रैक लाइव प्लेयर में जोड़ा गया!');
+  showToast('🎵 भजन आधुनिक प्लेयर में जोड़ा गया!');
   document.getElementById('adminAudioTitle').value = '';
   document.getElementById('adminAudioLink').value = '';
 }
@@ -2302,7 +2562,7 @@ function listenNotices() {
   });
 }
 
-// 19. PLANTATION PLEDGE COUNTER
+// 22. PLANTATION PLEDGE & BANNER
 function listenTreeCounter() {
   db.collection('stats').doc('treePledges').onSnapshot(doc => {
     if (doc.exists && doc.data().count) {
@@ -2327,7 +2587,6 @@ async function pledgeTree() {
   } catch (e) {}
 }
 
-// 20. BANNER & WHATSAPP SHARING
 function listenBanner() {
   db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
     if (doc.exists && doc.data().text) {
@@ -2360,14 +2619,62 @@ function sharePostWhatsApp(author, content) {
   window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
 }
 
-// 21. 29 NIYAMS RENDER & SEARCH
+// 23. EDITABLE 29 NIYAMS WITH CATEGORY FILTERS
+function listenCustomNiyams() {
+  db.collection('settings').doc('customNiyams').onSnapshot(doc => {
+    if (doc.exists && Array.isArray(doc.data().list)) {
+      niyamsList = doc.data().list;
+    }
+    injectNiyamCategoryFilterBar();
+    renderNiyams(niyamsList);
+  });
+}
+
+function injectNiyamCategoryFilterBar() {
+  const searchInput = document.getElementById('niyamSearch');
+  if (!searchInput || document.getElementById('niyamCategoryBar')) return;
+
+  const bar = document.createElement('div');
+  bar.id = 'niyamCategoryBar';
+  bar.className = 'flex flex-wrap gap-1.5 pt-2';
+  bar.innerHTML = `
+    <button onclick="setNiyamCategory('all')" id="ncat_all" class="px-3 py-1 rounded-full text-xs font-bold bg-forest text-white">📋 सभी २९ नियम</button>
+    <button onclick="setNiyamCategory('daily')" id="ncat_daily" class="px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-amber-100">🌅 दैनिक साधना व स्वच्छता</button>
+    <button onclick="setNiyamCategory('nature')" id="ncat_nature" class="px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-emerald-100">🦌 जीव व पर्यावरण रक्षा</button>
+    <button onclick="setNiyamCategory('conduct')" id="ncat_conduct" class="px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-amber-100">✨ सदाचार व नशा मुक्ति</button>
+  `;
+  searchInput.parentElement.appendChild(bar);
+}
+
+function setNiyamCategory(cat) {
+  activeNiyamCategory = cat;
+  ['all', 'daily', 'nature', 'conduct'].forEach(c => {
+    const btn = document.getElementById(`ncat_${c}`);
+    if (btn) {
+      btn.className = (c === cat)
+        ? 'px-3 py-1 rounded-full text-xs font-bold bg-forest text-white shadow-sm'
+        : 'px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-amber-100';
+    }
+  });
+  filterNiyams();
+}
+
 function renderNiyams(data) {
   const grid = document.getElementById('niyamGrid');
   if (!grid) return;
   grid.innerHTML = '';
-  data.forEach(n => {
+
+  const filtered = activeNiyamCategory === 'all'
+    ? data
+    : data.filter(n => n.cat === activeNiyamCategory);
+
+  filtered.forEach(n => {
+    const safeTitle = (n.title || '').replace(/'/g, "\\'");
+    const safeRule = (n.rule || '').replace(/'/g, "\\'");
+    const safeDesc = (n.desc || '').replace(/'/g, "\\'");
+
     const card = document.createElement('div');
-    card.className = "bg-white p-4 rounded-xl border border-stone-200 space-y-2 flex flex-col justify-between shadow-sm";
+    card.className = "bg-white p-4 rounded-xl border border-stone-200 space-y-2 flex flex-col justify-between shadow-sm hover:border-amber-400 transition";
     card.innerHTML = `
       <div>
         <div class="flex items-center justify-between text-xs">
@@ -2375,10 +2682,13 @@ function renderNiyams(data) {
           <span class="text-stone-500 font-semibold text-xs">${n.title}</span>
         </div>
         <h4 class="font-yatra text-base text-forest mt-1.5">${n.rule}</h4>
-        <p class="text-xs text-stone-700 leading-relaxed mt-1 font-medium">${n.desc}</p>
+        <p class="text-xs text-stone-700 leading-relaxed mt-1">${n.desc}</p>
       </div>
-      <div class="pt-2 border-t border-stone-100 flex justify-end">
-        <button onclick="shareNiyamWhatsApp(${n.num}, '${n.title}', '${n.rule}', '${n.desc}')" class="text-xs text-emerald-700 font-bold flex items-center gap-1 hover:underline">
+      <div class="pt-2 border-t border-stone-100 flex items-center justify-between">
+        ${currentUser && currentUser.isOwner ? `
+          <button onclick="editSingleNiyam(${n.num})" class="text-xs text-amber-700 font-bold hover:underline">✏️ शब्द बदलें</button>
+        ` : '<span></span>'}
+        <button onclick="shareNiyamWhatsApp(${n.num}, '${safeTitle}', '${safeRule}', '${safeDesc}')" class="text-xs text-emerald-700 font-bold flex items-center gap-1 hover:underline">
           <span>साझा करें</span> 📲
         </button>
       </div>
@@ -2387,16 +2697,200 @@ function renderNiyams(data) {
   });
 }
 
+async function editSingleNiyam(num) {
+  if (!currentUser || !currentUser.isOwner) return;
+  const idx = niyamsList.findIndex(x => x.num === num);
+  if (idx === -1) return;
+
+  const item = niyamsList[idx];
+  const newTitle = prompt(`नियम ${num} का शीर्षक (Title):`, item.title);
+  if (newTitle === null) return;
+  const newRule = prompt(`नियम ${num} की मूल वाणी (Rule):`, item.rule);
+  if (newRule === null) return;
+  const newDesc = prompt(`नियम ${num} का सरल अर्थ (Description):`, item.desc);
+  if (newDesc === null) return;
+
+  niyamsList[idx] = {
+    ...item,
+    title: newTitle.trim() || item.title,
+    rule: newRule.trim() || item.rule,
+    desc: newDesc.trim() || item.desc
+  };
+
+  await db.collection('settings').doc('customNiyams').set({ list: niyamsList });
+  showToast(`✅ नियम सं. ${num} सफलतापूर्वक अपडेट हो गया!`);
+}
+
 function filterNiyams() {
-  const q = document.getElementById('niyamSearch').value.toLowerCase();
-  renderNiyams(NIYAMS_DATA.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q)));
+  const q = (document.getElementById('niyamSearch')?.value || '').toLowerCase();
+  renderNiyams(niyamsList.filter(n =>
+    n.rule.toLowerCase().includes(q) ||
+    n.desc.toLowerCase().includes(q) ||
+    n.title.toLowerCase().includes(q)
+  ));
+}
+
+// 24. EDITABLE HISTORY (📜 इतिहास दर्शन) & ENGAGING KIDS CORNER (🧸 बाल संस्कार मंच)
+function listenHistoryAndKids() {
+  db.collection('settings').doc('customHistoryKids').onSnapshot(doc => {
+    if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) {
+      historyItemsList = doc.data().items;
+    }
+    renderHistoryAndKidsViews();
+  });
+}
+
+function renderHistoryAndKidsViews() {
+  const histView = document.getElementById('historySubView');
+  const kidsView = document.getElementById('kidsSubView');
+
+  if (histView) {
+    let dynamicHistWrap = document.getElementById('dynamicHistoryCardsWrap');
+    if (!dynamicHistWrap) {
+      dynamicHistWrap = document.createElement('div');
+      dynamicHistWrap.id = 'dynamicHistoryCardsWrap';
+      dynamicHistWrap.className = 'space-y-4 mb-4';
+      histView.insertBefore(dynamicHistWrap, histView.firstChild);
+    }
+
+    const histItems = historyItemsList.filter(x => x.type === 'history');
+    dynamicHistWrap.innerHTML = histItems.map(item => `
+      <div class="bg-white p-5 rounded-2xl border-l-4 border-forest shadow-sm space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="px-2.5 py-0.5 bg-emerald-100 text-forest rounded-full text-xs font-bold">${item.badge || '📜 गौरवशाली इतिहास'}</span>
+          ${currentUser && currentUser.isOwner ? `
+            <div class="flex items-center gap-2 text-xs">
+              <button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-700 font-bold hover:underline">✏️ Edit</button>
+              <button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold hover:underline">🗑️ हटाएं</button>
+            </div>
+          ` : ''}
+        </div>
+        <h3 class="font-yatra text-lg sm:text-xl text-forest">${item.title}</h3>
+        <p class="text-xs sm:text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">${item.content}</p>
+        ${item.moral ? `
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900">
+            ✨ ${item.moral}
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+
+  if (kidsView) {
+    let dynamicKidsWrap = document.getElementById('dynamicKidsCardsWrap');
+    if (!dynamicKidsWrap) {
+      dynamicKidsWrap = document.createElement('div');
+      dynamicKidsWrap.id = 'dynamicKidsCardsWrap';
+      dynamicKidsWrap.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 mb-4';
+      kidsView.insertBefore(dynamicKidsWrap, kidsView.firstChild);
+    }
+
+    const kidsItems = historyItemsList.filter(x => x.type === 'kids');
+    dynamicKidsWrap.innerHTML = kidsItems.map(item => {
+      const safeSpeech = (item.title + '। ' + item.content + '। ' + (item.moral || '')).replace(/'/g, "\\'").replace(/\n/g, ' ');
+      return `
+        <div class="bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-5 rounded-2xl border-2 border-amber-300 shadow-md flex flex-col justify-between space-y-3">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-3 py-1 bg-amber-400 text-stone-950 rounded-full text-xs font-extrabold shadow-sm">${item.badge || '🧸 बाल संस्कार कहानी'}</span>
+              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-forest text-white rounded-full text-xs font-bold hover:bg-emerald-900 shadow">
+                🔊 कहानी सुनें
+              </button>
+            </div>
+            <h3 class="font-yatra text-lg text-forest pt-1">${item.title}</h3>
+            <p class="text-xs sm:text-sm text-stone-800 leading-relaxed whitespace-pre-wrap">${item.content}</p>
+          </div>
+          <div class="space-y-2 pt-2">
+            ${item.moral ? `
+              <div class="p-3 rounded-xl bg-emerald-900 text-amber-200 text-xs font-bold shadow-sm">
+                ${item.moral}
+              </div>
+            ` : ''}
+            ${currentUser && currentUser.isOwner ? `
+              <div class="flex justify-end gap-3 text-xs pt-1 border-t border-amber-200">
+                <button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-800 font-bold hover:underline">✏️ शब्द बदलें</button>
+                <button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold hover:underline">🗑️ हटाएं</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+function speakKidsStory(text) {
+  if (!('speechSynthesis' in window)) return showToast("आपके डिवाइस में ऑडियो स्टोरी सुविधा उपलब्ध नहीं है।");
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    return showToast("🔇 कहानी ऑडियो रोका गया।");
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'hi-IN';
+  u.rate = 0.9;
+  window.speechSynthesis.speak(u);
+  showToast("🔊 बच्चों के लिए कहानी सुनाई जा रही है...");
+}
+
+async function saveAdminHistoryOrKidsItem() {
+  if (!currentUser || !currentUser.isOwner) return showToast("केवल व्यवस्थापक के लिए!");
+  const type = document.getElementById('adminHistType')?.value || 'history';
+  const badge = document.getElementById('adminHistBadge')?.value.trim() || (type === 'kids' ? '🧸 बाल कहानी' : '📜 इतिहास अध्याय');
+  const title = document.getElementById('adminHistTitle')?.value.trim() || '';
+  const content = document.getElementById('adminHistContent')?.value.trim() || '';
+  const moral = document.getElementById('adminHistMoral')?.value.trim() || '';
+
+  if (!title || !content) return showToast("कृपया शीर्षक और विवरण दोनों लिखें!");
+
+  historyItemsList.unshift({
+    id: 'item_' + Date.now(),
+    type, badge, title, content, moral
+  });
+
+  await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
+  document.getElementById('adminHistTitle').value = '';
+  document.getElementById('adminHistContent').value = '';
+  document.getElementById('adminHistMoral').value = '';
+  showToast("✅ नया अध्याय सफलतापूर्वक प्रकाशित हो गया!");
+}
+
+async function editHistoryOrKidsItem(id) {
+  const idx = historyItemsList.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const item = historyItemsList[idx];
+
+  const newTitle = prompt("शीर्षक बदलें:", item.title);
+  if (newTitle === null) return;
+  const newContent = prompt("कहानी / इतिहास का विवरण बदलें:", item.content);
+  if (newContent === null) return;
+  const newMoral = prompt("मुख्य सीख / संदेश बदलें:", item.moral || '');
+
+  historyItemsList[idx] = {
+    ...item,
+    title: newTitle.trim() || item.title,
+    content: newContent.trim() || item.content,
+    moral: (newMoral || '').trim()
+  };
+
+  await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
+  showToast("✅ जानकारी सफलतापूर्वक अपडेट हो गई!");
+}
+
+async function deleteHistoryOrKidsItem(id) {
+  openConfirmModal("अध्याय हटाएं?", "क्या आप इस कार्ड को हटाना चाहते हैं?", async (res) => {
+    if (res) {
+      historyItemsList = historyItemsList.filter(x => x.id !== id);
+      await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
+      showToast("कार्ड हटा दिया गया।");
+    }
+  });
 }
 
 function handleGlobalSearch() {
   const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
   if (!q) return;
 
-  const niyamMatch = NIYAMS_DATA.some(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q));
+  const niyamMatch = niyamsList.some(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q));
   if (niyamMatch) {
     switchTab('niyams');
     document.getElementById('niyamSearch').value = q;
@@ -2409,5 +2903,7 @@ function handleGlobalSearch() {
     switchTab('quiz');
   } else if (q.includes('संवाद') || q.includes('मंच') || q.includes('चर्चा')) {
     switchTab('community');
+  } else if (q.includes('इतिहास') || q.includes('बाल') || q.includes('कहानी') || q.includes('खेजड़ली')) {
+    switchTab('history');
   }
 }
