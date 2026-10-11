@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Bishnoi Community Portal - Custom Stylesheet (style.css)
+   ========================================================================== */
+
+/* Base Typography & Background */
+body {
+  background-color: #F8F5EE;
+  color: #231B15;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Navigation Buttons */
+.nav-btn {
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.5rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: #4A3E37;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap;
+}
+
+.nav-btn:hover {
+  background-color: #EBE4D5;
+  color: #143622;
+}
+
+.nav-btn-active {
+  background-color: #143622 !important;
+  color: #FFFFFF !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(20, 54, 34, 0.2);
+}
+
+/* Digital Jaap Mala Interactive Bead Circle */
+.mala-circle {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(20, 54, 34, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.mala-circle:active {
+  transform: scale(0.94);
+  box-shadow: 0 6px 14px rgba(20, 54, 34, 0.25);
+}
+
+/* Custom Smooth Transitions */
+.view-panel {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Clean Custom Scrollbar for Long Feeds & Code Boxes */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1ECE1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C7BCA9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A89C87;
+}
+
+/* Form Element Polish */
+input:focus, textarea:focus, select:focus {
+  border-color: #143622 !important;
+  outline: none !important;
+}
