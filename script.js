@@ -3617,3 +3617,222 @@ async function fetchLast7DaysVisitors(callback) {
     return [];
   }
 }
+// ==============================================================
+// 1. IP, डिवाइस डिटेक्शन एवं 7-डे ऑडिट ट्रैकिंग
+// ==============================================================
+async function trackUserLoginTelemetry(userData) {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const geo = await res.json();
+    
+    const ua = navigator.userAgent;
+    let deviceCategory = "Laptop / Desktop";
+    if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
+      deviceCategory = /ipad|tablet/i.test(ua.toLowerCase()) ? "Tablet" : "Mobile Phone";
+    }
+
+    const auditEntry = {
+      name: userData.name || 'Anonymous',
+      phone: userData.phone || '-',
+      email: userData.email || '-',
+      statedLocation: userData.location || '-',
+      detectedCity: geo.city || 'Unknown',
+      detectedRegion: geo.region || 'Unknown',
+      detectedCountry: geo.country_name || 'Unknown',
+      ip: geo.ip || 'Unknown',
+      network: geo.org || 'Unknown',
+      deviceType: deviceCategory,
+      timestamp: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('userAccessLogs').add(auditEntry);
+  } catch (err) {
+    console.error("Telemetry failed:", err);
+  }
+}
+
+// ==============================================================
+// 2. नामांकन (ENROLLMENT) एवं यूनिक रोल नंबर
+// ==============================================================
+async function enrollStudentForExam(studentDetails) {
+  const enrollmentConfigRef = db.collection('examConfig').doc('settings');
+  const configSnap = await enrollmentConfigRef.get();
+  
+  if (!configSnap.exists || !configSnap.data().enrollmentEnabled) {
+    alert("वर्तमान में परीक्षा नामांकन बंद है।");
+    return;
+  }
+
+  // 5-अंकों का यूनिक कोड
+  const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+  const rollNumber = `JAMBH-2026-${randomSuffix}`;
+
+  const studentRecord = {
+    ...studentDetails,
+    rollNumber: rollNumber,
+    enrolledAt: Date.now()
+  };
+
+  await db.collection('examEnrolledStudents').doc(rollNumber).set(studentRecord);
+  alert(`नामांकन सफल! आपका रोल नंबर है: ${rollNumber}`);
+  return rollNumber;
+}
+
+// ==============================================================
+// 3. परीक्षा व सुरक्षा इंजन (ANTI-CHEATING & RUNTIME)
+// ==============================================================
+let examState = {
+  questions: [],
+  currentIndex: 0,
+  answers: {},
+  timeRemainingSeconds: 0,
+  timerInterval: null,
+  tabSwitchCount: 0
+};
+
+function initExamSecurity() {
+  // राइट-क्लिक एवं कॉपी प्रतिबंध
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('copy', e => e.preventDefault());
+  document.addEventListener('cut', e => e.preventDefault());
+
+  // टैब स्विचिंग डिटेक्शन
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      examState.tabSwitchCount++;
+      alert(`चेतावनी: आपने स्क्रीन बदली है! (चेतावनी: ${examState.tabSwitchCount}/3)`);
+      if (examState.tabSwitchCount >= 3) {
+        submitFinalExam(true);
+      }
+    }
+  });
+}
+
+function startExamEngine(questionList, durationMinutes) {
+  examState.questions = questionList;
+  examState.timeRemainingSeconds = durationMinutes * 60;
+  examState.currentIndex = 0;
+  examState.answers = JSON.parse(localStorage.getItem('cachedExamAnswers') || '{}');
+
+  initExamSecurity();
+  renderQuestion(examState.currentIndex);
+  
+  examState.timerInterval = setInterval(() => {
+    examState.timeRemainingSeconds--;
+    updateTimerDisplay(examState.timeRemainingSeconds);
+    if (examState.timeRemainingSeconds <= 0) {
+      clearInterval(examState.timerInterval);
+      submitFinalExam(false);
+    }
+  }, 1000);
+}
+
+function renderQuestion(index) {
+  if (!examState.questions[index]) return;
+  const q = examState.questions[index];
+  
+  const container = document.getElementById('examQuestionArea');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="p-4 bg-white rounded-lg shadow border border-amber-200">
+      <div class="flex justify-between items-center mb-4">
+        <span class="font-bold text-amber-800">प्रश्न ${index + 1} / ${examState.questions.length}</span>
+        <span class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">1 अंक</span>
+      </div>
+      <p class="text-base font-medium text-gray-800 mb-4">${q.title}</p>
+      <div class="space-y-2">
+        ${q.options.map((opt, i) => `
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-amber-50 transition">
+            <input type="radio" name="currentQ" value="${i}" 
+              ${examState.answers[q.id] === i ? 'checked' : ''} 
+              onchange="saveAnswer('${q.id}',${i})" class="text-amber-600 focus:ring-amber-500">
+            <span class="ml-3 text-sm text-gray-700">${opt}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function saveAnswer(questionId, selectedOption) {
+  examState.answers[questionId] = selectedOption;
+  localStorage.setItem('cachedExamAnswers', JSON.stringify(examState.answers));
+}
+
+function navigateExam(direction) {
+  const newIndex = examState.currentIndex + direction;
+  if (newIndex >= 0 && newIndex < examState.questions.length) {
+    examState.currentIndex = newIndex;
+    renderQuestion(examState.currentIndex);
+  }
+}
+
+function jumpToQuestion(targetIndex) {
+  if (targetIndex >= 0 && targetIndex < examState.questions.length) {
+    examState.currentIndex = targetIndex;
+    renderQuestion(examState.currentIndex);
+  }
+}
+
+async function submitFinalExam(isForced = false) {
+  clearInterval(examState.timerInterval);
+  const user = firebase.auth().currentUser;
+  
+  const payload = {
+    userId: user ? user.uid : 'Guest',
+    answers: examState.answers,
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    isForcedSubmission: isForced,
+    isPublished: false // परिणाम गुप्त रहेगा
+  };
+
+  await db.collection('examSubmissions').add(payload);
+  localStorage.removeItem('cachedExamAnswers');
+  
+  // परिणाम छिपाकर केवल पुष्टि दिखाना
+  document.getElementById('examQuestionArea').innerHTML = `
+    <div class="text-center p-8 bg-green-50 rounded-xl border border-green-200">
+      <h3 class="text-xl font-bold text-green-800 mb-2">उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है</h3>
+      <p class="text-sm text-green-700">परीक्षा परिणाम की आधिकारिक घोषणा बाद में की जाएगी।</p>
+    </div>
+  `;
+}
+
+function updateTimerDisplay(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const el = document.getElementById('examTimerClock');
+  if (el) el.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// ==============================================================
+// 4. ओनर स्टूडियो एवं रोल-आधारित अनुमतियाँ (RBAC)
+// ==============================================================
+const ROLE_PERMISSIONS = {
+  OWNER: ['canManageAdmins', 'canPublishExam', 'canUploadQuestions', 'canToggleEnrollment', 'canViewAuditLogs'],
+  MODERATOR: ['canUploadQuestions']
+};
+
+function renderAdminStudio(userRole, customPermissions = []) {
+  const allowed = userRole === 'OWNER' ? ROLE_PERMISSIONS.OWNER : customPermissions;
+
+  // यदि अनुमति नहीं है तो संबंधित सेक्शन को DOM से पूर्णतः छिपाना
+  toggleElementVisibility('secManageAdmins', allowed.includes('canManageAdmins'));
+  toggleElementVisibility('secPublishExam', allowed.includes('canPublishExam'));
+  toggleElementVisibility('secUploadQuestions', allowed.includes('canUploadQuestions'));
+  toggleElementVisibility('secEnrollmentToggle', allowed.includes('canToggleEnrollment'));
+  toggleElementVisibility('secAuditLogs', allowed.includes('canViewAuditLogs'));
+}
+
+function toggleElementVisibility(elementId, isVisible) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (isVisible) {
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+    el.innerHTML = ''; // अनधिकृत तत्वों का कोड भी खाली कर देना
+  }
+}
