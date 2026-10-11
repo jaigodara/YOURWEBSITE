@@ -1,5 +1,12 @@
 <!DOCTYPE html>
 <html lang="hi" class="scroll-smooth">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#143622">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
