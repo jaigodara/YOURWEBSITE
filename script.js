@@ -1,6 +1,12 @@
 /* ==========================================================================
-   Bishnoi Community Portal - Application Logic Engine (script.js)
-   Includes Live Maintenance & Section Lock Engine (Phone / Web / Both)
+   Bishnoi Community Portal - Master Application Engine (script.js)
+   Includes:
+   - Live Maintenance & Section Lock (Phone / Web / Both)
+   - Text-Only Samvad Manch (Replies, Reactions, Pin, Topic Filter, Delete Control)
+   - User & Owner Profile System (Edit Name/Location, Personal Stats)
+   - Phone + Google Account Verification (With Email in 7-Day PDF Report)
+   - In-Built App & Website PDF Reader Modal (Read without downloading)
+   - Daily Suvichar Status Image Card Generator
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -23,7 +29,6 @@ const OWNER_PASS = "bishnoi29";
 // 3. APPLICATION STATE
 let currentUser = JSON.parse(localStorage.getItem('bishnoi_secure_user') || 'null');
 let isRegisterMode = false;
-let selectedPostBase64 = null;
 let quizList = [];
 let currentQ = 0;
 let qScore = 0;
@@ -35,17 +40,16 @@ let amavasyaTargetDate = null;
 let amavasyaTimerInterval = null;
 let currentActiveTab = 'home';
 
+// Samvad Manch Chat State
+let allChatPosts = [];
+let activeReplyObj = null;
+
 // Maintenance State
 let maintenanceConfig = {
-  globalMode: 'off', // 'off' | 'phone_only' | 'web_only' | 'both'
+  globalMode: 'off',
   message: 'हम आपके अनुभव को बेहतर बनाने के लिए ऐप को अपडेट कर रहे हैं। कृपया कुछ समय बाद पुनः प्रयास करें।',
   sections: {
-    mala: 'off',
-    niyams: 'off',
-    library: 'off',
-    community: 'off',
-    quiz: 'off',
-    history: 'off'
+    mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off'
   }
 };
 
@@ -58,7 +62,7 @@ let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0')
 const NIYAMS_DATA = [
   { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक स्वच्छता और विश्राम रखें।" },
   { num: 2, title: "ऋतुवंती पृथक्करण", rule: "पांच दिन रजस्वला पृथक्करण", desc: "माहवारी के दौरान ५ दिन का गृह-कार्य से विश्राम।" },
-  { num: 3, title: "प्रातः स्नान", rule: "सेरो करो अchnान", desc: "प्रतिदिन प्रातःकाल स्नान कर पवित्र रहें।" },
+  { num: 3, title: "प्रातः स्नान", rule: "सेरो करो अस्नान", desc: "प्रतिदिन प्रातःकाल स्नान कर पवित्र रहें।" },
   { num: 4, title: "शील व संतोष", rule: "शील संतोष सूच राखणा", desc: "सदाचारी, शांत और संतोषी स्वभाव रखें।" },
   { num: 5, title: "द्विकाल संध्या", rule: "द्वादश कर्म सांध", desc: "सुबह-शाम दोनों समय संध्या और ईश्वर स्मरण करें।" },
   { num: 6, title: "सांझ आरती", rule: "सांझ आरती गुण गावै", desc: "संध्या समय आरती व भगवान के गुणों का गायन करें।" },
@@ -97,9 +101,7 @@ function isPhoneOrInstalledApp() {
 
 function shouldLockForCurrentDevice(mode) {
   if (!mode || mode === 'off') return false;
-  // Owner never gets locked out
   if (currentUser && currentUser.isOwner) return false;
-
   const onPhone = isPhoneOrInstalledApp();
   if (mode === 'both') return true;
   if (mode === 'phone_only' && onPhone) return true;
@@ -107,8 +109,8 @@ function shouldLockForCurrentDevice(mode) {
   return false;
 }
 
-function injectMaintenanceUI() {
-  // 1. Global Full-Screen Maintenance Overlay
+function injectDynamicModalsAndUI() {
+  // 1. Global Maintenance Overlay
   if (!document.getElementById('globalMaintenanceOverlay')) {
     const overlay = document.createElement('div');
     overlay.id = 'globalMaintenanceOverlay';
@@ -149,13 +151,136 @@ function injectMaintenanceUI() {
     const mainEl = document.querySelector('main') || document.body;
     mainEl.appendChild(secCard);
   }
+
+  // 3. In-Built PDF Viewer Modal (Read inside App/Website without downloading)
+  if (!document.getElementById('inbuiltPdfModal')) {
+    const pdfModal = document.createElement('div');
+    pdfModal.id = 'inbuiltPdfModal';
+    pdfModal.className = 'fixed inset-0 z-[9990] bg-black/80 hidden flex-col';
+    pdfModal.innerHTML = `
+      <div class="bg-[#143622] text-white px-4 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center gap-2 truncate">
+          <span>📖</span>
+          <h3 id="pdfViewerTitle" class="font-yatra text-sm sm:text-base text-amber-300 truncate">साहित्य पाठक (PDF Reader)</h3>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a id="pdfModalDownloadBtn" href="#" download class="px-3 py-1 bg-amber-500 text-stone-950 rounded-lg text-xs font-bold hover:bg-amber-400">
+            📥 डाउनलोड
+          </a>
+          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
+            बंद करें ✕
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 bg-stone-900 relative">
+        <iframe id="pdfViewerFrame" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
+      </div>
+    `;
+    document.body.appendChild(pdfModal);
+  }
+
+  // 4. User & Owner Profile Modal
+  if (!document.getElementById('userProfileModal')) {
+    const profModal = document.createElement('div');
+    profModal.id = 'userProfileModal';
+    profModal.className = 'fixed inset-0 z-[9980] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4';
+    profModal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 border border-stone-200 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+          <div>
+            <h3 class="font-yatra text-lg text-forest">👤 मेरी प्रोफ़ाइल (My Profile)</h3>
+            <p id="profileRoleBadge" class="text-[11px] font-bold text-stone-500"></p>
+          </div>
+          <button onclick="closeProfileModal()" class="text-stone-400 hover:text-stone-700 text-lg font-bold">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="font-bold text-stone-700 block mb-1">आपका नाम (Full Name):</label>
+            <input type="text" id="profEditName" class="w-full p-2.5 rounded-lg border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
+          </div>
+          <div>
+            <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला (Village / District):</label>
+            <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200">
+              <span class="text-[10px] text-stone-400 block">पंजीकृत मोबाइल नंबर</span>
+              <span id="profPhoneDisplay" class="font-bold text-stone-800"></span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200">
+              <span class="text-[10px] text-stone-400 block">Google ईमेल सत्यापन</span>
+              <span id="profEmailDisplay" class="font-bold text-emerald-700 truncate block"></span>
+            </div>
+          </div>
+
+          <!-- Google Link Button inside Profile -->
+          <div id="profGoogleLinkWrap" class="pt-1">
+            <button type="button" onclick="linkGoogleAccount()" class="w-full py-2 px-3 border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold flex items-center justify-center gap-2 text-stone-700 transition">
+              <span>🌐</span> <span id="profGoogleBtnText">Google अकाउंट जोड़ें / सत्यापित करें</span>
+            </button>
+          </div>
+
+          <!-- Personal Activity Stats -->
+          <div class="grid grid-cols-3 gap-2 pt-2 text-center">
+            <div class="p-2 rounded-lg bg-amber-50 border border-amber-200">
+              <div id="statMalaTotal" class="font-bold text-sm text-forest">0</div>
+              <div class="text-[10px] text-stone-500">कुल मंत्र जप</div>
+            </div>
+            <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+              <div id="statMalaLaps" class="font-bold text-sm text-forest">0</div>
+              <div class="text-[10px] text-stone-500">पूर्ण माला</div>
+            </div>
+            <div class="p-2 rounded-lg bg-stone-100 border border-stone-200">
+              <div id="statChatCount" class="font-bold text-sm text-forest">0</div>
+              <div class="text-[10px] text-stone-500">संवाद संदेश</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-stone-100">
+          <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-lg shadow transition">
+            💾 प्रोफ़ाइल सहेजें (Save Changes)
+          </button>
+          <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-lg">
+            बंद करें
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(profModal);
+  }
+
+  // 5. Inject Google Sign-In Button into existing Auth Modal if not present
+  const authForm = document.querySelector('#authModal form');
+  if (authForm && !document.getElementById('googleAuthModalBtn')) {
+    const googleDiv = document.createElement('div');
+    googleDiv.className = 'pt-2 border-t border-stone-200 space-y-2';
+    googleDiv.innerHTML = `
+      <button id="googleAuthModalBtn" type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition">
+        <span>🌐</span> <span>Google से लॉगिन / ईमेल सत्यापित करें</span>
+      </button>
+    `;
+    authForm.appendChild(googleDiv);
+  }
+
+  // 6. Inject "Status Card Download" Button next to Banner Share if not present
+  const bannerTextEl = document.getElementById('dailyBannerText');
+  if (bannerTextEl && bannerTextEl.parentElement && !document.getElementById('statusCardGenBtn')) {
+    const btn = document.createElement('button');
+    btn.id = 'statusCardGenBtn';
+    btn.onclick = downloadSuvicharStatusCard;
+    btn.className = 'mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 text-[11px] font-semibold border border-amber-300/30 transition';
+    btn.innerHTML = '🖼️ स्टेटस कार्ड डाउनलोड करें';
+    bannerTextEl.parentElement.appendChild(btn);
+  }
 }
 
 function ownerEmergencyUnlock() {
   const phone = prompt("व्यवस्थापक कोड (Owner Phone):");
   const pass = prompt("पासवर्ड (Owner Password):");
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
-    currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true };
+    currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true, location: "मुख्यालय" };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     applyMaintenanceRules();
@@ -167,7 +292,6 @@ function ownerEmergencyUnlock() {
 }
 
 function listenMaintenanceConfig() {
-  injectMaintenanceUI();
   db.collection('settings').doc('maintenance').onSnapshot(doc => {
     if (doc.exists) {
       const data = doc.data();
@@ -177,7 +301,6 @@ function listenMaintenanceConfig() {
         mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off'
       }, data.sections || {});
 
-      // Sync Admin UI Dropdowns if present
       const globalSel = document.getElementById('adminGlobalMaintMode');
       const msgInp = document.getElementById('adminMaintMessage');
       if (globalSel) globalSel.value = maintenanceConfig.globalMode;
@@ -196,7 +319,6 @@ function applyMaintenanceRules() {
   const overlay = document.getElementById('globalMaintenanceOverlay');
   if (!overlay) return;
 
-  // Check Global Lock
   if (shouldLockForCurrentDevice(maintenanceConfig.globalMode)) {
     document.getElementById('globalMaintMsgText').innerText = maintenanceConfig.message;
     overlay.classList.remove('hidden');
@@ -206,8 +328,6 @@ function applyMaintenanceRules() {
     overlay.classList.add('hidden');
     overlay.classList.remove('flex');
   }
-
-  // Re-verify active tab lock
   enforceTabMaintenance(currentActiveTab);
 }
 
@@ -239,12 +359,9 @@ async function saveMaintenanceSettings() {
   });
 
   await db.collection('settings').doc('maintenance').set({
-    globalMode,
-    message,
-    sections,
+    globalMode, message, sections,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-
   showToast("🛠️ मेंटेनेंस सेटिंग्स लाइव लागू हो गईं!");
 }
 
@@ -276,12 +393,15 @@ function closeConfirmModal(result) {
 
 // 6. APPLICATION INITIALIZATION
 window.addEventListener('DOMContentLoaded', () => {
+  injectDynamicModalsAndUI();
+  syncOwnerCustomName();
   updateNavAuth();
   listenMaintenanceConfig();
   renderNiyams(NIYAMS_DATA);
   listenBanner();
   listenPdfs();
   listenPosts();
+  listenPinnedChat();
   loadQuiz();
   listenTreeCounter();
   listenWinners();
@@ -292,7 +412,23 @@ window.addEventListener('DOMContentLoaded', () => {
   renderMalaCounters();
 });
 
-// 7. NAVIGATION CONTROLS (WITH SECTION LOCK CHECK)
+async function syncOwnerCustomName() {
+  if (currentUser && currentUser.isOwner) {
+    try {
+      const doc = await db.collection('users').doc(OWNER_PHONE).get();
+      if (doc.exists) {
+        const d = doc.data();
+        currentUser.name = d.name || currentUser.name;
+        currentUser.location = d.location || '';
+        currentUser.email = d.email || '';
+        localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+        updateNavAuth();
+      }
+    } catch (e) {}
+  }
+}
+
+// 7. NAVIGATION CONTROLS
 function switchTab(id) {
   currentActiveTab = id;
   ['home', 'mala', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
@@ -333,7 +469,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 8. SECURE AUTHENTICATION ENGINE
+// 8. AUTHENTICATION (PHONE + GOOGLE VERIFICATION) & USER PROFILE ENGINE
 function openAuthModal() {
   document.getElementById('authModal').classList.remove('hidden');
 }
@@ -358,28 +494,38 @@ async function handleAuthSubmit(e) {
   const pass = document.getElementById('loginPass').value.trim();
   const nameInput = document.getElementById('loginName').value.trim();
 
-  // Owner Login
+  // Owner Login (9898)
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
-    currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true };
+    let ownerName = "व्यवस्थापक (Owner)";
+    let ownerLoc = "";
+    let ownerEmail = "";
+    try {
+      const oDoc = await db.collection('users').doc(OWNER_PHONE).get();
+      if (oDoc.exists) {
+        ownerName = oDoc.data().name || ownerName;
+        ownerLoc = oDoc.data().location || "";
+        ownerEmail = oDoc.data().email || "";
+      }
+    } catch (e) {}
+
+    currentUser = { name: ownerName, phone: OWNER_PHONE, isOwner: true, location: ownerLoc, email: ownerEmail };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     applyMaintenanceRules();
     closeAuthModal();
-    showToast("व्यवस्थापक के रूप में स्वागत है!");
+    showToast(`स्वागत है, ${currentUser.name}!`);
     switchTab('admin');
     return;
   }
 
-  // Strict 10-Digit Mobile Check
+  // Strict 10-Digit Mobile Validation
   if (!/^[6-9]\d{9}$/.test(phone)) {
     return showToast("कृपया सही १० अंकों का भारतीय मोबाइल नंबर दर्ज करें!");
   }
 
   // Registration Mode
   if (isRegisterMode) {
-    if (!nameInput) {
-      return showToast("कृपया अपना पूरा नाम दर्ज करें!");
-    }
+    if (!nameInput) return showToast("कृपया अपना पूरा नाम दर्ज करें!");
     try {
       const userDoc = await db.collection('users').doc(phone).get();
       if (userDoc.exists) {
@@ -389,11 +535,13 @@ async function handleAuthSubmit(e) {
         name: nameInput,
         phone: phone,
         pass: pass,
+        email: "",
+        location: "",
         registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      currentUser = { name: nameInput, phone: phone, isOwner: false };
+      currentUser = { name: nameInput, phone: phone, isOwner: false, email: "", location: "" };
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
       updateNavAuth();
       closeAuthModal();
@@ -420,13 +568,161 @@ async function handleAuthSubmit(e) {
       lastLogin: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    currentUser = { name: userData.name || "भक्त", phone: phone, isOwner: false };
+    currentUser = {
+      name: userData.name || "भक्त",
+      phone: phone,
+      isOwner: false,
+      email: userData.email || "",
+      location: userData.location || ""
+    };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     closeAuthModal();
     showToast(`स्वागत है, ${currentUser.name}!`);
   } catch (err) {
     showToast("लॉगिन त्रुटि: " + err.message);
+  }
+}
+
+// Google Verification & Login Integration
+async function signInOrVerifyWithGoogle() {
+  if (!firebase.auth) {
+    return showToast("कृपया index.html में firebase-auth-compat.js स्क्रिप्ट जोड़ें!");
+  }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await firebase.auth().signInWithPopup(provider);
+    const gUser = result.user;
+    if (!gUser) return;
+
+    // Ask for 10-digit phone number to keep phone database consistent
+    let phone = document.getElementById('loginPhone')?.value.trim() || '';
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      phone = prompt(`Google खाता (${gUser.email}) सत्यापित हुआ!\nकृपया अपना १० अंकों का मोबाइल नंबर दर्ज करें:`, "");
+      if (!phone || !/^[6-9]\d{9}$/.test(phone.trim())) {
+        return showToast("सही १० अंकों का मोबाइल नंबर आवश्यक है!");
+      }
+      phone = phone.trim();
+    }
+
+    const userRef = db.collection('users').doc(phone);
+    const doc = await userRef.get();
+
+    const finalName = doc.exists && doc.data().name ? doc.data().name : (gUser.displayName || "सदस्य");
+    const finalLoc = doc.exists && doc.data().location ? doc.data().location : "";
+
+    await userRef.set({
+      name: finalName,
+      phone: phone,
+      email: gUser.email || "",
+      googleVerified: true,
+      location: finalLoc,
+      registeredAt: doc.exists && doc.data().registeredAt ? doc.data().registeredAt : firebase.firestore.FieldValue.serverTimestamp(),
+      lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    currentUser = {
+      name: finalName,
+      phone: phone,
+      email: gUser.email || "",
+      location: finalLoc,
+      isOwner: (phone === OWNER_PHONE)
+    };
+    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+    updateNavAuth();
+    closeAuthModal();
+    showToast(`✅ Google सत्यापन सफल! स्वागत है, ${currentUser.name}`);
+  } catch (err) {
+    showToast("Google सत्यापन त्रुटि: " + err.message);
+  }
+}
+
+async function linkGoogleAccount() {
+  if (!currentUser) return;
+  if (!firebase.auth) {
+    return showToast("कृपया index.html में firebase-auth-compat.js जोड़ें!");
+  }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await firebase.auth().signInWithPopup(provider);
+    const gUser = result.user;
+    if (gUser && gUser.email) {
+      currentUser.email = gUser.email;
+      localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+      await db.collection('users').doc(currentUser.phone).set({
+        email: gUser.email,
+        googleVerified: true
+      }, { merge: true });
+      openProfileModal();
+      showToast(`✅ Google ईमेल (${gUser.email}) सफलतापूर्वक जुड़ गया!`);
+    }
+  } catch (err) {
+    showToast("Google खाता जोड़ने में त्रुटि: " + err.message);
+  }
+}
+
+// User & Owner Profile Modal Functions
+function openProfileModal() {
+  if (!currentUser) return openAuthModal();
+  const modal = document.getElementById('userProfileModal');
+  if (!modal) return;
+
+  document.getElementById('profEditName').value = currentUser.name || '';
+  document.getElementById('profEditLocation').value = currentUser.location || '';
+  document.getElementById('profPhoneDisplay').innerText = currentUser.phone || '';
+  document.getElementById('profEmailDisplay').innerText = currentUser.email ? `✓ ${currentUser.email}` : 'जुड़ा नहीं है (Not Linked)';
+  document.getElementById('profGoogleBtnText').innerText = currentUser.email ? 'Google अकाउंट बदलें' : 'Google अकाउंट जोड़ें / सत्यापित करें';
+
+  const roleBadge = document.getElementById('profileRoleBadge');
+  if (currentUser.isOwner) {
+    roleBadge.innerText = '🛡️ मुख्य व्यवस्थापक (Owner)';
+    roleBadge.className = 'text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded inline-block mt-0.5';
+  } else {
+    roleBadge.innerText = '👤 पंजीकृत सदस्य (Member)';
+    roleBadge.className = 'text-[11px] font-semibold text-stone-500';
+  }
+
+  // Personal Stats
+  document.getElementById('statMalaTotal').innerText = malaTotalCount;
+  document.getElementById('statMalaLaps').innerText = malaLapsCount;
+  const myPostsCount = allChatPosts.filter(p => p.phone === currentUser.phone).length;
+  document.getElementById('statChatCount').innerText = myPostsCount;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('userProfileModal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function saveUserProfileChanges() {
+  if (!currentUser) return;
+  const newName = document.getElementById('profEditName').value.trim();
+  const newLoc = document.getElementById('profEditLocation').value.trim();
+
+  if (!newName) return showToast("कृपया नाम खाली न छोड़ें!");
+
+  currentUser.name = newName;
+  currentUser.location = newLoc;
+  localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+
+  try {
+    await db.collection('users').doc(currentUser.phone).set({
+      name: newName,
+      location: newLoc,
+      phone: currentUser.phone,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    updateNavAuth();
+    closeProfileModal();
+    showToast("✅ आपकी प्रोफ़ाइल और नाम सफलतापूर्वक अपडेट हो गए!");
+  } catch (err) {
+    showToast("प्रोफ़ाइल सहेजने में त्रुटि: " + err.message);
   }
 }
 
@@ -448,9 +744,11 @@ function updateNavAuth() {
 
   if (currentUser) {
     container.innerHTML = `
-      <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-stone-100 border border-stone-200">
-        ${currentUser.isOwner ? '🛡️ व्यवस्थापक' : '👤 ' + currentUser.name}
-      </span>
+      <button onclick="openProfileModal()" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 transition flex items-center gap-1 shadow-sm" title="प्रोफ़ाइल व नाम बदलें">
+        <span>${currentUser.isOwner ? '🛡️' : '👤'}</span>
+        <span class="max-w-[110px] truncate">${currentUser.name}</span>
+        <span class="text-[10px] text-stone-400">✎</span>
+      </button>
       <button onclick="logoutUser()" class="text-xs text-stone-500 hover:text-red-700 font-semibold px-1 transition">लॉगआउट</button>
     `;
     if (postPrompt) postPrompt.classList.add('hidden');
@@ -484,9 +782,7 @@ function updateMantraName() {
 
 function tapMalaBead() {
   const isVibe = document.getElementById('vibrationToggle').checked;
-  if (isVibe && navigator.vibrate) {
-    navigator.vibrate(35);
-  }
+  if (isVibe && navigator.vibrate) navigator.vibrate(35);
 
   malaBeadCount++;
   malaTotalCount++;
@@ -494,9 +790,7 @@ function tapMalaBead() {
   if (malaBeadCount >= 108) {
     malaBeadCount = 0;
     malaLapsCount++;
-    if (isVibe && navigator.vibrate) {
-      navigator.vibrate([80, 50, 100]);
-    }
+    if (isVibe && navigator.vibrate) navigator.vibrate([80, 50, 100]);
     showToast("ॐ शांति! एक संपूर्ण माला (१०८ जप) पूर्ण हुई। साधुवाद!");
     confetti({ particleCount: 35, spread: 50 });
   }
@@ -640,7 +934,7 @@ function resetGeminiKey() {
   const currentKey = localStorage.getItem('gemini_user_api_key') || '';
   const newKey = prompt("अपनी नई Gemini API Key यहाँ पेस्ट करें (या हटाने के लिए खाली छोड़कर OK दबाएं):", currentKey);
   
-  if (newKey === null) return; // User clicked Cancel
+  if (newKey === null) return;
 
   if (newKey.trim() !== "") {
     localStorage.setItem('gemini_user_api_key', newKey.trim());
@@ -651,38 +945,31 @@ function resetGeminiKey() {
   }
 }
 
-// Aliases so your HTML button works no matter what onclick name it uses
 const changeApiKey = resetGeminiKey;
 const updateApiKey = resetGeminiKey;
-const changeGeminiKey = resetGeminiKey; 
+const changeGeminiKey = resetGeminiKey;
+const resetOpenAiKey = resetGeminiKey;
+
 async function callGemini(promptText) {
   const apiKey = getGeminiKey();
-  if (!apiKey) {
-    throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
-  }
+  if (!apiKey) throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const payload = {
-    contents: [{ parts: [{ text: promptText }] }]
-  };
+  const payload = { contents: [{ parts: [{ text: promptText }] }] };
 
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
 
   const data = await response.json();
-  if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+  if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
     return data.candidates[0].content.parts[0].text;
   }
-  
   if (response.status === 400 || response.status === 401 || response.status === 403) {
     localStorage.removeItem('gemini_user_api_key');
   }
-
   throw new Error(data.error ? data.error.message : "Gemini AI से प्रतिक्रिया प्राप्त नहीं हुई");
 }
 
@@ -732,7 +1019,7 @@ async function generateAiDailySandesh() {
   }
 }
 
-// 13. DIRECT PDF EXPORTS (jspdf INTEGRATION)
+// 13. DIRECT PDF EXPORTS (WITH GOOGLE EMAIL IN 7-DAY REPORT)
 async function downloadQuizResultsPdf() {
   showToast("Quiz परिणाम PDF तैयार हो रहा है...");
   const snap = await db.collection('quizAttempts').get();
@@ -778,7 +1065,7 @@ async function downloadQuizResultsPdf() {
 }
 
 async function download7DaysUsersPdf() {
-  showToast("७-दिवसीय सदस्य PDF तैयार हो रहा है...");
+  showToast("७-दिवसीय सदस्य PDF (ईमेल सहित) तैयार हो रहा है...");
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -793,6 +1080,8 @@ async function download7DaysUsersPdf() {
       rows.push([
         u.name || 'User',
         u.phone || 'N/A',
+        u.email || 'Not Linked',
+        u.location || '-',
         regDate.toLocaleDateString('en-GB')
       ]);
     }
@@ -803,26 +1092,26 @@ async function download7DaysUsersPdf() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setTextColor(20, 54, 34);
-  doc.text("Bishnoi Community Portal - New Registered Users (7 Days)", 14, 18);
+  doc.text("Bishnoi Portal - New Registered Users (Last 7 Days)", 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, 14, 25);
 
   doc.autoTable({
     startY: 30,
-    head: [['Full Name', 'Mobile Number', 'Registration Date']],
+    head: [['Full Name', 'Mobile Number', 'Verified Email ID', 'Location', 'Date']],
     body: rows,
     theme: 'grid',
     headStyles: { fillColor: [179, 74, 27] },
-    styles: { fontSize: 9 }
+    styles: { fontSize: 8.5 }
   });
 
   doc.save("Bishnoi_Registered_Users_7Days.pdf");
 }
 
-// 14. REDESIGNED LOGICAL CERTIFICATE
+// 14. CERTIFICATE & DAILY SUVICHAR STATUS CARD GENERATOR
 function generateCertificate(name, score) {
   const canvas = document.getElementById('certCanvas');
   const ctx = canvas.getContext('2d');
@@ -874,6 +1163,72 @@ function generateCertificate(name, score) {
   link.href = canvas.toDataURL();
   link.click();
   showToast("सम्मान पत्र डाउनलोड हो गया!");
+}
+
+function downloadSuvicharStatusCard() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+
+  // Rich Forest Gradient Background
+  const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+  grad.addColorStop(0, '#143622');
+  grad.addColorStop(1, '#091c11');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  // Gold Border
+  ctx.strokeStyle = '#F59E0B';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(45, 45, 990, 990);
+
+  // Header
+  ctx.fillStyle = '#FDE68A';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 46px sans-serif';
+  ctx.fillText('🌿 विश्नोई समाज डिजिटल मंच 🌿', 540, 160);
+
+  ctx.fillStyle = '#D6D3D1';
+  ctx.font = '28px sans-serif';
+  ctx.fillText('आज का पावन संदेश एवं सुविचार', 540, 220);
+
+  // Wrap Quote Text
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 42px sans-serif';
+  const words = currentBannerText.split(' ');
+  let line = '';
+  let lines = [];
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + ' ';
+    if (ctx.measureText(testLine).width > 820 && i > 0) {
+      lines.push(line);
+      line = words[i] + ' ';
+    } else {
+      line = testLine;
+    }
+  }
+  lines.push(line);
+
+  let startY = 500 - ((lines.length - 1) * 35);
+  lines.forEach((l, idx) => {
+    ctx.fillText(l.trim(), 540, startY + (idx * 70));
+  });
+
+  // Footer
+  ctx.fillStyle = '#F59E0B';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText('गुरु जम्भेश्वर भगवान की जय • २९ नियम धर्म संहिता', 540, 900);
+
+  ctx.fillStyle = '#A8A29E';
+  ctx.font = '24px sans-serif';
+  ctx.fillText('bishnoism.vercel.app', 540, 960);
+
+  const link = document.createElement('a');
+  link.download = `Bishnoi_Suvichar_${new Date().toLocaleDateString('en-GB')}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast("🖼️ WhatsApp स्टेटस कार्ड डाउनलोड हो गया!");
 }
 
 // 15. QUIZ ARENA FLOW
@@ -1085,107 +1440,215 @@ async function saveDailyWinners() {
   showToast("शीर्ष विजेता सूची अपडेट हो गई!");
 }
 
-// 18. COMMUNITY FORUM (संवाद मंच)
+// 18. UPGRADED TEXT-ONLY SAMVAD MANCH (COMMUNITY CHAT)
+const BAD_WORDS_LIST = ['गाली', 'मूर्ख', 'पागल', 'अभद्र', 'idiot', 'stupid', 'abuse'];
+
+function containsBadWords(text) {
+  const lower = text.toLowerCase();
+  return BAD_WORDS_LIST.some(w => lower.includes(w));
+}
+
 function updateCharCount() {
-  const len = document.getElementById('postText').value.length;
-  document.getElementById('charCountDisplay').innerText = `${len} / 300`;
+  const el = document.getElementById('postText');
+  const disp = document.getElementById('charCountDisplay');
+  if (el && disp) disp.innerText = `${el.value.length} / 300`;
 }
 
-function previewPostImg(e) {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxW = 500;
-        const scale = maxW / img.width;
-        canvas.width = (img.width > maxW) ? maxW : img.width;
-        canvas.height = (img.width > maxW) ? (img.height * scale) : img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        selectedPostBase64 = canvas.toDataURL('image/jpeg', 0.6);
-        document.getElementById('postImgPreview').src = selectedPostBase64;
-        document.getElementById('postImgPreviewWrap').classList.remove('hidden');
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
+function setChatReply(id, author, snippet) {
+  activeReplyObj = { id, author, snippet: snippet.substring(0, 70) };
+  const bar = document.getElementById('replyPreviewBar');
+  if (bar) {
+    document.getElementById('replyToAuthor').innerText = author;
+    document.getElementById('replyToText').innerText = activeReplyObj.snippet;
+    bar.classList.remove('hidden');
   }
+  document.getElementById('postText')?.focus();
 }
 
-function clearPostImg() {
-  selectedPostBase64 = null;
-  document.getElementById('postPhoto').value = '';
-  document.getElementById('postImgPreviewWrap').classList.add('hidden');
+function cancelChatReply() {
+  activeReplyObj = null;
+  document.getElementById('replyPreviewBar')?.classList.add('hidden');
 }
 
 async function submitChaupalPost() {
   if (!currentUser) return openAuthModal();
   const now = Date.now();
-  if (now - lastPostTime < 60000) {
-    return showToast("कृपया अगले संदेश के लिए १ मिनट प्रतीक्षा करें (Anti-Spam)");
+  if (!currentUser.isOwner && now - lastPostTime < 20000) {
+    return showToast("कृपया अगले संदेश के लिए २० सेकंड प्रतीक्षा करें।");
   }
 
-  const txt = document.getElementById('postText').value.trim();
-  if (!txt && !selectedPostBase64) return showToast('कृपया टेक्स्ट या चित्र दर्ज करें');
+  const txtEl = document.getElementById('postText');
+  const txt = txtEl.value.trim();
+  if (!txt) return showToast('कृपया अपना संदेश लिखें!');
 
+  if (containsBadWords(txt)) {
+    return showToast('⚠️ कृपया संवाद मंच की गरिमा बनाए रखें और सभ्य भाषा का प्रयोग करें।');
+  }
+
+  const topic = document.getElementById('postTopicSelect')?.value || 'सामान्य चर्चा';
   const btn = document.getElementById('postSubmitBtn');
   btn.disabled = true;
 
   try {
     await db.collection('posts').add({
       author: currentUser.name,
-      phone: currentUser.phone || 'Devotee',
+      phone: currentUser.phone || 'Member',
+      isOwner: Boolean(currentUser.isOwner),
+      location: currentUser.location || '',
+      topic: topic,
       content: txt,
-      image: selectedPostBase64 || null,
+      replyTo: activeReplyObj || null,
+      reactions: { pranam: 0, nature: 0, heart: 0 },
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
     lastPostTime = now;
-    document.getElementById('postText').value = '';
+    txtEl.value = '';
     updateCharCount();
-    clearPostImg();
-    showToast('संवाद मंच पर संदेश प्रकाशित हुआ!');
-  } catch(e) {
+    cancelChatReply();
+    showToast('संदेश प्रकाशित हुआ!');
+  } catch (e) {
     showToast('संदेश भेजने में त्रुटि: ' + e.message);
   } finally {
     btn.disabled = false;
   }
 }
 
-function listenPosts() {
-  db.collection('posts').orderBy('createdAt', 'desc').limit(25).onSnapshot(snap => {
-    const feed = document.getElementById('communityFeed');
-    feed.innerHTML = '';
-    if (snap.empty) {
-      feed.innerHTML = `<div class="text-center py-6 text-xs text-stone-500">संवाद मंच पर अभी कोई चर्चा नहीं है। पहला संदेश लिखें!</div>`;
-      return;
-    }
+function listenPinnedChat() {
+  db.collection('settings').doc('pinnedChat').onSnapshot(doc => {
+    const banner = document.getElementById('pinnedChatBanner');
+    const txt = document.getElementById('pinnedChatText');
+    const unpinBtn = document.getElementById('unpinChatBtn');
+    if (!banner || !txt) return;
 
-    snap.forEach(doc => {
-      const p = doc.data();
-      const card = document.createElement('div');
-      card.className = "bg-white p-4 rounded-xl border border-stone-200 space-y-2";
-      card.innerHTML = `
-        <div class="flex justify-between items-center text-xs">
-          <span class="font-bold text-forest">👤 ${p.author}</span>
-          <div class="flex items-center gap-2">
-            <button onclick="sharePostWhatsApp('${p.author}', '${p.content}')" class="text-emerald-700 text-[11px] font-semibold flex items-center gap-1">Share 📲</button>
-            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePost('${doc.id}')" class="text-red-500 text-[11px]">Delete</button>` : ''}
-          </div>
-        </div>
-        <p class="text-xs text-stone-700 whitespace-pre-wrap leading-relaxed">${p.content}</p>
-        ${p.image ? `<img src="${p.image}" class="max-h-72 rounded-lg border border-stone-100 object-cover" alt="Post Photo">` : ''}
-      `;
-      feed.appendChild(card);
+    if (doc.exists && doc.data().content) {
+      const d = doc.data();
+      txt.innerText = `${d.author}: "${d.content}"`;
+      banner.classList.remove('hidden');
+      if (unpinBtn) {
+        unpinBtn.classList.toggle('hidden', !(currentUser && currentUser.isOwner));
+      }
+    } else {
+      banner.classList.add('hidden');
+    }
+  });
+}
+
+async function pinChatMessage(author, content) {
+  if (!currentUser || !currentUser.isOwner) return;
+  await db.collection('settings').doc('pinnedChat').set({
+    author, content, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  showToast("📌 संदेश शीर्ष पर पिन कर दिया गया!");
+}
+
+async function unpinChatMessage() {
+  if (!currentUser || !currentUser.isOwner) return;
+  await db.collection('settings').doc('pinnedChat').delete();
+  showToast("पिन किया गया संदेश हटा दिया गया।");
+}
+
+async function reactToPost(postId, type) {
+  const storageKey = `reacted_${postId}_${type}`;
+  if (localStorage.getItem(storageKey)) return showToast("आप पहले ही प्रतिक्रिया दे चुके हैं!");
+  localStorage.setItem(storageKey, '1');
+
+  const fieldPath = `reactions.${type}`;
+  try {
+    await db.collection('posts').doc(postId).update({
+      [fieldPath]: firebase.firestore.FieldValue.increment(1)
     });
+  } catch (e) {}
+}
+
+function listenPosts() {
+  db.collection('posts').orderBy('createdAt', 'desc').limit(40).onSnapshot(snap => {
+    allChatPosts = [];
+    snap.forEach(doc => {
+      allChatPosts.push({ id: doc.id, ...doc.data() });
+    });
+    renderFilteredChat();
+  });
+}
+
+function renderFilteredChat() {
+  const feed = document.getElementById('communityFeed');
+  if (!feed) return;
+  const selectedTopic = document.getElementById('chatTopicFilter')?.value || 'all';
+
+  const filtered = selectedTopic === 'all'
+    ? allChatPosts
+    : allChatPosts.filter(p => (p.topic || 'सामान्य चर्चा') === selectedTopic);
+
+  feed.innerHTML = '';
+  if (filtered.length === 0) {
+    feed.innerHTML = `<div class="text-center py-6 text-xs text-stone-500">इस विषय पर अभी कोई संदेश नहीं है। पहला संदेश लिखें!</div>`;
+    return;
+  }
+
+  filtered.forEach(p => {
+    const isMyPost = currentUser && (p.phone === currentUser.phone);
+    const canDelete = Boolean(isMyPost || (currentUser && currentUser.isOwner));
+    const timeStr = p.createdAt ? p.createdAt.toDate().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }) : 'अभी';
+    const dateStr = p.createdAt ? p.createdAt.toDate().toLocaleDateString('hi-IN', { day: 'numeric', month: 'short' }) : '';
+
+    const safeAuthor = (p.author || 'सदस्य').replace(/'/g, "\\'");
+    const safeContent = (p.content || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+
+    const pranamCnt = p.reactions?.pranam || 0;
+    const natureCnt = p.reactions?.nature || 0;
+    const heartCnt = p.reactions?.heart || 0;
+
+    const card = document.createElement('div');
+    card.className = `p-3.5 rounded-xl border ${p.isOwner ? 'bg-amber-50/70 border-amber-300' : (isMyPost ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-stone-200')} space-y-2 shadow-sm`;
+    card.innerHTML = `
+      <div class="flex flex-wrap justify-between items-center gap-1 text-xs">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="font-bold text-forest">${p.isOwner ? '🛡️' : '👤'} ${p.author}</span>
+          ${p.isOwner ? `<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">मुख्य व्यवस्थापक</span>` : ''}
+          ${p.location ? `<span class="text-[10px] text-stone-400">• ${p.location}</span>` : ''}
+          <span class="px-2 py-0.5 text-[10px] bg-stone-100 text-stone-600 rounded-full border border-stone-200">${p.topic || 'सामान्य चर्चा'}</span>
+        </div>
+        <span class="text-[10px] text-stone-400">${dateStr} ${timeStr}</span>
+      </div>
+
+      ${p.replyTo ? `
+        <div class="p-2 rounded bg-stone-100 border-l-2 border-forest text-[11px] text-stone-600">
+          <span class="font-bold text-forest">↩️ ${p.replyTo.author}:</span>${p.replyTo.snippet}
+        </div>
+      ` : ''}
+
+      <p class="text-xs text-stone-800 whitespace-pre-wrap leading-relaxed">${p.content}</p>
+
+      <div class="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+        <!-- Quick Reactions -->
+        <div class="flex items-center gap-1.5">
+          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 border border-stone-200 transition">
+            🙏 ${pranamCnt || ''}
+          </button>
+          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-emerald-100 border border-stone-200 transition">
+            🌿 ${natureCnt || ''}
+          </button>
+          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-rose-100 border border-stone-200 transition">
+            ❤️ ${heartCnt || ''}
+          </button>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex items-center gap-2.5">
+          <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="text-forest font-semibold hover:underline">↩️ उत्तर दें</button>
+          <button onclick="sharePostWhatsApp('${safeAuthor}', '${safeContent}')" class="text-emerald-700 font-semibold hover:underline">Share 📲</button>
+          ${currentUser && currentUser.isOwner ? `<button onclick="pinChatMessage('${safeAuthor}', '${safeContent}')" class="text-amber-700 font-bold hover:underline">📌 Pin</button>` : ''}
+          ${canDelete ? `<button onclick="confirmDeletePost('${p.id}')" class="text-red-600 font-bold hover:underline">🗑️ हटाएं</button>` : ''}
+        </div>
+      </div>
+    `;
+    feed.appendChild(card);
   });
 }
 
 function confirmDeletePost(id) {
-  openConfirmModal("संदेश हटाएं?", "क्या आप इस संदेश को मंच से हटाना चाहते हैं?", async (res) => {
+  openConfirmModal("संदेश हटाएं?", "क्या आप इस संदेश को संवाद मंच से हटाना चाहते हैं?", async (res) => {
     if (res) {
       await db.collection('posts').doc(id).delete();
       showToast('संदेश हटा दिया गया।');
@@ -1193,24 +1656,72 @@ function confirmDeletePost(id) {
   });
 }
 
-// 19. E-LIBRARY (PDFs)
+// 19. E-LIBRARY (WITH IN-BUILT PDF READER + DOWNLOAD)
+function openInbuiltPdfViewer(title, link) {
+  const modal = document.getElementById('inbuiltPdfModal');
+  const frame = document.getElementById('pdfViewerFrame');
+  const titleEl = document.getElementById('pdfViewerTitle');
+  const dlBtn = document.getElementById('pdfModalDownloadBtn');
+  if (!modal || !frame) return;
+
+  titleEl.innerText = `📖 ${title}`;
+  dlBtn.href = link;
+
+  let viewerUrl = link;
+  // Convert Google Drive sharing links to embeddable preview URLs
+  if (link.includes('drive.google.com/file/d/')) {
+    const match = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      viewerUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+    }
+  } else {
+    const fullUrl = link.startsWith('http') ? link : (window.location.origin + '/' + link.replace(/^\.\//, ''));
+    // On mobile devices, Google Docs Viewer renders PDFs inside iframes reliably without forcing download
+    if (isPhoneOrInstalledApp()) {
+      viewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}`;
+    } else {
+      viewerUrl = fullUrl;
+    }
+  }
+
+  frame.src = viewerUrl;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeInbuiltPdfViewer() {
+  const modal = document.getElementById('inbuiltPdfModal');
+  const frame = document.getElementById('pdfViewerFrame');
+  if (!modal) return;
+  if (frame) frame.src = '';
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
 function listenPdfs() {
   db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
     const grid = document.getElementById('pdfGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
+    // Default Sacred Granth Card
     const defaultCard = document.createElement('div');
-    defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between";
+    defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
     defaultCard.innerHTML = `
       <div>
         <span class="text-[10px] font-bold text-terracotta uppercase">पवित्र ग्रंथ</span>
         <h3 class="font-yatra text-forest text-base mt-1">श्री सबदवाणी (१२० शब्द)</h3>
         <p class="text-xs text-stone-500 mt-1">गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।</p>
       </div>
-      <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
-        <a href="./shabadwani.pdf" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
-          PDF डाउनलोड
-        </a>
+      <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5">
+          <button onclick="openInbuiltPdfViewer('श्री सबदवाणी (१२० शब्द)', './shabadwani.pdf')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+            📖 ऐप में पढ़ें
+          </button>
+          <a href="./shabadwani.pdf" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
+            📥 डाउनलोड
+          </a>
+        </div>
         <button onclick="sharePdfWhatsApp('श्री सबदवाणी', './shabadwani.pdf')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
       </div>
     `;
@@ -1218,20 +1729,28 @@ function listenPdfs() {
 
     snap.forEach(doc => {
       const item = doc.data();
+      const safeTitle = (item.title || 'साहित्य').replace(/'/g, "\\'");
+      const safeLink = (item.link || '').replace(/'/g, "\\'");
+
       const card = document.createElement('div');
-      card.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between";
+      card.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
       card.innerHTML = `
         <div>
           <span class="text-[10px] font-bold text-terracotta uppercase">साहित्य</span>
           <h3 class="font-yatra text-forest text-base mt-1">${item.title}</h3>
         </div>
-        <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
-          <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
-            PDF डाउनलोड
-          </a>
+        <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5">
+            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+              📖 ऐप में पढ़ें
+            </button>
+            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
+              📥 डाउनलोड
+            </a>
+          </div>
           <div class="flex items-center gap-2">
-            <button onclick="sharePdfWhatsApp('${item.title}', '${item.link}')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
-            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600">Delete</button>` : ''}
+            <button onclick="sharePdfWhatsApp('${safeTitle}', '${safeLink}')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
+            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
           </div>
         </div>
       `;
@@ -1242,7 +1761,7 @@ function listenPdfs() {
 
 function sharePdfWhatsApp(title, link) {
   const url = link.startsWith('./') ? window.location.origin + '/' + link.replace('./','') : link;
-  const text = encodeURIComponent(`📖 विश्नोई साहित्य PDF: ${title}\nडाउनलोड लिंक: ${url}`);
+  const text = encodeURIComponent(`📖 विश्नोई साहित्य PDF: ${title}\nऑनलाइन पढ़ें या डाउनलोड करें: ${url}`);
   window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
 }
 
@@ -1286,7 +1805,7 @@ function changeAudioTrack() {
   const select = document.getElementById('audioTrackSelect');
   const player = document.getElementById('audioPlayer');
   const source = document.getElementById('audioSource');
-  if (select.value) {
+  if (select && select.value) {
     source.src = select.value;
     player.load();
   }
@@ -1343,7 +1862,7 @@ async function pledgeTree() {
   confetti({ particleCount: 40, spread: 50 });
   try {
     await db.collection('stats').doc('treePledges').set({ count: nextVal }, { merge: true });
-  } catch(e){}
+  } catch (e) {}
 }
 
 // 22. BANNER & WHATSAPP SHARING
@@ -1382,6 +1901,7 @@ function sharePostWhatsApp(author, content) {
 // 23. 29 NIYAMS RENDER & SEARCH
 function renderNiyams(data) {
   const grid = document.getElementById('niyamGrid');
+  if (!grid) return;
   grid.innerHTML = '';
   data.forEach(n => {
     const card = document.createElement('div');
