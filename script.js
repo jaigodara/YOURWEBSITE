@@ -1,12 +1,14 @@
 /* ==========================================================================
    Bishnoi Community Portal - Master Application Engine (script.js)
-   Includes:
-   - Live Maintenance & Section Lock (Phone / Web / Both)
-   - Text-Only Samvad Manch (Replies, Reactions, Pin, Topic Filter, Delete Control)
-   - User & Owner Profile System (Edit Name/Location, Personal Stats)
-   - Phone + Google Account Verification (With Email in 7-Day PDF Report)
+   Features:
+   - Owner Login: 9306894518 / bishnoi29
+   - 1-Click Google Login + Phone/Password Login
+   - 3-Level Pinless Forgot Password System (Google Verify + Profile + Admin Reset)
+   - Live Maintenance & Section Lock (Phone Only / Web Only / Both)
+   - Text-Only Samvad Manch (Replies, Reactions, Topic Filter, Owner Pin, Delete)
+   - User & Owner Profile Modal (Edit Name, Location, Password, Google Link, Stats)
    - In-Built App & Website PDF Reader Modal (Read without downloading)
-   - Daily Suvichar Status Image Card Generator
+   - Daily Suvichar WhatsApp Status Card Generator & 7-Day Email PDF Report
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -22,8 +24,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 2. OWNER CREDENTIALS
-const OWNER_PHONE = "9898";
+// 2. OWNER CREDENTIALS (UPDATED TO 10-DIGIT NUMBER)
+const OWNER_PHONE = "9306894518";
 const OWNER_PASS = "bishnoi29";
 
 // 3. APPLICATION STATE
@@ -152,7 +154,7 @@ function injectDynamicModalsAndUI() {
     mainEl.appendChild(secCard);
   }
 
-  // 3. In-Built PDF Viewer Modal (Read inside App/Website without downloading)
+  // 3. In-Built PDF Viewer Modal
   if (!document.getElementById('inbuiltPdfModal')) {
     const pdfModal = document.createElement('div');
     pdfModal.id = 'inbuiltPdfModal';
@@ -179,14 +181,14 @@ function injectDynamicModalsAndUI() {
     document.body.appendChild(pdfModal);
   }
 
-  // 4. User & Owner Profile Modal
+  // 4. User & Owner Profile Modal (With Change Password & Phone Update)
   if (!document.getElementById('userProfileModal')) {
     const profModal = document.createElement('div');
     profModal.id = 'userProfileModal';
-    profModal.className = 'fixed inset-0 z-[9980] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4';
+    profModal.className = 'fixed inset-0 z-[9980] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto';
     profModal.innerHTML = `
-      <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 border border-stone-200 shadow-2xl">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+      <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-3.5 border border-stone-200 shadow-2xl my-auto">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2.5">
           <div>
             <h3 class="font-yatra text-lg text-forest">👤 मेरी प्रोफ़ाइल (My Profile)</h3>
             <p id="profileRoleBadge" class="text-[11px] font-bold text-stone-500"></p>
@@ -194,21 +196,28 @@ function injectDynamicModalsAndUI() {
           <button onclick="closeProfileModal()" class="text-stone-400 hover:text-stone-700 text-lg font-bold">✕</button>
         </div>
 
-        <div class="space-y-3 text-xs">
+        <div class="space-y-2.5 text-xs">
           <div>
             <label class="font-bold text-stone-700 block mb-1">आपका नाम (Full Name):</label>
-            <input type="text" id="profEditName" class="w-full p-2.5 rounded-lg border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
+            <input type="text" id="profEditName" class="w-full p-2 rounded-lg border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
           </div>
-          <div>
-            <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला (Village / District):</label>
-            <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
-          </div>
-          <div class="grid grid-cols-2 gap-2 pt-1">
-            <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200">
-              <span class="text-[10px] text-stone-400 block">पंजीकृत मोबाइल नंबर</span>
-              <span id="profPhoneDisplay" class="font-bold text-stone-800"></span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला (Location):</label>
+              <input type="text" id="profEditLocation" class="w-full p-2 rounded-lg border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
             </div>
-            <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200">
+            <div>
+              <label class="font-bold text-stone-700 block mb-1">नया पासवर्ड (ऐच्छिक):</label>
+              <input type="password" id="profEditPass" class="w-full p-2 rounded-lg border border-stone-300" placeholder="बदलना हो तो लिखें">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div class="p-2 rounded-lg bg-stone-50 border border-stone-200">
+              <span class="text-[10px] text-stone-400 block">मोबाइल / खाता आईडी</span>
+              <span id="profPhoneDisplay" class="font-bold text-stone-800 truncate block"></span>
+            </div>
+            <div class="p-2 rounded-lg bg-stone-50 border border-stone-200">
               <span class="text-[10px] text-stone-400 block">Google ईमेल सत्यापन</span>
               <span id="profEmailDisplay" class="font-bold text-emerald-700 truncate block"></span>
             </div>
@@ -217,12 +226,12 @@ function injectDynamicModalsAndUI() {
           <!-- Google Link Button inside Profile -->
           <div id="profGoogleLinkWrap" class="pt-1">
             <button type="button" onclick="linkGoogleAccount()" class="w-full py-2 px-3 border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold flex items-center justify-center gap-2 text-stone-700 transition">
-              <span>🌐</span> <span id="profGoogleBtnText">Google अकाउंट जोड़ें / सत्यापित करें</span>
+              <span>🌐</span> <span id="profGoogleBtnText">Google अकाउंट जोड़ें (पासवर्ड रिकवरी हेतु)</span>
             </button>
           </div>
 
           <!-- Personal Activity Stats -->
-          <div class="grid grid-cols-3 gap-2 pt-2 text-center">
+          <div class="grid grid-cols-3 gap-2 pt-1 text-center">
             <div class="p-2 rounded-lg bg-amber-50 border border-amber-200">
               <div id="statMalaTotal" class="font-bold text-sm text-forest">0</div>
               <div class="text-[10px] text-stone-500">कुल मंत्र जप</div>
@@ -240,7 +249,7 @@ function injectDynamicModalsAndUI() {
 
         <div class="flex gap-2 pt-2 border-t border-stone-100">
           <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-lg shadow transition">
-            💾 प्रोफ़ाइल सहेजें (Save Changes)
+            💾 प्रोफ़ाइल सहेजें (Save)
           </button>
           <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-lg">
             बंद करें
@@ -251,20 +260,85 @@ function injectDynamicModalsAndUI() {
     document.body.appendChild(profModal);
   }
 
-  // 5. Inject Google Sign-In Button into existing Auth Modal if not present
-  const authForm = document.querySelector('#authModal form');
-  if (authForm && !document.getElementById('googleAuthModalBtn')) {
-    const googleDiv = document.createElement('div');
-    googleDiv.className = 'pt-2 border-t border-stone-200 space-y-2';
-    googleDiv.innerHTML = `
-      <button id="googleAuthModalBtn" type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition">
-        <span>🌐</span> <span>Google से लॉगिन / ईमेल सत्यापित करें</span>
-      </button>
+  // 5. Forgot Password Modal (Safe, Private, Pinless Recovery)
+  if (!document.getElementById('forgotPassModal')) {
+    const fpModal = document.createElement('div');
+    fpModal.id = 'forgotPassModal';
+    fpModal.className = 'fixed inset-0 z-[9985] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4';
+    fpModal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 border border-stone-200 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <h3 class="font-yatra text-lg text-forest">🔑 पासवर्ड रीसेट (Forgot Password)</h3>
+          <button onclick="closeForgotPassModal()" class="text-stone-400 hover:text-stone-700 font-bold">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <p class="text-stone-600 leading-relaxed">
+            अपना १०-अंकों का मोबाइल नंबर और नया पासवर्ड लिखें, फिर सुरक्षा सत्यापन के लिए अपने जुड़े हुए Google खाते से पुष्टि करें:
+          </p>
+          <div>
+            <label class="font-bold text-stone-700 block mb-1">पंजीकृत मोबाइल नंबर:</label>
+            <input type="text" id="fpPhoneInput" maxlength="10" placeholder="10 अंकों का मोबाइल नंबर" class="w-full p-2.5 rounded-lg border border-stone-300 font-semibold">
+          </div>
+          <div>
+            <label class="font-bold text-stone-700 block mb-1">नया पासवर्ड (New Password):</label>
+            <input type="password" id="fpNewPassInput" placeholder="नया पासवर्ड बनाएं" class="w-full p-2.5 rounded-lg border border-stone-300">
+          </div>
+
+          <button type="button" onclick="verifyGoogleAndResetPassword()" class="w-full py-2.5 px-3 bg-forest hover:bg-emerald-950 text-white rounded-xl font-bold shadow flex items-center justify-center gap-2 transition">
+            <span>🌐</span> <span>Google से सत्यापित कर पासवर्ड बदलें</span>
+          </button>
+
+          <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-stone-600 space-y-1.5">
+            <div class="font-bold text-amber-900">💡 Google लिंक नहीं किया था?</div>
+            <p>१. आप बिना पासवर्ड के सीधे <b>"🌐 Google से लॉगिन करें"</b> बटन दबाकर अंदर जा सकते हैं।</p>
+            <p>२. अथवा व्यवस्थापक (Admin) से अपना पासवर्ड रीसेट करवा सकते हैं।</p>
+          </div>
+        </div>
+      </div>
     `;
-    authForm.appendChild(googleDiv);
+    document.body.appendChild(fpModal);
   }
 
-  // 6. Inject "Status Card Download" Button next to Banner Share if not present
+  // 6. Inject "Forgot Password" & "Google Login" Buttons into Auth Modal
+  const authForm = document.querySelector('#authModal form');
+  if (authForm && !document.getElementById('googleAuthModalBtn')) {
+    const extraDiv = document.createElement('div');
+    extraDiv.className = 'pt-2 border-t border-stone-200 space-y-2';
+    extraDiv.innerHTML = `
+      <div class="flex justify-end">
+        <button type="button" onclick="openForgotPassModal()" class="text-[11px] font-bold text-terracotta hover:underline">
+          🔑 पासवर्ड भूल गए? (Forgot Password)
+        </button>
+      </div>
+      <button id="googleAuthModalBtn" type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition">
+        <span>🌐</span> <span>Google से 1-Click लॉगिन करें</span>
+      </button>
+    `;
+    authForm.appendChild(extraDiv);
+  }
+
+  // 7. Inject Admin User Password Reset Card inside #tab-admin
+  const adminTab = document.getElementById('tab-admin');
+  if (adminTab && !document.getElementById('adminUserPassResetCard')) {
+    const resetCard = document.createElement('div');
+    resetCard.id = 'adminUserPassResetCard';
+    resetCard.className = 'bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3 mt-4';
+    resetCard.innerHTML = `
+      <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट (Admin User Password Reset)</h3>
+      <p class="text-[11px] text-stone-500">यदि कोई सदस्य अपना पासवर्ड भूल गया है और उसका Google खाता लिंक नहीं है, तो यहाँ से उसका नया पासवर्ड सेट करें:</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+        <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="सदस्य का 10-अंकों का नंबर" class="p-2 rounded-lg border border-stone-300">
+        <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड (उदा: 123456)" class="p-2 rounded-lg border border-stone-300">
+        <button onclick="adminResetMemberPassword()" class="py-2 px-4 bg-terracotta hover:bg-orange-800 text-white font-bold rounded-lg shadow transition">
+          पासवर्ड बदलें
+        </button>
+      </div>
+    `;
+    adminTab.appendChild(resetCard);
+  }
+
+  // 8. Inject Status Card Download Button next to Banner
   const bannerTextEl = document.getElementById('dailyBannerText');
   if (bannerTextEl && bannerTextEl.parentElement && !document.getElementById('statusCardGenBtn')) {
     const btn = document.createElement('button');
@@ -277,11 +351,12 @@ function injectDynamicModalsAndUI() {
 }
 
 function ownerEmergencyUnlock() {
-  const phone = prompt("व्यवस्थापक कोड (Owner Phone):");
+  const phone = prompt("व्यवस्थापक मोबाइल नंबर (Owner Phone):");
   const pass = prompt("पासवर्ड (Owner Password):");
-  if (phone === OWNER_PHONE && pass === OWNER_PASS) {
+  if (phone && phone.trim() === OWNER_PHONE && pass && pass.trim() === OWNER_PASS) {
     currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true, location: "मुख्यालय" };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+    syncOwnerCustomName();
     updateNavAuth();
     applyMaintenanceRules();
     showToast("व्यवस्थापक एक्सेस अनलॉक हो गया!");
@@ -413,7 +488,8 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function syncOwnerCustomName() {
-  if (currentUser && currentUser.isOwner) {
+  if (currentUser && (currentUser.isOwner || currentUser.phone === OWNER_PHONE)) {
+    currentUser.isOwner = true;
     try {
       const doc = await db.collection('users').doc(OWNER_PHONE).get();
       if (doc.exists) {
@@ -469,7 +545,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 8. AUTHENTICATION (PHONE + GOOGLE VERIFICATION) & USER PROFILE ENGINE
+// 8. AUTHENTICATION, 1-CLICK GOOGLE LOGIN & 3-LEVEL FORGOT PASSWORD
 function openAuthModal() {
   document.getElementById('authModal').classList.remove('hidden');
 }
@@ -492,9 +568,9 @@ async function handleAuthSubmit(e) {
   e.preventDefault();
   const phone = document.getElementById('loginPhone').value.trim();
   const pass = document.getElementById('loginPass').value.trim();
-  const nameInput = document.getElementById('loginName').value.trim();
+  const nameInput = document.getElementById('loginName')?.value.trim() || '';
 
-  // Owner Login (9898)
+  // 1. OWNER LOGIN CHECK (9306894518 / bishnoi29)
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
     let ownerName = "व्यवस्थापक (Owner)";
     let ownerLoc = "";
@@ -506,19 +582,19 @@ async function handleAuthSubmit(e) {
         ownerLoc = oDoc.data().location || "";
         ownerEmail = oDoc.data().email || "";
       }
-    } catch (e) {}
+    } catch (err) {}
 
     currentUser = { name: ownerName, phone: OWNER_PHONE, isOwner: true, location: ownerLoc, email: ownerEmail };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     applyMaintenanceRules();
     closeAuthModal();
-    showToast(`स्वागत है, ${currentUser.name}!`);
+    showToast(`🛡️ व्यवस्थापक के रूप में स्वागत है, ${currentUser.name}!`);
     switchTab('admin');
     return;
   }
 
-  // Strict 10-Digit Mobile Validation
+  // 2. REGULAR 10-DIGIT MOBILE CHECK
   if (!/^[6-9]\d{9}$/.test(phone)) {
     return showToast("कृपया सही १० अंकों का भारतीय मोबाइल नंबर दर्ज करें!");
   }
@@ -531,6 +607,7 @@ async function handleAuthSubmit(e) {
       if (userDoc.exists) {
         return showToast("यह नंबर पहले से पंजीकृत है! कृपया लॉगिन करें।");
       }
+      const isOwnerNum = (phone === OWNER_PHONE);
       await db.collection('users').doc(phone).set({
         name: nameInput,
         phone: phone,
@@ -541,7 +618,7 @@ async function handleAuthSubmit(e) {
         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      currentUser = { name: nameInput, phone: phone, isOwner: false, email: "", location: "" };
+      currentUser = { name: nameInput, phone: phone, isOwner: isOwnerNum, email: "", location: "" };
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
       updateNavAuth();
       closeAuthModal();
@@ -556,12 +633,12 @@ async function handleAuthSubmit(e) {
   try {
     const userDoc = await db.collection('users').doc(phone).get();
     if (!userDoc.exists) {
-      return showToast("यह नंबर पंजीकृत नहीं है! कृपया पहले Register करें।");
+      return showToast("यह नंबर पंजीकृत नहीं है! कृपया पहले Register करें या Google से लॉगिन करें।");
     }
 
     const userData = userDoc.data();
     if (userData.pass && userData.pass !== pass) {
-      return showToast("गलत पासवर्ड! कृपया पुनः प्रयास करें।");
+      return showToast("गलत पासवर्ड! यदि भूल गए हैं तो 'पासवर्ड भूल गए?' पर क्लिक करें।");
     }
 
     await db.collection('users').doc(phone).update({
@@ -569,9 +646,9 @@ async function handleAuthSubmit(e) {
     });
 
     currentUser = {
-      name: userData.name || "भक्त",
+      name: userData.name || "सदस्य",
       phone: phone,
-      isOwner: false,
+      isOwner: (phone === OWNER_PHONE),
       email: userData.email || "",
       location: userData.location || ""
     };
@@ -584,10 +661,10 @@ async function handleAuthSubmit(e) {
   }
 }
 
-// Google Verification & Login Integration
+// 1-CLICK GOOGLE LOGIN (Never blocks or forces phone number to enter)
 async function signInOrVerifyWithGoogle() {
   if (!firebase.auth) {
-    return showToast("कृपया index.html में firebase-auth-compat.js स्क्रिप्ट जोड़ें!");
+    return showToast("कृपया पेज को रिफ्रेश (Ctrl+F5) करें!");
   }
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -595,53 +672,160 @@ async function signInOrVerifyWithGoogle() {
     const gUser = result.user;
     if (!gUser) return;
 
-    // Ask for 10-digit phone number to keep phone database consistent
-    let phone = document.getElementById('loginPhone')?.value.trim() || '';
-    if (!/^[6-9]\d{9}$/.test(phone)) {
-      phone = prompt(`Google खाता (${gUser.email}) सत्यापित हुआ!\nकृपया अपना १० अंकों का मोबाइल नंबर दर्ज करें:`, "");
-      if (!phone || !/^[6-9]\d{9}$/.test(phone.trim())) {
-        return showToast("सही १० अंकों का मोबाइल नंबर आवश्यक है!");
-      }
-      phone = phone.trim();
+    const typedPhone = document.getElementById('loginPhone')?.value.trim() || '';
+    let targetDocId = '';
+    let existingData = null;
+
+    // 1. Check if this Google email is already linked to an existing phone account
+    const emailSnap = await db.collection('users').where('email', '==', gUser.email).limit(1).get();
+    if (!emailSnap.empty) {
+      targetDocId = emailSnap.docs[0].id;
+      existingData = emailSnap.docs[0].data();
+    } else if (/^[6-9]\d{9}$/.test(typedPhone)) {
+      targetDocId = typedPhone;
+      const pDoc = await db.collection('users').doc(targetDocId).get();
+      if (pDoc.exists) existingData = pDoc.data();
+    } else {
+      targetDocId = `google_${gUser.uid.substring(0, 10)}`;
+      const gDoc = await db.collection('users').doc(targetDocId).get();
+      if (gDoc.exists) existingData = gDoc.data();
     }
 
-    const userRef = db.collection('users').doc(phone);
-    const doc = await userRef.get();
+    const finalName = (existingData && existingData.name) ? existingData.name : (gUser.displayName || "सदस्य");
+    const finalLoc = (existingData && existingData.location) ? existingData.location : "";
+    const finalPhone = (existingData && existingData.phone) ? existingData.phone : (/^[6-9]\d{9}$/.test(typedPhone) ? typedPhone : "Google Verified");
+    const isOwnerAccount = (targetDocId === OWNER_PHONE) || (finalPhone === OWNER_PHONE);
 
-    const finalName = doc.exists && doc.data().name ? doc.data().name : (gUser.displayName || "सदस्य");
-    const finalLoc = doc.exists && doc.data().location ? doc.data().location : "";
-
-    await userRef.set({
+    await db.collection('users').doc(targetDocId).set({
       name: finalName,
-      phone: phone,
+      phone: finalPhone,
       email: gUser.email || "",
       googleVerified: true,
       location: finalLoc,
-      registeredAt: doc.exists && doc.data().registeredAt ? doc.data().registeredAt : firebase.firestore.FieldValue.serverTimestamp(),
+      registeredAt: (existingData && existingData.registeredAt) ? existingData.registeredAt : firebase.firestore.FieldValue.serverTimestamp(),
       lastLogin: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
     currentUser = {
       name: finalName,
-      phone: phone,
+      phone: targetDocId,
       email: gUser.email || "",
       location: finalLoc,
-      isOwner: (phone === OWNER_PHONE)
+      isOwner: isOwnerAccount
     };
+
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
+    applyMaintenanceRules();
     closeAuthModal();
-    showToast(`✅ Google सत्यापन सफल! स्वागत है, ${currentUser.name}`);
+    showToast(`✅ Google लॉगिन सफल! स्वागत है, ${currentUser.name}`);
   } catch (err) {
-    showToast("Google सत्यापन त्रुटि: " + err.message);
+    showToast("Google लॉगिन त्रुटि: " + err.message);
+  }
+}
+
+// 3-LEVEL FORGOT PASSWORD SYSTEM (Pinless, Private & Easy)
+function openForgotPassModal() {
+  const typedPhone = document.getElementById('loginPhone')?.value.trim() || '';
+  closeAuthModal();
+  const modal = document.getElementById('forgotPassModal');
+  if (!modal) return;
+  if (typedPhone) document.getElementById('fpPhoneInput').value = typedPhone;
+  document.getElementById('fpNewPassInput').value = '';
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeForgotPassModal() {
+  const modal = document.getElementById('forgotPassModal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function verifyGoogleAndResetPassword() {
+  const phone = document.getElementById('fpPhoneInput')?.value.trim() || '';
+  const newPass = document.getElementById('fpNewPassInput')?.value.trim() || '';
+
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    return showToast("कृपया अपना १०-अंकों का मोबाइल नंबर सही दर्ज करें!");
+  }
+  if (!newPass || newPass.length < 4) {
+    return showToast("कृपया कम से कम ४ अक्षरों का नया पासवर्ड लिखें!");
+  }
+
+  try {
+    const userRef = db.collection('users').doc(phone);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      return showToast("यह मोबाइल नंबर पंजीकृत नहीं है!");
+    }
+
+    const userData = userDoc.data();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await firebase.auth().signInWithPopup(provider);
+    const gUser = result.user;
+    if (!gUser || !gUser.email) return;
+
+    // Security Check: If account already had a linked email, it MUST match!
+    if (userData.email && userData.email.toLowerCase() !== gUser.email.toLowerCase()) {
+      return showToast("⚠️ यह Google खाता इस मोबाइल नंबर से मेल नहीं खाता! कृपया सही Google खाता चुनें।");
+    }
+
+    // Update password & link verified email
+    await userRef.set({
+      pass: newPass,
+      email: gUser.email,
+      googleVerified: true,
+      lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    currentUser = {
+      name: userData.name || gUser.displayName || "सदस्य",
+      phone: phone,
+      email: gUser.email,
+      location: userData.location || "",
+      isOwner: (phone === OWNER_PHONE)
+    };
+
+    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+    updateNavAuth();
+    closeForgotPassModal();
+    showToast("✅ पासवर्ड सफलतापूर्वक बदल गया और आप लॉगिन हो गए हैं!");
+  } catch (err) {
+    showToast("पासवर्ड रीसेट त्रुटि: " + err.message);
+  }
+}
+
+// Admin Fallback Password Reset (Level 3)
+async function adminResetMemberPassword() {
+  if (!currentUser || !currentUser.isOwner) return showToast("केवल व्यवस्थापक के लिए!");
+  const phone = document.getElementById('adminResetUserPhone')?.value.trim() || '';
+  const newPass = document.getElementById('adminResetUserNewPass')?.value.trim() || '';
+
+  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सदस्य का सही १०-अंकों का मोबाइल नंबर लिखें!");
+  if (!newPass) return showToast("कृपया नया पासवर्ड लिखें!");
+
+  try {
+    const ref = db.collection('users').doc(phone);
+    const doc = await ref.get();
+    if (!doc.exists) return showToast("इस नंबर से कोई सदस्य पंजीकृत नहीं मिला!");
+
+    await ref.update({
+      pass: newPass,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('adminResetUserPhone').value = '';
+    document.getElementById('adminResetUserNewPass').value = '';
+    showToast(`✅ सदस्य (${doc.data().name || phone}) का नया पासवर्ड सेट हो गया!`);
+  } catch (err) {
+    showToast("त्रुटि: " + err.message);
   }
 }
 
 async function linkGoogleAccount() {
   if (!currentUser) return;
-  if (!firebase.auth) {
-    return showToast("कृपया index.html में firebase-auth-compat.js जोड़ें!");
-  }
+  if (!firebase.auth) return showToast("कृपया पेज रिफ्रेश करें!");
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     const result = await firebase.auth().signInWithPopup(provider);
@@ -669,9 +853,10 @@ function openProfileModal() {
 
   document.getElementById('profEditName').value = currentUser.name || '';
   document.getElementById('profEditLocation').value = currentUser.location || '';
+  document.getElementById('profEditPass').value = '';
   document.getElementById('profPhoneDisplay').innerText = currentUser.phone || '';
-  document.getElementById('profEmailDisplay').innerText = currentUser.email ? `✓ ${currentUser.email}` : 'जुड़ा नहीं है (Not Linked)';
-  document.getElementById('profGoogleBtnText').innerText = currentUser.email ? 'Google अकाउंट बदलें' : 'Google अकाउंट जोड़ें / सत्यापित करें';
+  document.getElementById('profEmailDisplay').innerText = currentUser.email ? `✓ ${currentUser.email}` : 'जुड़ा नहीं है';
+  document.getElementById('profGoogleBtnText').innerText = currentUser.email ? 'Google अकाउंट बदलें' : 'Google अकाउंट जोड़ें (पासवर्ड रिकवरी हेतु)';
 
   const roleBadge = document.getElementById('profileRoleBadge');
   if (currentUser.isOwner) {
@@ -682,7 +867,6 @@ function openProfileModal() {
     roleBadge.className = 'text-[11px] font-semibold text-stone-500';
   }
 
-  // Personal Stats
   document.getElementById('statMalaTotal').innerText = malaTotalCount;
   document.getElementById('statMalaLaps').innerText = malaLapsCount;
   const myPostsCount = allChatPosts.filter(p => p.phone === currentUser.phone).length;
@@ -703,6 +887,7 @@ async function saveUserProfileChanges() {
   if (!currentUser) return;
   const newName = document.getElementById('profEditName').value.trim();
   const newLoc = document.getElementById('profEditLocation').value.trim();
+  const newPass = document.getElementById('profEditPass').value.trim();
 
   if (!newName) return showToast("कृपया नाम खाली न छोड़ें!");
 
@@ -710,17 +895,21 @@ async function saveUserProfileChanges() {
   currentUser.location = newLoc;
   localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
 
-  try {
-    await db.collection('users').doc(currentUser.phone).set({
-      name: newName,
-      location: newLoc,
-      phone: currentUser.phone,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+  const updateData = {
+    name: newName,
+    location: newLoc,
+    phone: currentUser.phone,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (newPass) {
+    updateData.pass = newPass;
+  }
 
+  try {
+    await db.collection('users').doc(currentUser.phone).set(updateData, { merge: true });
     updateNavAuth();
     closeProfileModal();
-    showToast("✅ आपकी प्रोफ़ाइल और नाम सफलतापूर्वक अपडेट हो गए!");
+    showToast(newPass ? "✅ प्रोफ़ाइल और नया पासवर्ड सहेज लिए गए!" : "✅ आपकी प्रोफ़ाइल अपडेट हो गई!");
   } catch (err) {
     showToast("प्रोफ़ाइल सहेजने में त्रुटि: " + err.message);
   }
@@ -1079,7 +1268,7 @@ async function download7DaysUsersPdf() {
     if (regDate >= sevenDaysAgo) {
       rows.push([
         u.name || 'User',
-        u.phone || 'N/A',
+        u.phone || doc.id || 'N/A',
         u.email || 'Not Linked',
         u.location || '-',
         regDate.toLocaleDateString('en-GB')
@@ -1101,7 +1290,7 @@ async function download7DaysUsersPdf() {
 
   doc.autoTable({
     startY: 30,
-    head: [['Full Name', 'Mobile Number', 'Verified Email ID', 'Location', 'Date']],
+    head: [['Full Name', 'Mobile / ID', 'Verified Email ID', 'Location', 'Date']],
     body: rows,
     theme: 'grid',
     headStyles: { fillColor: [179, 74, 27] },
@@ -1171,19 +1360,16 @@ function downloadSuvicharStatusCard() {
   canvas.height = 1080;
   const ctx = canvas.getContext('2d');
 
-  // Rich Forest Gradient Background
   const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
   grad.addColorStop(0, '#143622');
   grad.addColorStop(1, '#091c11');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 1080, 1080);
 
-  // Gold Border
   ctx.strokeStyle = '#F59E0B';
   ctx.lineWidth = 8;
   ctx.strokeRect(45, 45, 990, 990);
 
-  // Header
   ctx.fillStyle = '#FDE68A';
   ctx.textAlign = 'center';
   ctx.font = 'bold 46px sans-serif';
@@ -1193,7 +1379,6 @@ function downloadSuvicharStatusCard() {
   ctx.font = '28px sans-serif';
   ctx.fillText('आज का पावन संदेश एवं सुविचार', 540, 220);
 
-  // Wrap Quote Text
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 42px sans-serif';
   const words = currentBannerText.split(' ');
@@ -1215,7 +1400,6 @@ function downloadSuvicharStatusCard() {
     ctx.fillText(l.trim(), 540, startY + (idx * 70));
   });
 
-  // Footer
   ctx.fillStyle = '#F59E0B';
   ctx.font = 'bold 30px sans-serif';
   ctx.fillText('गुरु जम्भेश्वर भगवान की जय • २९ नियम धर्म संहिता', 540, 900);
@@ -1621,7 +1805,6 @@ function renderFilteredChat() {
       <p class="text-xs text-stone-800 whitespace-pre-wrap leading-relaxed">${p.content}</p>
 
       <div class="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-        <!-- Quick Reactions -->
         <div class="flex items-center gap-1.5">
           <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 border border-stone-200 transition">
             🙏 ${pranamCnt || ''}
@@ -1634,7 +1817,6 @@ function renderFilteredChat() {
           </button>
         </div>
 
-        <!-- Action Controls -->
         <div class="flex items-center gap-2.5">
           <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="text-forest font-semibold hover:underline">↩️ उत्तर दें</button>
           <button onclick="sharePostWhatsApp('${safeAuthor}', '${safeContent}')" class="text-emerald-700 font-semibold hover:underline">Share 📲</button>
@@ -1668,7 +1850,6 @@ function openInbuiltPdfViewer(title, link) {
   dlBtn.href = link;
 
   let viewerUrl = link;
-  // Convert Google Drive sharing links to embeddable preview URLs
   if (link.includes('drive.google.com/file/d/')) {
     const match = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
@@ -1676,7 +1857,6 @@ function openInbuiltPdfViewer(title, link) {
     }
   } else {
     const fullUrl = link.startsWith('http') ? link : (window.location.origin + '/' + link.replace(/^\.\//, ''));
-    // On mobile devices, Google Docs Viewer renders PDFs inside iframes reliably without forcing download
     if (isPhoneOrInstalledApp()) {
       viewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}`;
     } else {
@@ -1704,7 +1884,6 @@ function listenPdfs() {
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Default Sacred Granth Card
     const defaultCard = document.createElement('div');
     defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
     defaultCard.innerHTML = `
