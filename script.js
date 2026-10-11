@@ -4130,3 +4130,206 @@ window.addEventListener('DOMContentLoaded', () => {
     bootFixes();
   }
 })();
+/* ============================================================================
+   MAINTENANCE MODE & SECTION LOCK LIVE ENGINE FIX (PASTE AT VERY END OF script.js)
+   Fixes:
+   - Makes Global Maintenance (Phone Only / Web Only / Both) work 100% live
+   - Locks individual tabs (Mala, Niyams, Library, Community, Quiz, History)
+   - Adds Owner Preview Toggle so Owner can also test & see the lock screen
+   ============================================================================ */
+
+(function fixMaintenanceModeEngine() {
+
+  // 1. Detect if user is on Phone/App or PC Website
+  function isMobileOrAppDevice() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return isStandalone || isMobileUA || window.innerWidth <= 768;
+  }
+
+  // 2. Check if a specific mode ('off', 'phone_only', 'web_only', 'both') locks current device
+  function shouldLockCurrentDevice(mode) {
+    if (!mode || mode === 'off') return false;
+    const onPhone = isMobileOrAppDevice();
+    if (mode === 'both') return true;
+    if (mode === 'phone_only' && onPhone) return true;
+    if (mode === 'web_only' && !onPhone) return true;
+    return false;
+  }
+
+  // 3. Upgrade Maintenance UI Card with Phone/Web options & Owner Preview Toggle
+  function upgradeMaintenanceControllerUI() {
+    const globSel = document.getElementById('adminGlobalMaintMode');
+    if (!globSel) return;
+
+    // Ensure all 6 section dropdowns have all 4 lock options (Off, Phone, Web, Both)
+    ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+      const sel = document.getElementById(`lock_${sec}`);
+      if (sel && sel.options.length < 4) {
+        const curVal = sel.value || 'off';
+        sel.innerHTML = `
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 PC Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        `;
+        sel.value = curVal;
+      }
+    });
+
+    // Add "Preview Lock as User" checkbox for Owner inside the Maintenance Card
+    const card = globSel.closest('div.bg-white');
+    if (card && !document.getElementById('ownerMaintPreviewToggle')) {
+      const previewRow = document.createElement('div');
+      previewRow.className = 'p-2.5 rounded-xl bg-amber-50 border border-amber-300 flex items-center justify-between text-xs';
+      previewRow.innerHTML = `
+        <span class="font-bold text-amber-950">👁️ ओनर प्रीव्यू मोड (मेरी स्क्रीन पर भी लॉक टेस्ट करें):</span>
+        <input type="checkbox" id="ownerMaintPreviewToggle" onchange="applyLiveMaintenanceLocks()" class="w-4 h-4 accent-rose-700 cursor-pointer">
+      `;
+      card.insertBefore(previewRow, card.lastElementChild);
+    }
+  }
+
+  // 4. Save Maintenance Settings to Firebase
+  window.saveMaintenanceSettings = async function() {
+    if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
+
+    const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
+    const message = document.getElementById('adminMaintMessage')?.value.trim() || 'मंच पर तकनीकी अपडेट कार्य जारी है, कृपया कुछ समय बाद प्रयास करें।';
+    const sections = {};
+
+    ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+      sections[sec] = document.getElementById(`lock_${sec}`)?.value || 'off';
+    });
+
+    try {
+      await db.collection('settings').doc('maintenance').set({
+        globalMode,
+        message,
+        sections,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      showToast("✅ मेंटेनेंस एवं सेक्शन लॉक सेटिंग्स लाइव लागू हो गईं!");
+    } catch (e) {
+      showToast("त्रुटि: " + e.message);
+    }
+  };
+
+  // 5. Apply Full-Screen Global Lock & Per-Section Lock Overlay
+  window.applyLiveMaintenanceLocks = function() {
+    const previewAsUser = document.getElementById('ownerMaintPreviewToggle')?.checked || false;
+    const bypassForOwner = isSuperOwner() && !previewAsUser;
+
+    // A. GLOBAL PLATFORM LOCK OVERLAY
+    let globalOverlay = document.getElementById('liveGlobalMaintOverlay');
+    const isGlobalLocked = !bypassForOwner && shouldLockCurrentDevice(maintenanceConfig.globalMode);
+
+    if (isGlobalLocked) {
+      if (!globalOverlay) {
+        globalOverlay = document.createElement('div');
+        globalOverlay.id = 'liveGlobalMaintOverlay';
+        globalOverlay.className = 'fixed inset-0 z-[99999] bg-[#143622] text-white flex flex-col items-center justify-center p-6 text-center select-none';
+        document.body.appendChild(globalOverlay);
+      }
+      globalOverlay.innerHTML = `
+        <div class="max-w-md w-full bg-white/10 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-amber-400/40 shadow-2xl space-y-4">
+          <div class="text-5xl animate-bounce">🛠️</div>
+          <h2 class="font-yatra text-2xl sm:text-3xl text-amber-300">मंच अपडेट कार्य जारी है</h2>
+          <p class="text-xs sm:text-sm text-stone-200 leading-relaxed">${maintenanceConfig.message}</p>
+          <div class="pt-3 border-t border-white/15 flex flex-col gap-2">
+            <span class="text-[11px] text-amber-200 font-semibold">विश्नोई समाज डिजिटल मंच • शीघ्र ही पुनः खुलेगा</span>
+            ${isSuperOwner() ? `<button onclick="document.getElementById('ownerMaintPreviewToggle').checked=false; applyLiveMaintenanceLocks();" class="mt-2 px-4 py-2 bg-amber-400 text-stone-950 font-extrabold text-xs rounded-xl">🔓 ओनर प्रीव्यू बंद करें (Unlock Screen)</button>` : `<button onclick="document.getElementById('liveGlobalMaintOverlay').remove(); openAuthModal();" class="mt-2 text-[10px] text-stone-400 underline">व्यवस्थापक लॉगिन</button>`}
+          </div>
+        </div>
+      `;
+      globalOverlay.classList.remove('hidden');
+    } else if (globalOverlay) {
+      globalOverlay.remove();
+    }
+
+    // B. PARTICULAR SECTION / TAB LOCK
+    const sectionNames = {
+      mala: '📿 डिजिटल जप माला',
+      niyams: '📜 २९ नियम संहिता',
+      library: '📚 साहित्य एवं ग्रंथ',
+      community: '💬 समाज संवाद मंच',
+      quiz: '🏆 ज्ञान परीक्षा एवं मॉक टेस्ट',
+      history: '🏛️ इतिहास एवं बाल संस्कार'
+    };
+
+    ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+      const tabEl = document.getElementById(`tab-${sec}`);
+      if (!tabEl) return;
+
+      const mode = maintenanceConfig.sections?.[sec] || 'off';
+      const isSecLocked = !bypassForOwner && shouldLockCurrentDevice(mode);
+      let lockBox = document.getElementById(`secLockBox_${sec}`);
+
+      if (isSecLocked) {
+        // Hide inner children of the locked tab and show clean lock card
+        Array.from(tabEl.children).forEach(ch => {
+          if (ch.id !== `secLockBox_${sec}`) ch.classList.add('maint-hidden-child');
+        });
+
+        if (!lockBox) {
+          lockBox = document.createElement('div');
+          lockBox.id = `secLockBox_${sec}`;
+          lockBox.className = 'bg-white p-8 rounded-3xl border-2 border-amber-300 shadow-lg text-center space-y-3 my-4';
+          tabEl.insertBefore(lockBox, tabEl.firstChild);
+        }
+        lockBox.innerHTML = `
+          <div class="text-4xl">🔒</div>
+          <h3 class="font-yatra text-xl text-forest">${sectionNames[sec]} — अस्थायी रूप से लॉक है</h3>
+          <p class="text-xs sm:text-sm text-stone-600 max-w-md mx-auto">${maintenanceConfig.message}</p>
+          <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+            ← मुखपृष्ठ पर लौटें
+          </button>
+        `;
+      } else {
+        if (lockBox) lockBox.remove();
+        Array.from(tabEl.children).forEach(ch => ch.classList.remove('maint-hidden-child'));
+      }
+    });
+  };
+
+  // Add helper CSS for locked section children
+  const st = document.createElement('style');
+  st.innerHTML = `.maint-hidden-child { display: none !important; }`;
+  document.head.appendChild(st);
+
+  // 6. Real-Time Listener from Firestore
+  function startRealtimeMaintenanceListener() {
+    upgradeMaintenanceControllerUI();
+
+    db.collection('settings').doc('maintenance').onSnapshot(doc => {
+      if (doc.exists) {
+        const d = doc.data();
+        maintenanceConfig.globalMode = d.globalMode || 'off';
+        maintenanceConfig.message = d.message || 'मंच पर अपडेट कार्य जारी है, कृपया कुछ समय बाद प्रयास करें।';
+        maintenanceConfig.sections = Object.assign(
+          { mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off' },
+          d.sections || {}
+        );
+
+        // Sync Admin Dropdowns
+        const gEl = document.getElementById('adminGlobalMaintMode');
+        const mEl = document.getElementById('adminMaintMessage');
+        if (gEl) gEl.value = maintenanceConfig.globalMode;
+        if (mEl) mEl.value = maintenanceConfig.message;
+
+        ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+          const sEl = document.getElementById(`lock_${sec}`);
+          if (sEl) sEl.value = maintenanceConfig.sections[sec] || 'off';
+        });
+      }
+      applyLiveMaintenanceLocks();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', startRealtimeMaintenanceListener);
+  } else {
+    startRealtimeMaintenanceListener();
+  }
+})();
