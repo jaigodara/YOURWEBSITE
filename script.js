@@ -3497,6 +3497,7 @@ function handleGlobalSearch() {
   }
 }
 // PDF Download Handlers for Admin Dashboard
+// PDF Download & Export Handlers for Admin Dashboard
 function downloadQuizResultsPdf() {
   db.collection('quizAttempts').get().then(snap => {
     if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
