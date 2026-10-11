@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.bishnoism.twa",
+        "sha256_cert_fingerprints": ["CA:EC:14:A8:41:84:9D:39:12:F9:2D:BC:3C:DD:6B:7A:14:7E:0A:A4:82:B0:46:3A:04:1B:50:AA:41:17:37:90"]
+      }
+    }]
