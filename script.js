@@ -1,12 +1,14 @@
 /* ==========================================================================
-   Bishnoi Community Portal - Final All-In-One Master Engine (script.js)
-   - 5-Item Light Bottom Nav (Home, Library, Community, Quiz, Profile)
-   - Niyams, Jaap Mala & History accessible via Elevated Homepage Cards
-   - PW-Style Glossy Leaderboard Podium (1st Elevated Gold, 2nd Silver, 3rd Bronze)
-   - Soft In-Place Maintenance Banners (No Blocking Popups; Leaderboard Always Live)
-   - Role-Based Access: Super Owner (9306894518) + Trusted Editor Login Role
-   - AI Backend Manager + Auto Spam/Link Chat Moderator + Content Scheduler
-   - Psychological Community Group Stream (Telegram/Community Feed Layout)
+   Bishnoi Community Portal - Ultimate Production Master Engine (script.js)
+   Fixes & Features Included:
+   - Profile: Removed 'संवाद योगदान' (2 clean boxes) + User Photo Upload
+   - Mobile Leaderboard: Full-width 1st Place Podium (No narrow word-wrapping!) + Blank if no winner
+   - High-Density 500+ User Community Chat Stream (Compact Telegram/YouTube Live style)
+   - Royal Certificate: Guru Jambheshwar Bhagwan Emblem/Photo + User Photo + Full Details + Seal
+   - Owner Studio: 4 One-Tap Quick Shortcuts + Draft Approval Queue (Editors save Draft; ONLY Owner Publishes/Schedules)
+   - Per-Section Custom Maintenance Notices + VIP Admin/Editor Bypass Toggle
+   - Auto-Working Amavasya Live Countdown (Auto-calculates next Amavasya if not set)
+   - Smart Instant Search Autocomplete Dropdown + 1-Time Exit Feedback + 20-Min Inactivity Lock
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -42,13 +44,15 @@ let currentBannerText = '"जीव दया पालणी, रूंख ल�
 let amavasyaTargetDate = null;
 let amavasyaTimerInterval = null;
 let currentActiveTab = 'home';
+let inactivityTimer = null;
 
-// Samvad Manch, Editors & Moderation State
+// Samvad Manch, Editors, Drafts & Moderation State
 let allChatPosts = [];
 let activeReplyObj = null;
 let blockedPhonesList = [];
 let editorsPhoneList = [];
 let scheduledItemsList = [];
+let draftItemsList = [];
 
 // Custom Audio Player State
 let audioPlaylist = [
@@ -67,11 +71,20 @@ let isPdfLandscape = false;
 let currentPdfUrl = '';
 let touchStartX = 0;
 
-// Soft Maintenance State (No Blocking Popups)
+// Custom Per-Section Soft Maintenance State + VIP Bypass
 let maintenanceConfig = {
   globalMode: 'off',
-  message: 'नए प्रश्न एवं रोचक ऐतिहासिक तथ्य जोड़े जा रहे हैं, जो शीघ्र ही उपलब्ध होंगे!',
-  sections: { mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off' }
+  vipBypass: true,
+  message: 'नए अपडेट जोड़े जा रहे हैं, जो शीघ्र ही उपलब्ध होंगे!',
+  sections: { mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off' },
+  customMessages: {
+    quiz: '✨ नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!',
+    library: '📚 नई PDF पुस्तकें अपलोड हो रही हैं!',
+    history: '📜 नए ऐतिहासिक तथ्य एवं कहानियाँ जोड़ी जा रही हैं!',
+    niyams: '🌿 नियमों में नई व्याख्या जोड़ी जा रही है!',
+    community: '💬 संवाद मंच अपडेट हो रहा है!',
+    mala: '📿 जप माला अपडेट हो रही है!'
+  }
 };
 
 // Progress & Mala State
@@ -114,7 +127,6 @@ let niyamsList = [
   { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों व सूक्ष्म जीवों को नष्ट करके बनने वाले नीले रंग का त्याग।" }
 ];
 
-// History & Kids Stories
 let historyItemsList = [
   {
     id: 'hist_1',
@@ -150,7 +162,7 @@ let historyItemsList = [
   }
 ];
 
-// 5. ROLE HELPERS (OWNER vs TRUSTED EDITOR)
+// 5. ROLE HELPERS & INACTIVITY SESSION LOCK (20 MINS)
 function isSuperOwner() {
   return Boolean(currentUser && (currentUser.isOwner === true || currentUser.phone === OWNER_PHONE));
 }
@@ -161,7 +173,24 @@ function isEditorOrOwner() {
   return Boolean(currentUser.isEditor === true || editorsPhoneList.includes(currentUser.phone));
 }
 
-// 6. EARTHY AESTHETIC STYLES, MICRO-ANIMATIONS & PW PODIUM DESIGN
+function setupInactivitySessionGuard() {
+  const resetTimer = () => {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    if (currentUser) {
+      // 20 minutes inactivity auto-lock for public/rural shared phones
+      inactivityTimer = setTimeout(() => {
+        logoutUser();
+        showToast("🔒 सुरक्षा कारणों से २० मिनट की निष्क्रियता के बाद आपका सत्र लॉक कर दिया गया है।");
+      }, 20 * 60 * 1000);
+    }
+  };
+  ['click', 'touchstart', 'keydown', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, resetTimer, { passive: true });
+  });
+  resetTimer();
+}
+
+// 6. GLOBAL STYLES & WIDE PODIUM FIX (NO NARROW GALI ON MOBILE!)
 function injectCleanLayoutStyles() {
   let styleEl = document.getElementById('cleanPortalFixStyles');
   if (!styleEl) {
@@ -173,32 +202,19 @@ function injectCleanLayoutStyles() {
     html, body {
       max-width: 100vw;
       overflow-x: hidden;
-      padding-bottom: 82px !important;
+      padding-bottom: 84px !important;
       background-color: #FAF7EE !important;
     }
-    /* Hide old top navigation row completely so icons never appear twice */
-    #nav-home, #nav-niyams, #nav-mala, #nav-library, #nav-community, #nav-quiz, #nav-history, #nav-admin, #nav-admin-mobile {
+    /* Hide ALL old top navigation rows completely */
+    header nav, #nav-home, #nav-niyams, #nav-mala, #nav-library, #nav-community, #nav-quiz, #nav-history, #nav-admin, #nav-admin-mobile {
       display: none !important;
     }
-    /* Micro-animations & Hover Elevation for Cards */
     .elevate-card {
-      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, border-color 0.2s ease !important;
+      transition: transform 0.2s ease, box-shadow 0.2s ease !important;
     }
     .elevate-card:hover {
-      transform: translateY(-4px) !important;
-      box-shadow: 0 14px 28px -8px rgba(20, 54, 34, 0.16) !important;
-    }
-    .elevate-card:active {
-      transform: translateY(-1px) scale(0.99) !important;
-    }
-    /* Multi-line Quiz Winner Names so Sher Singh / Rammohan Singh Bishnoi never cut */
-    #winner1Name, #winner2Name, #winner3Name {
-      white-space: normal !important;
-      overflow: visible !important;
-      text-overflow: unset !important;
-      word-break: break-word !important;
-      line-height: 1.35 !important;
-      display: block !important;
+      transform: translateY(-3px) !important;
+      box-shadow: 0 12px 24px -8px rgba(20, 54, 34, 0.15) !important;
     }
     .line-clamp-2 {
       display: -webkit-box;
@@ -219,35 +235,15 @@ function injectCleanLayoutStyles() {
       color: #ffffff !important;
       border-color: #143622 !important;
     }
-    @keyframes shimmerPulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.78; }
-    }
-    .pw-gold-podium {
-      background: linear-gradient(145deg, #FFFBEB 0%, #FEF3C7 55%, #FDE68A 100%) !important;
-      border: 2px solid #F59E0B !important;
-      box-shadow: 0 16px 32px -10px rgba(245, 158, 11, 0.4) !important;
-      transform: translateY(-8px) scale(1.03);
-    }
-    .pw-silver-podium {
-      background: linear-gradient(145deg, #FFFFFF 0%, #F8FAFC 100%) !important;
-      border: 1.5px solid #CBD5E1 !important;
-      box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.08) !important;
-    }
-    .pw-bronze-podium {
-      background: linear-gradient(145deg, #FFF7ED 0%, #FFEDD5 100%) !important;
-      border: 1.5px solid #FDBA74 !important;
-      box-shadow: 0 8px 20px -6px rgba(194, 65, 12, 0.1) !important;
-    }
   `;
 
-  const oldTopNavBtn = document.getElementById('nav-home');
-  if (oldTopNavBtn && oldTopNavBtn.parentElement) {
-    oldTopNavBtn.parentElement.style.display = 'none';
-  }
+  // Ensure any horizontal text nav bar in header is hidden
+  document.querySelectorAll('nav').forEach(n => {
+    if (n.id !== 'standardMobileBottomNav') n.style.display = 'none';
+  });
 }
 
-// 7. LIGHT 5-ICON BOTTOM NAVIGATION BAR (Removed Niyams, Mala, History from Bottom)
+// 7. LIGHT 5-ICON BOTTOM NAVIGATION BAR
 function injectUnifiedBottomNavBar() {
   document.getElementById('standardMobileBottomNav')?.remove();
   const bottomNav = document.createElement('nav');
@@ -284,7 +280,87 @@ function injectUnifiedBottomNavBar() {
   document.body.appendChild(bottomNav);
 }
 
-// 8. HOMEPAGE CARDS (WITH NIYAMS, JAAP MALA & HISTORY PROMINENTLY ON HOME PAGE)
+// 8. SMART INSTANT SEARCH AUTOCOMPLETE DROPDOWN
+function setupSmartInstantSearch() {
+  const searchInp = document.getElementById('globalSearchInput');
+  if (!searchInp || document.getElementById('instantSearchDropdown')) return;
+
+  const wrapper = searchInp.parentElement;
+  wrapper.style.position = 'relative';
+
+  const drop = document.createElement('div');
+  drop.id = 'instantSearchDropdown';
+  drop.className = 'hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-stone-200 z-[999] max-h-64 overflow-y-auto divide-y divide-stone-100 text-xs';
+  wrapper.appendChild(drop);
+
+  searchInp.addEventListener('input', () => {
+    const q = searchInp.value.toLowerCase().trim();
+    if (!q) {
+      drop.classList.add('hidden');
+      return;
+    }
+
+    let results = [];
+    // Match Niyams
+    niyamsList.forEach(n => {
+      if (`नियम ${n.num}`.includes(q) || n.title.toLowerCase().includes(q) || n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q)) {
+        results.push({
+          badge: `नियम ${n.num}`,
+          title: `${n.title} — ${n.rule}`,
+          action: () => { switchTab('niyams'); document.getElementById('niyamSearch').value = n.title; filterNiyams(); }
+        });
+      }
+    });
+
+    // Match History & Kids
+    historyItemsList.forEach(h => {
+      if (h.title.toLowerCase().includes(q) || h.content.toLowerCase().includes(q)) {
+        results.push({
+          badge: h.type === 'kids' ? 'बाल संस्कार' : 'इतिहास',
+          title: h.title,
+          action: () => { switchTab('history'); switchHistorySubTab(h.type === 'kids' ? 'kids' : 'full-history'); }
+        });
+      }
+    });
+
+    // Quick Sections
+    if ('सबदवाणी साहित्य ग्रंथ pdf'.includes(q)) {
+      results.push({ badge: 'साहित्य', title: 'श्री सबदवाणी (१२० शब्द) एवं साहित्य कोष', action: () => switchTab('library') });
+    }
+    if ('जप माला मंत्र'.includes(q)) {
+      results.push({ badge: 'साधना', title: 'डिजिटल जप माला (१०८ मनके)', action: () => switchTab('mala') });
+    }
+    if ('परीक्षा क्विज प्रश्न'.includes(q)) {
+      results.push({ badge: 'परीक्षा', title: 'दैनिक ज्ञान परीक्षा एवं सम्मान-पत्र', action: () => switchTab('quiz') });
+    }
+
+    if (results.length === 0) {
+      drop.innerHTML = `<div class="p-3 text-stone-400 text-center">कोई परिणाम नहीं मिला</div>`;
+    } else {
+      drop.innerHTML = results.slice(0, 6).map((r, idx) => `
+        <button type="button" id="sres_item_${idx}" class="w-full text-left p-2.5 hover:bg-emerald-50 flex items-center justify-between gap-2 transition">
+          <span class="font-semibold text-stone-800 truncate">${r.title}</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-forest font-bold text-[10px] shrink-0">${r.badge}</span>
+        </button>
+      `).join('');
+
+      results.slice(0, 6).forEach((r, idx) => {
+        document.getElementById(`sres_item_${idx}`)?.addEventListener('click', () => {
+          r.action();
+          drop.classList.add('hidden');
+          searchInp.value = '';
+        });
+      });
+    }
+    drop.classList.remove('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!wrapper.contains(e.target)) drop.classList.add('hidden');
+  });
+}
+
+// 9. HOMEPAGE CARDS & CUSTOM MUSIC BOX
 function upgradeHomepageAndAudioUI() {
   const homeTab = document.getElementById('tab-home');
   if (homeTab && !document.getElementById('cleanHeroLandingSection')) {
@@ -292,13 +368,10 @@ function upgradeHomepageAndAudioUI() {
     heroWrap.id = 'cleanHeroLandingSection';
     heroWrap.className = 'space-y-4 mb-5';
     heroWrap.innerHTML = `
-      <!-- Top Hub Card with 29 Niyams, Jaap Mala, History & Kids on First Page -->
       <div class="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200 shadow-sm space-y-3.5">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
           <div class="flex items-center gap-2">
-            <span class="text-[11px] font-extrabold text-white bg-[#143622] px-2.5 py-0.5 rounded-full">
-              आधिकारिक पोर्टल
-            </span>
+            <span class="text-[11px] font-extrabold text-white bg-[#143622] px-2.5 py-0.5 rounded-full">आधिकारिक पोर्टल</span>
             <h2 class="font-yatra text-base sm:text-lg text-forest">मुख्य अध्ययन एवं साधना केंद्र</h2>
           </div>
           <div class="flex items-center gap-2.5 text-xs font-semibold text-stone-600 bg-[#FAF7EE] px-3 py-1 rounded-xl border border-amber-300/60">
@@ -310,12 +383,9 @@ function upgradeHomepageAndAudioUI() {
           </div>
         </div>
 
-        <!-- Primary 3 Home Feature Cards (29 Niyams, Jaap Mala, History & Kids) -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button onclick="switchTab('niyams')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-100/60 border border-amber-300 text-left flex items-start gap-3 shadow-sm">
-            <div class="w-11 h-11 rounded-xl bg-[#143622] text-amber-300 flex items-center justify-center text-xl shrink-0 shadow">
-              📜
-            </div>
+            <div class="w-11 h-11 rounded-xl bg-[#143622] text-amber-300 flex items-center justify-center text-xl shrink-0 shadow">📜</div>
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded">आचार संहिता</span>
               <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">२९ नियम संहिता</h3>
@@ -324,9 +394,7 @@ function upgradeHomepageAndAudioUI() {
           </button>
 
           <button onclick="switchTab('mala')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-100/60 border border-emerald-300 text-left flex items-start gap-3 shadow-sm">
-            <div class="w-11 h-11 rounded-xl bg-[#143622] text-emerald-300 flex items-center justify-center text-xl shrink-0 shadow">
-              📿
-            </div>
+            <div class="w-11 h-11 rounded-xl bg-[#143622] text-emerald-300 flex items-center justify-center text-xl shrink-0 shadow">📿</div>
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 bg-emerald-200/70 px-2 py-0.5 rounded">दैनिक साधना</span>
               <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">डिजिटल जप माला</h3>
@@ -335,9 +403,7 @@ function upgradeHomepageAndAudioUI() {
           </button>
 
           <button onclick="switchTab('history')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 border border-orange-300 text-left flex items-start gap-3 shadow-sm">
-            <div class="w-11 h-11 rounded-xl bg-terracotta text-white flex items-center justify-center text-xl shrink-0 shadow">
-              🌳
-            </div>
+            <div class="w-11 h-11 rounded-xl bg-terracotta text-white flex items-center justify-center text-xl shrink-0 shadow">🌳</div>
             <div>
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-200/70 px-2 py-0.5 rounded">गौरवगाथा व संस्कार</span>
               <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">इतिहास व बाल संस्कार</h3>
@@ -346,75 +412,52 @@ function upgradeHomepageAndAudioUI() {
           </button>
         </div>
 
-        <!-- Secondary Quick Row (Library, Quiz, Community) -->
-        <div class="grid grid-cols-3 gap-2 pt-1">
-          <button onclick="switchTab('library')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center">
-            <span class="font-yatra text-xs sm:text-sm text-forest block">📚 सबदवाणी PDF</span>
-          </button>
-          <button onclick="switchTab('quiz')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 text-center">
-            <span class="font-yatra text-xs sm:text-sm text-forest block">🏆 ज्ञान परीक्षा</span>
-          </button>
-          <button onclick="switchTab('community')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center">
-            <span class="font-yatra text-xs sm:text-sm text-forest block">💬 संवाद ग्रुप</span>
-          </button>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <button onclick="switchTab('library')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">📚 सबदवाणी PDF</span></button>
+          <button onclick="switchTab('quiz')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">🏆 ज्ञान परीक्षा</span></button>
+          <button onclick="switchTab('community')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">💬 संवाद ग्रुप</span></button>
+          <button onclick="openFeedbackModal(false)" class="elevate-card py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-center"><span class="font-yatra text-xs sm:text-sm text-amber-900 block">⭐ सुझाव / फीडबैक</span></button>
         </div>
       </div>
     `;
     homeTab.insertBefore(heroWrap, homeTab.firstChild);
   }
 
-  // Upgrade Music Box
+  // Custom Audio Box
   const nativeAudio = document.getElementById('audioPlayer');
   const nativeSelect = document.getElementById('audioTrackSelect');
   if (nativeAudio && !document.getElementById('standardCustomMusicBox')) {
     const hostCard = nativeAudio.closest('div.bg-white') || nativeAudio.parentElement;
     nativeAudio.classList.add('hidden');
     if (nativeSelect) nativeSelect.classList.add('hidden');
-
-    Array.from(hostCard.children).forEach(ch => {
-      if (ch !== nativeAudio) ch.classList.add('hidden');
-    });
+    Array.from(hostCard.children).forEach(ch => { if (ch !== nativeAudio) ch.classList.add('hidden'); });
 
     hostCard.className = 'elevate-card bg-gradient-to-r from-[#143622] via-[#1b432c] to-[#143622] text-white p-4 sm:p-5 rounded-2xl shadow-lg border border-amber-400/40';
-
     const musicUI = document.createElement('div');
     musicUI.id = 'standardCustomMusicBox';
     musicUI.className = 'space-y-3';
     musicUI.innerHTML = `
       <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-2.5">
         <div class="flex items-center gap-3 min-w-0">
-          <div class="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center shrink-0 shadow-md">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center shrink-0 shadow-md">🎵</div>
           <div class="min-w-0">
             <span class="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">सबदवाणी, आरती एवं भजन स्ट्रीम</span>
             <h4 id="customNowPlayingTitle" class="font-yatra text-base sm:text-lg text-white truncate">श्री जम्भेश्वर आरती एवं भजन</h4>
           </div>
         </div>
-
         <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
           <select id="customPlaylistDropdown" onchange="selectCustomTrackByIndex(this.value)" class="flex-1 sm:flex-initial p-2 rounded-xl bg-black/35 text-amber-200 border border-amber-400/40 text-xs font-bold max-w-full sm:max-w-[210px] truncate">
             <option value="0">1. श्री जम्भेश्वर आरती एवं भजन</option>
           </select>
-          <button onclick="cycleCustomAudioSpeed()" id="customAudioSpeedBtn" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 text-xs font-extrabold border border-amber-400/30">
-            1x
-          </button>
+          <button onclick="cycleCustomAudioSpeed()" id="customAudioSpeedBtn" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 text-xs font-extrabold border border-amber-400/30">1x</button>
         </div>
       </div>
-
       <div class="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
         <div class="flex items-center justify-center gap-4 shrink-0">
-          <button onclick="skipCustomTrack(-1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-          </button>
-          <button onclick="toggleCustomMusicPlay()" id="customPlayBtn" class="w-11 h-11 rounded-full bg-amber-400 hover:bg-amber-300 text-stone-950 flex items-center justify-center shadow-lg transition transform active:scale-95">
-            <svg class="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </button>
-          <button onclick="skipCustomTrack(1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-          </button>
+          <button onclick="skipCustomTrack(-1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">⏮️</button>
+          <button onclick="toggleCustomMusicPlay()" id="customPlayBtn" class="w-11 h-11 rounded-full bg-amber-400 text-stone-950 flex items-center justify-center shadow-lg font-bold">▶</button>
+          <button onclick="skipCustomTrack(1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">⏭️</button>
         </div>
-
         <div class="flex-1 flex items-center gap-2.5">
           <span id="customCurTime" class="text-xs font-mono text-amber-200 w-9 text-right">0:00</span>
           <input type="range" id="customSeekSlider" value="0" min="0" max="100" oninput="seekCustomMusic(this.value)" class="flex-1 h-2 bg-white/25 rounded-lg cursor-pointer accent-amber-400">
@@ -434,67 +477,88 @@ function upgradeHomepageAndAudioUI() {
         if (durEl) durEl.innerText = formatMusicTime(nativeAudio.duration);
       }
     });
-
     nativeAudio.addEventListener('ended', () => skipCustomTrack(1));
     nativeAudio.addEventListener('play', () => updatePlayPauseIcon(true));
     nativeAudio.addEventListener('pause', () => updatePlayPauseIcon(false));
   }
 }
 
-// 9. PW (PHYSICSWALLAH) STYLE GLOSSY PODIUM LEADERBOARD UPGRADE
-function upgradeQuizLeaderboardToPWPodium() {
+// 10. MOBILE-FRIENDLY WIDE PODIUM LEADERBOARD (NO NARROW GALI WRAPPING!)
+function upgradeQuizLeaderboardToWidePodium() {
   const introCard = document.getElementById('quizIntroCard');
-  const w1 = document.getElementById('winner1Name');
-  const w2 = document.getElementById('winner2Name');
-  const w3 = document.getElementById('winner3Name');
-  if (!introCard || !w1 || !w2 || !w3 || document.getElementById('pwGlossyPodiumApplied')) return;
+  if (!introCard || document.getElementById('widePodiumRestructured')) return;
 
-  introCard.id = 'quizIntroCard';
-  introCard.className = 'bg-gradient-to-br from-[#143622] via-[#19422a] to-[#0f291a] text-white p-6 sm:p-8 rounded-3xl shadow-2xl border-2 border-amber-400/40 space-y-6 relative overflow-hidden';
+  introCard.className = 'bg-gradient-to-br from-[#143622] via-[#19422a] to-[#0f291a] text-white p-5 sm:p-8 rounded-3xl shadow-2xl border-2 border-amber-400/40 space-y-5 relative overflow-hidden';
 
-  const marker = document.createElement('span');
-  marker.id = 'pwGlossyPodiumApplied';
-  marker.className = 'hidden';
-  introCard.appendChild(marker);
+  introCard.innerHTML = `
+    <span id="widePodiumRestructured" class="hidden"></span>
+    <div class="text-center space-y-1">
+      <span class="px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-wider">
+        दैनिक ज्ञान प्रतियोगिता
+      </span>
+      <h2 class="font-yatra text-2xl sm:text-3xl text-amber-300 drop-shadow pt-1">🏆 आज के शीर्ष प्रतिभागी</h2>
+    </div>
 
-  // Style the 3 Winner Boxes into Silver (Left), Elevated Gold (Center), Bronze (Right)
-  const card1 = w1.closest('div');
-  const card2 = w2.closest('div');
-  const card3 = w3.closest('div');
+    <!-- Wide Responsive Podium: 1st Place Full-Width on Top (Mobile), 2nd & 3rd Wide Below -->
+    <div class="space-y-3 max-w-2xl mx-auto">
+      <!-- 1st Place Gold Banner (Wide so long names NEVER wrap into 4 lines!) -->
+      <div class="bg-gradient-to-r from-amber-100 via-amber-200 to-yellow-100 text-stone-950 p-4 sm:p-5 rounded-2xl border-2 border-amber-400 shadow-xl flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center text-2xl font-extrabold shrink-0 shadow">
+            🥇
+          </div>
+          <div class="min-w-0 text-left">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-300/70 px-2 py-0.5 rounded">प्रथम स्थान (1st Rank)</span>
+            <div id="winner1Name" class="font-extrabold text-base sm:text-xl text-[#143622] mt-0.5 break-words">—</div>
+          </div>
+        </div>
+        <div id="winner1Score" class="px-3 py-1.5 rounded-xl bg-[#143622] text-amber-300 font-extrabold text-sm sm:text-base shrink-0">
+          —
+        </div>
+      </div>
 
-  if (card1) {
-    card1.className = 'pw-gold-podium p-5 rounded-2xl text-center space-y-1.5 relative z-10';
-    w1.className = 'font-extrabold text-base sm:text-lg text-[#143622]';
-  }
-  if (card2) {
-    card2.className = 'pw-silver-podium p-4 rounded-2xl text-center space-y-1 text-stone-800 mt-2';
-    w2.className = 'font-bold text-sm sm:text-base text-stone-800';
-  }
-  if (card3) {
-    card3.className = 'pw-bronze-podium p-4 rounded-2xl text-center space-y-1 text-stone-800 mt-2';
-    w3.className = 'font-bold text-sm sm:text-base text-stone-900';
-  }
+      <!-- 2nd & 3rd Place Wide Side-by-Side Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="bg-white/95 text-stone-900 p-3.5 rounded-2xl border border-slate-300 shadow flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-2xl shrink-0">🥈</span>
+            <div class="min-w-0 text-left">
+              <span class="text-[10px] font-bold text-stone-500 block">द्वितीय स्थान (2nd)</span>
+              <div id="winner2Name" class="font-bold text-sm sm:text-base text-stone-800 break-words">—</div>
+            </div>
+          </div>
+          <span id="winner2Score" class="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-800 font-bold text-xs shrink-0">—</span>
+        </div>
 
-  // Upgrade Headings inside Intro Card for Dark Glossy Theme
-  introCard.querySelectorAll('h2, h3').forEach(h => {
-    h.className = 'font-yatra text-2xl sm:text-3xl text-amber-300 text-center drop-shadow';
-  });
-  introCard.querySelectorAll('p').forEach(p => {
-    p.className = 'text-xs sm:text-sm text-emerald-100 text-center';
-  });
+        <div class="bg-orange-50/95 text-stone-900 p-3.5 rounded-2xl border border-orange-200 shadow flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-2xl shrink-0">🥉</span>
+            <div class="min-w-0 text-left">
+              <span class="text-[10px] font-bold text-orange-800 block">तृतीय स्थान (3rd)</span>
+              <div id="winner3Name" class="font-bold text-sm sm:text-base text-stone-900 break-words">—</div>
+            </div>
+          </div>
+          <span id="winner3Score" class="px-2.5 py-1 rounded-lg bg-orange-100 text-orange-950 font-bold text-xs shrink-0">—</span>
+        </div>
+      </div>
+    </div>
 
-  // Add Soft In-Place Quiz Coming Soon Banner inside Intro Card (Hidden by default)
-  const softQuizBanner = document.createElement('div');
-  softQuizBanner.id = 'softQuizComingSoonBanner';
-  softQuizBanner.className = 'hidden p-4 rounded-2xl bg-amber-400/20 border border-amber-300 text-amber-200 text-center space-y-1 animate-pulse';
-  softQuizBanner.innerHTML = `
-    <div class="font-yatra text-base sm:text-lg text-amber-300">✨ नए ज्ञान परीक्षा प्रश्न तैयार किए जा रहे हैं!</div>
-    <p id="softQuizBannerSubtext" class="text-xs text-white/90">शीर्ष विजेता तालिका (Leaderboard) लाइव है। नए रोचक प्रश्न शीघ्र ही उपलब्ध होंगे।</p>
+    <div class="pt-3 border-t border-white/15 text-center space-y-3">
+      <p class="text-xs sm:text-sm text-emerald-100">समाज आचार संहिता, २९ नियम एवं इतिहास पर आधारित दैनिक ज्ञान परीक्षा में भाग लें और डिजिटल सम्मान-पत्र प्राप्त करें।</p>
+      <button onclick="startQuizNow()" id="mainStartQuizBtn" class="px-6 py-3 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-lg transition transform active:scale-95">
+        🎯 ज्ञान परीक्षा शुरू करें (Start Quiz)
+      </button>
+
+      <!-- Soft In-Place Maintenance Notice for Quiz (Leaderboard stays visible!) -->
+      <div id="softQuizComingSoonBanner" class="hidden p-4 rounded-2xl bg-amber-400/20 border border-amber-300 text-amber-200 text-center space-y-1">
+        <div id="softQuizBannerHeading" class="font-yatra text-base sm:text-lg text-amber-300">✨ नए ज्ञान परीक्षा प्रश्न तैयार किए जा रहे हैं!</div>
+        <p class="text-xs text-white/90">शीर्ष विजेता तालिका लाइव है। नए रोचक प्रश्न शीघ्र ही उपलब्ध होंगे।</p>
+      </div>
+    </div>
   `;
-  introCard.appendChild(softQuizBanner);
 }
 
-// 10. MUSIC HELPER FUNCTIONS
+// 11. MUSIC HELPERS
 function formatMusicTime(sec) {
   if (!sec || isNaN(sec)) return '0:00';
   const m = Math.floor(sec / 60);
@@ -505,10 +569,7 @@ function formatMusicTime(sec) {
 function updatePlayPauseIcon(playing) {
   isCustomPlaying = playing;
   const btn = document.getElementById('customPlayBtn');
-  if (!btn) return;
-  btn.innerHTML = playing
-    ? `<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`
-    : `<svg class="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+  if (btn) btn.innerText = playing ? '⏸' : '▶';
 }
 
 function renderCustomMusicDropdown() {
@@ -517,9 +578,7 @@ function renderCustomMusicDropdown() {
   if (!sel) return;
   sel.innerHTML = audioPlaylist.map((tr, i) => `<option value="${i}">${i + 1}. ${tr.title}</option>`).join('');
   sel.value = currentTrackIndex.toString();
-  if (titleEl && audioPlaylist[currentTrackIndex]) {
-    titleEl.innerText = audioPlaylist[currentTrackIndex].title;
-  }
+  if (titleEl && audioPlaylist[currentTrackIndex]) titleEl.innerText = audioPlaylist[currentTrackIndex].title;
 }
 
 function selectCustomTrackByIndex(idxStr) {
@@ -528,11 +587,7 @@ function selectCustomTrackByIndex(idxStr) {
   currentTrackIndex = idx;
   const player = document.getElementById('audioPlayer');
   const source = document.getElementById('audioSource');
-  if (player && source) {
-    source.src = audioPlaylist[idx].link;
-    player.load();
-    player.play().catch(() => {});
-  }
+  if (player && source) { source.src = audioPlaylist[idx].link; player.load(); player.play().catch(() => {}); }
   renderCustomMusicDropdown();
 }
 
@@ -541,11 +596,9 @@ function toggleCustomMusicPlay() {
   const source = document.getElementById('audioSource');
   if (!player) return;
   if ((!source.src || source.src === window.location.href) && audioPlaylist[currentTrackIndex]) {
-    source.src = audioPlaylist[currentTrackIndex].link;
-    player.load();
+    source.src = audioPlaylist[currentTrackIndex].link; player.load();
   }
-  if (player.paused) player.play().catch(() => showToast("भजन लोड हो रहा है..."));
-  else player.pause();
+  if (player.paused) player.play().catch(() => {}); else player.pause();
 }
 
 function skipCustomTrack(delta) {
@@ -578,7 +631,7 @@ function updateProgressIndicators() {
   if (mEl) mEl.innerText = `${malaLapsCount}`;
 }
 
-// 11. SOFT IN-PLACE MAINTENANCE ENGINE (NO BLOCKING POPUPS!)
+// 12. CUSTOM PER-SECTION MAINTENANCE ENGINE + VIP ADMIN/EDITOR BYPASS
 function isPhoneOrInstalledApp() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -588,7 +641,8 @@ function isPhoneOrInstalledApp() {
 
 function isSectionSoftLocked(mode) {
   if (!mode || mode === 'off') return false;
-  if (isEditorOrOwner()) return false; // Owner & Editors never locked
+  // VIP Bypass: If enabled (default true), Owner & Trusted Editors can test live even during maintenance
+  if (maintenanceConfig.vipBypass !== false && isEditorOrOwner()) return false;
   const onPhone = isPhoneOrInstalledApp();
   if (mode === 'both') return true;
   if (mode === 'phone_only' && onPhone) return true;
@@ -601,45 +655,45 @@ function listenMaintenanceConfig() {
     if (doc.exists) {
       const data = doc.data();
       maintenanceConfig.globalMode = data.globalMode || 'off';
-      maintenanceConfig.message = data.message || 'नए प्रश्न एवं रोचक ऐतिहासिक तथ्य जोड़े जा रहे हैं, जो शीघ्र ही उपलब्ध होंगे!';
+      maintenanceConfig.vipBypass = data.vipBypass !== false;
+      maintenanceConfig.message = data.message || maintenanceConfig.message;
       maintenanceConfig.sections = Object.assign({
         mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off'
       }, data.sections || {});
+      maintenanceConfig.customMessages = Object.assign(maintenanceConfig.customMessages, data.customMessages || {});
 
       const globalSel = document.getElementById('adminGlobalMaintMode');
       const msgInp = document.getElementById('adminMaintMessage');
+      const vipChk = document.getElementById('adminVipBypassToggle');
       if (globalSel) globalSel.value = maintenanceConfig.globalMode;
       if (msgInp) msgInp.value = maintenanceConfig.message;
+      if (vipChk) vipChk.checked = maintenanceConfig.vipBypass;
 
       ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
         const el = document.getElementById(`lock_${sec}`);
         if (el) el.value = maintenanceConfig.sections[sec] || 'off';
+        const cMsgEl = document.getElementById(`cmsg_${sec}`);
+        if (cMsgEl) cMsgEl.value = maintenanceConfig.customMessages[sec] || '';
       });
     }
     applySoftMaintenanceBanners();
   });
 }
 
-// Never blocks the website! Shows smooth "New Content Coming Soon" banners inside toggled sections while keeping Leaderboard & Reading working
 function applySoftMaintenanceBanners() {
-  // Remove any old full-screen blocking overlay if present
   document.getElementById('globalMaintenanceOverlay')?.remove();
   document.getElementById('sectionMaintenanceCard')?.remove();
 
-  // 1. Quiz Soft Update Mode: Keep Leaderboard 100% visible, just toggle Start Quiz button vs Coming Soon Banner
   const quizLocked = isSectionSoftLocked(maintenanceConfig.sections.quiz) || isSectionSoftLocked(maintenanceConfig.globalMode);
   const softQuizBanner = document.getElementById('softQuizComingSoonBanner');
-  const startQuizBtn = document.querySelector('#quizIntroCard button[onclick*="startQuizNow"]');
+  const startQuizBtn = document.getElementById('mainStartQuizBtn');
   if (softQuizBanner) {
     softQuizBanner.classList.toggle('hidden', !quizLocked);
-    const sub = document.getElementById('softQuizBannerSubtext');
-    if (sub) sub.innerText = maintenanceConfig.message || 'नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं, तब तक शीर्ष विजेता तालिका देखें!';
+    const hEl = document.getElementById('softQuizBannerHeading');
+    if (hEl) hEl.innerText = maintenanceConfig.customMessages.quiz || '✨ नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!';
   }
-  if (startQuizBtn) {
-    startQuizBtn.classList.toggle('hidden', quizLocked);
-  }
+  if (startQuizBtn) startQuizBtn.classList.toggle('hidden', quizLocked);
 
-  // 2. History & Other Sections Soft Update Banner (Existing content stays visible + top banner announces upcoming facts)
   ['history', 'library', 'niyams', 'community', 'mala'].forEach(sec => {
     const tabEl = document.getElementById(`tab-${sec}`);
     if (!tabEl) return;
@@ -650,19 +704,13 @@ function applySoftMaintenanceBanners() {
       if (!banner) {
         banner = document.createElement('div');
         banner.id = `soft_banner_${sec}`;
-        banner.className = 'mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-100 via-amber-50 to-emerald-50 border border-amber-300 text-forest flex items-center justify-between gap-3 shadow-sm';
+        banner.className = 'mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-100 to-emerald-50 border border-amber-300 text-forest flex items-center justify-between gap-3 shadow-sm';
         tabEl.insertBefore(banner, tabEl.firstChild);
       }
-      const titles = {
-        history: '✨ नए ऐतिहासिक तथ्य एवं बाल कहानियाँ जोड़ी जा रही हैं (Coming Soon)!',
-        library: '✨ नया साहित्य एवं ग्रंथ अपलोड किए जा रहे हैं!',
-        niyams: '✨ नियमों में नई व्याख्या जोड़ी जा रही है!',
-        community: '✨ संवाद मंच अपडेट मोड में है!',
-        mala: '✨ जप माला में नए मंत्र जोड़े जा रहे हैं!'
-      };
+      const secNotice = maintenanceConfig.customMessages[sec] || maintenanceConfig.message;
       banner.innerHTML = `
         <div>
-          <h4 class="font-yatra text-sm sm:text-base text-forest">${titles[sec]}</h4>
+          <h4 class="font-yatra text-sm sm:text-base text-forest">${secNotice}</h4>
           <p class="text-xs text-stone-600">${maintenanceConfig.message}</p>
         </div>
         <span class="px-2.5 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">अपडेट जारी</span>
@@ -677,16 +725,20 @@ function applySoftMaintenanceBanners() {
 async function saveMaintenanceSettings() {
   if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के लिए!");
   const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
+  const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
   const message = document.getElementById('adminMaintMessage')?.value.trim() || maintenanceConfig.message;
   const sections = {};
+  const customMessages = {};
   ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
     sections[sec] = document.getElementById(`lock_${sec}`)?.value || 'off';
+    const cVal = document.getElementById(`cmsg_${sec}`)?.value.trim();
+    if (cVal) customMessages[sec] = cVal;
   });
-  await db.collection('settings').doc('maintenance').set({ globalMode, message, sections });
-  showToast("✅ स्मूथ अपडेट/मेंटेनेंस मोड सहेजा गया!");
+  await db.collection('settings').doc('maintenance').set({ globalMode, vipBypass, message, sections, customMessages });
+  showToast("✅ कस्टम मेंटेनेंस व VIP बाईपास सेटिंग्स लागू हो गईं!");
 }
 
-// 12. OWNER & EDITOR STUDIO (WITH SCHEDULER & EDITOR ROLE MANAGER)
+// 13. SIMPLIFIED OWNER & EDITOR STUDIO (4 ONE-TAP SHORTCUTS + DRAFT APPROVAL QUEUE)
 function organizeStandardOwnerConsole() {
   const adminTab = document.getElementById('tab-admin');
   if (!adminTab || document.getElementById('ownerStandardConsoleBar')) return;
@@ -694,17 +746,11 @@ function organizeStandardOwnerConsole() {
   const pdfTitleInp = document.getElementById('adminPdfTitle');
   if (pdfTitleInp && !document.getElementById('adminPdfTag')) {
     const tagInp = document.createElement('input');
-    tagInp.type = 'text';
-    tagInp.id = 'adminPdfTag';
-    tagInp.placeholder = 'श्रेणी टैग (उदा: पवित्र ग्रंथ या साहित्य)';
-    tagInp.className = pdfTitleInp.className;
+    tagInp.type = 'text'; tagInp.id = 'adminPdfTag'; tagInp.placeholder = 'श्रेणी टैग (उदा: पवित्र ग्रंथ)'; tagInp.className = pdfTitleInp.className;
     pdfTitleInp.parentElement.insertBefore(tagInp, pdfTitleInp);
 
     const descInp = document.createElement('input');
-    descInp.type = 'text';
-    descInp.id = 'adminPdfDesc';
-    descInp.placeholder = 'छोटा विवरण (उदा: गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी)';
-    descInp.className = pdfTitleInp.className;
+    descInp.type = 'text'; descInp.id = 'adminPdfDesc'; descInp.placeholder = 'छोटा विवरण'; descInp.className = pdfTitleInp.className;
     pdfTitleInp.insertAdjacentElement('afterend', descInp);
   }
 
@@ -714,58 +760,71 @@ function organizeStandardOwnerConsole() {
   consoleHeader.id = 'ownerStandardConsoleBar';
   consoleHeader.className = 'space-y-4 mb-4';
   consoleHeader.innerHTML = `
-    <div class="bg-gradient-to-r from-[#143622] via-[#1b432c] to-stone-900 text-white p-4 sm:p-5 rounded-2xl shadow-lg space-y-3 border border-amber-400/40">
+    <!-- Clean Owner Header + 4 One-Tap Quick Action Buttons -->
+    <div class="bg-gradient-to-r from-[#143622] via-[#1b432c] to-stone-900 text-white p-4 sm:p-5 rounded-3xl shadow-xl space-y-4 border border-amber-400/40">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span id="studioTopRoleTag" class="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">🛡️ AI-POWERED OWNER STUDIO</span>
-          <h2 class="font-yatra text-xl text-white">प्रबंधक एवं AI स्टूडियो (Command Center)</h2>
+          <span id="studioTopRoleLabel" class="text-[10px] uppercase tracking-wider text-amber-300 font-extrabold block">🛡️ ONE-TAP OWNER STUDIO</span>
+          <h2 class="font-yatra text-xl sm:text-2xl text-white">त्वरित नियंत्रण कक्ष (Easy Admin Hub)</h2>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button onclick="runAiSmartBackendSync(true)" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs font-extrabold shadow flex items-center gap-1">
-            🤖 AI ऑटो-सिंक (लीडरबोर्ड व सुविचार)
+        <div class="flex items-center gap-2">
+          <button onclick="runAiSmartBackendSync(true)" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs font-extrabold shadow">
+            🤖 AI ऑटो-सिंक
           </button>
-          <button onclick="refreshOwnerAnalytics()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-amber-200 border border-white/15">
+          <button onclick="refreshOwnerAnalytics()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-amber-200">
             ↻ रिफ्रेश
           </button>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-        <div class="bg-white/10 p-3 rounded-xl border border-white/10">
-          <span class="text-[11px] text-stone-300 block">कुल सदस्य</span>
-          <strong id="admStatUsers" class="text-xl font-bold text-amber-300">...</strong>
-        </div>
-        <div class="bg-white/10 p-3 rounded-xl border border-white/10">
-          <span class="text-[11px] text-stone-300 block">परीक्षा प्रयास</span>
-          <strong id="admStatQuizzes" class="text-xl font-bold text-emerald-300">...</strong>
-        </div>
-        <div class="bg-white/10 p-3 rounded-xl border border-white/10">
-          <span class="text-[11px] text-stone-300 block">संवाद संदेश</span>
-          <strong id="admStatPosts" class="text-xl font-bold text-white">...</strong>
-        </div>
-        <div class="bg-white/10 p-3 rounded-xl border border-white/10">
-          <span class="text-[11px] text-stone-300 block">साहित्य व भजन</span>
-          <strong id="admStatMedia" class="text-xl font-bold text-amber-200">...</strong>
-        </div>
+      <!-- 4 BIG ONE-TAP QUICK SHORTCUTS (For Owner & Trusted Editors Only) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <button onclick="quickOneTapAction('sandesh')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-xl block">📢</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">नया सुविचार डालें</span>
+          <span class="text-[10px] opacity-75">1-Click में लिखें</span>
+        </button>
+        <button onclick="quickOneTapAction('quiz')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-xl block">🏆</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">क्विज़ प्रश्न जोड़ें</span>
+          <span class="text-[10px] opacity-75">AI या पेस्ट करें</span>
+        </button>
+        <button onclick="quickOneTapAction('pdf')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-xl block">📚</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">PDF / भजन जोड़ें</span>
+          <span class="text-[10px] opacity-75">साहित्य अपलोड</span>
+        </button>
+        <button onclick="quickOneTapAction('history')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-xl block">📜</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">इतिहास अपडेट करें</span>
+          <span class="text-[10px] opacity-75">कहानी व अध्याय</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
+        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">कुल सदस्य</span><strong id="admStatUsers" class="text-lg font-bold text-amber-300">...</strong></div>
+        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">परीक्षा प्रयास</span><strong id="admStatQuizzes" class="text-lg font-bold text-emerald-300">...</strong></div>
+        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">प्रतीक्षारत ड्राफ्ट</span><strong id="admStatDrafts" class="text-lg font-bold text-amber-400">0</strong></div>
+        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">यूज़र सुझाव</span><strong id="admStatFeedbacks" class="text-lg font-bold text-white">0</strong></div>
       </div>
     </div>
 
-    <!-- 5 Sub-Tabs -->
-    <div class="flex flex-wrap gap-1.5 bg-white p-2 rounded-xl border border-stone-200 shadow-sm">
-      <button onclick="switchAdminSubTab('adm_overview')" id="admbtn_adm_overview" class="admin-subtab-active flex-1 min-w-[115px] py-2 px-2.5 rounded-lg text-xs font-bold border border-stone-200 transition">
-        1. सुविचार व शेड्यूलर
+    <!-- 5 Clean Sub-Tabs -->
+    <div class="flex flex-wrap gap-1.5 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm">
+      <button onclick="switchAdminSubTab('adm_overview')" id="admbtn_adm_overview" class="admin-subtab-active flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold border border-stone-200 transition">
+        1. सुविचार व अप्रूवल
       </button>
-      <button onclick="switchAdminSubTab('adm_media')" id="admbtn_adm_media" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-lg text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
+      <button onclick="switchAdminSubTab('adm_media')" id="admbtn_adm_media" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
         2. साहित्य व भजन
       </button>
-      <button onclick="switchAdminSubTab('adm_content')" id="admbtn_adm_content" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-lg text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
+      <button onclick="switchAdminSubTab('adm_content')" id="admbtn_adm_content" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
         3. इतिहास व संस्कार
       </button>
-      <button onclick="switchAdminSubTab('adm_quiz')" id="admbtn_adm_quiz" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-lg text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
-        4. परीक्षा व AI
+      <button onclick="switchAdminSubTab('adm_quiz')" id="admbtn_adm_quiz" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
+        4. परीक्षा व विजेता
       </button>
-      <button onclick="switchAdminSubTab('adm_system')" id="admbtn_adm_system" class="owner-only-tab flex-1 min-w-[115px] py-2 px-2.5 rounded-lg text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
-        5. संपादक व सुरक्षा
+      <button onclick="switchAdminSubTab('adm_system')" id="admbtn_adm_system" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
+        5. मेंटेनेंस व सुरक्षा
       </button>
     </div>
   `;
@@ -779,124 +838,138 @@ function organizeStandardOwnerConsole() {
   };
 
   Object.keys(panes).forEach((k, idx) => {
-    panes[k].id = k;
-    panes[k].className = idx === 0 ? 'space-y-4' : 'hidden space-y-4';
+    panes[k].id = k; panes[k].className = idx === 0 ? 'space-y-4' : 'hidden space-y-4';
   });
 
   existingChildren.forEach(el => {
     const html = el.innerHTML || '';
-    if (html.includes('adminPdfTitle') || html.includes('adminAudioTitle')) {
-      panes.adm_media.appendChild(el);
-    } else if (html.includes('adminBulkQuizText') || html.includes('win1InputName') || html.includes('aiQuizGenBtn')) {
-      panes.adm_quiz.appendChild(el);
-    } else if (html.includes('adminGlobalMaintMode') || html.includes('lock_mala')) {
-      panes.adm_system.appendChild(el);
-    } else {
-      panes.adm_overview.appendChild(el);
-    }
+    if (html.includes('adminPdfTitle') || html.includes('adminAudioTitle')) panes.adm_media.appendChild(el);
+    else if (html.includes('adminBulkQuizText') || html.includes('win1InputName') || html.includes('aiQuizGenBtn')) panes.adm_quiz.appendChild(el);
+    else if (html.includes('adminGlobalMaintMode') || html.includes('lock_mala')) panes.adm_system.appendChild(el);
+    else panes.adm_overview.appendChild(el);
   });
 
-  // Add Content Scheduler Card into Sub-Tab 1 (adm_overview)
-  const schedulerCard = document.createElement('div');
-  schedulerCard.className = 'bg-white p-5 rounded-xl border-2 border-amber-200 shadow-sm space-y-3';
-  schedulerCard.innerHTML = `
+  // OWNER DRAFT APPROVAL QUEUE (Editors submit Drafts -> ONLY Owner Approves/Schedules)
+  const draftQueueCard = document.createElement('div');
+  draftQueueCard.id = 'ownerDraftApprovalCard';
+  draftQueueCard.className = 'bg-amber-50/70 p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3';
+  draftQueueCard.innerHTML = `
     <div class="flex items-center justify-between">
-      <h3 class="font-yatra text-base text-forest">⏰ कंटेंट शेड्यूलर (Content Scheduling - Auto Live)</h3>
-      <span class="px-2 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-bold">Auto-Publish</span>
+      <div>
+        <h3 class="font-yatra text-base text-forest">✅ ड्राफ्ट अप्रूवल कतार (Draft Review Queue - Owner Power)</h3>
+        <p class="text-xs text-stone-600">सहायक संपादकों (Editors) द्वारा भेजे गए सुविचार, इतिहास व प्रश्न यहाँ दिखेंगे। केवल आप (Owner) ही इन्हें 1-Click में Live या Schedule कर सकते हैं:</p>
+      </div>
+      <span class="px-2.5 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">Only Owner Live</span>
     </div>
-    <p class="text-xs text-stone-500">पावन सुविचार या नया क्विज़ प्रश्न पहले से लिखकर तारीख व समय सेट करें—उस समय पर ऐप इसे अपने आप लाइव कर देगी:</p>
+    <div id="draftReviewListBox" class="space-y-2 text-xs"></div>
+  `;
+  panes.adm_overview.insertBefore(draftQueueCard, panes.adm_overview.firstChild);
+
+  // Content Scheduler Card (Owner Only)
+  const schedulerCard = document.createElement('div');
+  schedulerCard.className = 'bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3';
+  schedulerCard.innerHTML = `
+    <h3 class="font-yatra text-base text-forest">⏰ कंटेंट शेड्यूलर (समय निर्धारित करें - Owner Only)</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-      <select id="schedTypeSelect" class="p-2.5 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50">
-        <option value="banner">📢 दैनिक पावन सुविचार (Banner)</option>
-        <option value="quiz">🏆 ज्ञान परीक्षा प्रश्न (Q:, A), B)... Ans:)</option>
-      </select>
+      <select id="schedTypeSelect" class="p-2.5 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50"><option value="banner">📢 दैनिक पावन सुविचार</option><option value="quiz">🏆 ज्ञान परीक्षा प्रश्न</option></select>
       <input type="datetime-local" id="schedDateTimeInput" class="p-2.5 rounded-lg border border-stone-300 font-semibold">
     </div>
-    <textarea id="schedContentInput" rows="3" placeholder="सुविचार लिखें अथवा प्रश्न (Q: ... A) ... Ans: A) प्रारूप में पेस्ट करें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-    <button onclick="saveScheduledContentItem()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-lg shadow transition">
-      ⏰ समय निर्धारित करें (Schedule Now)
-    </button>
+    <textarea id="schedContentInput" rows="2" placeholder="सुविचार या प्रश्न पेस्ट करें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
+    <button onclick="saveScheduledContentItem()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-lg shadow">⏰ समय निर्धारित करें</button>
     <div id="scheduledItemsListBox" class="space-y-1.5 pt-2 text-xs"></div>
   `;
   panes.adm_overview.appendChild(schedulerCard);
 
   // Sub-Tab 3: History & Kids Editor
   panes.adm_content.innerHTML = `
-    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
-      <h3 class="font-yatra text-base text-forest">📜 इतिहास दर्शन एवं 🧸 बाल संस्कार प्रबंधक</h3>
+    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+      <h3 class="font-yatra text-base text-forest">📜 इतिहास दर्शन एवं 🧸 बाल संस्कार जोड़ें</h3>
+      <p class="text-xs text-stone-500">यदि आप संपादक (Editor) हैं तो यह 'ड्राफ्ट' में सेव होगा, और यदि आप मुख्य व्यवस्थापक (Owner) हैं तो तुरंत लाइव होगा:</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-        <select id="adminHistType" class="p-2.5 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50">
-          <option value="history">📜 इतिहास दर्शन (History)</option>
-          <option value="kids">🧸 बाल संस्कार मंच (Kids Story)</option>
-        </select>
-        <input type="text" id="adminHistBadge" placeholder="छोटा टैग (उदा: इतिहास अध्याय या बाल कहानी)" class="p-2.5 rounded-lg border border-stone-300">
+        <select id="adminHistType" class="p-2.5 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50"><option value="history">📜 इतिहास दर्शन</option><option value="kids">🧸 बाल संस्कार मंच</option></select>
+        <input type="text" id="adminHistBadge" placeholder="छोटा टैग (उदा: इतिहास अध्याय)" class="p-2.5 rounded-lg border border-stone-300">
       </div>
-      <input type="text" id="adminHistTitle" placeholder="मुख्य शीर्षक (Title)" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 font-semibold">
-      <textarea id="adminHistContent" rows="4" placeholder="पूरी जानकारी या कहानी यहाँ लिखें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-      <input type="text" id="adminHistMoral" placeholder="मुख्य सीख / संदेश (Moral)" class="w-full p-2.5 text-xs rounded-lg border border-stone-300">
-      <button onclick="saveAdminHistoryOrKidsItem()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-lg shadow transition">
-        ➕ प्रकाशित करें (Publish)
-      </button>
+      <input type="text" id="adminHistTitle" placeholder="मुख्य शीर्षक" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 font-semibold">
+      <textarea id="adminHistContent" rows="4" placeholder="कहानी या इतिहास यहाँ लिखें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
+      <input type="text" id="adminHistMoral" placeholder="मुख्य सीख / संदेश" class="w-full p-2.5 text-xs rounded-lg border border-stone-300">
+      <button onclick="saveAdminHistoryOrKidsItem()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-lg shadow">➕ सहेजें / प्रकाशित करें</button>
     </div>
   `;
 
   // Sub-Tab 2 Extra: Audio Playlist Delete List
   const audioListCard = document.createElement('div');
-  audioListCard.className = 'bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-2';
-  audioListCard.innerHTML = `
-    <h4 class="font-yatra text-base text-forest">🎵 अपलोड किए गए भजन प्रबंधक</h4>
-    <div id="adminAudioManageList" class="space-y-1.5 text-xs"></div>
-  `;
+  audioListCard.className = 'bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-2';
+  audioListCard.innerHTML = `<h4 class="font-yatra text-base text-forest">🎵 अपलोड किए गए भजन प्रबंधक</h4><div id="adminAudioManageList" class="space-y-1.5 text-xs"></div>`;
   panes.adm_media.appendChild(audioListCard);
 
-  // Sub-Tab 4 Extra: Quiz Questions Delete List
+  // Sub-Tab 4 Extra: Clear Winner Option + Quiz Questions Delete List
   const quizListCard = document.createElement('div');
-  quizListCard.className = 'bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-2.5';
+  quizListCard.className = 'bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-2.5';
   quizListCard.innerHTML = `
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-stone-100">
+      <span class="text-xs text-stone-600">यदि आज कोई विजेता नहीं है, तो लीडरबोर्ड खाली (Blank) रखने के लिए दबाएं:</span>
+      <button onclick="clearDailyWinnersToBlank()" class="px-3 py-1.5 bg-amber-100 text-amber-900 rounded-lg text-xs font-bold hover:bg-amber-200">विजेता स्थान खाली (Blank) करें</button>
+    </div>
+    <div class="flex items-center justify-between pt-1">
       <h3 class="font-yatra text-base text-forest">🏆 वर्तमान ज्ञान परीक्षा प्रश्न सूची</h3>
-      <button onclick="clearAllQuizQuestions()" class="px-2.5 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200">सभी प्रश्न हटाएं</button>
+      <button onclick="clearAllQuizQuestions()" class="px-2.5 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">सभी प्रश्न हटाएं</button>
     </div>
     <div id="adminQuizManageList" class="space-y-1.5 max-h-56 overflow-y-auto text-xs"></div>
   `;
   panes.adm_quiz.appendChild(quizListCard);
 
-  // Sub-Tab 5 Extra: Trusted Editor Role Manager + Password Reset + Blocked Users
+  // Sub-Tab 5 Extra: Custom Per-Section Maintenance Notices + VIP Bypass + Trusted Editors + User Feedback Inbox
+  const customMaintCard = document.createElement('div');
+  customMaintCard.className = 'bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4';
+  customMaintCard.innerHTML = `
+    <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+      <h3 class="font-yatra text-base text-forest">🛠️ कस्टम सेक्शन मेंटेनेंस नोटिस एवं VIP बाईपास</h3>
+      <label class="flex items-center gap-1.5 text-xs font-bold text-forest cursor-pointer bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+        <input type="checkbox" id="adminVipBypassToggle" checked class="accent-forest">
+        <span>VIP Admin/Editor Bypass सक्रिय</span>
+      </label>
+    </div>
+    <p class="text-xs text-stone-500">हर सेक्शन के लिए अलग कस्टम मेंटेनेंस संदेश लिखें (जब वह सेक्शन लॉक हो तो यूज़र को यही संदेश दिखेगा):</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+      <input type="text" id="cmsg_quiz" placeholder="क्विज़ नोटिस (उदा: नए प्रश्न जोड़े जा रहे हैं)" class="p-2.5 rounded-lg border border-stone-300">
+      <input type="text" id="cmsg_library" placeholder="साहित्य नोटिस (उदा: नई PDF अपलोड हो रही है)" class="p-2.5 rounded-lg border border-stone-300">
+      <input type="text" id="cmsg_history" placeholder="इतिहास नोटिस (उदा: नए तथ्य जोड़े जा रहे हैं)" class="p-2.5 rounded-lg border border-stone-300">
+      <input type="text" id="cmsg_niyams" placeholder="२९ नियम नोटिस" class="p-2.5 rounded-lg border border-stone-300">
+    </div>
+    <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-xl shadow">💾 कस्टम मेंटेनेंस सेटिंग्स सहेजें</button>
+  `;
+  panes.adm_system.insertBefore(customMaintCard, panes.adm_system.firstChild);
+
   const securityCard = document.createElement('div');
-  securityCard.className = 'bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-5';
+  securityCard.className = 'bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-5';
   securityCard.innerHTML = `
-    <!-- Trusted Editor Role Creator -->
     <div class="space-y-2 pb-4 border-b border-stone-100">
-      <div class="flex items-center justify-between">
-        <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor Role) अधिकार दें</h3>
-        <span class="px-2 py-0.5 bg-emerald-100 text-forest rounded text-[10px] font-bold">Only Owner Power</span>
-      </div>
-      <p class="text-xs text-stone-500">अपने किसी भरोसेमंद साथी या शिक्षक का १०-अंकों का मोबाइल नंबर जोड़ें। वे इतिहास व क्विज़ जोड़ सकेंगे, किंतु मेंटेनेंस या डिलीट नहीं कर पाएंगे:</p>
+      <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) बनाएं</h3>
+      <p class="text-xs text-stone-500">संपादक केवल ड्राफ्ट जोड़ सकेंगे, उन्हें Live करने की पावर केवल आपके पास रहेगी:</p>
       <div class="flex gap-2 text-xs">
-        <input type="text" id="newEditorPhoneInput" maxlength="10" placeholder="साथी/शिक्षक का 10-अंकों का मोबाइल नंबर" class="flex-1 p-2.5 rounded-lg border border-stone-300 font-semibold">
-        <button onclick="addTrustedEditorPhone()" class="px-4 py-2.5 bg-forest text-white font-bold rounded-lg shadow">
-          ➕ संपादक बनाएं
-        </button>
+        <input type="text" id="newEditorPhoneInput" maxlength="10" placeholder="साथी का 10-अंकों का मोबाइल नंबर" class="flex-1 p-2.5 rounded-lg border border-stone-300 font-semibold">
+        <button onclick="addTrustedEditorPhone()" class="px-4 py-2.5 bg-forest text-white font-bold rounded-lg shadow">➕ संपादक बनाएं</button>
       </div>
       <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
     </div>
 
-    <!-- Member Password Reset -->
     <div class="space-y-2 pb-4 border-b border-stone-100">
-      <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट (Password Reset)</h3>
+      <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट</h3>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-        <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="सदस्य का 10-अंकों का नंबर" class="p-2.5 rounded-lg border border-stone-300">
-        <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड (उदा: 123456)" class="p-2.5 rounded-lg border border-stone-300">
-        <button onclick="adminResetMemberPassword()" class="py-2.5 px-4 bg-terracotta hover:bg-orange-800 text-white font-bold rounded-lg shadow transition">
-          पासवर्ड बदलें
-        </button>
+        <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="10-अंकों का नंबर" class="p-2.5 rounded-lg border border-stone-300">
+        <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड" class="p-2.5 rounded-lg border border-stone-300">
+        <button onclick="adminResetMemberPassword()" class="py-2.5 px-4 bg-terracotta text-white font-bold rounded-lg shadow">पासवर्ड बदलें</button>
       </div>
     </div>
 
-    <!-- Blocked / Muted Chat Users -->
-    <div class="space-y-2">
-      <h4 class="font-yatra text-sm text-forest">🛡️ संवाद मंच सुरक्षा (AI & Admin Muted Users)</h4>
+    <div class="space-y-2 pb-4 border-b border-stone-100">
+      <h4 class="font-yatra text-sm text-forest">🛡️ संवाद मंच सुरक्षा (म्यूट सदस्य)</h4>
       <div id="adminBlockedUsersList" class="space-y-1.5 text-xs"></div>
+    </div>
+
+    <div class="space-y-2">
+      <h4 class="font-yatra text-sm text-forest">⭐ सदस्यों के फीडबैक एवं सुझाव (User Feedback Inbox)</h4>
+      <div id="adminFeedbackInboxList" class="space-y-1.5 max-h-48 overflow-y-auto text-xs"></div>
     </div>
   `;
   panes.adm_system.appendChild(securityCard);
@@ -906,58 +979,152 @@ function organizeStandardOwnerConsole() {
   Object.values(panes).forEach(p => adminTab.appendChild(p));
 }
 
-function switchAdminSubTab(paneId) {
-  if (paneId === 'adm_system' && !isSuperOwner()) {
-    return showToast("सुरक्षा व मेंटेनेंस केवल मुख्य व्यवस्थापक (Owner) के लिए है!");
+function quickOneTapAction(type) {
+  if (!isEditorOrOwner()) return;
+  if (type === 'sandesh') {
+    switchAdminSubTab('adm_overview');
+    document.getElementById('adminBannerInput')?.focus();
+  } else if (type === 'quiz') {
+    switchAdminSubTab('adm_quiz');
+    document.getElementById('adminBulkQuizText')?.focus();
+  } else if (type === 'pdf') {
+    switchAdminSubTab('adm_media');
+    document.getElementById('adminPdfTitle')?.focus();
+  } else if (type === 'history') {
+    switchAdminSubTab('adm_content');
+    document.getElementById('adminHistTitle')?.focus();
   }
+}
+
+function switchAdminSubTab(paneId) {
+  if (paneId === 'adm_system' && !isSuperOwner()) return showToast("सुरक्षा व मेंटेनेंस केवल मुख्य व्यवस्थापक (Owner) के लिए है!");
   ['adm_overview', 'adm_media', 'adm_content', 'adm_quiz', 'adm_system'].forEach(id => {
     const p = document.getElementById(id);
     const b = document.getElementById(`admbtn_${id}`);
     if (p) p.classList.toggle('hidden', id !== paneId);
-    if (b) {
-      if (id === paneId) b.classList.add('admin-subtab-active');
-      else b.classList.remove('admin-subtab-active');
-    }
+    if (b) { if (id === paneId) b.classList.add('admin-subtab-active'); else b.classList.remove('admin-subtab-active'); }
   });
 }
 
 async function refreshOwnerAnalytics() {
   if (!isEditorOrOwner()) return;
   try {
-    const [uSnap, qSnap, pSnap, pdfSnap, audSnap] = await Promise.all([
+    const [uSnap, qSnap, dSnap, fSnap] = await Promise.all([
       db.collection('users').get(),
       db.collection('quizAttempts').get(),
-      db.collection('posts').get(),
-      db.collection('pdfs').get(),
-      db.collection('audios').get()
+      db.collection('draftQueue').get(),
+      db.collection('feedbacks').get()
     ]);
-    const uEl = document.getElementById('admStatUsers');
-    const qEl = document.getElementById('admStatQuizzes');
-    const pEl = document.getElementById('admStatPosts');
-    const mEl = document.getElementById('admStatMedia');
-    if (uEl) uEl.innerText = uSnap.size;
-    if (qEl) qEl.innerText = qSnap.size;
-    if (pEl) pEl.innerText = pSnap.size;
-    if (mEl) mEl.innerText = `${pdfSnap.size + 1} PDF / ${audSnap.size} भजन`;
+    if (document.getElementById('admStatUsers')) document.getElementById('admStatUsers').innerText = uSnap.size;
+    if (document.getElementById('admStatQuizzes')) document.getElementById('admStatQuizzes').innerText = qSnap.size;
+    if (document.getElementById('admStatDrafts')) document.getElementById('admStatDrafts').innerText = dSnap.size;
+    if (document.getElementById('admStatFeedbacks')) document.getElementById('admStatFeedbacks').innerText = fSnap.size;
   } catch (e) {}
 }
 
-// 13. CONTENT SCHEDULER & TRUSTED EDITOR LISTENERS
+// 14. DRAFT APPROVAL QUEUE (EDITORS SUBMIT DRAFT -> ONLY SUPER OWNER APPROVES OR SCHEDULES)
+function listenDraftQueue() {
+  db.collection('draftQueue').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    draftItemsList = [];
+    const box = document.getElementById('draftReviewListBox');
+    if (box) box.innerHTML = '';
+
+    snap.forEach(doc => {
+      const d = doc.data();
+      draftItemsList.push({ id: doc.id, ...d });
+      if (box) {
+        const typeLbl = d.type === 'banner' ? '📢 सुविचार' : (d.type === 'quiz' ? '🏆 क्विज़ प्रश्न' : '📜 इतिहास/कहानी');
+        box.innerHTML += `
+          <div class="p-3 rounded-xl bg-white border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+            <div class="space-y-0.5">
+              <span class="text-[10px] font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">${typeLbl} • लेखक: ${d.author || 'संपादक'}</span>
+              <div class="font-bold text-forest">${d.title || d.content.substring(0, 75)}</div>
+            </div>
+            ${isSuperOwner() ? `
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="approveDraftByOwner('${doc.id}')" class="px-3 py-1.5 bg-forest text-white rounded-lg font-bold">✓ अभी Live करें</button>
+                <button onclick="scheduleDraftByOwner('${doc.id}')" class="px-2.5 py-1.5 bg-amber-400 text-stone-950 rounded-lg font-bold">⏰ शेड्यूल</button>
+                <button onclick="rejectDraftByOwner('${doc.id}')" class="px-2.5 py-1.5 bg-red-100 text-red-700 rounded-lg font-bold">✕ हटाएं</button>
+              </div>
+            ` : `<span class="text-[11px] font-bold text-amber-700">⏳ Owner की स्वीकृति हेतु प्रतीक्षारत</span>`}
+          </div>
+        `;
+      }
+    });
+    if (box && draftItemsList.length === 0) {
+      box.innerHTML = `<div class="text-stone-400">कोई भी ड्राफ्ट प्रतीक्षारत नहीं है।</div>`;
+    }
+    if (document.getElementById('admStatDrafts')) document.getElementById('admStatDrafts').innerText = draftItemsList.length;
+  });
+}
+
+async function approveDraftByOwner(draftId) {
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) ही Live कर सकते हैं!");
+  const item = draftItemsList.find(x => x.id === draftId);
+  if (!item) return;
+
+  if (item.type === 'banner') {
+    await db.collection('settings').doc('dailySandesh').set({ text: item.content });
+  } else if (item.type === 'quiz') {
+    document.getElementById('adminBulkQuizText').value = item.content;
+    await importBulkQuiz(true);
+  } else if (item.type === 'history' || item.type === 'kids') {
+    historyItemsList.unshift({
+      id: 'item_' + Date.now(),
+      type: item.type,
+      badge: item.badge || 'अध्याय',
+      title: item.title,
+      content: item.content,
+      moral: item.moral || ''
+    });
+    await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
+  }
+  await db.collection('draftQueue').doc(draftId).delete();
+  showToast("✅ ड्राफ्ट स्वीकृत होकर वेबसाइट पर Live हो गया!");
+}
+
+async function scheduleDraftByOwner(draftId) {
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) ही शेड्यूल कर सकते हैं!");
+  const item = draftItemsList.find(x => x.id === draftId);
+  if (!item) return;
+  const dtStr = prompt("किस तारीख और समय पर Live करना है? (प्रारूप: YYYY-MM-DD HH:MM)", "2026-10-12 08:00");
+  if (!dtStr) return;
+  const publishAt = new Date(dtStr.replace(' ', 'T')).getTime();
+  if (isNaN(publishAt)) return showToast("कृपया सही तारीख प्रारूप लिखें!");
+
+  await db.collection('scheduledTasks').add({
+    type: item.type === 'quiz' ? 'quiz' : 'banner',
+    content: item.content,
+    publishAt,
+    status: 'pending',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await db.collection('draftQueue').doc(draftId).delete();
+  showToast("⏰ ड्राफ्ट निर्धारित समय के लिए शेड्यूल कर दिया गया!");
+}
+
+async function rejectDraftByOwner(draftId) {
+  if (!isSuperOwner()) return;
+  await db.collection('draftQueue').doc(draftId).delete();
+  showToast("ड्राफ्ट हटा दिया गया।");
+}
+
 function listenTrustedEditors() {
   db.collection('settings').doc('editorRoles').onSnapshot(doc => {
     editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
     if (currentUser && !isSuperOwner()) {
       currentUser.isEditor = editorsPhoneList.includes(currentUser.phone);
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+      updateNavAuth();
     }
     const box = document.getElementById('trustedEditorsListBox');
     if (box) {
       box.innerHTML = editorsPhoneList.length === 0
-        ? `<div class="text-stone-400">अभी कोई सहायक संपादक नहीं जोड़ा गया है।</div>`
+        ? `<div class="text-stone-400">कोई सहायक संपादक नहीं है।</div>`
         : editorsPhoneList.map(ph => `
             <div class="flex items-center justify-between p-2 rounded bg-emerald-50 border border-emerald-200">
-              <span class="font-bold text-forest">✍️ संपादक मोबाइल: ${ph}</span>
-              <button onclick="removeTrustedEditorPhone('${ph}')" class="text-red-600 font-bold hover:underline">अधिकार हटाएं</button>
+              <span class="font-bold text-forest">✍️ संपादक नंबर: ${ph}</span>
+              <button onclick="removeTrustedEditorPhone('${ph}')" class="text-red-600 font-bold">हटाएं</button>
             </div>
           `).join('');
     }
@@ -965,13 +1132,13 @@ function listenTrustedEditors() {
 }
 
 async function addTrustedEditorPhone() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक ही संपादक बना सकते हैं!");
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए!");
   const ph = document.getElementById('newEditorPhoneInput')?.value.trim() || '';
-  if (!/^[6-9]\d{9}$/.test(ph)) return showToast("कृपया सही १०-अंकों का मोबाइल नंबर लिखें!");
+  if (!/^[6-9]\d{9}$/.test(ph)) return showToast("सही १०-अंकों का मोबाइल नंबर लिखें!");
   if (!editorsPhoneList.includes(ph)) editorsPhoneList.push(ph);
   await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
   document.getElementById('newEditorPhoneInput').value = '';
-  showToast(`✅ ${ph} को सहायक संपादक (Editor) का अधिकार दे दिया गया!`);
+  showToast("✅ सहायक संपादक जोड़ दिया गया!");
 }
 
 async function removeTrustedEditorPhone(ph) {
@@ -986,18 +1153,11 @@ function listenScheduledContent() {
     scheduledItemsList = [];
     const listBox = document.getElementById('scheduledItemsListBox');
     if (listBox) listBox.innerHTML = '';
-
     snap.forEach(doc => {
       const d = doc.data();
       scheduledItemsList.push({ id: doc.id, ...d });
       if (listBox && d.status === 'pending') {
-        const dtStr = new Date(d.publishAt).toLocaleString('hi-IN');
-        listBox.innerHTML += `
-          <div class="flex items-center justify-between p-2 rounded bg-amber-50 border border-amber-200 gap-2">
-            <span class="truncate">⏰ <b>${d.type === 'banner' ? 'सुविचार' : 'प्रश्न'}</b> (${dtStr}): ${d.content.substring(0, 40)}...</span>
-            <button onclick="deleteScheduledItem('${doc.id}')" class="text-red-600 font-bold shrink-0">हटाएं</button>
-          </div>
-        `;
+        listBox.innerHTML += `<div class="flex items-center justify-between p-2 rounded bg-amber-50 border border-amber-200 gap-2"><span class="truncate">⏰ ${d.type === 'banner' ? 'सुविचार' : 'प्रश्न'}: ${d.content.substring(0, 35)}...</span><button onclick="deleteScheduledItem('${doc.id}')" class="text-red-600 font-bold">हटाएं</button></div>`;
       }
     });
     checkAndTriggerDueSchedules();
@@ -1005,23 +1165,18 @@ function listenScheduledContent() {
 }
 
 async function saveScheduledContentItem() {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return showToast("शेड्यूल करने का अधिकार केवल मुख्य व्यवस्थापक (Owner) के पास है!");
   const type = document.getElementById('schedTypeSelect')?.value || 'banner';
   const dtVal = document.getElementById('schedDateTimeInput')?.value || '';
   const content = document.getElementById('schedContentInput')?.value.trim() || '';
-  if (!dtVal || !content) return showToast("कृपया समय और सामग्री दोनों भरें!");
-
-  const publishAt = new Date(dtVal).getTime();
-  await db.collection('scheduledTasks').add({
-    type, content, publishAt, status: 'pending',
-    createdBy: currentUser?.name || 'Admin',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  if (!dtVal || !content) return showToast("समय और सामग्री भरें!");
+  await db.collection('scheduledTasks').add({ type, content, publishAt: new Date(dtVal).getTime(), status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
   document.getElementById('schedContentInput').value = '';
-  showToast("⏰ सामग्री सफलतापूर्वक शेड्यूल हो गई!");
+  showToast("⏰ सामग्री शेड्यूल हो गई!");
 }
 
 async function deleteScheduledItem(id) {
+  if (!isSuperOwner()) return;
   await db.collection('scheduledTasks').doc(id).delete();
   showToast("शेड्यूल हटाया गया।");
 }
@@ -1032,23 +1187,20 @@ async function checkAndTriggerDueSchedules() {
     if (item.status === 'pending' && item.publishAt <= now) {
       try {
         await db.collection('scheduledTasks').doc(item.id).update({ status: 'published' });
-        if (item.type === 'banner') {
-          await db.collection('settings').doc('dailySandesh').set({ text: item.content });
-        } else if (item.type === 'quiz') {
-          document.getElementById('adminBulkQuizText').value = item.content;
-          await importBulkQuiz();
-        }
+        if (item.type === 'banner') await db.collection('settings').doc('dailySandesh').set({ text: item.content });
+        else if (item.type === 'quiz') { document.getElementById('adminBulkQuizText').value = item.content; await importBulkQuiz(true); }
       } catch (e) {}
     }
   }
 }
 
-// 14. ATTRACTIVE GAMIFIED PROFILE MODAL & OTHER MODALS
+// 15. PROFILE MODAL (2 BOXES ONLY - REMOVED SAMVAD YOGDAN + PHOTO UPLOAD) & 1-TIME EXIT FEEDBACK MODAL
 function injectDynamicModalsAndUI() {
   injectCleanLayoutStyles();
   upgradeHomepageAndAudioUI();
-  upgradeQuizLeaderboardToPWPodium();
+  upgradeQuizLeaderboardToWidePodium();
   injectUnifiedBottomNavBar();
+  setupSmartInstantSearch();
 
   if (!window.pdfjsLib) {
     const script = document.createElement('script');
@@ -1059,7 +1211,7 @@ function injectDynamicModalsAndUI() {
     document.head.appendChild(script);
   }
 
-  // Page-by-Page Horizontal Book PDF Reader Modal
+  // PDF Reader Modal
   if (!document.getElementById('inbuiltPdfModal')) {
     const pdfModal = document.createElement('div');
     pdfModal.id = 'inbuiltPdfModal';
@@ -1071,73 +1223,62 @@ function injectDynamicModalsAndUI() {
           <button onclick="togglePdfLandscapeMode()" id="landscapeModeBtn" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">
             <span id="landscapeBtnText">🔄 लैंडस्केप (आड़ा मोड)</span>
           </button>
-          <a id="pdfModalDownloadBtn" href="#" download class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">
-            डाउनलोड
-          </a>
-          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold">
-            ✕ बंद करें
-          </button>
+          <a id="pdfModalDownloadBtn" href="#" download class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">डाउनलोड</a>
+          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold">✕ बंद करें</button>
         </div>
       </div>
-
       <div id="pdfSinglePageViewport" class="flex-1 overflow-auto flex items-center justify-center p-2 sm:p-4 bg-stone-900 relative" style="touch-action: pan-x pan-y pinch-zoom;">
         <div id="pdfLoadingSpinner" class="text-amber-300 text-sm font-bold animate-pulse">पृष्ठ खुल रहा है...</div>
         <canvas id="pdfSinglePageCanvas" class="bg-white rounded shadow-2xl max-w-full h-auto hidden"></canvas>
         <iframe id="pdfDriveFallbackFrame" class="hidden w-full h-full border-0 bg-white rounded"></iframe>
       </div>
-
       <div id="pdfBottomNavBar" class="bg-[#143622] text-white px-4 py-2.5 border-t border-amber-500/30 flex items-center justify-between gap-3 shrink-0">
-        <button onclick="changePdfPage(-1)" id="pdfPrevBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow">
-          ← पिछला पन्ना
-        </button>
+        <button onclick="changePdfPage(-1)" id="pdfPrevBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow">← पिछला पन्ना</button>
         <div class="flex items-center gap-1.5 text-xs sm:text-sm font-bold">
           <span>पृष्ठ</span>
           <input type="number" id="pdfPageJumpInput" min="1" value="1" onchange="jumpToPdfPage(this.value)" class="w-14 text-center py-1 rounded bg-stone-800 text-amber-300 border border-amber-400/40 font-extrabold">
           <span id="pdfTotalPagesLabel">/ 1</span>
         </div>
-        <button onclick="changePdfPage(1)" id="pdfNextBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow">
-          अगला पन्ना →
-        </button>
+        <button onclick="changePdfPage(1)" id="pdfNextBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow">अगला पन्ना →</button>
       </div>
     `;
     document.body.appendChild(pdfModal);
 
     const vp = document.getElementById('pdfSinglePageViewport');
     if (vp) {
-      vp.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) touchStartX = e.touches[0].clientX;
-      }, { passive: true });
+      vp.addEventListener('touchstart', e => { if (e.touches.length === 1) touchStartX = e.touches[0].clientX; }, { passive: true });
       vp.addEventListener('touchend', e => {
         if (e.changedTouches.length === 1 && touchStartX > 0) {
           const diffX = e.changedTouches[0].clientX - touchStartX;
-          if (Math.abs(diffX) > 75) {
-            if (diffX < 0) changePdfPage(1);
-            else changePdfPage(-1);
-          }
+          if (Math.abs(diffX) > 75) { if (diffX < 0) changePdfPage(1); else changePdfPage(-1); }
         }
         touchStartX = 0;
       }, { passive: true });
     }
   }
 
-  // Attractive Gamified User Profile Modal + Owner/Editor Studio Inside
+  // Profile Modal (REMOVED 'संवाद योगदान' -> 2 Clean Boxes + Profile Photo Upload for Certificate)
   if (!document.getElementById('userProfileModal')) {
     const profModal = document.createElement('div');
     profModal.id = 'userProfileModal';
     profModal.className = 'fixed inset-0 z-[9980] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto';
     profModal.innerHTML = `
       <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
-        <!-- Attractive Gradient Profile Header -->
         <div class="bg-gradient-to-r from-[#143622] via-[#1c472e] to-[#0f291a] text-white p-5 relative">
           <button onclick="closeProfileModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center">✕</button>
           <div class="flex items-center gap-3.5">
-            <div id="profAvatarCircle" class="w-14 h-14 rounded-2xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow-lg border-2 border-white">
-              बि
-            </div>
+            <label class="relative cursor-pointer group shrink-0" title="अपनी फोटो बदलें">
+              <img id="profPhotoPreview" src="" class="hidden w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-lg">
+              <div id="profAvatarCircle" class="w-16 h-16 rounded-2xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow-lg border-2 border-white">
+                बि
+              </div>
+              <span class="absolute -bottom-1 -right-1 bg-white text-forest text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow">📷 फोटो</span>
+              <input type="file" accept="image/*" onchange="handleProfilePhotoUpload(event)" class="hidden">
+            </label>
             <div>
               <span id="profileRoleBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-stone-950 uppercase tracking-wide">सदस्य</span>
               <h3 id="profHeaderNameDisplay" class="font-yatra text-xl text-white mt-1">मेरी प्रोफ़ाइल</h3>
-              <p id="profSpiritualRank" class="text-xs text-amber-200">🌿 पर्यावरण एवं नियम साधक</p>
+              <p class="text-xs text-amber-200">🌿 पर्यावरण एवं नियम साधक</p>
             </div>
           </div>
         </div>
@@ -1146,39 +1287,34 @@ function injectDynamicModalsAndUI() {
           <!-- OWNER / EDITOR STUDIO HUB -->
           <div id="ownerStudioInsideProfile" class="hidden p-4 rounded-2xl bg-gradient-to-br from-[#143622] to-stone-900 text-white space-y-2.5 border border-amber-400/50 shadow-md">
             <div class="flex items-center justify-between">
-              <span id="studioModalTitle" class="text-xs font-extrabold text-amber-300">🛡️ व्यवस्थापक स्टूडियो (Owner Studio)</span>
-              <span id="studioAccessPill" class="text-[10px] bg-amber-400 text-stone-950 font-extrabold px-2 py-0.5 rounded-full">Full Power</span>
+              <span class="text-xs font-extrabold text-amber-300">🛡️ व्यवस्थापक एवं संपादक स्टूडियो</span>
+              <span class="text-[10px] bg-amber-400 text-stone-950 font-extrabold px-2 py-0.5 rounded-full">One-Tap Studio</span>
             </div>
-            <p class="text-[11px] text-stone-300">ऐप को नियंत्रित करने के लिए अनुभाग चुनें:</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
-              <button onclick="openOwnerStudioSubTab('adm_overview')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📊 1. सुविचार व शेड्यूल</button>
+              <button onclick="openOwnerStudioSubTab('adm_overview')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📊 1. सुविचार व ड्राफ्ट</button>
               <button onclick="openOwnerStudioSubTab('adm_media')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📚 2. PDF व भजन</button>
               <button onclick="openOwnerStudioSubTab('adm_content')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📜 3. इतिहास व संस्कार</button>
               <button onclick="openOwnerStudioSubTab('adm_quiz')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">🏆 4. परीक्षा व AI</button>
-              <button id="studioSystemSubBtn" onclick="openOwnerStudioSubTab('adm_system')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition col-span-2 sm:col-span-1">🛠️ 5. संपादक व सुरक्षा</button>
+              <button id="studioSystemSubBtn" onclick="openOwnerStudioSubTab('adm_system')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition col-span-2 sm:col-span-1">🛠️ 5. मेंटेनेंस व सुरक्षा</button>
             </div>
           </div>
 
-          <!-- Spiritual & Learning Stats Row -->
-          <div class="grid grid-cols-3 gap-2.5 text-center">
-            <div class="p-2.5 rounded-2xl bg-amber-50 border border-amber-200">
-              <div id="statMalaTotal" class="font-extrabold text-base text-forest">0</div>
-              <div class="text-[10px] font-semibold text-stone-600">कुल मंत्र जप</div>
+          <!-- ONLY 2 SPIRITUAL STATS BOXES ('संवाद योगदान' Removed as requested!) -->
+          <div class="grid grid-cols-2 gap-3 text-center">
+            <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+              <div id="statMalaTotal" class="font-extrabold text-lg text-forest">0</div>
+              <div class="text-xs font-semibold text-stone-600">कुल मंत्र जप</div>
             </div>
-            <div class="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200">
-              <div id="statMalaLaps" class="font-extrabold text-base text-forest">0</div>
-              <div class="text-[10px] font-semibold text-stone-600">पूर्ण माला</div>
-            </div>
-            <div class="p-2.5 rounded-2xl bg-orange-50 border border-orange-200">
-              <div id="statChatCount" class="font-extrabold text-base text-terracotta">0</div>
-              <div class="text-[10px] font-semibold text-stone-600">संवाद योगदान</div>
+            <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <div id="statMalaLaps" class="font-extrabold text-lg text-forest">0</div>
+              <div class="text-xs font-semibold text-stone-600">पूर्ण माला</div>
             </div>
           </div>
 
           <div class="space-y-2.5 text-xs">
             <div>
               <label class="font-bold text-stone-700 block mb-1">आपका शुभ नाम (Full Name):</label>
-              <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold focus:border-forest outline-none" placeholder="अपना नाम लिखें">
+              <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
@@ -1208,20 +1344,42 @@ function injectDynamicModalsAndUI() {
           </div>
 
           <div class="flex flex-wrap gap-2 pt-2 border-t border-stone-100">
-            <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
-              💾 प्रोफ़ाइल सहेजें
-            </button>
-            <button onclick="closeProfileModal(); logoutUser();" class="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs rounded-xl border border-red-200">
-              लॉगआउट
-            </button>
-            <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl">
-              बंद करें
-            </button>
+            <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 प्रोफ़ाइल सहेजें</button>
+            <button onclick="closeProfileModal(); logoutUser();" class="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs rounded-xl border border-red-200">लॉगआउट</button>
+            <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl">बंद करें</button>
           </div>
         </div>
       </div>
     `;
     document.body.appendChild(profModal);
+  }
+
+  // Easy User Feedback Modal (Shown manually OR 1-Time on Exit Intent)
+  if (!document.getElementById('userFeedbackModal')) {
+    const fbModal = document.createElement('div');
+    fbModal.id = 'userFeedbackModal';
+    fbModal.className = 'fixed inset-0 z-[9992] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4';
+    fbModal.innerHTML = `
+      <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 border border-amber-300 shadow-2xl text-center">
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-2xl mx-auto">⭐</div>
+        <h3 class="font-yatra text-xl text-forest">आपका अनुभव कैसा रहा?</h3>
+        <p class="text-xs text-stone-600">विश्नोई समाज डिजिटल मंच को और बेहतर बनाने के लिए अपनी रेटिंग व सुझाव दें (केवल १ बार):</p>
+        <div class="flex justify-center gap-2 text-2xl py-1" id="fbStarRow">
+          <button type="button" onclick="selectFeedbackStar(1)" class="hover:scale-125 transition">⭐</button>
+          <button type="button" onclick="selectFeedbackStar(2)" class="hover:scale-125 transition">⭐</button>
+          <button type="button" onclick="selectFeedbackStar(3)" class="hover:scale-125 transition">⭐</button>
+          <button type="button" onclick="selectFeedbackStar(4)" class="hover:scale-125 transition">⭐</button>
+          <button type="button" onclick="selectFeedbackStar(5)" class="hover:scale-125 transition">⭐</button>
+        </div>
+        <div id="fbSelectedRatingText" class="text-xs font-extrabold text-amber-700">5 / 5 — अति उत्तम!</div>
+        <textarea id="fbCommentInput" rows="2" placeholder="कोई सुझाव या संदेश लिखें (ऐच्छिक)..." class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
+        <div class="flex gap-2">
+          <button onclick="submitUserFeedback()" class="flex-1 py-2.5 bg-forest text-white font-bold text-xs rounded-xl shadow">✓ सुझाव भेजें</button>
+          <button onclick="dismissFeedbackModalForever()" class="px-4 py-2.5 bg-stone-100 text-stone-600 font-semibold text-xs rounded-xl">बाद में</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(fbModal);
   }
 
   // Forgot Password Modal
@@ -1238,9 +1396,7 @@ function injectDynamicModalsAndUI() {
         <div class="space-y-3 text-xs">
           <input type="text" id="fpPhoneInput" maxlength="10" placeholder="10 अंकों का पंजीकृत मोबाइल नंबर" class="w-full p-2.5 rounded-lg border border-stone-300 font-semibold">
           <input type="password" id="fpNewPassInput" placeholder="नया पासवर्ड बनाएं" class="w-full p-2.5 rounded-lg border border-stone-300">
-          <button type="button" onclick="verifyGoogleAndResetPassword()" class="w-full py-2.5 px-3 bg-forest text-white rounded-xl font-bold shadow">
-            🌐 Google से सत्यापित कर पासवर्ड बदलें
-          </button>
+          <button type="button" onclick="verifyGoogleAndResetPassword()" class="w-full py-2.5 px-3 bg-forest text-white rounded-xl font-bold shadow">🌐 Google से सत्यापित कर पासवर्ड बदलें</button>
         </div>
       </div>
     `;
@@ -1253,13 +1409,9 @@ function injectDynamicModalsAndUI() {
     extraDiv.className = 'pt-2 border-t border-stone-200 space-y-2';
     extraDiv.innerHTML = `
       <div class="flex justify-end">
-        <button type="button" onclick="openForgotPassModal()" class="text-xs font-bold text-terracotta hover:underline">
-          पासवर्ड भूल गए?
-        </button>
+        <button type="button" onclick="openForgotPassModal()" class="text-xs font-bold text-terracotta hover:underline">पासवर्ड भूल गए?</button>
       </div>
-      <button id="googleAuthModalBtn" type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm">
-        🌐 Google से 1-Click लॉगिन करें
-      </button>
+      <button id="googleAuthModalBtn" type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm">🌐 Google से 1-Click लॉगिन करें</button>
     `;
     authForm.appendChild(extraDiv);
   }
@@ -1267,20 +1419,131 @@ function injectDynamicModalsAndUI() {
   organizeStandardOwnerConsole();
 }
 
-function openOwnerStudioSubTab(subPaneId) {
-  closeProfileModal();
-  switchTab('admin');
-  switchAdminSubTab(subPaneId);
+// 16. PROFILE PHOTO UPLOAD & 1-TIME EXIT FEEDBACK SYSTEM
+function handleProfilePhotoUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file || !currentUser) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = async () => {
+      const c = document.createElement('canvas');
+      c.width = 160; c.height = 160;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, 160, 160);
+      const dataUrl = c.toDataURL('image/jpeg', 0.8);
+      currentUser.photo = dataUrl;
+      localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+      updateProfileAvatarUI();
+      try {
+        await db.collection('users').doc(currentUser.phone).set({ photo: dataUrl }, { merge: true });
+      } catch (err) {}
+      showToast("📷 आपकी प्रोफ़ाइल फोटो सहेज ली गई! यह सम्मान-पत्र पर भी दिखेगी।");
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
-// 15. INITIALIZATION & AI AUTO-BACKEND SYNC
+function updateProfileAvatarUI() {
+  const imgEl = document.getElementById('profPhotoPreview');
+  const circEl = document.getElementById('profAvatarCircle');
+  if (!imgEl || !circEl) return;
+  if (currentUser && currentUser.photo) {
+    imgEl.src = currentUser.photo;
+    imgEl.classList.remove('hidden');
+    circEl.classList.add('hidden');
+  } else {
+    imgEl.classList.add('hidden');
+    circEl.classList.remove('hidden');
+    circEl.innerText = (currentUser?.name || 'बि').trim().charAt(0).toUpperCase();
+  }
+}
+
+let currentFeedbackRating = 5;
+function selectFeedbackStar(stars) {
+  currentFeedbackRating = stars;
+  const labels = { 1: '1 / 5 — सुधार आवश्यक', 2: '2 / 5 — ठीक है', 3: '3 / 5 — अच्छा', 4: '4 / 5 — बहुत अच्छा!', 5: '5 / 5 — अति उत्तम!' };
+  const el = document.getElementById('fbSelectedRatingText');
+  if (el) el.innerText = labels[stars];
+}
+
+function openFeedbackModal(isExitTrigger) {
+  if (isExitTrigger && localStorage.getItem('bishnoi_feedback_done_once') === '1') return;
+  if (isExitTrigger) localStorage.setItem('bishnoi_feedback_done_once', '1');
+  const modal = document.getElementById('userFeedbackModal');
+  if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+}
+
+function dismissFeedbackModalForever() {
+  localStorage.setItem('bishnoi_feedback_done_once', '1');
+  const modal = document.getElementById('userFeedbackModal');
+  if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+async function submitUserFeedback() {
+  localStorage.setItem('bishnoi_feedback_done_once', '1');
+  const comment = document.getElementById('fbCommentInput')?.value.trim() || '';
+  try {
+    await db.collection('feedbacks').add({
+      name: currentUser?.name || 'अतिथि सदस्य',
+      phone: currentUser?.phone || '-',
+      rating: currentFeedbackRating,
+      comment,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) {}
+  dismissFeedbackModalForever();
+  showToast("🙏 आपके बहुमूल्य सुझाव के लिए हार्दिक धन्यवाद!");
+}
+
+function setupOneTimeExitFeedbackPrompt() {
+  // Push state so back button on mobile triggers exit feedback ONCE per user lifetime
+  if (localStorage.getItem('bishnoi_feedback_done_once') !== '1') {
+    window.history.pushState({ page: 'portal' }, '');
+    window.addEventListener('popstate', () => {
+      if (localStorage.getItem('bishnoi_feedback_done_once') !== '1') {
+        openFeedbackModal(true);
+      }
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && localStorage.getItem('bishnoi_feedback_done_once') !== '1') {
+        localStorage.setItem('bishnoi_show_fb_next_open', '1');
+      } else if (document.visibilityState === 'visible' && localStorage.getItem('bishnoi_show_fb_next_open') === '1') {
+        localStorage.removeItem('bishnoi_show_fb_next_open');
+        openFeedbackModal(true);
+      }
+    });
+  }
+}
+
+function listenFeedbacksForAdmin() {
+  db.collection('feedbacks').orderBy('createdAt', 'desc').limit(25).onSnapshot(snap => {
+    const box = document.getElementById('adminFeedbackInboxList');
+    if (box) {
+      box.innerHTML = snap.empty
+        ? `<div class="text-stone-400">अभी कोई फीडबैक प्राप्त नहीं हुआ है।</div>`
+        : snap.docs.map(doc => {
+            const f = doc.data();
+            return `<div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-start justify-between gap-2"><div><span class="font-bold text-forest">${f.name} (${'⭐'.repeat(f.rating || 5)})</span><p class="text-stone-700 mt-0.5">${f.comment || 'कोई टिप्पणी नहीं'}</p></div></div>`;
+          }).join('');
+    }
+    if (document.getElementById('admStatFeedbacks')) document.getElementById('admStatFeedbacks').innerText = snap.size;
+  });
+}
+
+// 17. INITIALIZATION & AUTO-ROLE RECOGNITION
 window.addEventListener('DOMContentLoaded', () => {
   if (!localStorage.getItem('gemini_user_api_key')) {
     localStorage.setItem('gemini_user_api_key', DEFAULT_INTEGRATED_AI_KEY);
   }
   injectDynamicModalsAndUI();
-  syncOwnerCustomName();
+  setupInactivitySessionGuard();
+  setupOneTimeExitFeedbackPrompt();
+  syncUserAutoRoleFromDB();
   listenTrustedEditors();
+  listenDraftQueue();
+  listenFeedbacksForAdmin();
   updateNavAuth();
   listenMaintenanceConfig();
   listenScheduledContent();
@@ -1300,67 +1563,36 @@ window.addEventListener('DOMContentLoaded', () => {
   listenAmavasyaConfig();
   renderMalaCounters();
   updateProgressIndicators();
-  setTimeout(() => runAiSmartBackendSync(false), 3500);
 });
 
-// AI Auto-Pilot: Automatically syncs Top-3 Quiz Leaderboard from real attempts & publishes due scheduled items
-async function runAiSmartBackendSync(manualTrigger) {
+async function syncUserAutoRoleFromDB() {
+  if (!currentUser || !currentUser.phone) return;
   try {
-    await checkAndTriggerDueSchedules();
+    const [uDoc, edDoc] = await Promise.all([
+      db.collection('users').doc(currentUser.phone).get(),
+      db.collection('settings').doc('editorRoles').get()
+    ]);
+    const edList = (edDoc.exists && Array.isArray(edDoc.data().phones)) ? edDoc.data().phones : [];
+    editorsPhoneList = edList;
 
-    // Auto-calculate Top 3 Leaderboard Winners from quizAttempts if not manually locked
-    const snap = await db.collection('quizAttempts').get();
-    if (!snap.empty) {
-      let attempts = [];
-      snap.forEach(d => attempts.push(d.data()));
-      attempts.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return (a.timeTakenSeconds || 999) - (b.timeTakenSeconds || 999);
-      });
-
-      // Deduplicate by participant name so 3 distinct winners appear
-      const uniqueTop = [];
-      const seenNames = new Set();
-      for (let att of attempts) {
-        const nm = (att.name || '').trim();
-        if (nm && !seenNames.has(nm.toLowerCase())) {
-          seenNames.add(nm.toLowerCase());
-          uniqueTop.push(att);
-        }
-        if (uniqueTop.length === 3) break;
-      }
-
-      if (uniqueTop.length > 0 && manualTrigger) {
-        await db.collection('settings').doc('dailyWinners').set({
-          p1Name: uniqueTop[0] ? uniqueTop[0].name : 'प्रतीक्षारत',
-          p1Score: uniqueTop[0] ? `${uniqueTop[0].score}/${uniqueTop[0].total}` : '-',
-          p2Name: uniqueTop[1] ? uniqueTop[1].name : 'प्रतीक्षारत',
-          p2Score: uniqueTop[1] ? `${uniqueTop[1].score}/${uniqueTop[1].total}` : '-',
-          p3Name: uniqueTop[2] ? uniqueTop[2].name : 'प्रतीक्षारत',
-          p3Score: uniqueTop[2] ? `${uniqueTop[2].score}/${uniqueTop[2].total}` : '-',
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-      }
+    if (uDoc.exists) {
+      const d = uDoc.data();
+      currentUser.name = d.name || currentUser.name;
+      currentUser.location = d.location || currentUser.location || '';
+      currentUser.email = d.email || currentUser.email || '';
+      currentUser.photo = d.photo || currentUser.photo || '';
     }
-    if (manualTrigger) showToast("🤖 AI ने लीडरबोर्ड, पंचांग और शेड्यूल को सिंक कर दिया!");
+    currentUser.isOwner = (currentUser.phone === OWNER_PHONE);
+    currentUser.isEditor = currentUser.isOwner || edList.includes(currentUser.phone);
+    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+    updateNavAuth();
   } catch (e) {}
 }
 
-async function syncOwnerCustomName() {
-  if (currentUser && currentUser.phone === OWNER_PHONE) {
-    currentUser.isOwner = true;
-    try {
-      const doc = await db.collection('users').doc(OWNER_PHONE).get();
-      if (doc.exists) {
-        const d = doc.data();
-        currentUser.name = d.name || currentUser.name;
-        currentUser.location = d.location || '';
-        currentUser.email = d.email || '';
-        localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-        updateNavAuth();
-      }
-    } catch (e) {}
-  }
+function openOwnerStudioSubTab(subPaneId) {
+  closeProfileModal();
+  switchTab('admin');
+  switchAdminSubTab(subPaneId);
 }
 
 function switchTab(id) {
@@ -1400,19 +1632,17 @@ function switchHistorySubTab(sub) {
   const kidsBtn = document.getElementById('sub-kids-btn');
 
   if (sub === 'full-history') {
-    histView.classList.remove('hidden');
-    kidsView.classList.add('hidden');
+    histView.classList.remove('hidden'); kidsView.classList.add('hidden');
     histBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
     kidsBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest";
   } else {
-    histView.classList.add('hidden');
-    kidsView.classList.remove('hidden');
+    histView.classList.add('hidden'); kidsView.classList.remove('hidden');
     kidsBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
     histBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600 hover:text-forest";
   }
 }
 
-// 16. TOAST & CONFIRM MODAL
+// 18. TOAST & CONFIRM MODAL
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
@@ -1438,7 +1668,7 @@ function closeConfirmModal(result) {
   confirmCallback = null;
 }
 
-// 17. AUTHENTICATION, EDITOR LOGIN & ATTRACTIVE PROFILE
+// 19. AUTHENTICATION & PROFILE
 function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
 function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
 
@@ -1458,21 +1688,22 @@ async function handleAuthSubmit(e) {
   const pass = document.getElementById('loginPass').value.trim();
   const nameInput = document.getElementById('loginName')?.value.trim() || '';
 
-  // 1. SUPER OWNER CHECK (9306894518 / bishnoi29)
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
     let ownerName = "व्यवस्थापक (Owner)";
     let ownerLoc = "";
     let ownerEmail = "";
+    let ownerPhoto = "";
     try {
       const oDoc = await db.collection('users').doc(OWNER_PHONE).get();
       if (oDoc.exists) {
         ownerName = oDoc.data().name || ownerName;
         ownerLoc = oDoc.data().location || "";
         ownerEmail = oDoc.data().email || "";
+        ownerPhoto = oDoc.data().photo || "";
       }
     } catch (err) {}
 
-    currentUser = { name: ownerName, phone: OWNER_PHONE, isOwner: true, isEditor: true, location: ownerLoc, email: ownerEmail };
+    currentUser = { name: ownerName, phone: OWNER_PHONE, isOwner: true, isEditor: true, location: ownerLoc, email: ownerEmail, photo: ownerPhoto };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
     applySoftMaintenanceBanners();
@@ -1498,22 +1729,18 @@ async function handleAuthSubmit(e) {
       if (userDoc.exists) return showToast("यह नंबर पहले से पंजीकृत है! कृपया लॉगिन करें।");
 
       await db.collection('users').doc(phone).set({
-        name: nameInput,
-        phone: phone,
-        pass: pass,
-        email: "",
-        location: "",
+        name: nameInput, phone, pass, email: "", location: "",
         registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastLogin: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      currentUser = { name: nameInput, phone: phone, isOwner: false, isEditor: isTrustedEditor, email: "", location: "" };
+      currentUser = { name: nameInput, phone, isOwner: false, isEditor: isTrustedEditor, email: "", location: "" };
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
       updateNavAuth();
       closeAuthModal();
       showToast(`पंजीकरण सफल! स्वागत है, ${currentUser.name}`);
     } catch (err) {
-      showToast("पंजीकरण में त्रुटि: " + err.message);
+      showToast("त्रुटि: " + err.message);
     }
     return;
   }
@@ -1524,17 +1751,16 @@ async function handleAuthSubmit(e) {
     const userData = userDoc.data();
     if (userData.pass && userData.pass !== pass) return showToast("गलत पासवर्ड!");
 
-    await db.collection('users').doc(phone).update({
-      lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    await db.collection('users').doc(phone).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() });
 
     currentUser = {
       name: userData.name || "सदस्य",
-      phone: phone,
+      phone,
       isOwner: (phone === OWNER_PHONE && pass === OWNER_PASS),
       isEditor: isTrustedEditor,
       email: userData.email || "",
-      location: userData.location || ""
+      location: userData.location || "",
+      photo: userData.photo || ""
     };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
@@ -1582,22 +1808,15 @@ async function signInOrVerifyWithGoogle() {
     const isEditorAccount = editorsPhoneList.includes(targetDocId) || editorsPhoneList.includes(finalPhone);
 
     await db.collection('users').doc(targetDocId).set({
-      name: finalName,
-      phone: finalPhone,
-      email: gUser.email || "",
-      googleVerified: true,
-      location: finalLoc,
-      registeredAt: (existingData && existingData.registeredAt) ? existingData.registeredAt : firebase.firestore.FieldValue.serverTimestamp(),
+      name: finalName, phone: finalPhone, email: gUser.email || "",
+      googleVerified: true, location: finalLoc,
       lastLogin: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
     currentUser = {
-      name: finalName,
-      phone: targetDocId,
-      email: gUser.email || "",
-      location: finalLoc,
-      isOwner: isOwnerAccount,
-      isEditor: isEditorAccount
+      name: finalName, phone: targetDocId, email: gUser.email || "",
+      location: finalLoc, photo: existingData?.photo || "",
+      isOwner: isOwnerAccount, isEditor: isEditorAccount
     };
 
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
@@ -1627,8 +1846,7 @@ function closeForgotPassModal() {
 async function verifyGoogleAndResetPassword() {
   const phone = document.getElementById('fpPhoneInput')?.value.trim() || '';
   const newPass = document.getElementById('fpNewPassInput')?.value.trim() || '';
-  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया १०-अंकों का मोबाइल नंबर सही लिखें!");
-  if (!newPass || newPass.length < 4) return showToast("कम से कम ४ अक्षरों का पासवर्ड लिखें!");
+  if (!/^[6-9]\d{9}$/.test(phone) || newPass.length < 4) return showToast("सही मोबाइल नंबर और पासवर्ड भरें!");
 
   try {
     const userRef = db.collection('users').doc(phone);
@@ -1701,11 +1919,12 @@ function openProfileModal() {
   const nm = currentUser.name || 'सदस्य';
   document.getElementById('profEditName').value = nm;
   document.getElementById('profHeaderNameDisplay').innerText = nm;
-  document.getElementById('profAvatarCircle').innerText = nm.trim().charAt(0).toUpperCase();
   document.getElementById('profEditLocation').value = currentUser.location || '';
   document.getElementById('profEditPass').value = '';
   document.getElementById('profPhoneDisplay').innerText = currentUser.phone || '';
   document.getElementById('profEmailDisplay').innerText = currentUser.email ? `✓ ${currentUser.email}` : 'जुड़ा नहीं है';
+
+  updateProfileAvatarUI();
 
   const studioBox = document.getElementById('ownerStudioInsideProfile');
   if (studioBox) studioBox.classList.toggle('hidden', !isEditorOrOwner());
@@ -1722,7 +1941,6 @@ function openProfileModal() {
 
   document.getElementById('statMalaTotal').innerText = malaTotalCount;
   document.getElementById('statMalaLaps').innerText = malaLapsCount;
-  document.getElementById('statChatCount').innerText = allChatPosts.filter(p => p.phone === currentUser.phone).length;
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
@@ -1778,9 +1996,10 @@ function updateNavAuth() {
 
   if (container) {
     if (currentUser) {
+      const badgeIcon = isSuperOwner() ? '🛡️' : (isEditorOrOwner() ? '✍️' : '👤');
       container.innerHTML = `
-        <button onclick="openProfileModal()" class="text-xs font-bold text-forest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 truncate max-w-[155px] shadow-sm">
-          ${isSuperOwner() ? '🛡️ ' : (isEditorOrOwner() ? '✍️ ' : '👤 ')}${currentUser.name}
+        <button onclick="openProfileModal()" class="text-xs font-bold text-forest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 truncate max-w-[160px] shadow-sm">
+          ${badgeIcon} ${currentUser.name}
         </button>
       `;
     } else {
@@ -1805,7 +2024,7 @@ function updateNavAuth() {
   }
 }
 
-// 18. DIGITAL JAAP MALA
+// 20. DIGITAL JAAP MALA
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect')?.value;
   if (selected) document.getElementById('activeMantraDisplay').innerText = selected;
@@ -1852,7 +2071,7 @@ function resetMalaCounter() {
   });
 }
 
-// 19. PANCHANG & AMAVASYA
+// 21. PANCHANG & GUARANTEED WORKING AMAVASYA LIVE COUNTDOWN (WITH SECONDS!)
 function computeAutoPanchang() {
   const now = new Date();
   const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
@@ -1871,19 +2090,34 @@ function computeAutoPanchang() {
   const dtEl = document.getElementById('autoPanchangDetails');
   if (dEl) dEl.innerText = `${vaars[now.getDay()]} • विक्रम संवत ${samvat}`;
   if (dtEl) dtEl.innerText = `आज: ${now.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })} | ${paksha}, ${tithiName}`;
+
+  // Auto-calculate next Amavasya date as fallback so countdown ALWAYS works
+  const daysUntilNextAmavasya = synodic - moonAge;
+  const autoNextAmavasya = new Date(now.getTime() + daysUntilNextAmavasya * 24 * 60 * 60 * 1000);
+  if (!amavasyaTargetDate || amavasyaTargetDate.getTime() < now.getTime()) {
+    amavasyaTargetDate = autoNextAmavasya;
+    startAmavasyaTimer();
+  }
 }
 
 function listenAmavasyaConfig() {
   db.collection('settings').doc('amavasyaConfig').onSnapshot(doc => {
     if (doc.exists) {
       const cfg = doc.data();
-      if (cfg.name) document.getElementById('amavasyaTitleDisplay').innerText = cfg.name;
-      if (cfg.desc) document.getElementById('amavasyaFastingNote').innerText = cfg.desc;
+      if (cfg.name && document.getElementById('amavasyaTitleDisplay')) {
+        document.getElementById('amavasyaTitleDisplay').innerText = cfg.name;
+      }
+      if (cfg.desc && document.getElementById('amavasyaFastingNote')) {
+        document.getElementById('amavasyaFastingNote').innerText = cfg.desc;
+      }
       if (cfg.date) {
-        amavasyaTargetDate = new Date(cfg.date + "T00:00:00");
-        startAmavasyaTimer();
+        const parsed = new Date(cfg.date + "T00:00:00");
+        if (!isNaN(parsed.getTime()) && parsed.getTime() > Date.now() - 86400000) {
+          amavasyaTargetDate = parsed;
+        }
       }
     }
+    startAmavasyaTimer();
   });
 }
 
@@ -1895,17 +2129,32 @@ function startAmavasyaTimer() {
     const diff = amavasyaTargetDate.getTime() - now.getTime();
     const box = document.getElementById('amavasyaCountdownBox');
     if (!box) return;
+
+    const isToday = (
+      now.getFullYear() === amavasyaTargetDate.getFullYear() &&
+      now.getMonth() === amavasyaTargetDate.getMonth() &&
+      now.getDate() === amavasyaTargetDate.getDate()
+    );
+
+    if (isToday) {
+      box.className = "text-xs font-extrabold text-emerald-950 bg-amber-300 p-2.5 rounded-xl border border-amber-500 text-center";
+      box.innerHTML = "🚩 आज पावन अमावस्या व्रत एवं हवन दिवस है!";
+      return;
+    }
+
     if (diff > 0) {
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / 1000 / 60) % 60);
-      box.innerHTML = `⏳ समय शेष: <b>${days} दिन : ${hours} घंटे : ${mins} मिनट</b>`;
+      const secs = Math.floor((diff / 1000) % 60);
+      box.className = "text-xs font-bold text-terracotta bg-white/95 p-2.5 rounded-xl border border-emerald-200 shadow-sm";
+      box.innerHTML = `⏳ समय शेष: <b>${days} दिन : ${hours} घं : ${mins} मि : ${secs} से</b>`;
     } else {
-      box.innerHTML = "🚩 पावन अमावस्या व्रत एवं हवन दिवस";
+      computeAutoPanchang();
     }
   }
   update();
-  amavasyaTimerInterval = setInterval(update, 30000);
+  amavasyaTimerInterval = setInterval(update, 1000);
 }
 
 async function saveAmavasyaConfig() {
@@ -1918,7 +2167,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सहेजी गई!');
 }
 
-// 20. INTEGRATED AI ENGINE (WITH BUILT-IN FALLBACK BANK SO APP NEVER FAILS)
+// 22. INTEGRATED AI ENGINE
 const CURATED_AI_SANDESH_BANK = [
   "जीव दया पालणी, रूंख लीलो नी घावै — हर मूक प्राणी में ईश्वर का वास है और हर हरा वृक्ष जीवन का आधार है।",
   "पाणी छान पीवणा, वाणी छान बोलणा — शुद्ध जल स्वास्थ्य की और मधुर वाणी समाज की पवित्रता बनाए रखती है।",
@@ -1945,21 +2194,7 @@ A) 100 शब्द
 B) 108 शब्द
 C) 120 शब्द
 D) 151 शब्द
-Ans: C
-
-Q: खेजड़ली बलिदान में माता अमृता देवी के साथ कुल कितने वीरों ने प्राणों की आहुति दी?
-A) 108
-B) 251
-C) 363
-D) 500
-Ans: C
-
-Q: 'पाणी छान पीवणा' और 'रूंख लीलो नी घावै' किस धर्म संहिता के प्रमुख नियम हैं?
-A) २९ नियम धर्म संहिता
-B) अष्टांग योग
-C) पंचशील
-D) सप्तपदी
-Ans: A`;
+Ans: C`;
 
 function getGeminiKey() {
   return localStorage.getItem('gemini_user_api_key') || DEFAULT_INTEGRATED_AI_KEY;
@@ -1969,13 +2204,10 @@ function resetGeminiKey() {
   const k = prompt("अपनी AI API Key यहाँ देखें या बदलें:", getGeminiKey());
   if (k !== null && k.trim()) {
     localStorage.setItem('gemini_user_api_key', k.trim());
-    showToast("✅ AI API Key सफलतापूर्वक सहेज ली गई!");
+    showToast("✅ AI API Key सहेज ली गई!");
   }
 }
 const changeApiKey = resetGeminiKey;
-const updateApiKey = resetGeminiKey;
-const changeGeminiKey = resetGeminiKey;
-const resetOpenAiKey = resetGeminiKey;
 
 async function callGemini(promptText, type) {
   const apiKey = getGeminiKey();
@@ -1987,86 +2219,210 @@ async function callGemini(promptText, type) {
       body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
     });
     const data = await res.json();
-    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      return data.candidates[0].content.parts[0].text;
-    }
+    if (data.candidates?.[0]?.content?.parts?.[0]?.text) return data.candidates[0].content.parts[0].text;
   } catch (e) {}
-  // Built-in Smart AI Fallback so the website works 100% seamlessly even if key format is AQ...
-  if (type === 'quiz') return CURATED_AI_QUIZ_BANK;
-  return CURATED_AI_SANDESH_BANK[Math.floor(Math.random() * CURATED_AI_SANDESH_BANK.length)];
+  return type === 'quiz' ? CURATED_AI_QUIZ_BANK : CURATED_AI_SANDESH_BANK[Math.floor(Math.random() * CURATED_AI_SANDESH_BANK.length)];
 }
 
 async function generateAiQuizQuestions() {
   if (!isEditorOrOwner()) return;
-  const btn = document.getElementById('aiQuizGenBtn');
-  if (btn) btn.disabled = true;
-  try {
-    const res = await callGemini(`विश्नोई समाज के २९ नियमों व खेजड़ली इतिहास पर ५ MCQ हिंदी में बनाएं:\nQ: प्रश्न?\nA) 1\nB) 2\nC) 3\nD) 4\nAns: A`, 'quiz');
-    document.getElementById('adminBulkQuizText').value = res.trim();
-    showToast("🤖 AI ने ५ नए प्रश्न तैयार कर दिए! नीचे 'Publish' पर क्लिक करें।");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  const res = await callGemini(`विश्नोई समाज के २९ नियमों पर ५ MCQ हिंदी में बनाएं:\nQ: प्रश्न?\nA) 1\nB) 2\nC) 3\nD) 4\nAns: A`, 'quiz');
+  document.getElementById('adminBulkQuizText').value = res.trim();
+  showToast("🤖 AI ने प्रश्न तैयार कर दिए!");
 }
 
 async function generateAiDailySandesh() {
   if (!isEditorOrOwner()) return;
-  const res = await callGemini(`Write a 1-line inspirational quote in Hindi for Bishnoi community on nature protection and kindness.`, 'sandesh');
+  const res = await callGemini(`Write a 1-line inspirational quote in Hindi for Bishnoi community.`, 'sandesh');
   document.getElementById('adminBannerInput').value = res.trim();
-  showToast("🤖 AI ने नया पावन सुविचार तैयार कर दिया!");
+  showToast("🤖 AI ने सुविचार तैयार कर दिया!");
 }
 
-async function downloadQuizResultsPdf() {
-  const snap = await db.collection('quizAttempts').get();
-  if (snap.empty) return showToast("कोई रिकॉर्ड नहीं मिला।");
-  let records = [];
-  snap.forEach(d => records.push(d.data()));
-  records.sort((a, b) => b.score - a.score);
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.text("Bishnoi Portal - Quiz Results", 14, 18);
-  doc.autoTable({
-    startY: 25,
-    head: [['Rank', 'Name', 'Phone', 'Score', 'Time']],
-    body: records.map((r, i) => [i + 1, r.name || '', r.phone || '', `${r.score}/${r.total}`, `${r.timeTakenSeconds || 0}s`])
-  });
-  doc.save("Bishnoi_Quiz_Results.pdf");
+async function runAiSmartBackendSync(manualTrigger) {
+  try {
+    await checkAndTriggerDueSchedules();
+    if (manualTrigger) showToast("🤖 AI ने सभी शेड्यूल और पंचांग सिंक कर दिए!");
+  } catch (e) {}
 }
 
-async function download7DaysUsersPdf() {
-  const snap = await db.collection('users').get();
-  if (snap.empty) return showToast("कोई सदस्य नहीं मिला।");
-  let rows = [];
-  snap.forEach(d => {
-    const u = d.data();
-    rows.push([u.name || '', u.phone || d.id, u.email || '-', u.location || '-']);
-  });
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.text("Bishnoi Portal - Registered Members", 14, 18);
-  doc.autoTable({ startY: 25, head: [['Name', 'Phone', 'Email', 'Location']], body: rows });
-  doc.save("Bishnoi_Members.pdf");
-}
-
-// 21. QUIZ ARENA (ANIMATED PROGRESS BAR, INSTANT FEEDBACK & CONFETTI)
+// 23. ROYAL CERTIFICATE GENERATOR (WITH GURU JAMBHESHWAR BHAGWAN PHOTO/EMBLEM + USER PHOTO + FULL DETAILS)
 function generateCertificate(name, score) {
   const canvas = document.getElementById('certCanvas');
+  if (!canvas) return;
+  canvas.width = 1000;
+  canvas.height = 720;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#FAF7EE'; ctx.fillRect(0, 0, 800, 600);
-  ctx.strokeStyle = '#143622'; ctx.lineWidth = 14; ctx.strokeRect(20, 20, 760, 560);
-  ctx.fillStyle = '#143622'; ctx.textAlign = 'center';
-  ctx.font = 'bold 30px sans-serif'; ctx.fillText('विश्नोई समाज डिजिटल ज्ञान परीक्षा सम्मान-पत्र', 400, 120);
-  ctx.font = 'bold 28px sans-serif'; ctx.fillText(name, 400, 260);
-  ctx.font = '18px sans-serif'; ctx.fillText(`प्राप्तांक: ${score}% • "जीव दया पालणी, रूंख लीलो नी घावै"`, 400, 350);
-  const link = document.createElement('a');
-  link.download = `Samman_Patra_${name}.png`;
-  link.href = canvas.toDataURL();
-  link.click();
+
+  const drawCertificateContents = (guruImg, userImg) => {
+    // 1. Royal Cream Parchment Background
+    const grad = ctx.createLinearGradient(0, 0, 1000, 720);
+    grad.addColorStop(0, '#FFFDF7');
+    grad.addColorStop(0.5, '#FAF5E6');
+    grad.addColorStop(1, '#F3E9D2');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1000, 720);
+
+    // 2. Ornate Borders (Forest Green Outer + Golden Inner)
+    ctx.strokeStyle = '#143622';
+    ctx.lineWidth = 18;
+    ctx.strokeRect(24, 24, 952, 672);
+
+    ctx.strokeStyle = '#D97706';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(40, 40, 920, 640);
+
+    // Corner Golden Accents
+    [[48, 48], [952, 48], [48, 672], [952, 672]].forEach(([cx, cy]) => {
+      ctx.fillStyle = '#D97706';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 3. Top Spiritual Header
+    ctx.fillStyle = '#B34A1B';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('॥ ॐ विष्णवे नमः • गुरु जम्भेश्वराय नमः ॥', 500, 82);
+
+    // 4. Guru Jambheshwar Bhagwan Photo / Sacred Halo Medallion (Top Center)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(500, 148, 46, 0, Math.PI * 2);
+    ctx.fillStyle = '#FEF3C7';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#D97706';
+    ctx.stroke();
+    ctx.clip();
+    if (guruImg) {
+      ctx.drawImage(guruImg, 454, 102, 92, 92);
+    } else {
+      ctx.fillStyle = '#143622';
+      ctx.fillRect(454, 102, 92, 92);
+      ctx.fillStyle = '#FBBF24';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillText('ॐ', 500, 152);
+    }
+    ctx.restore();
+
+    ctx.fillStyle = '#143622';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('गुरु जम्भेश्वर भगवान के पावन आशीर्वाद से', 500, 212);
+
+    // 5. User Profile Photo Box (Right Side)
+    if (userImg) {
+      ctx.save();
+      ctx.strokeStyle = '#143622';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(810, 95, 105, 120);
+      ctx.drawImage(userImg, 812, 97, 101, 116);
+      ctx.restore();
+      ctx.fillStyle = '#57534E';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('प्रतिभागी फोटो', 862, 230);
+    }
+
+    // 6. Main Certificate Titles
+    ctx.fillStyle = '#143622';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillText('विश्नोई समाज डिजिटल ज्ञान परीक्षा', 500, 260);
+
+    ctx.fillStyle = '#B34A1B';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('★ गौरव एवं योग्यता सम्मान-पत्र (Certificate of Excellence) ★', 500, 298);
+
+    // 7. Participant Details & Rich Information
+    ctx.fillStyle = '#44403C';
+    ctx.font = '18px sans-serif';
+    ctx.fillText('यह सहर्ष प्रमाणित किया जाता है कि समाज के जागरूक साधक / प्रतिभागी', 500, 345);
+
+    ctx.fillStyle = '#143622';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.fillText(name.toUpperCase(), 500, 392);
+
+    const locText = (currentUser && currentUser.location) ? `निवासी: ${currentUser.location}` : 'विश्नोई समाज डिजिटल मंच सदस्य';
+    ctx.fillStyle = '#78716C';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText(locText, 500, 422);
+
+    const grade = score >= 90 ? 'A+ (सर्वोच्च धर्म एवं पर्यावरण रक्षक)' : (score >= 75 ? 'A (उत्कृष्ट नियम साधक)' : 'B (जागरूक समाज प्रतिभागी)');
+    ctx.fillStyle = '#292524';
+    ctx.font = '18px sans-serif';
+    ctx.fillText(`ने गुरु जम्भेश्वर भगवान द्वारा प्रवर्तित २९ नियम आचार संहिता, सबदवाणी एवं खेजड़ली बलिदान`, 500, 462);
+    ctx.fillText(`इतिहास पर आधारित ज्ञान परीक्षा में ${score}% प्राप्तांक के साथ '${grade}' श्रेणी प्राप्त की है।`, 500, 492);
+
+    // 8. Sacred Quote Banner
+    ctx.fillStyle = '#143622';
+    ctx.fillRect(210, 520, 580, 40);
+    ctx.fillStyle = '#FDE68A';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै — सिर साटै रूंख रहै, तो भी सस्तो जाण"', 500, 546);
+
+    // 9. Footer Metadata, Seal & Signature
+    const certId = 'BISHNOI-' + Date.now().toString().slice(-6);
+    const dateStr = new Date().toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#44403C';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`दिनांक (Date): ${dateStr}`, 80, 615);
+    ctx.fillText(`प्रमाणन सं. (Cert ID): ${certId}`, 80, 640);
+
+    // Golden Seal Center
+    ctx.textAlign = 'center';
+    ctx.beginPath();
+    ctx.arc(500, 622, 34, 0, Math.PI * 2);
+    ctx.fillStyle = '#F59E0B';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#143622';
+    ctx.stroke();
+    ctx.fillStyle = '#143622';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('VERIFIED', 500, 618);
+    ctx.fillText('२९ नियम मंच', 500, 634);
+
+    // Right Signature
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#143622';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText('मुख्य व्यवस्थापक (Owner)', 920, 615);
+    ctx.fillStyle = '#78716C';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('विश्नोई समाज डिजिटल मंच (bishnoism.vercel.app)', 920, 640);
+
+    const link = document.createElement('a');
+    link.download = `Bishnoi_Samman_Patra_${name}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast("🎓 भव्य डिजिटल सम्मान-पत्र डाउनलोड हो गया!");
+  };
+
+  // Load Optional Guru Jambheshwar Photo & User Photo safely
+  const tryLoadUserImg = (guruImgObj) => {
+    if (currentUser && currentUser.photo) {
+      const uImg = new Image();
+      uImg.crossOrigin = 'anonymous';
+      uImg.onload = () => drawCertificateContents(guruImgObj, uImg);
+      uImg.onerror = () => drawCertificateContents(guruImgObj, null);
+      uImg.src = currentUser.photo;
+    } else {
+      drawCertificateContents(guruImgObj, null);
+    }
+  };
+
+  const gImg = new Image();
+  gImg.crossOrigin = 'anonymous';
+  gImg.onload = () => tryLoadUserImg(gImg);
+  gImg.onerror = () => tryLoadUserImg(null);
+  gImg.src = localStorage.getItem('guru_jambheshwar_photo_url') || './jambhoji.jpg';
 }
 
+// 24. QUIZ ARENA & BLANK WINNER SUPPORT
 function startQuizNow() {
   if (isSectionSoftLocked(maintenanceConfig.sections.quiz) || isSectionSoftLocked(maintenanceConfig.globalMode)) {
-    return showToast("नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं, कृपया कुछ समय बाद प्रयास करें!");
+    return showToast(maintenanceConfig.customMessages.quiz || "नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!");
   }
   document.getElementById('quizIntroCard').classList.add('hidden');
   document.getElementById('quizActiveBox').classList.remove('hidden');
@@ -2101,13 +2457,13 @@ function loadQuiz() {
 }
 
 async function deleteSingleQuizQuestion(id) {
-  if (!isSuperOwner()) return showToast("हटाने का अधिकार केवल मुख्य व्यवस्थापक के पास है।");
+  if (!isSuperOwner()) return;
   await db.collection('quiz').doc(id).delete();
   showToast("प्रश्न हटाया गया!");
 }
 
 async function clearAllQuizQuestions() {
-  if (!isSuperOwner()) return showToast("हटाने का अधिकार केवल मुख्य व्यवस्थापक के पास है।");
+  if (!isSuperOwner()) return;
   openConfirmModal("सभी प्रश्न हटाएं?", "क्या आप सभी प्रश्न हटाना चाहते हैं?", async (res) => {
     if (res) {
       const snap = await db.collection('quiz').get();
@@ -2135,7 +2491,7 @@ function renderQuiz() {
       db.collection('quizAttempts').add({
         name: currentUser.name, phone: currentUser.phone || 'N/A',
         score: qScore, total: quizList.length, timeTakenSeconds, date: new Date().toISOString()
-      }).then(() => runAiSmartBackendSync(false));
+      });
     }
     if (typeof confetti === 'function') confetti({ particleCount: 70, spread: 70 });
 
@@ -2148,7 +2504,7 @@ function renderQuiz() {
         <div class="pt-3 flex flex-wrap justify-center gap-2.5">
           <button onclick="backToQuizIntro()" class="px-4 py-2.5 bg-stone-200 rounded-xl text-xs font-bold">← लीडरबोर्ड देखें</button>
           <button onclick="startQuizNow()" class="px-4 py-2.5 bg-forest text-white rounded-xl text-xs font-bold">पुनः खेलें</button>
-          ${percentage >= 60 ? `<button onclick="generateCertificate('${currentUser ? currentUser.name : 'प्रतिभागी'}', ${percentage})" class="px-4 py-2.5 bg-terracotta text-white rounded-xl text-xs font-bold shadow">📜 सम्मान-पत्र डाउनलोड करें</button>` : ''}
+          <button onclick="generateCertificate('${currentUser ? currentUser.name : 'प्रतिभागी'}', ${percentage})" class="px-4 py-2.5 bg-terracotta text-white rounded-xl text-xs font-bold shadow">📜 भव्य सम्मान-पत्र डाउनलोड करें</button>
         </div>
       </div>
     `;
@@ -2197,7 +2553,7 @@ function checkAnswer(chosen) {
     if (ic) ic.innerText = "✓";
     if (typeof confetti === 'function') confetti({ particleCount: 25, spread: 45, origin: { y: 0.8 } });
     feed.className = "text-xs p-3 rounded-xl font-bold bg-emerald-100 text-emerald-900 border border-emerald-300";
-    feed.innerText = "✓ बिल्कुल सही उत्तर! शाबाश!";
+    feed.innerText = "✓ बिल्कुल सही उत्तर!";
   } else {
     if (chosenBtn) chosenBtn.className = "w-full text-left p-3.5 text-xs sm:text-sm rounded-2xl border-2 border-rose-500 bg-rose-50 font-bold text-rose-950 flex items-center justify-between";
     if (rightBtn) rightBtn.className = "w-full text-left p-3.5 text-xs sm:text-sm rounded-2xl border-2 border-emerald-500 bg-emerald-50 font-bold text-emerald-950 flex items-center justify-between";
@@ -2208,8 +2564,7 @@ function checkAnswer(chosen) {
     feed.className = "text-xs p-3 rounded-xl font-bold bg-rose-100 text-rose-900 border border-rose-300";
     feed.innerText = `✕ गलत उत्तर! सही विकल्प है: ${q.opts[q.ans]}`;
   }
-
-  setTimeout(() => { currentQ++; renderQuiz(); }, 1250);
+  setTimeout(() => { currentQ++; renderQuiz(); }, 1200);
 }
 
 function backToQuizIntro() {
@@ -2217,10 +2572,22 @@ function backToQuizIntro() {
   document.getElementById('quizIntroCard').classList.remove('hidden');
 }
 
-async function importBulkQuiz() {
+async function importBulkQuiz(bypassDraft) {
   if (!isEditorOrOwner()) return;
   const rawText = document.getElementById('adminBulkQuizText').value.trim();
   if (!rawText) return showToast('प्रश्न पेस्ट करें');
+
+  // If Editor (not Super Owner), save to Draft Queue for Owner Approval!
+  if (!isSuperOwner() && !bypassDraft) {
+    await db.collection('draftQueue').add({
+      type: 'quiz', title: 'नए क्विज़ प्रश्न (Bulk)', content: rawText,
+      author: currentUser?.name || 'संपादक',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('adminBulkQuizText').value = '';
+    return showToast("📝 आपके प्रश्न ड्राफ्ट में सेव हो गए हैं! Owner की स्वीकृति के बाद Live होंगे।");
+  }
+
   const blocks = rawText.split(/\n\s*\n/);
   let parsed = [];
   for (let b of blocks) {
@@ -2241,36 +2608,53 @@ async function importBulkQuiz() {
   parsed.forEach(q => batch.set(db.collection('quiz').doc(), q));
   await batch.commit();
   document.getElementById('adminBulkQuizText').value = '';
-  showToast(`${parsed.length} प्रश्न जोड़े गए!`);
+  showToast(`✅ ${parsed.length} प्रश्न सीधे Live जोड़े गए!`);
 }
 
+// Blank Winner Support: Shows clean '—' instead of 'प्रतीक्षारत' if blank
 function listenWinners() {
   db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
-    if (doc.exists) {
-      const w = doc.data();
-      if (w.p1Name) { document.getElementById('winner1Name').innerText = w.p1Name; document.getElementById('winner1Score').innerText = w.p1Score || ''; }
-      if (w.p2Name) { document.getElementById('winner2Name').innerText = w.p2Name; document.getElementById('winner2Score').innerText = w.p2Score || ''; }
-      if (w.p3Name) { document.getElementById('winner3Name').innerText = w.p3Name; document.getElementById('winner3Score').innerText = w.p3Score || ''; }
-    }
+    const w = doc.exists ? doc.data() : {};
+    const cleanVal = (v) => (!v || v === 'प्रतीक्षारत' || v.trim() === '') ? '—' : v;
+    if (document.getElementById('winner1Name')) document.getElementById('winner1Name').innerText = cleanVal(w.p1Name);
+    if (document.getElementById('winner1Score')) document.getElementById('winner1Score').innerText = cleanVal(w.p1Score);
+    if (document.getElementById('winner2Name')) document.getElementById('winner2Name').innerText = cleanVal(w.p2Name);
+    if (document.getElementById('winner2Score')) document.getElementById('winner2Score').innerText = cleanVal(w.p2Score);
+    if (document.getElementById('winner3Name')) document.getElementById('winner3Name').innerText = cleanVal(w.p3Name);
+    if (document.getElementById('winner3Score')) document.getElementById('winner3Score').innerText = cleanVal(w.p3Score);
   });
 }
 
 async function saveDailyWinners() {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return showToast("विजेता घोषित करने का अधिकार केवल मुख्य व्यवस्थापक (Owner) के पास है!");
   await db.collection('settings').doc('dailyWinners').set({
-    p1Name: document.getElementById('win1InputName').value.trim(),
-    p1Score: document.getElementById('win1InputScore').value.trim(),
-    p2Name: document.getElementById('win2InputName').value.trim(),
-    p2Score: document.getElementById('win2InputScore').value.trim(),
-    p3Name: document.getElementById('win3InputName').value.trim(),
-    p3Score: document.getElementById('win3InputScore').value.trim()
+    p1Name: document.getElementById('win1InputName').value.trim() || '—',
+    p1Score: document.getElementById('win1InputScore').value.trim() || '—',
+    p2Name: document.getElementById('win2InputName').value.trim() || '—',
+    p2Score: document.getElementById('win2InputScore').value.trim() || '—',
+    p3Name: document.getElementById('win3InputName').value.trim() || '—',
+    p3Score: document.getElementById('win3InputScore').value.trim() || '—'
   });
-  showToast("विजेता सूची अपडेट हो गई!");
+  showToast("✅ विजेता सूची अपडेट हो गई!");
 }
 
-// 22. COMMUNITY GROUP STREAM (PSYCHOLOGICALLY ENGAGING BROADCAST FEED + AI SPAM GUARD)
-const BAD_WORDS_LIST = ['गाली', 'मूर्ख', 'पागल', 'अभद्र', 'बकवास', 'idiot', 'stupid', 'abuse', 'scam', ' जुआ', 'सट्टा'];
-const SPAM_LINK_REGEX = /(https?:\/\/|www\.|bit\.ly|t\.me\/|\.com\/|\.xyz)/i;
+async function clearDailyWinnersToBlank() {
+  if (!isSuperOwner()) return;
+  await db.collection('settings').doc('dailyWinners').set({
+    p1Name: '—', p1Score: '—', p2Name: '—', p2Score: '—', p3Name: '—', p3Score: '—'
+  });
+  showToast("लीडरबोर्ड के सभी स्थान खाली (Blank) कर दिए गए हैं।");
+}
+
+// 25. HIGH-DENSITY 500+ PERSON COMPACT COMMUNITY CHAT STREAM
+const BAD_WORDS_LIST = [
+  'गाली', 'मूर्ख', 'पागल', 'अभद्र', 'बकवास', 'नालायक', 'घटिया', 'कमीना', 'कमीने',
+  'हराम', 'हरामी', 'साला', 'साले', 'कुत्ता', 'कुत्ते', 'सूअर', 'चोर', 'धोखेबाज', 'गद्दार',
+  'औकात', 'जूते', 'थप्पड़', 'मारूंगा', 'दंगा', 'अश्लील', 'गंदा', 'जुआ', 'सट्टा', 'लॉटरी',
+  'idiot', 'stupid', 'abuse', 'scam', 'fraud', 'fool', 'nonsense', 'shut up', 'trash',
+  'bc', 'mc', 'bkl', 'chutiya', 'madarchod', 'bhenchod', 'gandu', 'harami', 'kamina'
+];
+const SPAM_LINK_REGEX = /(https?:\/\/|www\.|bit\.ly|t\.me\/|wa\.me\/|\.com\/|\.in\/|\.xyz|[6-9]\d{9})/i;
 
 function aiModerateMessageSafety(text) {
   const lower = text.toLowerCase();
@@ -2278,7 +2662,7 @@ function aiModerateMessageSafety(text) {
     return { safe: false, reason: "🤖 AI सुरक्षा गार्ड: कृपया संवाद मंच की गरिमा बनाए रखें और अपशब्दों का प्रयोग न करें।" };
   }
   if (!isEditorOrOwner() && SPAM_LINK_REGEX.test(text)) {
-    return { safe: false, reason: "🤖 AI स्पैम गार्ड: सुरक्षा कारणों से बाहरी स्पैम लिंक भेजना वर्जित है।" };
+    return { safe: false, reason: "🤖 AI स्पैम गार्ड: सुरक्षा कारणों से बाहरी लिंक या मोबाइल नंबर स्पैम करना वर्जित है।" };
   }
   return { safe: true };
 }
@@ -2289,24 +2673,19 @@ function listenBlockedUsers() {
     const admList = document.getElementById('adminBlockedUsersList');
     if (admList) {
       admList.innerHTML = blockedPhonesList.length === 0
-        ? `<div class="text-stone-400">कोई भी सदस्य म्यूट/ब्लॉक नहीं है।</div>`
-        : blockedPhonesList.map(ph => `
-            <div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200">
-              <span class="font-bold text-stone-700">🔇 म्यूट सदस्य: ${ph}</span>
-              <button onclick="unblockUserPhone('${ph}')" class="text-emerald-700 font-bold hover:underline">अनम्यूट करें (Unmute)</button>
-            </div>
-          `).join('');
+        ? `<div class="text-stone-400">कोई भी सदस्य म्यूट नहीं है।</div>`
+        : blockedPhonesList.map(ph => `<div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200"><span class="font-bold text-stone-700">🔇 ${ph}</span><button onclick="unblockUserPhone('${ph}')" class="text-emerald-700 font-bold">अनम्यूट</button></div>`).join('');
     }
   });
 }
 
 async function blockUserFromChat(phone, authorName) {
   if (!isSuperOwner() || !phone || phone === OWNER_PHONE) return;
-  openConfirmModal("सदस्य को तुरंत म्यूट करें?", `क्या आप '${authorName}' को संवाद मंच पर पोस्ट करने से रोकना चाहते हैं?`, async (res) => {
+  openConfirmModal("सदस्य को म्यूट करें?", `क्या आप '${authorName}' को संवाद मंच पर पोस्ट करने से रोकना चाहते हैं?`, async (res) => {
     if (res) {
       if (!blockedPhonesList.includes(phone)) blockedPhonesList.push(phone);
       await db.collection('settings').doc('blockedUsers').set({ list: blockedPhonesList });
-      showToast(`🔇 ${authorName} को संवाद मंच से म्यूट कर दिया गया।`);
+      showToast(`🔇 ${authorName} को म्यूट कर दिया गया।`);
     }
   });
 }
@@ -2325,7 +2704,7 @@ function updateCharCount() {
 }
 
 function setChatReply(id, author, snippet) {
-  activeReplyObj = { id, author, snippet: snippet.substring(0, 70) };
+  activeReplyObj = { id, author, snippet: snippet.substring(0, 60) };
   const bar = document.getElementById('replyPreviewBar');
   if (bar) {
     document.getElementById('replyToAuthor').innerText = author;
@@ -2343,23 +2722,20 @@ function cancelChatReply() {
 async function submitChaupalPost() {
   if (!currentUser) return openAuthModal();
   if (blockedPhonesList.includes(currentUser.phone)) {
-    return showToast("आपको व्यवस्थापक द्वारा संवाद मंच पर संदेश भेजने से म्यूट किया गया है।");
+    return showToast("आपको संवाद मंच पर संदेश भेजने से रोका गया है।");
   }
 
   const now = Date.now();
-  if (!isEditorOrOwner() && now - lastPostTime < 15000) {
-    return showToast("कृपया अगले संदेश के लिए १५ सेकंड प्रतीक्षा करें।");
+  if (!isEditorOrOwner() && now - lastPostTime < 10000) {
+    return showToast("कृपया अगले संदेश के लिए १० सेकंड प्रतीक्षा करें।");
   }
 
   const txtEl = document.getElementById('postText');
   const txt = txtEl.value.trim();
-  if (!txt) return showToast('कृपया अपना विचार लिखें!');
+  if (!txt) return showToast('कृपया अपना संदेश लिखें!');
 
-  // AI Auto-Moderation Check
   const modCheck = aiModerateMessageSafety(txt);
-  if (!modCheck.safe) {
-    return showToast(modCheck.reason);
-  }
+  if (!modCheck.safe) return showToast(modCheck.reason);
 
   const topic = document.getElementById('postTopicSelect')?.value || 'सामान्य चर्चा';
   const btn = document.getElementById('postSubmitBtn');
@@ -2372,7 +2748,7 @@ async function submitChaupalPost() {
       isOwner: isSuperOwner(),
       isEditor: isEditorOrOwner(),
       location: currentUser.location || '',
-      topic: topic,
+      topic,
       content: txt,
       replyTo: activeReplyObj || null,
       reactions: { pranam: 0, nature: 0, heart: 0 },
@@ -2431,14 +2807,14 @@ async function reactToPost(postId, type) {
 }
 
 function listenPosts() {
-  db.collection('posts').orderBy('createdAt', 'desc').limit(45).onSnapshot(snap => {
+  db.collection('posts').orderBy('createdAt', 'desc').limit(80).onSnapshot(snap => {
     allChatPosts = [];
     snap.forEach(doc => allChatPosts.push({ id: doc.id, ...doc.data() }));
     renderFilteredChat();
   });
 }
 
-// Psychological Community Group Stream (Unified Left-Aligned Community Cards like Telegram Channels / Community Groups)
+// High-Density Compact Stream (Built for 500+ Active Participants to Read & Chat Fast!)
 function renderFilteredChat() {
   const feed = document.getElementById('communityFeed');
   if (!feed) return;
@@ -2450,16 +2826,19 @@ function renderFilteredChat() {
 
   const avatarColors = ['bg-emerald-800', 'bg-amber-700', 'bg-teal-800', 'bg-orange-800', 'bg-stone-800'];
 
-  feed.className = 'space-y-3 bg-[#F4F1EA] p-3 sm:p-4 rounded-2xl border border-stone-200 max-h-[68vh] overflow-y-auto';
+  feed.className = 'divide-y divide-stone-200/80 bg-white rounded-2xl border border-stone-300 shadow-inner max-h-[62vh] overflow-y-auto';
   feed.innerHTML = `
-    <div class="bg-white/90 px-3.5 py-2 rounded-xl border border-emerald-200 flex items-center justify-between text-xs text-forest font-semibold shadow-sm">
-      <span>🌿 विश्नोई समाज आधिकारिक चर्चा समूह • AI सुरक्षा मॉडरेशन सक्रिय</span>
-      <span class="px-2 py-0.5 bg-emerald-100 rounded-full text-[10px] font-bold">${filtered.length} विचार</span>
+    <div class="sticky top-0 z-10 bg-[#143622] text-white px-3.5 py-2 flex items-center justify-between text-xs font-bold shadow">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>समाज लाइव संवाद स्ट्रीम (Fast Compact Feed)</span>
+      </div>
+      <span class="px-2 py-0.5 bg-white/15 rounded-full text-[10px] text-amber-300">${filtered.length} संदेश</span>
     </div>
   `;
 
   if (filtered.length === 0) {
-    feed.innerHTML += `<div class="text-center py-8 text-xs text-stone-600 bg-white rounded-xl">इस विषय पर अभी कोई विचार नहीं है। पहला विचार साझा करें!</div>`;
+    feed.innerHTML += `<div class="text-center py-8 text-xs text-stone-500">इस विषय पर अभी कोई संदेश नहीं है। नीचे बॉक्स से चर्चा शुरू करें!</div>`;
     return;
   }
 
@@ -2469,7 +2848,6 @@ function renderFilteredChat() {
     const isMyPost = Boolean(currentUser && (p.phone === currentUser.phone));
     const canDelete = Boolean(isMyPost || ownerLogged);
     const timeStr = p.createdAt ? p.createdAt.toDate().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }) : 'अभी';
-    const dateStr = p.createdAt ? p.createdAt.toDate().toLocaleDateString('hi-IN', { day: 'numeric', month: 'short' }) : '';
 
     const safeAuthor = (p.author || 'सदस्य').replace(/'/g, "\\'");
     const safeContent = (p.content || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
@@ -2480,63 +2858,58 @@ function renderFilteredChat() {
     const natureCnt = p.reactions?.nature || 0;
     const heartCnt = p.reactions?.heart || 0;
 
-    const card = document.createElement('div');
-    card.className = `bg-white rounded-2xl p-3.5 shadow-sm border ${p.isOwner ? 'border-l-4 border-l-amber-500 border-amber-300 bg-amber-50/30' : (isMyPost ? 'border-l-4 border-l-forest border-emerald-200' : 'border-stone-200')} space-y-2`;
-    card.innerHTML = `
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-9 h-9 rounded-xl ${colorCls} flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-            ${p.isOwner ? '🛡️' : initial}
-          </div>
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-extrabold text-xs sm:text-sm text-forest truncate">${p.author}</span>
-              ${p.isOwner ? `<span class="px-2 py-0.2 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold">व्यवस्थापक</span>` : (p.isEditor ? `<span class="px-2 py-0.2 bg-emerald-100 text-forest rounded-full text-[10px] font-bold">संपादक</span>` : `<span class="px-1.5 py-0.2 bg-stone-100 text-stone-600 rounded text-[10px]">सदस्य</span>`)}
-              <span class="px-2 py-0.2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-[10px] font-semibold">${p.topic || 'सामान्य चर्चा'}</span>
-            </div>
-            <span class="text-[10px] text-stone-400 block">${p.location ? p.location + ' • ' : ''}${dateStr} ${timeStr}</span>
-          </div>
-        </div>
+    const itemRow = document.createElement('div');
+    itemRow.className = `px-3 py-2.5 hover:bg-stone-50/90 transition flex items-start gap-2.5 ${p.isOwner ? 'bg-amber-50/50 border-l-4 border-l-amber-500' : (isMyPost ? 'bg-emerald-50/30 border-l-4 border-l-forest' : '')}`;
+    itemRow.innerHTML = `
+      <div class="w-7 h-7 rounded-full ${colorCls} flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
+        ${p.isOwner ? '🛡️' : initial}
       </div>
 
-      ${p.replyTo ? `
-        <div class="p-2 rounded-xl bg-stone-100 border-l-4 border-forest text-xs text-stone-700">
-          <span class="font-bold text-forest">↩️ ${p.replyTo.author} के संदर्भ में:</span> "${p.replyTo.snippet}"
-        </div>
-      ` : ''}
-
-      <p class="text-xs sm:text-sm text-stone-900 whitespace-pre-wrap leading-relaxed pl-1">${p.content}</p>
-
-      <div class="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div class="flex items-center gap-1.5">
-          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2.5 py-1 rounded-full bg-stone-50 hover:bg-amber-100 border border-stone-200 font-semibold transition">🙏 प्रणाम ${pranamCnt || ''}</button>
-          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2.5 py-1 rounded-full bg-stone-50 hover:bg-emerald-100 border border-stone-200 font-semibold transition">🌿 जीव दया ${natureCnt || ''}</button>
-          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2.5 py-1 rounded-full bg-stone-50 hover:bg-rose-100 border border-stone-200 font-semibold transition">❤️ ${heartCnt || ''}</button>
+      <div class="flex-1 min-w-0 space-y-1">
+        <div class="flex items-center justify-between gap-1 text-[11px]">
+          <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span class="font-extrabold text-forest truncate">${p.author}</span>
+            ${p.isOwner ? `<span class="px-1.5 py-0.2 bg-amber-400 text-stone-950 rounded text-[9px] font-extrabold">व्यवस्थापक</span>` : (p.isEditor ? `<span class="px-1.5 py-0.2 bg-emerald-100 text-forest rounded text-[9px] font-bold">संपादक</span>` : '')}
+            ${p.topic && p.topic !== 'सामान्य चर्चा' ? `<span class="px-1.5 py-0.2 bg-stone-100 text-stone-600 rounded text-[9px]">${p.topic}</span>` : ''}
+          </div>
+          <span class="text-[10px] text-stone-400 shrink-0">${timeStr}</span>
         </div>
 
-        <div class="flex items-center gap-2.5 font-semibold">
-          <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="text-forest hover:underline">↩️ उत्तर लिखें</button>
-          <button onclick="sharePostWhatsApp('${safeAuthor}', '${safeContent}')" class="text-emerald-800 hover:underline">साझा</button>
-          ${ownerLogged ? `<button onclick="pinChatMessage('${safeAuthor}', '${safeContent}')" class="text-amber-800 font-bold hover:underline">📌 पिन</button>` : ''}
-          ${ownerLogged && !p.isOwner ? `<button onclick="blockUserFromChat('${p.phone}', '${safeAuthor}')" class="text-orange-700 font-bold hover:underline">🔇 म्यूट करें</button>` : ''}
-          ${canDelete ? `<button onclick="confirmDeletePost('${p.id}')" class="text-red-600 font-bold hover:underline">हटाएं</button>` : ''}
+        ${p.replyTo ? `
+          <div class="px-2 py-0.5 rounded bg-stone-100 border-l-2 border-forest text-[10px] text-stone-600 truncate">
+            ↩️ <b>${p.replyTo.author}:</b> ${p.replyTo.snippet}
+          </div>
+        ` : ''}
+
+        <p class="text-xs sm:text-sm text-stone-900 leading-snug break-words whitespace-pre-wrap">${p.content}</p>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-[11px]">
+          <div class="flex items-center gap-1">
+            <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 text-stone-700 font-semibold">🙏 ${pranamCnt || ''}</button>
+            <button onclick="reactToPost('${p.id}', 'nature')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-emerald-100 text-stone-700 font-semibold">🌿 ${natureCnt || ''}</button>
+            <button onclick="reactToPost('${p.id}', 'heart')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-rose-100 text-stone-700 font-semibold">❤️ ${heartCnt || ''}</button>
+          </div>
+
+          <div class="flex items-center gap-2.5 text-[11px] font-semibold text-stone-500">
+            <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="hover:text-forest">↩️ उत्तर</button>
+            ${ownerLogged ? `<button onclick="pinChatMessage('${safeAuthor}', '${safeContent}')" class="text-amber-700 font-bold">📌 पिन</button>` : ''}
+            ${ownerLogged && !p.isOwner ? `<button onclick="blockUserFromChat('${p.phone}', '${safeAuthor}')" class="text-orange-700 font-bold">🔇 म्यूट</button>` : ''}
+            ${canDelete ? `<button onclick="confirmDeletePost('${p.id}')" class="text-red-600 font-bold">हटाएं</button>` : ''}
+          </div>
         </div>
       </div>
     `;
-    feed.appendChild(card);
+    feed.appendChild(itemRow);
   });
 }
 
 function confirmDeletePost(id) {
   openConfirmModal("संदेश हटाएं?", "क्या आप इस संदेश को हटाना चाहते हैं?", async (res) => {
-    if (res) {
-      await db.collection('posts').doc(id).delete();
-      showToast('संदेश हटा दिया गया।');
-    }
+    if (res) { await db.collection('posts').doc(id).delete(); showToast('संदेश हटा दिया गया।'); }
   });
 }
 
-// 23. PAGE-BY-PAGE HORIZONTAL PDF READER & LIBRARY
+// 26. PDF READER, LIBRARY, NIYAMS & HISTORY (WITH DRAFT QUEUE SUPPORT FOR EDITORS)
 async function openInbuiltPdfViewer(title, link) {
   const modal = document.getElementById('inbuiltPdfModal');
   const titleEl = document.getElementById('pdfViewerTitle');
@@ -2559,19 +2932,14 @@ async function openInbuiltPdfViewer(title, link) {
   if (link.includes('drive.google.com/file/d/')) {
     const match = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      spinner.classList.add('hidden');
-      canvas.classList.add('hidden');
-      bottomBar.classList.add('hidden');
+      spinner.classList.add('hidden'); canvas.classList.add('hidden'); bottomBar.classList.add('hidden');
       driveFrame.src = `https://drive.google.com/file/d/${match[1]}/preview`;
       driveFrame.classList.remove('hidden');
       return;
     }
   }
 
-  driveFrame.classList.add('hidden');
-  bottomBar.classList.remove('hidden');
-  canvas.classList.add('hidden');
-  spinner.classList.remove('hidden');
+  driveFrame.classList.add('hidden'); bottomBar.classList.remove('hidden'); canvas.classList.add('hidden'); spinner.classList.remove('hidden');
 
   try {
     if (!window.pdfjsLib) throw new Error("PDF.js loading");
@@ -2581,12 +2949,9 @@ async function openInbuiltPdfViewer(title, link) {
     currentPdfPage = 1;
     await renderSinglePdfPage(currentPdfPage);
   } catch (err) {
-    spinner.classList.add('hidden');
-    bottomBar.classList.add('hidden');
+    spinner.classList.add('hidden'); bottomBar.classList.add('hidden');
     const fullUrl = link.startsWith('http') ? link : (window.location.origin + '/' + link.replace(/^\.\//, ''));
-    driveFrame.src = isPhoneOrInstalledApp()
-      ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}`
-      : fullUrl;
+    driveFrame.src = isPhoneOrInstalledApp() ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}` : fullUrl;
     driveFrame.classList.remove('hidden');
   }
 }
@@ -2604,61 +2969,35 @@ async function renderSinglePdfPage(pageNum) {
   const page = await activePdfDoc.getPage(pageNum);
   const viewport = page.getViewport({ scale: 2.2 });
   const ctx = canvas.getContext('2d');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
+  canvas.width = viewport.width; canvas.height = viewport.height;
 
-  if (isPdfLandscape) {
-    canvas.style.width = '96vw';
-    canvas.style.maxHeight = 'none';
-  } else {
-    canvas.style.width = 'auto';
-    canvas.style.maxHeight = '78vh';
-  }
+  canvas.style.width = isPdfLandscape ? '96vw' : 'auto';
+  canvas.style.maxHeight = isPdfLandscape ? 'none' : '78vh';
 
-  await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-  spinner.classList.add('hidden');
-  canvas.classList.remove('hidden');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  spinner.classList.add('hidden'); canvas.classList.remove('hidden');
 
   if (jumpInp) { jumpInp.max = totalPdfPages; jumpInp.value = pageNum; }
   if (totalLbl) totalLbl.innerText = `/ ${totalPdfPages}`;
   if (prevBtn) prevBtn.disabled = (pageNum <= 1);
   if (nextBtn) nextBtn.disabled = (pageNum >= totalPdfPages);
-
-  const vp = document.getElementById('pdfSinglePageViewport');
-  if (vp) vp.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
 }
 
 function changePdfPage(delta) {
   if (!activePdfDoc) return;
   const next = currentPdfPage + delta;
-  if (next >= 1 && next <= totalPdfPages) {
-    currentPdfPage = next;
-    renderSinglePdfPage(currentPdfPage);
-  }
+  if (next >= 1 && next <= totalPdfPages) { currentPdfPage = next; renderSinglePdfPage(currentPdfPage); }
 }
 
 function jumpToPdfPage(val) {
   if (!activePdfDoc) return;
   const p = parseInt(val);
-  if (p >= 1 && p <= totalPdfPages) {
-    currentPdfPage = p;
-    renderSinglePdfPage(currentPdfPage);
-  }
+  if (p >= 1 && p <= totalPdfPages) { currentPdfPage = p; renderSinglePdfPage(currentPdfPage); }
 }
 
 async function togglePdfLandscapeMode() {
   isPdfLandscape = !isPdfLandscape;
   updateLandscapeButtonLabel();
-  try {
-    if (isPdfLandscape) {
-      if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen().catch(() => {});
-      if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(() => {});
-      showToast("लैंडस्केप (आड़ा मोड) सक्रिय!");
-    } else {
-      if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen().catch(() => {});
-    }
-  } catch (e) {}
   if (activePdfDoc) renderSinglePdfPage(currentPdfPage);
 }
 
@@ -2669,8 +3008,6 @@ function updateLandscapeButtonLabel() {
 
 function closeInbuiltPdfViewer() {
   activePdfDoc = null;
-  if (screen.orientation && screen.orientation.unlock) { try { screen.orientation.unlock(); } catch (e) {} }
-  if (document.fullscreenElement && document.exitFullscreen) { try { document.exitFullscreen(); } catch (e) {} }
   const modal = document.getElementById('inbuiltPdfModal');
   if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 }
@@ -2681,7 +3018,7 @@ function listenPdfs() {
     if (!grid) return;
     grid.innerHTML = '';
 
-    const canEdit = isEditorOrOwner();
+    const canEdit = isSuperOwner();
     const canDel = isSuperOwner();
     const hideDefault = localStorage.getItem('hide_default_shabadwani_card') === '1';
 
@@ -2701,17 +3038,13 @@ function listenPdfs() {
         </div>
         <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <button onclick="openInbuiltPdfViewer('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow-sm">
-              📖 ऐप में पढ़ें
-            </button>
-            <a href="${defLink}" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">
-              डाउनलोड
-            </a>
+            <button onclick="openInbuiltPdfViewer('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-extrabold rounded-lg">📖 ऐप में पढ़ें</button>
+            <a href="${defLink}" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
           </div>
           <div class="flex items-center gap-2.5">
             <button onclick="sharePdfWhatsApp('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="text-emerald-700 text-xs font-bold">साझा करें</button>
-            ${canEdit ? `<button onclick="editDefaultPdfCard()" class="text-xs text-amber-700 font-bold hover:underline">Edit</button>` : ''}
-            ${canDel ? `<button onclick="deleteDefaultPdfCard()" class="text-xs text-red-600 font-bold hover:underline">Delete</button>` : ''}
+            ${canEdit ? `<button onclick="editDefaultPdfCard()" class="text-xs text-amber-700 font-bold">Edit</button>` : ''}
+            ${canDel ? `<button onclick="deleteDefaultPdfCard()" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
           </div>
         </div>
       `;
@@ -2736,17 +3069,13 @@ function listenPdfs() {
         </div>
         <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow-sm">
-              📖 ऐप में पढ़ें
-            </button>
-            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">
-              डाउनलोड
-            </a>
+            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-extrabold rounded-lg">📖 ऐप में पढ़ें</button>
+            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
           </div>
           <div class="flex items-center gap-2.5">
             <button onclick="sharePdfWhatsApp('${safeTitle}', '${safeLink}')" class="text-emerald-700 text-xs font-bold">साझा करें</button>
-            ${canEdit ? `<button onclick="editUploadedPdf('${doc.id}', '${tag.replace(/'/g, "\\'")}', '${safeTitle}', '${desc.replace(/'/g, "\\'")}')" class="text-xs text-amber-700 font-bold hover:underline">Edit</button>` : ''}
-            ${canDel ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold hover:underline">Delete</button>` : ''}
+            ${canEdit ? `<button onclick="editUploadedPdf('${doc.id}', '${tag.replace(/'/g, "\\'")}', '${safeTitle}', '${desc.replace(/'/g, "\\'")}')" class="text-xs text-amber-700 font-bold">Edit</button>` : ''}
+            ${canDel ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
           </div>
         </div>
       `;
@@ -2756,7 +3085,7 @@ function listenPdfs() {
 }
 
 function editDefaultPdfCard() {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return;
   const newTag = prompt("ऊपरी टैग:", localStorage.getItem('def_pdf_tag') || 'पवित्र ग्रंथ');
   if (newTag === null) return;
   const newTitle = prompt("पुस्तक का नाम:", localStorage.getItem('def_pdf_title') || 'श्री सबदवाणी (१२० शब्द)');
@@ -2775,16 +3104,12 @@ function editDefaultPdfCard() {
 function deleteDefaultPdfCard() {
   if (!isSuperOwner()) return;
   openConfirmModal("प्रथम PDF हटाएं?", "क्या आप प्रथम 'श्री सबदवाणी' कार्ड को हटाना चाहते हैं?", (res) => {
-    if (res) {
-      localStorage.setItem('hide_default_shabadwani_card', '1');
-      listenPdfs();
-      showToast("प्रथम PDF कार्ड हटा दिया गया।");
-    }
+    if (res) { localStorage.setItem('hide_default_shabadwani_card', '1'); listenPdfs(); showToast("हटा दिया गया।"); }
   });
 }
 
 async function editUploadedPdf(id, oldTag, oldTitle, oldDesc) {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return;
   const tag = prompt("श्रेणी टैग बदलें:", oldTag);
   if (tag === null) return;
   const title = prompt("पुस्तक का मुख्य नाम बदलें:", oldTitle);
@@ -2800,7 +3125,7 @@ function sharePdfWhatsApp(title, link) {
 }
 
 async function saveAdminPdf() {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return showToast("PDF सीधे अपलोड करने का अधिकार केवल मुख्य व्यवस्थापक के पास है!");
   const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
   const title = document.getElementById('adminPdfTitle').value.trim();
   const desc = document.getElementById('adminPdfDesc')?.value.trim() || 'गुरु जम्भेश्वर भगवान की पावन शिक्षाएं एवं साहित्य।';
@@ -2809,9 +3134,7 @@ async function saveAdminPdf() {
 
   await db.collection('pdfs').add({ tag, title, desc, link, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
   showToast('PDF साहित्य जोड़ा गया!');
-  if (document.getElementById('adminPdfTag')) document.getElementById('adminPdfTag').value = '';
   document.getElementById('adminPdfTitle').value = '';
-  if (document.getElementById('adminPdfDesc')) document.getElementById('adminPdfDesc').value = '';
   document.getElementById('adminPdfLink').value = '';
 }
 
@@ -2822,7 +3145,6 @@ function confirmDeletePdf(id) {
   });
 }
 
-// 24. AUDIO LISTENERS, PLEDGES & BANNER
 function listenAudios() {
   db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
     const adminList = document.getElementById('adminAudioManageList');
@@ -2834,21 +3156,13 @@ function listenAudios() {
         const a = doc.data();
         audioPlaylist.push({ id: doc.id, title: a.title, link: a.link });
         if (adminList) {
-          adminList.innerHTML += `
-            <div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200">
-              <span class="font-semibold text-stone-800 truncate">${a.title}</span>
-              ${isSuperOwner() ? `<button onclick="deleteAdminAudio('${doc.id}')" class="text-red-600 font-bold shrink-0 ml-2">हटाएं</button>` : ''}
-            </div>
-          `;
+          adminList.innerHTML += `<div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200"><span class="font-semibold text-stone-800 truncate">${a.title}</span>${isSuperOwner() ? `<button onclick="deleteAdminAudio('${doc.id}')" class="text-red-600 font-bold shrink-0 ml-2">हटाएं</button>` : ''}</div>`;
         }
       });
       currentTrackIndex = 0;
       const source = document.getElementById('audioSource');
       const player = document.getElementById('audioPlayer');
-      if (source && player && audioPlaylist[0]) {
-        source.src = audioPlaylist[0].link;
-        player.load();
-      }
+      if (source && player && audioPlaylist[0]) { source.src = audioPlaylist[0].link; player.load(); }
       renderCustomMusicDropdown();
     } else {
       renderCustomMusicDropdown();
@@ -2866,7 +3180,7 @@ async function deleteAdminAudio(id) {
 function changeAudioTrack() { selectCustomTrackByIndex(0); }
 
 async function saveAdminAudio() {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return showToast("भजन अपलोड करने का अधिकार केवल मुख्य व्यवस्थापक के पास है!");
   const title = document.getElementById('adminAudioTitle').value.trim();
   const link = document.getElementById('adminAudioLink').value.trim();
   if (!title || !link) return showToast('नाम और लिंक भरें');
@@ -2891,9 +3205,7 @@ function listenNotices() {
 
 function listenTreeCounter() {
   db.collection('stats').doc('treePledges').onSnapshot(doc => {
-    if (doc.exists && doc.data().count) {
-      document.getElementById('treeCounterDisplay').innerText = doc.data().count;
-    }
+    if (doc.exists && doc.data().count) document.getElementById('treeCounterDisplay').innerText = doc.data().count;
   });
 }
 
@@ -2920,8 +3232,20 @@ async function saveAdminBanner() {
   if (!isEditorOrOwner()) return;
   const txt = document.getElementById('adminBannerInput').value.trim();
   if (!txt) return;
+
+  // If Editor (not Super Owner), save to Draft Queue for Owner Approval!
+  if (!isSuperOwner()) {
+    await db.collection('draftQueue').add({
+      type: 'banner', title: 'नया पावन सुविचार', content: txt,
+      author: currentUser?.name || 'संपादक',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('adminBannerInput').value = '';
+    return showToast("📝 आपका सुविचार ड्राफ्ट में सेव हो गया है! Owner की स्वीकृति के बाद Live होगा।");
+  }
+
   await db.collection('settings').doc('dailySandesh').set({ text: txt });
-  showToast('दैनिक संदेश अपडेट हुआ!');
+  showToast('✅ दैनिक संदेश सीधे Live अपडेट हुआ!');
   document.getElementById('adminBannerInput').value = '';
 }
 
@@ -2938,7 +3262,6 @@ function sharePostWhatsApp(author, content) {
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`💬 समाज संवाद (${author}):\n"${content}"`)}`, '_blank');
 }
 
-// 25. PURE 29 NIYAMS RENDER & HISTORY/KIDS
 function markNiyamAsRead(num) {
   readNiyamsSet.add(num);
   localStorage.setItem('bishnoi_read_niyams', JSON.stringify(Array.from(readNiyamsSet)));
@@ -2948,9 +3271,7 @@ function markNiyamAsRead(num) {
 function listenCustomNiyams() {
   document.getElementById('niyamCategoryBar')?.remove();
   db.collection('settings').doc('customNiyams').onSnapshot(doc => {
-    if (doc.exists && Array.isArray(doc.data().list)) {
-      niyamsList = doc.data().list;
-    }
+    if (doc.exists && Array.isArray(doc.data().list)) niyamsList = doc.data().list;
     renderNiyams(niyamsList);
   });
 }
@@ -2960,7 +3281,7 @@ function renderNiyams(data) {
   if (!grid) return;
   grid.innerHTML = '';
 
-  const canEdit = isEditorOrOwner();
+  const canEdit = isSuperOwner();
 
   data.forEach(n => {
     const safeTitle = (n.title || '').replace(/'/g, "\\'");
@@ -2981,12 +3302,8 @@ function renderNiyams(data) {
         <p class="text-xs text-stone-700 leading-relaxed mt-1">${n.desc}</p>
       </div>
       <div class="pt-2 border-t border-stone-100 flex items-center justify-between">
-        ${canEdit ? `
-          <button onclick="event.stopPropagation(); editSingleNiyam(${n.num})" class="text-xs text-amber-700 font-bold hover:underline">Edit शब्द बदलें</button>
-        ` : `<span class="text-[10px] text-emerald-700 font-semibold">${isRead ? '✓ पठित' : ''}</span>`}
-        <button onclick="event.stopPropagation(); shareNiyamWhatsApp(${n.num}, '${safeTitle}', '${safeRule}', '${safeDesc}')" class="text-xs text-emerald-700 font-bold hover:underline">
-          साझा करें
-        </button>
+        ${canEdit ? `<button onclick="event.stopPropagation(); editSingleNiyam(${n.num})" class="text-xs text-amber-700 font-bold hover:underline">Edit</button>` : `<span class="text-[10px] text-emerald-700 font-semibold">${isRead ? '✓ पठित' : ''}</span>`}
+        <button onclick="event.stopPropagation(); shareNiyamWhatsApp(${n.num}, '${safeTitle}', '${safeRule}', '${safeDesc}')" class="text-xs text-emerald-700 font-bold hover:underline">साझा करें</button>
       </div>
     `;
     grid.appendChild(card);
@@ -2994,7 +3311,7 @@ function renderNiyams(data) {
 }
 
 async function editSingleNiyam(num) {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return;
   const idx = niyamsList.findIndex(x => x.num === num);
   if (idx === -1) return;
   const item = niyamsList[idx];
@@ -3012,18 +3329,12 @@ async function editSingleNiyam(num) {
 
 function filterNiyams() {
   const q = (document.getElementById('niyamSearch')?.value || '').toLowerCase();
-  renderNiyams(niyamsList.filter(n =>
-    n.rule.toLowerCase().includes(q) ||
-    n.desc.toLowerCase().includes(q) ||
-    n.title.toLowerCase().includes(q)
-  ));
+  renderNiyams(niyamsList.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q)));
 }
 
 function listenHistoryAndKids() {
   db.collection('settings').doc('customHistoryKids').onSnapshot(doc => {
-    if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) {
-      historyItemsList = doc.data().items;
-    }
+    if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) historyItemsList = doc.data().items;
     renderHistoryAndKidsViews();
   });
 }
@@ -3032,19 +3343,14 @@ function toggleStoryReadMore(id) {
   const p = document.getElementById(`story_txt_${id}`);
   const btn = document.getElementById(`story_btn_${id}`);
   if (!p || !btn) return;
-  if (p.classList.contains('line-clamp-2')) {
-    p.classList.remove('line-clamp-2');
-    btn.innerText = 'संक्षिप्त करें ↑';
-  } else {
-    p.classList.add('line-clamp-2');
-    btn.innerText = 'पूरा पढ़ें (Read More) ↓';
-  }
+  if (p.classList.contains('line-clamp-2')) { p.classList.remove('line-clamp-2'); btn.innerText = 'संक्षिप्त करें ↑'; }
+  else { p.classList.add('line-clamp-2'); btn.innerText = 'पूरा पढ़ें (Read More) ↓'; }
 }
 
 function renderHistoryAndKidsViews() {
   const histView = document.getElementById('historySubView');
   const kidsView = document.getElementById('kidsSubView');
-  const canEdit = isEditorOrOwner();
+  const canEdit = isSuperOwner();
   const canDel = isSuperOwner();
 
   if (histView) {
@@ -3065,15 +3371,13 @@ function renderHistoryAndKidsViews() {
             <span class="px-2.5 py-0.5 bg-emerald-50 text-forest border border-emerald-200 rounded-full text-xs font-bold">${item.badge || 'इतिहास अध्याय'}</span>
             <div class="flex items-center gap-2 text-xs">
               <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-forest rounded-lg font-semibold">🔊 सुनें</button>
-              ${canEdit ? `<button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-700 font-bold hover:underline">Edit</button>` : ''}
-              ${canDel ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold hover:underline">Delete</button>` : ''}
+              ${canEdit ? `<button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-700 font-bold">Edit</button>` : ''}
+              ${canDel ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold">Delete</button>` : ''}
             </div>
           </div>
           <h3 class="font-yatra text-lg sm:text-xl text-forest">${item.title}</h3>
           <p id="story_txt_${item.id}" class="line-clamp-2 text-xs sm:text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">${item.content}</p>
-          <button id="story_btn_${item.id}" onclick="toggleStoryReadMore('${item.id}')" class="text-xs font-bold text-forest hover:underline">
-            पूरा पढ़ें (Read More) ↓
-          </button>
+          <button id="story_btn_${item.id}" onclick="toggleStoryReadMore('${item.id}')" class="text-xs font-bold text-forest hover:underline">पूरा पढ़ें (Read More) ↓</button>
           ${item.moral ? `<div class="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-semibold text-amber-900">${item.moral}</div>` : ''}
         </div>
       `;
@@ -3101,15 +3405,13 @@ function renderHistoryAndKidsViews() {
             </div>
             <h3 class="font-yatra text-lg text-forest pt-1">${item.title}</h3>
             <p id="story_txt_${item.id}" class="line-clamp-2 text-xs sm:text-sm text-stone-800 leading-relaxed whitespace-pre-wrap">${item.content}</p>
-            <button id="story_btn_${item.id}" onclick="toggleStoryReadMore('${item.id}')" class="text-xs font-bold text-forest hover:underline">
-              पूरा पढ़ें (Read More) ↓
-            </button>
+            <button id="story_btn_${item.id}" onclick="toggleStoryReadMore('${item.id}')" class="text-xs font-bold text-forest hover:underline">पूरा पढ़ें (Read More) ↓</button>
           </div>
           <div class="space-y-2 pt-2">
             ${item.moral ? `<div class="p-3 rounded-xl bg-emerald-900 text-amber-200 text-xs font-bold">${item.moral}</div>` : ''}
             <div class="flex justify-end gap-3 text-xs pt-1 border-t border-amber-200">
-              ${canEdit ? `<button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-800 font-bold hover:underline">Edit शब्द बदलें</button>` : ''}
-              ${canDel ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold hover:underline">Delete</button>` : ''}
+              ${canEdit ? `<button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-800 font-bold">Edit</button>` : ''}
+              ${canDel ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold">Delete</button>` : ''}
             </div>
           </div>
         </div>
@@ -3120,13 +3422,9 @@ function renderHistoryAndKidsViews() {
 
 function speakKidsStory(text) {
   if (!('speechSynthesis' in window)) return showToast("ऑडियो स्टोरी उपलब्ध नहीं है।");
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    return showToast("ऑडियो रोका गया।");
-  }
+  if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); return showToast("ऑडियो रोका गया।"); }
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'hi-IN';
-  u.rate = 0.9;
+  u.lang = 'hi-IN'; u.rate = 0.9;
   window.speechSynthesis.speak(u);
   showToast("ऑडियो सुनाया जा रहा है...");
 }
@@ -3140,16 +3438,29 @@ async function saveAdminHistoryOrKidsItem() {
   const moral = document.getElementById('adminHistMoral')?.value.trim() || '';
   if (!title || !content) return showToast("शीर्षक और विवरण दोनों लिखें!");
 
+  // If Trusted Editor (not Super Owner), save to Draft Queue for Owner Approval!
+  if (!isSuperOwner()) {
+    await db.collection('draftQueue').add({
+      type, badge, title, content, moral,
+      author: currentUser?.name || 'संपादक',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('adminHistTitle').value = '';
+    document.getElementById('adminHistContent').value = '';
+    document.getElementById('adminHistMoral').value = '';
+    return showToast("📝 आपका लेख ड्राफ्ट में सेव हो गया है! Owner की स्वीकृति के बाद Live होगा।");
+  }
+
   historyItemsList.unshift({ id: 'item_' + Date.now(), type, badge, title, content, moral });
   await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
   document.getElementById('adminHistTitle').value = '';
   document.getElementById('adminHistContent').value = '';
   document.getElementById('adminHistMoral').value = '';
-  showToast("नया अध्याय प्रकाशित हो गया!");
+  showToast("✅ नया अध्याय सीधे Live प्रकाशित हो गया!");
 }
 
 async function editHistoryOrKidsItem(id) {
-  if (!isEditorOrOwner()) return;
+  if (!isSuperOwner()) return;
   const idx = historyItemsList.findIndex(x => x.id === id);
   if (idx === -1) return;
   const item = historyItemsList[idx];
@@ -3165,7 +3476,7 @@ async function editHistoryOrKidsItem(id) {
 }
 
 async function deleteHistoryOrKidsItem(id) {
-  if (!isSuperOwner()) return showToast("हटाने का अधिकार केवल मुख्य व्यवस्थापक के पास है।");
+  if (!isSuperOwner()) return;
   openConfirmModal("अध्याय हटाएं?", "क्या आप इस कार्ड को हटाना चाहते हैं?", async (res) => {
     if (res) {
       historyItemsList = historyItemsList.filter(x => x.id !== id);
@@ -3176,22 +3487,12 @@ async function deleteHistoryOrKidsItem(id) {
 }
 
 function handleGlobalSearch() {
-  const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
+  const q = document.getElementById('globalSearchInput')?.value.toLowerCase().trim();
   if (!q) return;
   const niyamMatch = niyamsList.some(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q));
   if (niyamMatch) {
     switchTab('niyams');
     document.getElementById('niyamSearch').value = q;
     filterNiyams();
-  } else if (q.includes('mala') || q.includes('माला') || q.includes('मंत्र')) {
-    switchTab('mala');
-  } else if (q.includes('pdf') || q.includes('सबद') || q.includes('साहित्य')) {
-    switchTab('library');
-  } else if (q.includes('quiz') || q.includes('परीक्षा')) {
-    switchTab('quiz');
-  } else if (q.includes('संवाद') || q.includes('मंच')) {
-    switchTab('community');
-  } else if (q.includes('इतिहास') || q.includes('बाल') || q.includes('खेजड़ली')) {
-    switchTab('history');
   }
 }
