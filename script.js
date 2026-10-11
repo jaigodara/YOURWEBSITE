@@ -1,14 +1,13 @@
 /* ==========================================================================
    Bishnoi Community Portal - Ultimate Production Master Engine (script.js)
-   Fixes & Features Included:
-   - Profile: Removed 'संवाद योगदान' (2 clean boxes) + User Photo Upload
-   - Mobile Leaderboard: Full-width 1st Place Podium (No narrow word-wrapping!) + Blank if no winner
-   - High-Density 500+ User Community Chat Stream (Compact Telegram/YouTube Live style)
-   - Royal Certificate: Guru Jambheshwar Bhagwan Emblem/Photo + User Photo + Full Details + Seal
-   - Owner Studio: 4 One-Tap Quick Shortcuts + Draft Approval Queue (Editors save Draft; ONLY Owner Publishes/Schedules)
-   - Per-Section Custom Maintenance Notices + VIP Admin/Editor Bypass Toggle
-   - Auto-Working Amavasya Live Countdown (Auto-calculates next Amavasya if not set)
-   - Smart Instant Search Autocomplete Dropdown + 1-Time Exit Feedback + 20-Min Inactivity Lock
+   Integrated Features:
+   - Profile: Pure 2-box Spiritual Counter + Photo Upload + Details
+   - Secure Exam & Mock Test Runtime Engine (1-by-1 Question Navigation, Jump Grid)
+   - Unique Roll Number Generator (JAMBH-2026-XXXXX) & Enrollment Toggle
+   - Delayed Result Publishing (No Leaderboard for Exam)
+   - 7-Day Visitor Telemetry & Audit Logs (IP, Device, Location)
+   - Granular RBAC Permissions for Sub-Admins in Owner Studio
+   - Dynamic Amavasya Countdown, Auto-Panchang, PDF Exporter & Audio Player
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -94,6 +93,18 @@ let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0')
 let readNiyamsSet = new Set(JSON.parse(localStorage.getItem('bishnoi_read_niyams') || '[]'));
 let bestQuizPct = parseInt(localStorage.getItem('bishnoi_best_quiz_pct') || '0');
 
+// Examination & Mock Test Runtime State
+let examState = {
+  questions: [],
+  currentIndex: 0,
+  answers: {},
+  timeRemainingSeconds: 0,
+  timerInterval: null,
+  tabSwitchCount: 0,
+  activeMode: 'daily_quiz', // 'daily_quiz', 'mock_1', 'mock_2', 'main_exam'
+  rollNumber: 'GUEST'
+};
+
 // 4. AUTHENTIC 29 NIYAMS DATA
 let niyamsList = [
   { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक माता व शिशु की स्वच्छता और विश्राम रखें।" },
@@ -162,7 +173,7 @@ let historyItemsList = [
   }
 ];
 
-// 5. ROLE HELPERS & INACTIVITY SESSION LOCK (20 MINS)
+// 5. ROLE HELPERS & INACTIVITY SESSION GUARD (20 MINS)
 function isSuperOwner() {
   return Boolean(currentUser && (currentUser.isOwner === true || currentUser.phone === OWNER_PHONE));
 }
@@ -177,7 +188,6 @@ function setupInactivitySessionGuard() {
   const resetTimer = () => {
     if (inactivityTimer) clearTimeout(inactivityTimer);
     if (currentUser) {
-      // 20 minutes inactivity auto-lock for public/rural shared phones
       inactivityTimer = setTimeout(() => {
         logoutUser();
         showToast("🔒 सुरक्षा कारणों से २० मिनट की निष्क्रियता के बाद आपका सत्र लॉक कर दिया गया है।");
@@ -190,7 +200,7 @@ function setupInactivitySessionGuard() {
   resetTimer();
 }
 
-// 6. GLOBAL STYLES & WIDE PODIUM FIX (NO NARROW GALI ON MOBILE!)
+// 6. GLOBAL STYLES INJECTION
 function injectCleanLayoutStyles() {
   let styleEl = document.getElementById('cleanPortalFixStyles');
   if (!styleEl) {
@@ -205,7 +215,6 @@ function injectCleanLayoutStyles() {
       padding-bottom: 84px !important;
       background-color: #FAF7EE !important;
     }
-    /* Hide ALL old top navigation rows completely */
     header nav, #nav-home, #nav-niyams, #nav-mala, #nav-library, #nav-community, #nav-quiz, #nav-history, #nav-admin, #nav-admin-mobile {
       display: none !important;
     }
@@ -237,13 +246,12 @@ function injectCleanLayoutStyles() {
     }
   `;
 
-  // Ensure any horizontal text nav bar in header is hidden
   document.querySelectorAll('nav').forEach(n => {
     if (n.id !== 'standardMobileBottomNav') n.style.display = 'none';
   });
 }
 
-// 7. LIGHT 5-ICON BOTTOM NAVIGATION BAR
+// 7. BOTTOM NAVIGATION BAR
 function injectUnifiedBottomNavBar() {
   document.getElementById('standardMobileBottomNav')?.remove();
   const bottomNav = document.createElement('nav');
@@ -280,7 +288,7 @@ function injectUnifiedBottomNavBar() {
   document.body.appendChild(bottomNav);
 }
 
-// 8. SMART INSTANT SEARCH AUTOCOMPLETE DROPDOWN
+// 8. SMART INSTANT SEARCH AUTOCOMPLETE
 function setupSmartInstantSearch() {
   const searchInp = document.getElementById('globalSearchInput');
   if (!searchInp || document.getElementById('instantSearchDropdown')) return;
@@ -295,13 +303,9 @@ function setupSmartInstantSearch() {
 
   searchInp.addEventListener('input', () => {
     const q = searchInp.value.toLowerCase().trim();
-    if (!q) {
-      drop.classList.add('hidden');
-      return;
-    }
+    if (!q) { drop.classList.add('hidden'); return; }
 
     let results = [];
-    // Match Niyams
     niyamsList.forEach(n => {
       if (`नियम ${n.num}`.includes(q) || n.title.toLowerCase().includes(q) || n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q)) {
         results.push({
@@ -312,7 +316,6 @@ function setupSmartInstantSearch() {
       }
     });
 
-    // Match History & Kids
     historyItemsList.forEach(h => {
       if (h.title.toLowerCase().includes(q) || h.content.toLowerCase().includes(q)) {
         results.push({
@@ -323,7 +326,6 @@ function setupSmartInstantSearch() {
       }
     });
 
-    // Quick Sections
     if ('सबदवाणी साहित्य ग्रंथ pdf'.includes(q)) {
       results.push({ badge: 'साहित्य', title: 'श्री सबदवाणी (१२० शब्द) एवं साहित्य कोष', action: () => switchTab('library') });
     }
@@ -360,7 +362,7 @@ function setupSmartInstantSearch() {
   });
 }
 
-// 9. HOMEPAGE CARDS & CUSTOM MUSIC BOX
+// 9. HOMEPAGE & AUDIO PLAYER UPGRADES
 function upgradeHomepageAndAudioUI() {
   const homeTab = document.getElementById('tab-home');
   if (homeTab && !document.getElementById('cleanHeroLandingSection')) {
@@ -375,11 +377,9 @@ function upgradeHomepageAndAudioUI() {
             <h2 class="font-yatra text-base sm:text-lg text-forest">मुख्य अध्ययन एवं साधना केंद्र</h2>
           </div>
           <div class="flex items-center gap-2.5 text-xs font-semibold text-stone-600 bg-[#FAF7EE] px-3 py-1 rounded-xl border border-amber-300/60">
-            <span>नियम: <strong id="progNiyamsCount" class="text-forest">${readNiyamsSet.size}/29</strong></span>
+            <span>मंत्र जप: <strong id="progUserMantraCount" class="text-forest">${malaTotalCount}</strong></span>
             <span>•</span>
-            <span>परीक्षा: <strong id="progQuizScore" class="text-terracotta">${bestQuizPct}%</strong></span>
-            <span>•</span>
-            <span>माला: <strong id="progMalaLaps" class="text-emerald-700">${malaLapsCount}</strong></span>
+            <span>पूर्ण माला: <strong id="progUserMalaCount" class="text-emerald-700">${malaLapsCount}</strong></span>
           </div>
         </div>
 
@@ -423,7 +423,7 @@ function upgradeHomepageAndAudioUI() {
     homeTab.insertBefore(heroWrap, homeTab.firstChild);
   }
 
-  // Custom Audio Box
+  // Audio Box Customization
   const nativeAudio = document.getElementById('audioPlayer');
   const nativeSelect = document.getElementById('audioTrackSelect');
   if (nativeAudio && !document.getElementById('standardCustomMusicBox')) {
@@ -483,7 +483,7 @@ function upgradeHomepageAndAudioUI() {
   }
 }
 
-// 10. MOBILE-FRIENDLY WIDE PODIUM LEADERBOARD (NO NARROW GALI WRAPPING!)
+// 10. QUIZ LEADERBOARD PODIUM
 function upgradeQuizLeaderboardToWidePodium() {
   const introCard = document.getElementById('quizIntroCard');
   if (!introCard || document.getElementById('widePodiumRestructured')) return;
@@ -499,25 +499,18 @@ function upgradeQuizLeaderboardToWidePodium() {
       <h2 class="font-yatra text-2xl sm:text-3xl text-amber-300 drop-shadow pt-1">🏆 आज के शीर्ष प्रतिभागी</h2>
     </div>
 
-    <!-- Wide Responsive Podium: 1st Place Full-Width on Top (Mobile), 2nd & 3rd Wide Below -->
     <div class="space-y-3 max-w-2xl mx-auto">
-      <!-- 1st Place Gold Banner (Wide so long names NEVER wrap into 4 lines!) -->
       <div class="bg-gradient-to-r from-amber-100 via-amber-200 to-yellow-100 text-stone-950 p-4 sm:p-5 rounded-2xl border-2 border-amber-400 shadow-xl flex items-center justify-between gap-3">
         <div class="flex items-center gap-3.5 min-w-0">
-          <div class="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center text-2xl font-extrabold shrink-0 shadow">
-            🥇
-          </div>
+          <div class="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center text-2xl font-extrabold shrink-0 shadow">🥇</div>
           <div class="min-w-0 text-left">
             <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-300/70 px-2 py-0.5 rounded">प्रथम स्थान (1st Rank)</span>
             <div id="winner1Name" class="font-extrabold text-base sm:text-xl text-[#143622] mt-0.5 break-words">—</div>
           </div>
         </div>
-        <div id="winner1Score" class="px-3 py-1.5 rounded-xl bg-[#143622] text-amber-300 font-extrabold text-sm sm:text-base shrink-0">
-          —
-        </div>
+        <div id="winner1Score" class="px-3 py-1.5 rounded-xl bg-[#143622] text-amber-300 font-extrabold text-sm sm:text-base shrink-0">—</div>
       </div>
 
-      <!-- 2nd & 3rd Place Wide Side-by-Side Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="bg-white/95 text-stone-900 p-3.5 rounded-2xl border border-slate-300 shadow flex items-center justify-between gap-2">
           <div class="flex items-center gap-2.5 min-w-0">
@@ -549,7 +542,6 @@ function upgradeQuizLeaderboardToWidePodium() {
         🎯 ज्ञान परीक्षा शुरू करें (Start Quiz)
       </button>
 
-      <!-- Soft In-Place Maintenance Notice for Quiz (Leaderboard stays visible!) -->
       <div id="softQuizComingSoonBanner" class="hidden p-4 rounded-2xl bg-amber-400/20 border border-amber-300 text-amber-200 text-center space-y-1">
         <div id="softQuizBannerHeading" class="font-yatra text-base sm:text-lg text-amber-300">✨ नए ज्ञान परीक्षा प्रश्न तैयार किए जा रहे हैं!</div>
         <p class="text-xs text-white/90">शीर्ष विजेता तालिका लाइव है। नए रोचक प्रश्न शीघ्र ही उपलब्ध होंगे।</p>
@@ -558,7 +550,7 @@ function upgradeQuizLeaderboardToWidePodium() {
   `;
 }
 
-// 11. MUSIC HELPERS
+// 11. AUDIO PLAYER HELPERS
 function formatMusicTime(sec) {
   if (!sec || isNaN(sec)) return '0:00';
   const m = Math.floor(sec / 60);
@@ -623,15 +615,17 @@ function cycleCustomAudioSpeed() {
 }
 
 function updateProgressIndicators() {
-  const nEl = document.getElementById('progNiyamsCount');
-  const qEl = document.getElementById('progQuizScore');
-  const mEl = document.getElementById('progMalaLaps');
-  if (nEl) nEl.innerText = `${readNiyamsSet.size}/29`;
-  if (qEl) qEl.innerText = `${bestQuizPct}%`;
-  if (mEl) mEl.innerText = `${malaLapsCount}`;
+  const mTotal = document.getElementById('userTotalMantra');
+  const mLaps = document.getElementById('userCompletedMala');
+  const hmTotal = document.getElementById('progUserMantraCount');
+  const hmLaps = document.getElementById('progUserMalaCount');
+  if (mTotal) mTotal.innerText = malaTotalCount;
+  if (mLaps) mLaps.innerText = malaLapsCount;
+  if (hmTotal) hmTotal.innerText = malaTotalCount;
+  if (hmLaps) hmLaps.innerText = malaLapsCount;
 }
 
-// 12. CUSTOM PER-SECTION MAINTENANCE ENGINE + VIP ADMIN/EDITOR BYPASS
+// 12. PER-SECTION MAINTENANCE & VIP BYPASS
 function isPhoneOrInstalledApp() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -641,7 +635,6 @@ function isPhoneOrInstalledApp() {
 
 function isSectionSoftLocked(mode) {
   if (!mode || mode === 'off') return false;
-  // VIP Bypass: If enabled (default true), Owner & Trusted Editors can test live even during maintenance
   if (maintenanceConfig.vipBypass !== false && isEditorOrOwner()) return false;
   const onPhone = isPhoneOrInstalledApp();
   if (mode === 'both') return true;
@@ -664,16 +657,12 @@ function listenMaintenanceConfig() {
 
       const globalSel = document.getElementById('adminGlobalMaintMode');
       const msgInp = document.getElementById('adminMaintMessage');
-      const vipChk = document.getElementById('adminVipBypassToggle');
       if (globalSel) globalSel.value = maintenanceConfig.globalMode;
       if (msgInp) msgInp.value = maintenanceConfig.message;
-      if (vipChk) vipChk.checked = maintenanceConfig.vipBypass;
 
       ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
         const el = document.getElementById(`lock_${sec}`);
         if (el) el.value = maintenanceConfig.sections[sec] || 'off';
-        const cMsgEl = document.getElementById(`cmsg_${sec}`);
-        if (cMsgEl) cMsgEl.value = maintenanceConfig.customMessages[sec] || '';
       });
     }
     applySoftMaintenanceBanners();
@@ -682,8 +671,6 @@ function listenMaintenanceConfig() {
 
 function applySoftMaintenanceBanners() {
   document.getElementById('globalMaintenanceOverlay')?.remove();
-  document.getElementById('sectionMaintenanceCard')?.remove();
-
   const quizLocked = isSectionSoftLocked(maintenanceConfig.sections.quiz) || isSectionSoftLocked(maintenanceConfig.globalMode);
   const softQuizBanner = document.getElementById('softQuizComingSoonBanner');
   const startQuizBtn = document.getElementById('mainStartQuizBtn');
@@ -707,10 +694,9 @@ function applySoftMaintenanceBanners() {
         banner.className = 'mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-100 to-emerald-50 border border-amber-300 text-forest flex items-center justify-between gap-3 shadow-sm';
         tabEl.insertBefore(banner, tabEl.firstChild);
       }
-      const secNotice = maintenanceConfig.customMessages[sec] || maintenanceConfig.message;
       banner.innerHTML = `
         <div>
-          <h4 class="font-yatra text-sm sm:text-base text-forest">${secNotice}</h4>
+          <h4 class="font-yatra text-sm sm:text-base text-forest">${maintenanceConfig.customMessages[sec] || maintenanceConfig.message}</h4>
           <p class="text-xs text-stone-600">${maintenanceConfig.message}</p>
         </div>
         <span class="px-2.5 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">अपडेट जारी</span>
@@ -725,821 +711,403 @@ function applySoftMaintenanceBanners() {
 async function saveMaintenanceSettings() {
   if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के लिए!");
   const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
-  const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
   const message = document.getElementById('adminMaintMessage')?.value.trim() || maintenanceConfig.message;
   const sections = {};
-  const customMessages = {};
   ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
     sections[sec] = document.getElementById(`lock_${sec}`)?.value || 'off';
-    const cVal = document.getElementById(`cmsg_${sec}`)?.value.trim();
-    if (cVal) customMessages[sec] = cVal;
   });
-  await db.collection('settings').doc('maintenance').set({ globalMode, vipBypass, message, sections, customMessages });
-  showToast("✅ कस्टम मेंटेनेंस व VIP बाईपास सेटिंग्स लागू हो गईं!");
+  await db.collection('settings').doc('maintenance').set({
+    globalMode, message, sections,
+    vipBypass: true,
+    customMessages: maintenanceConfig.customMessages
+  }, { merge: true });
+  showToast("✅ मेंटेनेंस सेटिंग्स लागू हो गईं!");
 }
 
-// 13. SIMPLIFIED OWNER & EDITOR STUDIO (4 ONE-TAP SHORTCUTS + DRAFT APPROVAL QUEUE)
-function organizeStandardOwnerConsole() {
-  const adminTab = document.getElementById('tab-admin');
-  if (!adminTab || document.getElementById('ownerStandardConsoleBar')) return;
+// 13. OWNER STUDIO & RBAC ROLE DISCOVERY
+function checkEnrollmentStatus() {
+  db.collection('examConfig').doc('settings').onSnapshot(doc => {
+    const isEnabled = doc.exists && doc.data().enrollmentEnabled === true;
+    const enrollBox = document.getElementById('examEnrollmentBox');
+    if (enrollBox) {
+      enrollBox.classList.toggle('hidden', !isEnabled);
+    }
+    const permEnrollChk = document.getElementById('permEnrollToggle');
+    if (permEnrollChk) permEnrollChk.checked = isEnabled;
+  });
+}
 
-  const pdfTitleInp = document.getElementById('adminPdfTitle');
-  if (pdfTitleInp && !document.getElementById('adminPdfTag')) {
-    const tagInp = document.createElement('input');
-    tagInp.type = 'text'; tagInp.id = 'adminPdfTag'; tagInp.placeholder = 'श्रेणी टैग (उदा: पवित्र ग्रंथ)'; tagInp.className = pdfTitleInp.className;
-    pdfTitleInp.parentElement.insertBefore(tagInp, pdfTitleInp);
+async function handleExamEnrollment(e) {
+  e.preventDefault();
+  const name = document.getElementById('enrollName').value.trim();
+  const phone = document.getElementById('enrollPhone').value.trim();
+  const email = document.getElementById('enrollEmail').value.trim();
+  const location = document.getElementById('enrollLocation').value.trim();
 
-    const descInp = document.createElement('input');
-    descInp.type = 'text'; descInp.id = 'adminPdfDesc'; descInp.placeholder = 'छोटा विवरण'; descInp.className = pdfTitleInp.className;
-    pdfTitleInp.insertAdjacentElement('afterend', descInp);
+  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का फ़ोन नंबर भरें!");
+
+  const studentDetails = { name, phone, email, location };
+  const roll = await enrollStudentForExam(studentDetails);
+  if (roll) {
+    document.getElementById('enrollName').value = '';
+    document.getElementById('enrollPhone').value = '';
+    document.getElementById('enrollEmail').value = '';
+    document.getElementById('enrollLocation').value = '';
   }
+}
 
-  const existingChildren = Array.from(adminTab.children);
+async function enrollStudentForExam(studentDetails) {
+  try {
+    const configSnap = await db.collection('examConfig').doc('settings').get();
+    if (!configSnap.exists || !configSnap.data().enrollmentEnabled) {
+      showToast("वर्तमान में परीक्षा नामांकन बंद है।");
+      return null;
+    }
 
-  const consoleHeader = document.createElement('div');
-  consoleHeader.id = 'ownerStandardConsoleBar';
-  consoleHeader.className = 'space-y-4 mb-4';
-  consoleHeader.innerHTML = `
-    <!-- Clean Owner Header + 4 One-Tap Quick Action Buttons -->
-    <div class="bg-gradient-to-r from-[#143622] via-[#1b432c] to-stone-900 text-white p-4 sm:p-5 rounded-3xl shadow-xl space-y-4 border border-amber-400/40">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <span id="studioTopRoleLabel" class="text-[10px] uppercase tracking-wider text-amber-300 font-extrabold block">🛡️ ONE-TAP OWNER STUDIO</span>
-          <h2 class="font-yatra text-xl sm:text-2xl text-white">त्वरित नियंत्रण कक्ष (Easy Admin Hub)</h2>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="runAiSmartBackendSync(true)" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs font-extrabold shadow">
-            🤖 AI ऑटो-सिंक
-          </button>
-          <button onclick="refreshOwnerAnalytics()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-amber-200">
-            ↻ रिफ्रेश
-          </button>
-        </div>
+    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+    const rollNumber = `JAMBH-2026-${randomSuffix}`;
+
+    const studentRecord = {
+      ...studentDetails,
+      rollNumber: rollNumber,
+      enrolledAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('examEnrolledStudents').doc(rollNumber).set(studentRecord);
+    alert(`🎉 नामांकन सफल!\nआपका रोल नंबर है: ${rollNumber}\n(कृपया इसे संभाल कर रखें)`);
+    examState.rollNumber = rollNumber;
+    return rollNumber;
+  } catch (err) {
+    showToast("नामांकन त्रुटि: " + err.message);
+    return null;
+  }
+}
+
+// RBAC Permissions Logic
+const ROLE_PERMISSIONS = {
+  OWNER: ['canManageAdmins', 'canPublishExam', 'canUploadQuestions', 'canToggleEnrollment', 'canViewAuditLogs'],
+  MODERATOR: ['canUploadQuestions']
+};
+
+function renderAdminStudio(userRole, customPermissions = []) {
+  const allowed = userRole === 'OWNER' ? ROLE_PERMISSIONS.OWNER : customPermissions;
+  toggleElementVisibility('secManageAdmins', allowed.includes('canManageAdmins'));
+  toggleElementVisibility('secPublishExam', allowed.includes('canPublishExam'));
+  toggleElementVisibility('secUploadQuestions', allowed.includes('canUploadQuestions'));
+  toggleElementVisibility('secEnrollmentToggle', allowed.includes('canToggleEnrollment'));
+  toggleElementVisibility('secAuditLogs', allowed.includes('canViewAuditLogs'));
+}
+
+function toggleElementVisibility(elementId, isVisible) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (isVisible) {
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+// 14. EXAM SCHEDULER & ZERO-LAG LOCAL STORAGE ENGINE
+function initExamSecurity() {
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('copy', e => e.preventDefault());
+  document.addEventListener('cut', e => e.preventDefault());
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && document.getElementById('quizActiveBox') && !document.getElementById('quizActiveBox').classList.contains('hidden')) {
+      examState.tabSwitchCount++;
+      alert(`⚠️ चेतावनी: आपने स्क्रीन या टैब बदली है! (चेतावनी: ${examState.tabSwitchCount}/3)`);
+      if (examState.tabSwitchCount >= 3) {
+        submitFinalExam(true);
+      }
+    }
+  });
+}
+
+function startMockTestEngine(mockId) {
+  examState.activeMode = `mock_${mockId}`;
+  db.collection(`mockExam_${mockId}`).get().then(snap => {
+    let list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    if (!list.length) {
+      list = [
+        { id: 'm1_1', title: 'विश्नोई समाज के कितने नियम हैं?', options: ['21', '29', '36', '108'], ans: 1 },
+        { id: 'm1_2', title: 'खेजड़ली बलिदान किस वर्ष हुआ?', options: ['1730 ईस्वी', '1485 ईस्वी', '1857 ईस्वी', '1947 ईस्वी'], ans: 0 }
+      ];
+    }
+    startExamEngine(list, 60);
+  }).catch(() => {
+    showToast("मॉक टेस्ट लोड नहीं हो सका।");
+  });
+}
+
+function startExamEngine(questionList, durationMinutes) {
+  examState.questions = questionList;
+  examState.timeRemainingSeconds = durationMinutes * 60;
+  examState.currentIndex = 0;
+  examState.answers = JSON.parse(localStorage.getItem('cachedExamAnswers') || '{}');
+
+  document.getElementById('mockTestsHub')?.classList.add('hidden');
+  document.getElementById('quizIntroCard')?.classList.add('hidden');
+  document.getElementById('quizActiveBox')?.classList.remove('hidden');
+
+  const rollEl = document.getElementById('examCandidateRoll');
+  if (rollEl) rollEl.innerText = `रोल: ${examState.rollNumber}`;
+
+  initExamSecurity();
+  buildQuestionGridPills();
+  renderQuestion(examState.currentIndex);
+
+  if (examState.timerInterval) clearInterval(examState.timerInterval);
+  examState.timerInterval = setInterval(() => {
+    examState.timeRemainingSeconds--;
+    updateTimerDisplay(examState.timeRemainingSeconds);
+    if (examState.timeRemainingSeconds <= 0) {
+      clearInterval(examState.timerInterval);
+      submitFinalExam(false);
+    }
+  }, 1000);
+}
+
+function buildQuestionGridPills() {
+  const gridContainer = document.getElementById('questionGridPills');
+  if (!gridContainer) return;
+  gridContainer.innerHTML = '';
+  examState.questions.forEach((q, idx) => {
+    const pill = document.createElement('button');
+    pill.id = `q_pill_${idx}`;
+    pill.className = `w-8 h-8 rounded-lg text-xs font-bold border transition ${examState.answers[q.id] !== undefined ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-stone-700 border-stone-300'}`;
+    pill.innerText = idx + 1;
+    pill.onclick = () => jumpToQuestion(idx);
+    gridContainer.appendChild(pill);
+  });
+}
+
+function renderQuestion(index) {
+  if (!examState.questions[index]) return;
+  const q = examState.questions[index];
+  const container = document.getElementById('examQuestionArea');
+  if (!container) return;
+
+  const currentSelection = examState.answers[q.id];
+
+  container.innerHTML = `
+    <div class="p-4 bg-white rounded-xl shadow-sm border border-stone-200">
+      <div class="flex justify-between items-center mb-3">
+        <span class="font-bold text-forest text-sm">प्रश्न क्रमांक: ${index + 1} / ${examState.questions.length}</span>
+        <span class="text-xs bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-semibold">अंक: 1</span>
       </div>
-
-      <!-- 4 BIG ONE-TAP QUICK SHORTCUTS (For Owner & Trusted Editors Only) -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <button onclick="quickOneTapAction('sandesh')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
-          <span class="text-xl block">📢</span>
-          <span class="font-bold text-xs sm:text-sm block mt-1">नया सुविचार डालें</span>
-          <span class="text-[10px] opacity-75">1-Click में लिखें</span>
-        </button>
-        <button onclick="quickOneTapAction('quiz')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
-          <span class="text-xl block">🏆</span>
-          <span class="font-bold text-xs sm:text-sm block mt-1">क्विज़ प्रश्न जोड़ें</span>
-          <span class="text-[10px] opacity-75">AI या पेस्ट करें</span>
-        </button>
-        <button onclick="quickOneTapAction('pdf')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
-          <span class="text-xl block">📚</span>
-          <span class="font-bold text-xs sm:text-sm block mt-1">PDF / भजन जोड़ें</span>
-          <span class="text-[10px] opacity-75">साहित्य अपलोड</span>
-        </button>
-        <button onclick="quickOneTapAction('history')" class="p-3 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
-          <span class="text-xl block">📜</span>
-          <span class="font-bold text-xs sm:text-sm block mt-1">इतिहास अपडेट करें</span>
-          <span class="text-[10px] opacity-75">कहानी व अध्याय</span>
-        </button>
+      <p class="text-base font-semibold text-stone-800 mb-4 leading-relaxed">${q.title || q.q}</p>
+      <div class="space-y-2">
+        ${(q.options || q.opts || []).map((opt, i) => `
+          <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-stone-50 transition ${currentSelection === i ? 'bg-amber-50 border-amber-400' : 'border-stone-200'}">
+            <input type="radio" name="currentExamRadio" value="${i}" 
+              ${currentSelection === i ? 'checked' : ''} 
+              onchange="saveExamAnswer('${q.id}', ${i}, ${index})" class="accent-forest w-4 h-4 mr-3">
+            <span class="text-xs sm:text-sm text-stone-800 font-medium">${opt}</span>
+          </label>
+        `).join('')}
       </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
-        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">कुल सदस्य</span><strong id="admStatUsers" class="text-lg font-bold text-amber-300">...</strong></div>
-        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">परीक्षा प्रयास</span><strong id="admStatQuizzes" class="text-lg font-bold text-emerald-300">...</strong></div>
-        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">प्रतीक्षारत ड्राफ्ट</span><strong id="admStatDrafts" class="text-lg font-bold text-amber-400">0</strong></div>
-        <div class="bg-black/25 p-2.5 rounded-xl"><span class="text-[10px] text-stone-300 block">यूज़र सुझाव</span><strong id="admStatFeedbacks" class="text-lg font-bold text-white">0</strong></div>
-      </div>
-    </div>
-
-    <!-- 5 Clean Sub-Tabs -->
-    <div class="flex flex-wrap gap-1.5 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm">
-      <button onclick="switchAdminSubTab('adm_overview')" id="admbtn_adm_overview" class="admin-subtab-active flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold border border-stone-200 transition">
-        1. सुविचार व अप्रूवल
-      </button>
-      <button onclick="switchAdminSubTab('adm_media')" id="admbtn_adm_media" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
-        2. साहित्य व भजन
-      </button>
-      <button onclick="switchAdminSubTab('adm_content')" id="admbtn_adm_content" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
-        3. इतिहास व संस्कार
-      </button>
-      <button onclick="switchAdminSubTab('adm_quiz')" id="admbtn_adm_quiz" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
-        4. परीक्षा व विजेता
-      </button>
-      <button onclick="switchAdminSubTab('adm_system')" id="admbtn_adm_system" class="flex-1 min-w-[115px] py-2 px-2.5 rounded-xl text-xs font-bold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 transition">
-        5. मेंटेनेंस व सुरक्षा
-      </button>
     </div>
   `;
+}
 
-  const panes = {
-    adm_overview: document.createElement('div'),
-    adm_media: document.createElement('div'),
-    adm_content: document.createElement('div'),
-    adm_quiz: document.createElement('div'),
-    adm_system: document.createElement('div')
+function saveExamAnswer(questionId, selectedOption, index) {
+  examState.answers[questionId] = selectedOption;
+  localStorage.setItem('cachedExamAnswers', JSON.stringify(examState.answers));
+  const pill = document.getElementById(`q_pill_${index}`);
+  if (pill) {
+    pill.className = "w-8 h-8 rounded-lg text-xs font-bold border transition bg-emerald-600 text-white border-emerald-700";
+  }
+}
+
+function navigateExam(direction) {
+  const newIndex = examState.currentIndex + direction;
+  if (newIndex >= 0 && newIndex < examState.questions.length) {
+    examState.currentIndex = newIndex;
+    renderQuestion(examState.currentIndex);
+  }
+}
+
+function jumpToQuestion(targetIndex) {
+  if (targetIndex >= 0 && targetIndex < examState.questions.length) {
+    examState.currentIndex = targetIndex;
+    renderQuestion(examState.currentIndex);
+  }
+}
+
+function updateTimerDisplay(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const el = document.getElementById('examTimerClock');
+  if (el) el.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+async function submitFinalExam(isForced = false) {
+  clearInterval(examState.timerInterval);
+  const user = firebase.auth().currentUser;
+  
+  // Single DB write to ensure zero lag for 3000 students
+  const payload = {
+    userId: user ? user.uid : (currentUser ? currentUser.phone : 'Guest'),
+    rollNumber: examState.rollNumber,
+    candidateName: currentUser ? currentUser.name : 'छात्र',
+    answers: examState.answers,
+    mode: examState.activeMode,
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    isForcedSubmission: isForced,
+    isPublished: false // Strict delayed result workflow
   };
 
-  Object.keys(panes).forEach((k, idx) => {
-    panes[k].id = k; panes[k].className = idx === 0 ? 'space-y-4' : 'hidden space-y-4';
-  });
-
-  existingChildren.forEach(el => {
-    const html = el.innerHTML || '';
-    if (html.includes('adminPdfTitle') || html.includes('adminAudioTitle')) panes.adm_media.appendChild(el);
-    else if (html.includes('adminBulkQuizText') || html.includes('win1InputName') || html.includes('aiQuizGenBtn')) panes.adm_quiz.appendChild(el);
-    else if (html.includes('adminGlobalMaintMode') || html.includes('lock_mala')) panes.adm_system.appendChild(el);
-    else panes.adm_overview.appendChild(el);
-  });
-
-  // OWNER DRAFT APPROVAL QUEUE (Editors submit Drafts -> ONLY Owner Approves/Schedules)
-  const draftQueueCard = document.createElement('div');
-  draftQueueCard.id = 'ownerDraftApprovalCard';
-  draftQueueCard.className = 'bg-amber-50/70 p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3';
-  draftQueueCard.innerHTML = `
-    <div class="flex items-center justify-between">
-      <div>
-        <h3 class="font-yatra text-base text-forest">✅ ड्राफ्ट अप्रूवल कतार (Draft Review Queue - Owner Power)</h3>
-        <p class="text-xs text-stone-600">सहायक संपादकों (Editors) द्वारा भेजे गए सुविचार, इतिहास व प्रश्न यहाँ दिखेंगे। केवल आप (Owner) ही इन्हें 1-Click में Live या Schedule कर सकते हैं:</p>
-      </div>
-      <span class="px-2.5 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">Only Owner Live</span>
-    </div>
-    <div id="draftReviewListBox" class="space-y-2 text-xs"></div>
-  `;
-  panes.adm_overview.insertBefore(draftQueueCard, panes.adm_overview.firstChild);
-
-  // Content Scheduler Card (Owner Only)
-  const schedulerCard = document.createElement('div');
-  schedulerCard.className = 'bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3';
-  schedulerCard.innerHTML = `
-    <h3 class="font-yatra text-base text-forest">⏰ कंटेंट शेड्यूलर (समय निर्धारित करें - Owner Only)</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-      <select id="schedTypeSelect" class="p-2.5 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50"><option value="banner">📢 दैनिक पावन सुविचार</option><option value="quiz">🏆 ज्ञान परीक्षा प्रश्न</option></select>
-      <input type="datetime-local" id="schedDateTimeInput" class="p-2.5 rounded-lg border border-stone-300 font-semibold">
-    </div>
-    <textarea id="schedContentInput" rows="2" placeholder="सुविचार या प्रश्न पेस्ट करें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-    <button onclick="saveScheduledContentItem()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-lg shadow">⏰ समय निर्धारित करें</button>
-    <div id="scheduledItemsListBox" class="space-y-1.5 pt-2 text-xs"></div>
-  `;
-  panes.adm_overview.appendChild(schedulerCard);
-
-  // Sub-Tab 3: History & Kids Editor
-  panes.adm_content.innerHTML = `
-    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-      <h3 class="font-yatra text-base text-forest">📜 इतिहास दर्शन एवं 🧸 बाल संस्कार जोड़ें</h3>
-      <p class="text-xs text-stone-500">यदि आप संपादक (Editor) हैं तो यह 'ड्राफ्ट' में सेव होगा, और यदि आप मुख्य व्यवस्थापक (Owner) हैं तो तुरंत लाइव होगा:</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-        <select id="adminHistType" class="p-2.5 rounded-lg border border-stone-300 font-bold text-forest bg-stone-50"><option value="history">📜 इतिहास दर्शन</option><option value="kids">🧸 बाल संस्कार मंच</option></select>
-        <input type="text" id="adminHistBadge" placeholder="छोटा टैग (उदा: इतिहास अध्याय)" class="p-2.5 rounded-lg border border-stone-300">
-      </div>
-      <input type="text" id="adminHistTitle" placeholder="मुख्य शीर्षक" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 font-semibold">
-      <textarea id="adminHistContent" rows="4" placeholder="कहानी या इतिहास यहाँ लिखें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-      <input type="text" id="adminHistMoral" placeholder="मुख्य सीख / संदेश" class="w-full p-2.5 text-xs rounded-lg border border-stone-300">
-      <button onclick="saveAdminHistoryOrKidsItem()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-lg shadow">➕ सहेजें / प्रकाशित करें</button>
-    </div>
-  `;
-
-  // Sub-Tab 2 Extra: Audio Playlist Delete List
-  const audioListCard = document.createElement('div');
-  audioListCard.className = 'bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-2';
-  audioListCard.innerHTML = `<h4 class="font-yatra text-base text-forest">🎵 अपलोड किए गए भजन प्रबंधक</h4><div id="adminAudioManageList" class="space-y-1.5 text-xs"></div>`;
-  panes.adm_media.appendChild(audioListCard);
-
-  // Sub-Tab 4 Extra: Clear Winner Option + Quiz Questions Delete List
-  const quizListCard = document.createElement('div');
-  quizListCard.className = 'bg-white p-4 rounded-2xl border border-stone-200 shadow-sm space-y-2.5';
-  quizListCard.innerHTML = `
-    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-stone-100">
-      <span class="text-xs text-stone-600">यदि आज कोई विजेता नहीं है, तो लीडरबोर्ड खाली (Blank) रखने के लिए दबाएं:</span>
-      <button onclick="clearDailyWinnersToBlank()" class="px-3 py-1.5 bg-amber-100 text-amber-900 rounded-lg text-xs font-bold hover:bg-amber-200">विजेता स्थान खाली (Blank) करें</button>
-    </div>
-    <div class="flex items-center justify-between pt-1">
-      <h3 class="font-yatra text-base text-forest">🏆 वर्तमान ज्ञान परीक्षा प्रश्न सूची</h3>
-      <button onclick="clearAllQuizQuestions()" class="px-2.5 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">सभी प्रश्न हटाएं</button>
-    </div>
-    <div id="adminQuizManageList" class="space-y-1.5 max-h-56 overflow-y-auto text-xs"></div>
-  `;
-  panes.adm_quiz.appendChild(quizListCard);
-
-  // Sub-Tab 5 Extra: Custom Per-Section Maintenance Notices + VIP Bypass + Trusted Editors + User Feedback Inbox
-  const customMaintCard = document.createElement('div');
-  customMaintCard.className = 'bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4';
-  customMaintCard.innerHTML = `
-    <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-      <h3 class="font-yatra text-base text-forest">🛠️ कस्टम सेक्शन मेंटेनेंस नोटिस एवं VIP बाईपास</h3>
-      <label class="flex items-center gap-1.5 text-xs font-bold text-forest cursor-pointer bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-        <input type="checkbox" id="adminVipBypassToggle" checked class="accent-forest">
-        <span>VIP Admin/Editor Bypass सक्रिय</span>
-      </label>
-    </div>
-    <p class="text-xs text-stone-500">हर सेक्शन के लिए अलग कस्टम मेंटेनेंस संदेश लिखें (जब वह सेक्शन लॉक हो तो यूज़र को यही संदेश दिखेगा):</p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-      <input type="text" id="cmsg_quiz" placeholder="क्विज़ नोटिस (उदा: नए प्रश्न जोड़े जा रहे हैं)" class="p-2.5 rounded-lg border border-stone-300">
-      <input type="text" id="cmsg_library" placeholder="साहित्य नोटिस (उदा: नई PDF अपलोड हो रही है)" class="p-2.5 rounded-lg border border-stone-300">
-      <input type="text" id="cmsg_history" placeholder="इतिहास नोटिस (उदा: नए तथ्य जोड़े जा रहे हैं)" class="p-2.5 rounded-lg border border-stone-300">
-      <input type="text" id="cmsg_niyams" placeholder="२९ नियम नोटिस" class="p-2.5 rounded-lg border border-stone-300">
-    </div>
-    <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-xl shadow">💾 कस्टम मेंटेनेंस सेटिंग्स सहेजें</button>
-  `;
-  panes.adm_system.insertBefore(customMaintCard, panes.adm_system.firstChild);
-
-  const securityCard = document.createElement('div');
-  securityCard.className = 'bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-5';
-  securityCard.innerHTML = `
-    <div class="space-y-2 pb-4 border-b border-stone-100">
-      <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) बनाएं</h3>
-      <p class="text-xs text-stone-500">संपादक केवल ड्राफ्ट जोड़ सकेंगे, उन्हें Live करने की पावर केवल आपके पास रहेगी:</p>
-      <div class="flex gap-2 text-xs">
-        <input type="text" id="newEditorPhoneInput" maxlength="10" placeholder="साथी का 10-अंकों का मोबाइल नंबर" class="flex-1 p-2.5 rounded-lg border border-stone-300 font-semibold">
-        <button onclick="addTrustedEditorPhone()" class="px-4 py-2.5 bg-forest text-white font-bold rounded-lg shadow">➕ संपादक बनाएं</button>
-      </div>
-      <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
-    </div>
-
-    <div class="space-y-2 pb-4 border-b border-stone-100">
-      <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-        <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="10-अंकों का नंबर" class="p-2.5 rounded-lg border border-stone-300">
-        <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड" class="p-2.5 rounded-lg border border-stone-300">
-        <button onclick="adminResetMemberPassword()" class="py-2.5 px-4 bg-terracotta text-white font-bold rounded-lg shadow">पासवर्ड बदलें</button>
-      </div>
-    </div>
-
-    <div class="space-y-2 pb-4 border-b border-stone-100">
-      <h4 class="font-yatra text-sm text-forest">🛡️ संवाद मंच सुरक्षा (म्यूट सदस्य)</h4>
-      <div id="adminBlockedUsersList" class="space-y-1.5 text-xs"></div>
-    </div>
-
-    <div class="space-y-2">
-      <h4 class="font-yatra text-sm text-forest">⭐ सदस्यों के फीडबैक एवं सुझाव (User Feedback Inbox)</h4>
-      <div id="adminFeedbackInboxList" class="space-y-1.5 max-h-48 overflow-y-auto text-xs"></div>
-    </div>
-  `;
-  panes.adm_system.appendChild(securityCard);
-
-  adminTab.innerHTML = '';
-  adminTab.appendChild(consoleHeader);
-  Object.values(panes).forEach(p => adminTab.appendChild(p));
-}
-
-function quickOneTapAction(type) {
-  if (!isEditorOrOwner()) return;
-  if (type === 'sandesh') {
-    switchAdminSubTab('adm_overview');
-    document.getElementById('adminBannerInput')?.focus();
-  } else if (type === 'quiz') {
-    switchAdminSubTab('adm_quiz');
-    document.getElementById('adminBulkQuizText')?.focus();
-  } else if (type === 'pdf') {
-    switchAdminSubTab('adm_media');
-    document.getElementById('adminPdfTitle')?.focus();
-  } else if (type === 'history') {
-    switchAdminSubTab('adm_content');
-    document.getElementById('adminHistTitle')?.focus();
-  }
-}
-
-function switchAdminSubTab(paneId) {
-  if (paneId === 'adm_system' && !isSuperOwner()) return showToast("सुरक्षा व मेंटेनेंस केवल मुख्य व्यवस्थापक (Owner) के लिए है!");
-  ['adm_overview', 'adm_media', 'adm_content', 'adm_quiz', 'adm_system'].forEach(id => {
-    const p = document.getElementById(id);
-    const b = document.getElementById(`admbtn_${id}`);
-    if (p) p.classList.toggle('hidden', id !== paneId);
-    if (b) { if (id === paneId) b.classList.add('admin-subtab-active'); else b.classList.remove('admin-subtab-active'); }
-  });
-}
-
-async function refreshOwnerAnalytics() {
-  if (!isEditorOrOwner()) return;
   try {
-    const [uSnap, qSnap, dSnap, fSnap] = await Promise.all([
-      db.collection('users').get(),
-      db.collection('quizAttempts').get(),
-      db.collection('draftQueue').get(),
-      db.collection('feedbacks').get()
-    ]);
-    if (document.getElementById('admStatUsers')) document.getElementById('admStatUsers').innerText = uSnap.size;
-    if (document.getElementById('admStatQuizzes')) document.getElementById('admStatQuizzes').innerText = qSnap.size;
-    if (document.getElementById('admStatDrafts')) document.getElementById('admStatDrafts').innerText = dSnap.size;
-    if (document.getElementById('admStatFeedbacks')) document.getElementById('admStatFeedbacks').innerText = fSnap.size;
-  } catch (e) {}
-}
-
-// 14. DRAFT APPROVAL QUEUE (EDITORS SUBMIT DRAFT -> ONLY SUPER OWNER APPROVES OR SCHEDULES)
-function listenDraftQueue() {
-  db.collection('draftQueue').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    draftItemsList = [];
-    const box = document.getElementById('draftReviewListBox');
-    if (box) box.innerHTML = '';
-
-    snap.forEach(doc => {
-      const d = doc.data();
-      draftItemsList.push({ id: doc.id, ...d });
-      if (box) {
-        const typeLbl = d.type === 'banner' ? '📢 सुविचार' : (d.type === 'quiz' ? '🏆 क्विज़ प्रश्न' : '📜 इतिहास/कहानी');
-        box.innerHTML += `
-          <div class="p-3 rounded-xl bg-white border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
-            <div class="space-y-0.5">
-              <span class="text-[10px] font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">${typeLbl} • लेखक: ${d.author || 'संपादक'}</span>
-              <div class="font-bold text-forest">${d.title || d.content.substring(0, 75)}</div>
-            </div>
-            ${isSuperOwner() ? `
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button onclick="approveDraftByOwner('${doc.id}')" class="px-3 py-1.5 bg-forest text-white rounded-lg font-bold">✓ अभी Live करें</button>
-                <button onclick="scheduleDraftByOwner('${doc.id}')" class="px-2.5 py-1.5 bg-amber-400 text-stone-950 rounded-lg font-bold">⏰ शेड्यूल</button>
-                <button onclick="rejectDraftByOwner('${doc.id}')" class="px-2.5 py-1.5 bg-red-100 text-red-700 rounded-lg font-bold">✕ हटाएं</button>
-              </div>
-            ` : `<span class="text-[11px] font-bold text-amber-700">⏳ Owner की स्वीकृति हेतु प्रतीक्षारत</span>`}
-          </div>
-        `;
-      }
-    });
-    if (box && draftItemsList.length === 0) {
-      box.innerHTML = `<div class="text-stone-400">कोई भी ड्राफ्ट प्रतीक्षारत नहीं है।</div>`;
-    }
-    if (document.getElementById('admStatDrafts')) document.getElementById('admStatDrafts').innerText = draftItemsList.length;
-  });
-}
-
-async function approveDraftByOwner(draftId) {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) ही Live कर सकते हैं!");
-  const item = draftItemsList.find(x => x.id === draftId);
-  if (!item) return;
-
-  if (item.type === 'banner') {
-    await db.collection('settings').doc('dailySandesh').set({ text: item.content });
-  } else if (item.type === 'quiz') {
-    document.getElementById('adminBulkQuizText').value = item.content;
-    await importBulkQuiz(true);
-  } else if (item.type === 'history' || item.type === 'kids') {
-    historyItemsList.unshift({
-      id: 'item_' + Date.now(),
-      type: item.type,
-      badge: item.badge || 'अध्याय',
-      title: item.title,
-      content: item.content,
-      moral: item.moral || ''
-    });
-    await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
-  }
-  await db.collection('draftQueue').doc(draftId).delete();
-  showToast("✅ ड्राफ्ट स्वीकृत होकर वेबसाइट पर Live हो गया!");
-}
-
-async function scheduleDraftByOwner(draftId) {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) ही शेड्यूल कर सकते हैं!");
-  const item = draftItemsList.find(x => x.id === draftId);
-  if (!item) return;
-  const dtStr = prompt("किस तारीख और समय पर Live करना है? (प्रारूप: YYYY-MM-DD HH:MM)", "2026-10-12 08:00");
-  if (!dtStr) return;
-  const publishAt = new Date(dtStr.replace(' ', 'T')).getTime();
-  if (isNaN(publishAt)) return showToast("कृपया सही तारीख प्रारूप लिखें!");
-
-  await db.collection('scheduledTasks').add({
-    type: item.type === 'quiz' ? 'quiz' : 'banner',
-    content: item.content,
-    publishAt,
-    status: 'pending',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await db.collection('draftQueue').doc(draftId).delete();
-  showToast("⏰ ड्राफ्ट निर्धारित समय के लिए शेड्यूल कर दिया गया!");
-}
-
-async function rejectDraftByOwner(draftId) {
-  if (!isSuperOwner()) return;
-  await db.collection('draftQueue').doc(draftId).delete();
-  showToast("ड्राफ्ट हटा दिया गया।");
-}
-
-function listenTrustedEditors() {
-  db.collection('settings').doc('editorRoles').onSnapshot(doc => {
-    editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
-    if (currentUser && !isSuperOwner()) {
-      currentUser.isEditor = editorsPhoneList.includes(currentUser.phone);
-      localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-      updateNavAuth();
-    }
-    const box = document.getElementById('trustedEditorsListBox');
-    if (box) {
-      box.innerHTML = editorsPhoneList.length === 0
-        ? `<div class="text-stone-400">कोई सहायक संपादक नहीं है।</div>`
-        : editorsPhoneList.map(ph => `
-            <div class="flex items-center justify-between p-2 rounded bg-emerald-50 border border-emerald-200">
-              <span class="font-bold text-forest">✍️ संपादक नंबर: ${ph}</span>
-              <button onclick="removeTrustedEditorPhone('${ph}')" class="text-red-600 font-bold">हटाएं</button>
-            </div>
-          `).join('');
-    }
-  });
-}
-
-async function addTrustedEditorPhone() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए!");
-  const ph = document.getElementById('newEditorPhoneInput')?.value.trim() || '';
-  if (!/^[6-9]\d{9}$/.test(ph)) return showToast("सही १०-अंकों का मोबाइल नंबर लिखें!");
-  if (!editorsPhoneList.includes(ph)) editorsPhoneList.push(ph);
-  await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
-  document.getElementById('newEditorPhoneInput').value = '';
-  showToast("✅ सहायक संपादक जोड़ दिया गया!");
-}
-
-async function removeTrustedEditorPhone(ph) {
-  if (!isSuperOwner()) return;
-  editorsPhoneList = editorsPhoneList.filter(p => p !== ph);
-  await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
-  showToast("संपादक अधिकार हटा दिया गया।");
-}
-
-function listenScheduledContent() {
-  db.collection('scheduledTasks').orderBy('publishAt', 'asc').onSnapshot(snap => {
-    scheduledItemsList = [];
-    const listBox = document.getElementById('scheduledItemsListBox');
-    if (listBox) listBox.innerHTML = '';
-    snap.forEach(doc => {
-      const d = doc.data();
-      scheduledItemsList.push({ id: doc.id, ...d });
-      if (listBox && d.status === 'pending') {
-        listBox.innerHTML += `<div class="flex items-center justify-between p-2 rounded bg-amber-50 border border-amber-200 gap-2"><span class="truncate">⏰ ${d.type === 'banner' ? 'सुविचार' : 'प्रश्न'}: ${d.content.substring(0, 35)}...</span><button onclick="deleteScheduledItem('${doc.id}')" class="text-red-600 font-bold">हटाएं</button></div>`;
-      }
-    });
-    checkAndTriggerDueSchedules();
-  });
-}
-
-async function saveScheduledContentItem() {
-  if (!isSuperOwner()) return showToast("शेड्यूल करने का अधिकार केवल मुख्य व्यवस्थापक (Owner) के पास है!");
-  const type = document.getElementById('schedTypeSelect')?.value || 'banner';
-  const dtVal = document.getElementById('schedDateTimeInput')?.value || '';
-  const content = document.getElementById('schedContentInput')?.value.trim() || '';
-  if (!dtVal || !content) return showToast("समय और सामग्री भरें!");
-  await db.collection('scheduledTasks').add({ type, content, publishAt: new Date(dtVal).getTime(), status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-  document.getElementById('schedContentInput').value = '';
-  showToast("⏰ सामग्री शेड्यूल हो गई!");
-}
-
-async function deleteScheduledItem(id) {
-  if (!isSuperOwner()) return;
-  await db.collection('scheduledTasks').doc(id).delete();
-  showToast("शेड्यूल हटाया गया।");
-}
-
-async function checkAndTriggerDueSchedules() {
-  const now = Date.now();
-  for (let item of scheduledItemsList) {
-    if (item.status === 'pending' && item.publishAt <= now) {
-      try {
-        await db.collection('scheduledTasks').doc(item.id).update({ status: 'published' });
-        if (item.type === 'banner') await db.collection('settings').doc('dailySandesh').set({ text: item.content });
-        else if (item.type === 'quiz') { document.getElementById('adminBulkQuizText').value = item.content; await importBulkQuiz(true); }
-      } catch (e) {}
-    }
+    await db.collection('examSubmissions').add(payload);
+    localStorage.removeItem('cachedExamAnswers');
+    
+    document.getElementById('quizActiveBox').innerHTML = `
+      <div class="text-center p-8 bg-green-50 rounded-2xl border border-green-200 space-y-3">
+        <div class="text-4xl">📜</div>
+        <h3 class="text-xl font-bold text-forest">उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है</h3>
+        <p class="text-xs sm:text-sm text-stone-600">आपके सभी उत्तर सुरक्षित सहेज लिए गए हैं।</p>
+        <div class="p-3 bg-white rounded-xl border border-green-300 text-xs font-semibold text-green-900">
+          परिणाम (Result) की आधिकारिक घोषणा निर्धारित तिथि पर की जाएगी।
+        </div>
+        <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+          मुखपृष्ठ पर लौटें
+        </button>
+      </div>
+    `;
+  } catch (err) {
+    showToast("सबमिशन त्रुटि: " + err.message);
   }
 }
 
-// 15. PROFILE MODAL (2 BOXES ONLY - REMOVED SAMVAD YOGDAN + PHOTO UPLOAD) & 1-TIME EXIT FEEDBACK MODAL
-function injectDynamicModalsAndUI() {
+// 15. DRAFT & LIVE EXAM CONTROLS (OWNER STUDIO)
+async function saveExamAsDraft() {
+  if (!isEditorOrOwner()) return showToast("अनुमति नहीं है!");
+  const target = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
+  const raw = document.getElementById('adminBulkQuizText')?.value.trim();
+  if (!raw) return showToast("प्रश्न दर्ज करें!");
+
+  await db.collection('examDrafts').doc(target).set({
+    rawQuestions: raw,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  showToast("✅ प्रश्न सफलतापूर्वक ड्राफ्ट में सुरक्षित हो गए!");
+}
+
+async function publishMainExamLive() {
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
+  openConfirmModal("मुख्य परीक्षा लाइव करें?", "क्या आप मुख्य परीक्षा को सभी विद्यार्थियों के लिए लाइव करना चाहते हैं?", async (res) => {
+    if (res) {
+      await db.collection('examConfig').doc('liveStatus').set({
+        isLive: true,
+        startedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast("🚀 मुख्य परीक्षा लाइव कर दी गई है!");
+    }
+  });
+}
+
+async function publishExamResultsOfficially() {
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
+  openConfirmModal("परिणाम घोषित करें?", "क्या आप सभी परीक्षार्थियों के परिणाम सार्वजनिक करना चाहते हैं?", async (res) => {
+    if (res) {
+      const snap = await db.collection('examSubmissions').where('isPublished', '==', false).get();
+      const batch = db.batch();
+      snap.forEach(doc => {
+        batch.update(doc.ref, { isPublished: true });
+      });
+      await batch.commit();
+      showToast("📢 सभी परीक्षा परिणाम आधिकारिक रूप से घोषित कर दिए गए!");
+    }
+  });
+}
+
+// 16. 7-DAY AUDIT & VISITOR TELEMETRY TRACKER
+async function trackUserLoginTelemetry(userData) {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const geo = await res.json();
+    
+    const ua = navigator.userAgent;
+    let deviceCategory = "Laptop / Desktop";
+    if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
+      deviceCategory = /ipad|tablet/i.test(ua.toLowerCase()) ? "Tablet" : "Mobile Phone";
+    }
+
+    const auditEntry = {
+      name: userData.name || 'Anonymous',
+      phone: userData.phone || '-',
+      email: userData.email || '-',
+      statedLocation: userData.location || '-',
+      detectedCity: geo.city || 'Unknown',
+      detectedRegion: geo.region || 'Unknown',
+      detectedCountry: geo.country_name || 'Unknown',
+      ip: geo.ip || 'Unknown',
+      network: geo.org || 'Unknown',
+      deviceType: deviceCategory,
+      timestamp: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('userAccessLogs').add(auditEntry);
+  } catch (err) {
+    console.error("Telemetry failed:", err);
+  }
+}
+
+async function refreshAuditLogs() {
+  const tbody = document.getElementById('auditTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-stone-400">लॉग्स लोड हो रहे हैं...</td></tr>`;
+
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  try {
+    const snap = await db.collection('userAccessLogs')
+      .where('timestamp', '>=', sevenDaysAgo)
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+
+    if (snap.empty) {
+      tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-stone-400">विगत ७ दिनों में कोई लॉग उपलब्ध नहीं है।</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    snap.forEach(doc => {
+      const d = doc.data();
+      const timeStr = d.createdAt ? d.createdAt.toDate().toLocaleDateString('hi-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
+      tbody.innerHTML += `
+        <tr class="hover:bg-stone-50 border-b border-stone-100">
+          <td class="p-2.5 font-bold text-forest">${d.name}<br><span class="text-[10px] text-stone-400 font-normal">${d.phone}</span></td>
+          <td class="p-2.5 text-stone-600">${d.email}</td>
+          <td class="p-2.5 font-mono text-stone-700">${d.ip}</td>
+          <td class="p-2.5 font-semibold text-stone-800">${d.deviceType}</td>
+          <td class="p-2.5 text-stone-600">${d.detectedCity}, ${d.detectedRegion}</td>
+          <td class="p-2.5 text-stone-400 text-[10px]">${timeStr}</td>
+        </tr>
+      `;
+    });
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-rose-500">लॉग्स लोड करने में त्रुटि: ${e.message}</td></tr>`;
+  }
+}
+
+// 17. INITIALIZATION & DATA SUBSCRIPTIONS
+window.addEventListener('DOMContentLoaded', () => {
+  if (!localStorage.getItem('gemini_user_api_key')) {
+    localStorage.setItem('gemini_user_api_key', DEFAULT_INTEGRATED_AI_KEY);
+  }
   injectCleanLayoutStyles();
   upgradeHomepageAndAudioUI();
   upgradeQuizLeaderboardToWidePodium();
   injectUnifiedBottomNavBar();
   setupSmartInstantSearch();
-
-  if (!window.pdfjsLib) {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.onload = () => {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    };
-    document.head.appendChild(script);
-  }
-
-  // PDF Reader Modal
-  if (!document.getElementById('inbuiltPdfModal')) {
-    const pdfModal = document.createElement('div');
-    pdfModal.id = 'inbuiltPdfModal';
-    pdfModal.className = 'fixed inset-0 z-[9990] bg-stone-950 hidden flex-col select-none';
-    pdfModal.innerHTML = `
-      <div class="bg-[#143622] text-white px-3 py-2.5 flex items-center justify-between gap-2 border-b border-amber-500/40 shadow-md shrink-0">
-        <h3 id="pdfViewerTitle" class="font-yatra text-sm sm:text-base text-amber-300 truncate">साहित्य पाठक</h3>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button onclick="togglePdfLandscapeMode()" id="landscapeModeBtn" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">
-            <span id="landscapeBtnText">🔄 लैंडस्केप (आड़ा मोड)</span>
-          </button>
-          <a id="pdfModalDownloadBtn" href="#" download class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">डाउनलोड</a>
-          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold">✕ बंद करें</button>
-        </div>
-      </div>
-      <div id="pdfSinglePageViewport" class="flex-1 overflow-auto flex items-center justify-center p-2 sm:p-4 bg-stone-900 relative" style="touch-action: pan-x pan-y pinch-zoom;">
-        <div id="pdfLoadingSpinner" class="text-amber-300 text-sm font-bold animate-pulse">पृष्ठ खुल रहा है...</div>
-        <canvas id="pdfSinglePageCanvas" class="bg-white rounded shadow-2xl max-w-full h-auto hidden"></canvas>
-        <iframe id="pdfDriveFallbackFrame" class="hidden w-full h-full border-0 bg-white rounded"></iframe>
-      </div>
-      <div id="pdfBottomNavBar" class="bg-[#143622] text-white px-4 py-2.5 border-t border-amber-500/30 flex items-center justify-between gap-3 shrink-0">
-        <button onclick="changePdfPage(-1)" id="pdfPrevBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow">← पिछला पन्ना</button>
-        <div class="flex items-center gap-1.5 text-xs sm:text-sm font-bold">
-          <span>पृष्ठ</span>
-          <input type="number" id="pdfPageJumpInput" min="1" value="1" onchange="jumpToPdfPage(this.value)" class="w-14 text-center py-1 rounded bg-stone-800 text-amber-300 border border-amber-400/40 font-extrabold">
-          <span id="pdfTotalPagesLabel">/ 1</span>
-        </div>
-        <button onclick="changePdfPage(1)" id="pdfNextBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow">अगला पन्ना →</button>
-      </div>
-    `;
-    document.body.appendChild(pdfModal);
-
-    const vp = document.getElementById('pdfSinglePageViewport');
-    if (vp) {
-      vp.addEventListener('touchstart', e => { if (e.touches.length === 1) touchStartX = e.touches[0].clientX; }, { passive: true });
-      vp.addEventListener('touchend', e => {
-        if (e.changedTouches.length === 1 && touchStartX > 0) {
-          const diffX = e.changedTouches[0].clientX - touchStartX;
-          if (Math.abs(diffX) > 75) { if (diffX < 0) changePdfPage(1); else changePdfPage(-1); }
-        }
-        touchStartX = 0;
-      }, { passive: true });
-    }
-  }
-
-  // Profile Modal (REMOVED 'संवाद योगदान' -> 2 Clean Boxes + Profile Photo Upload for Certificate)
-  if (!document.getElementById('userProfileModal')) {
-    const profModal = document.createElement('div');
-    profModal.id = 'userProfileModal';
-    profModal.className = 'fixed inset-0 z-[9980] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto';
-    profModal.innerHTML = `
-      <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
-        <div class="bg-gradient-to-r from-[#143622] via-[#1c472e] to-[#0f291a] text-white p-5 relative">
-          <button onclick="closeProfileModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center">✕</button>
-          <div class="flex items-center gap-3.5">
-            <label class="relative cursor-pointer group shrink-0" title="अपनी फोटो बदलें">
-              <img id="profPhotoPreview" src="" class="hidden w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-lg">
-              <div id="profAvatarCircle" class="w-16 h-16 rounded-2xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow-lg border-2 border-white">
-                बि
-              </div>
-              <span class="absolute -bottom-1 -right-1 bg-white text-forest text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow">📷 फोटो</span>
-              <input type="file" accept="image/*" onchange="handleProfilePhotoUpload(event)" class="hidden">
-            </label>
-            <div>
-              <span id="profileRoleBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-stone-950 uppercase tracking-wide">सदस्य</span>
-              <h3 id="profHeaderNameDisplay" class="font-yatra text-xl text-white mt-1">मेरी प्रोफ़ाइल</h3>
-              <p class="text-xs text-amber-200">🌿 पर्यावरण एवं नियम साधक</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="p-5 space-y-4">
-          <!-- OWNER / EDITOR STUDIO HUB -->
-          <div id="ownerStudioInsideProfile" class="hidden p-4 rounded-2xl bg-gradient-to-br from-[#143622] to-stone-900 text-white space-y-2.5 border border-amber-400/50 shadow-md">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold text-amber-300">🛡️ व्यवस्थापक एवं संपादक स्टूडियो</span>
-              <span class="text-[10px] bg-amber-400 text-stone-950 font-extrabold px-2 py-0.5 rounded-full">One-Tap Studio</span>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
-              <button onclick="openOwnerStudioSubTab('adm_overview')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📊 1. सुविचार व ड्राफ्ट</button>
-              <button onclick="openOwnerStudioSubTab('adm_media')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📚 2. PDF व भजन</button>
-              <button onclick="openOwnerStudioSubTab('adm_content')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">📜 3. इतिहास व संस्कार</button>
-              <button onclick="openOwnerStudioSubTab('adm_quiz')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition">🏆 4. परीक्षा व AI</button>
-              <button id="studioSystemSubBtn" onclick="openOwnerStudioSubTab('adm_system')" class="p-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 font-bold text-left transition col-span-2 sm:col-span-1">🛠️ 5. मेंटेनेंस व सुरक्षा</button>
-            </div>
-          </div>
-
-          <!-- ONLY 2 SPIRITUAL STATS BOXES ('संवाद योगदान' Removed as requested!) -->
-          <div class="grid grid-cols-2 gap-3 text-center">
-            <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200">
-              <div id="statMalaTotal" class="font-extrabold text-lg text-forest">0</div>
-              <div class="text-xs font-semibold text-stone-600">कुल मंत्र जप</div>
-            </div>
-            <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
-              <div id="statMalaLaps" class="font-extrabold text-lg text-forest">0</div>
-              <div class="text-xs font-semibold text-stone-600">पूर्ण माला</div>
-            </div>
-          </div>
-
-          <div class="space-y-2.5 text-xs">
-            <div>
-              <label class="font-bold text-stone-700 block mb-1">आपका शुभ नाम (Full Name):</label>
-              <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला (Location):</label>
-                <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
-              </div>
-              <div>
-                <label class="font-bold text-stone-700 block mb-1">नया पासवर्ड (ऐच्छिक):</label>
-                <input type="password" id="profEditPass" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="बदलना हो तो लिखें">
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-1">
-              <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
-                <span class="text-[10px] text-stone-400 block">मोबाइल / खाता आईडी</span>
-                <span id="profPhoneDisplay" class="font-bold text-stone-800 truncate block"></span>
-              </div>
-              <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
-                <span class="text-[10px] text-stone-400 block">Google ईमेल सत्यापन</span>
-                <span id="profEmailDisplay" class="font-bold text-emerald-700 truncate block"></span>
-              </div>
-            </div>
-
-            <button type="button" onclick="linkGoogleAccount()" class="w-full py-2.5 px-3 border border-stone-300 hover:bg-stone-50 rounded-xl font-bold text-stone-700 transition flex items-center justify-center gap-1.5">
-              <span>🌐</span> <span id="profGoogleBtnText">Google अकाउंट जोड़ें (सुरक्षित बैकअप)</span>
-            </button>
-          </div>
-
-          <div class="flex flex-wrap gap-2 pt-2 border-t border-stone-100">
-            <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 प्रोफ़ाइल सहेजें</button>
-            <button onclick="closeProfileModal(); logoutUser();" class="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs rounded-xl border border-red-200">लॉगआउट</button>
-            <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl">बंद करें</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(profModal);
-  }
-
-  // Easy User Feedback Modal (Shown manually OR 1-Time on Exit Intent)
-  if (!document.getElementById('userFeedbackModal')) {
-    const fbModal = document.createElement('div');
-    fbModal.id = 'userFeedbackModal';
-    fbModal.className = 'fixed inset-0 z-[9992] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4';
-    fbModal.innerHTML = `
-      <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 border border-amber-300 shadow-2xl text-center">
-        <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-2xl mx-auto">⭐</div>
-        <h3 class="font-yatra text-xl text-forest">आपका अनुभव कैसा रहा?</h3>
-        <p class="text-xs text-stone-600">विश्नोई समाज डिजिटल मंच को और बेहतर बनाने के लिए अपनी रेटिंग व सुझाव दें (केवल १ बार):</p>
-        <div class="flex justify-center gap-2 text-2xl py-1" id="fbStarRow">
-          <button type="button" onclick="selectFeedbackStar(1)" class="hover:scale-125 transition">⭐</button>
-          <button type="button" onclick="selectFeedbackStar(2)" class="hover:scale-125 transition">⭐</button>
-          <button type="button" onclick="selectFeedbackStar(3)" class="hover:scale-125 transition">⭐</button>
-          <button type="button" onclick="selectFeedbackStar(4)" class="hover:scale-125 transition">⭐</button>
-          <button type="button" onclick="selectFeedbackStar(5)" class="hover:scale-125 transition">⭐</button>
-        </div>
-        <div id="fbSelectedRatingText" class="text-xs font-extrabold text-amber-700">5 / 5 — अति उत्तम!</div>
-        <textarea id="fbCommentInput" rows="2" placeholder="कोई सुझाव या संदेश लिखें (ऐच्छिक)..." class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
-        <div class="flex gap-2">
-          <button onclick="submitUserFeedback()" class="flex-1 py-2.5 bg-forest text-white font-bold text-xs rounded-xl shadow">✓ सुझाव भेजें</button>
-          <button onclick="dismissFeedbackModalForever()" class="px-4 py-2.5 bg-stone-100 text-stone-600 font-semibold text-xs rounded-xl">बाद में</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(fbModal);
-  }
-
-  // Forgot Password Modal
-  if (!document.getElementById('forgotPassModal')) {
-    const fpModal = document.createElement('div');
-    fpModal.id = 'forgotPassModal';
-    fpModal.className = 'fixed inset-0 z-[9985] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4';
-    fpModal.innerHTML = `
-      <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 border border-stone-200 shadow-2xl">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-          <h3 class="font-yatra text-lg text-forest">पासवर्ड रीसेट (Forgot Password)</h3>
-          <button onclick="closeForgotPassModal()" class="text-stone-400 font-bold">✕</button>
-        </div>
-        <div class="space-y-3 text-xs">
-          <input type="text" id="fpPhoneInput" maxlength="10" placeholder="10 अंकों का पंजीकृत मोबाइल नंबर" class="w-full p-2.5 rounded-lg border border-stone-300 font-semibold">
-          <input type="password" id="fpNewPassInput" placeholder="नया पासवर्ड बनाएं" class="w-full p-2.5 rounded-lg border border-stone-300">
-          <button type="button" onclick="verifyGoogleAndResetPassword()" class="w-full py-2.5 px-3 bg-forest text-white rounded-xl font-bold shadow">🌐 Google से सत्यापित कर पासवर्ड बदलें</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(fpModal);
-  }
-
-  const authForm = document.querySelector('#authModal form');
-  if (authForm && !document.getElementById('googleAuthModalBtn')) {
-    const extraDiv = document.createElement('div');
-    extraDiv.className = 'pt-2 border-t border-stone-200 space-y-2';
-    extraDiv.innerHTML = `
-      <div class="flex justify-end">
-        <button type="button" onclick="openForgotPassModal()" class="text-xs font-bold text-terracotta hover:underline">पासवर्ड भूल गए?</button>
-      </div>
-      <button id="googleAuthModalBtn" type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm">🌐 Google से 1-Click लॉगिन करें</button>
-    `;
-    authForm.appendChild(extraDiv);
-  }
-
-  organizeStandardOwnerConsole();
-}
-
-// 16. PROFILE PHOTO UPLOAD & 1-TIME EXIT FEEDBACK SYSTEM
-function handleProfilePhotoUpload(e) {
-  const file = e.target.files?.[0];
-  if (!file || !currentUser) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = async () => {
-      const c = document.createElement('canvas');
-      c.width = 160; c.height = 160;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, 160, 160);
-      const dataUrl = c.toDataURL('image/jpeg', 0.8);
-      currentUser.photo = dataUrl;
-      localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-      updateProfileAvatarUI();
-      try {
-        await db.collection('users').doc(currentUser.phone).set({ photo: dataUrl }, { merge: true });
-      } catch (err) {}
-      showToast("📷 आपकी प्रोफ़ाइल फोटो सहेज ली गई! यह सम्मान-पत्र पर भी दिखेगी।");
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function updateProfileAvatarUI() {
-  const imgEl = document.getElementById('profPhotoPreview');
-  const circEl = document.getElementById('profAvatarCircle');
-  if (!imgEl || !circEl) return;
-  if (currentUser && currentUser.photo) {
-    imgEl.src = currentUser.photo;
-    imgEl.classList.remove('hidden');
-    circEl.classList.add('hidden');
-  } else {
-    imgEl.classList.add('hidden');
-    circEl.classList.remove('hidden');
-    circEl.innerText = (currentUser?.name || 'बि').trim().charAt(0).toUpperCase();
-  }
-}
-
-let currentFeedbackRating = 5;
-function selectFeedbackStar(stars) {
-  currentFeedbackRating = stars;
-  const labels = { 1: '1 / 5 — सुधार आवश्यक', 2: '2 / 5 — ठीक है', 3: '3 / 5 — अच्छा', 4: '4 / 5 — बहुत अच्छा!', 5: '5 / 5 — अति उत्तम!' };
-  const el = document.getElementById('fbSelectedRatingText');
-  if (el) el.innerText = labels[stars];
-}
-
-function openFeedbackModal(isExitTrigger) {
-  if (isExitTrigger && localStorage.getItem('bishnoi_feedback_done_once') === '1') return;
-  if (isExitTrigger) localStorage.setItem('bishnoi_feedback_done_once', '1');
-  const modal = document.getElementById('userFeedbackModal');
-  if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-}
-
-function dismissFeedbackModalForever() {
-  localStorage.setItem('bishnoi_feedback_done_once', '1');
-  const modal = document.getElementById('userFeedbackModal');
-  if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-}
-
-async function submitUserFeedback() {
-  localStorage.setItem('bishnoi_feedback_done_once', '1');
-  const comment = document.getElementById('fbCommentInput')?.value.trim() || '';
-  try {
-    await db.collection('feedbacks').add({
-      name: currentUser?.name || 'अतिथि सदस्य',
-      phone: currentUser?.phone || '-',
-      rating: currentFeedbackRating,
-      comment,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch (e) {}
-  dismissFeedbackModalForever();
-  showToast("🙏 आपके बहुमूल्य सुझाव के लिए हार्दिक धन्यवाद!");
-}
-
-function setupOneTimeExitFeedbackPrompt() {
-  // Push state so back button on mobile triggers exit feedback ONCE per user lifetime
-  if (localStorage.getItem('bishnoi_feedback_done_once') !== '1') {
-    window.history.pushState({ page: 'portal' }, '');
-    window.addEventListener('popstate', () => {
-      if (localStorage.getItem('bishnoi_feedback_done_once') !== '1') {
-        openFeedbackModal(true);
-      }
-    });
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && localStorage.getItem('bishnoi_feedback_done_once') !== '1') {
-        localStorage.setItem('bishnoi_show_fb_next_open', '1');
-      } else if (document.visibilityState === 'visible' && localStorage.getItem('bishnoi_show_fb_next_open') === '1') {
-        localStorage.removeItem('bishnoi_show_fb_next_open');
-        openFeedbackModal(true);
-      }
-    });
-  }
-}
-
-function listenFeedbacksForAdmin() {
-  db.collection('feedbacks').orderBy('createdAt', 'desc').limit(25).onSnapshot(snap => {
-    const box = document.getElementById('adminFeedbackInboxList');
-    if (box) {
-      box.innerHTML = snap.empty
-        ? `<div class="text-stone-400">अभी कोई फीडबैक प्राप्त नहीं हुआ है।</div>`
-        : snap.docs.map(doc => {
-            const f = doc.data();
-            return `<div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-start justify-between gap-2"><div><span class="font-bold text-forest">${f.name} (${'⭐'.repeat(f.rating || 5)})</span><p class="text-stone-700 mt-0.5">${f.comment || 'कोई टिप्पणी नहीं'}</p></div></div>`;
-          }).join('');
-    }
-    if (document.getElementById('admStatFeedbacks')) document.getElementById('admStatFeedbacks').innerText = snap.size;
-  });
-}
-
-// 17. INITIALIZATION & AUTO-ROLE RECOGNITION
-window.addEventListener('DOMContentLoaded', () => {
-  if (!localStorage.getItem('gemini_user_api_key')) {
-    localStorage.setItem('gemini_user_api_key', DEFAULT_INTEGRATED_AI_KEY);
-  }
-  injectDynamicModalsAndUI();
   setupInactivitySessionGuard();
   setupOneTimeExitFeedbackPrompt();
+
   syncUserAutoRoleFromDB();
   listenTrustedEditors();
   listenDraftQueue();
@@ -1561,12 +1129,22 @@ window.addEventListener('DOMContentLoaded', () => {
   listenAudios();
   computeAutoPanchang();
   listenAmavasyaConfig();
+  checkEnrollmentStatus();
   renderMalaCounters();
   updateProgressIndicators();
+
+  // Visitor logging
+  if (!sessionStorage.getItem('visitor_logged_session')) {
+    sessionStorage.setItem('visitor_logged_session', 'true');
+    trackUserLoginTelemetry(currentUser || { name: 'Visitor' });
+  }
 });
 
 async function syncUserAutoRoleFromDB() {
-  if (!currentUser || !currentUser.phone) return;
+  if (!currentUser || !currentUser.phone) {
+    renderAdminStudio('GUEST');
+    return;
+  }
   try {
     const [uDoc, edDoc] = await Promise.all([
       db.collection('users').doc(currentUser.phone).get(),
@@ -1586,13 +1164,17 @@ async function syncUserAutoRoleFromDB() {
     currentUser.isEditor = currentUser.isOwner || edList.includes(currentUser.phone);
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
-  } catch (e) {}
-}
 
-function openOwnerStudioSubTab(subPaneId) {
-  closeProfileModal();
-  switchTab('admin');
-  switchAdminSubTab(subPaneId);
+    if (currentUser.isOwner) {
+      renderAdminStudio('OWNER');
+    } else if (currentUser.isEditor) {
+      renderAdminStudio('MODERATOR', ['canUploadQuestions']);
+    } else {
+      renderAdminStudio('MEMBER');
+    }
+  } catch (e) {
+    renderAdminStudio('MEMBER');
+  }
 }
 
 function switchTab(id) {
@@ -1613,12 +1195,12 @@ function switchTab(id) {
   );
   if (target) {
     target.classList.remove('hidden');
-    target.classList.add('view-panel');
   }
   if (activeBnav) activeBnav.classList.add('bnav-item-active');
 
   if (id === 'admin' && isEditorOrOwner()) {
     refreshOwnerAnalytics();
+    refreshAuditLogs();
   }
 
   applySoftMaintenanceBanners();
@@ -1642,7 +1224,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 18. TOAST & CONFIRM MODAL
+// 18. TOAST NOTIFICATION & CONFIRM MODALS
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
@@ -1668,7 +1250,7 @@ function closeConfirmModal(result) {
   confirmCallback = null;
 }
 
-// 19. AUTHENTICATION & PROFILE
+// 19. AUTHENTICATION & PROFILE HANDLERS
 function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
 function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
 
@@ -1706,13 +1288,10 @@ async function handleAuthSubmit(e) {
     currentUser = { name: ownerName, phone: OWNER_PHONE, isOwner: true, isEditor: true, location: ownerLoc, email: ownerEmail, photo: ownerPhoto };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
-    applySoftMaintenanceBanners();
-    renderNiyams(niyamsList);
-    renderHistoryAndKidsViews();
-    listenPdfs();
-    renderFilteredChat();
+    renderAdminStudio('OWNER');
     closeAuthModal();
     showToast(`🛡️ मुख्य व्यवस्थापक के रूप में स्वागत है, ${currentUser.name}!`);
+    trackUserLoginTelemetry(currentUser);
     return;
   }
 
@@ -1739,6 +1318,7 @@ async function handleAuthSubmit(e) {
       updateNavAuth();
       closeAuthModal();
       showToast(`पंजीकरण सफल! स्वागत है, ${currentUser.name}`);
+      trackUserLoginTelemetry(currentUser);
     } catch (err) {
       showToast("त्रुटि: " + err.message);
     }
@@ -1764,214 +1344,11 @@ async function handleAuthSubmit(e) {
     };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
-    renderNiyams(niyamsList);
-    renderHistoryAndKidsViews();
-    listenPdfs();
-    renderFilteredChat();
     closeAuthModal();
     showToast(isTrustedEditor ? `✍️ संपादक (Editor) के रूप में स्वागत है, ${currentUser.name}!` : `स्वागत है, ${currentUser.name}!`);
+    trackUserLoginTelemetry(currentUser);
   } catch (err) {
     showToast("लॉगिन त्रुटि: " + err.message);
-  }
-}
-
-async function signInOrVerifyWithGoogle() {
-  if (!firebase.auth) return showToast("कृपया पेज रिफ्रेश करें!");
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const result = await firebase.auth().signInWithPopup(provider);
-    const gUser = result.user;
-    if (!gUser) return;
-
-    const typedPhone = document.getElementById('loginPhone')?.value.trim() || '';
-    let targetDocId = '';
-    let existingData = null;
-
-    const emailSnap = await db.collection('users').where('email', '==', gUser.email).limit(1).get();
-    if (!emailSnap.empty) {
-      targetDocId = emailSnap.docs[0].id;
-      existingData = emailSnap.docs[0].data();
-    } else if (/^[6-9]\d{9}$/.test(typedPhone)) {
-      targetDocId = typedPhone;
-      const pDoc = await db.collection('users').doc(targetDocId).get();
-      if (pDoc.exists) existingData = pDoc.data();
-    } else {
-      targetDocId = `google_${gUser.uid.substring(0, 10)}`;
-      const gDoc = await db.collection('users').doc(targetDocId).get();
-      if (gDoc.exists) existingData = gDoc.data();
-    }
-
-    const finalName = (existingData && existingData.name) ? existingData.name : (gUser.displayName || "सदस्य");
-    const finalLoc = (existingData && existingData.location) ? existingData.location : "";
-    const finalPhone = (existingData && existingData.phone) ? existingData.phone : (/^[6-9]\d{9}$/.test(typedPhone) ? typedPhone : "Google Verified");
-    const isOwnerAccount = (targetDocId === OWNER_PHONE) || (finalPhone === OWNER_PHONE);
-    const isEditorAccount = editorsPhoneList.includes(targetDocId) || editorsPhoneList.includes(finalPhone);
-
-    await db.collection('users').doc(targetDocId).set({
-      name: finalName, phone: finalPhone, email: gUser.email || "",
-      googleVerified: true, location: finalLoc,
-      lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-    currentUser = {
-      name: finalName, phone: targetDocId, email: gUser.email || "",
-      location: finalLoc, photo: existingData?.photo || "",
-      isOwner: isOwnerAccount, isEditor: isEditorAccount
-    };
-
-    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-    updateNavAuth();
-    renderNiyams(niyamsList);
-    renderHistoryAndKidsViews();
-    listenPdfs();
-    renderFilteredChat();
-    closeAuthModal();
-    showToast(`Google लॉगिन सफल! स्वागत है, ${currentUser.name}`);
-  } catch (err) {
-    showToast("Google लॉगिन त्रुटि: " + err.message);
-  }
-}
-
-function openForgotPassModal() {
-  closeAuthModal();
-  const modal = document.getElementById('forgotPassModal');
-  if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-}
-
-function closeForgotPassModal() {
-  const modal = document.getElementById('forgotPassModal');
-  if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-}
-
-async function verifyGoogleAndResetPassword() {
-  const phone = document.getElementById('fpPhoneInput')?.value.trim() || '';
-  const newPass = document.getElementById('fpNewPassInput')?.value.trim() || '';
-  if (!/^[6-9]\d{9}$/.test(phone) || newPass.length < 4) return showToast("सही मोबाइल नंबर और पासवर्ड भरें!");
-
-  try {
-    const userRef = db.collection('users').doc(phone);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) return showToast("यह मोबाइल नंबर पंजीकृत नहीं है!");
-
-    const userData = userDoc.data();
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const result = await firebase.auth().signInWithPopup(provider);
-    const gUser = result.user;
-    if (!gUser || !gUser.email) return;
-
-    if (userData.email && userData.email.toLowerCase() !== gUser.email.toLowerCase()) {
-      return showToast("यह Google खाता इस नंबर से मेल नहीं खाता!");
-    }
-
-    await userRef.set({ pass: newPass, email: gUser.email, googleVerified: true }, { merge: true });
-    currentUser = { name: userData.name || "सदस्य", phone, email: gUser.email, location: userData.location || "", isOwner: (phone === OWNER_PHONE) };
-    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-    updateNavAuth();
-    closeForgotPassModal();
-    showToast("पासवर्ड बदल गया और आप लॉगिन हो गए हैं!");
-  } catch (err) {
-    showToast("त्रुटि: " + err.message);
-  }
-}
-
-async function adminResetMemberPassword() {
-  if (!isSuperOwner()) return;
-  const phone = document.getElementById('adminResetUserPhone')?.value.trim() || '';
-  const newPass = document.getElementById('adminResetUserNewPass')?.value.trim() || '';
-  if (!/^[6-9]\d{9}$/.test(phone) || !newPass) return showToast("नंबर और नया पासवर्ड सही भरें!");
-
-  try {
-    const ref = db.collection('users').doc(phone);
-    const doc = await ref.get();
-    if (!doc.exists) return showToast("इस नंबर से कोई सदस्य नहीं मिला!");
-    await ref.update({ pass: newPass });
-    document.getElementById('adminResetUserPhone').value = '';
-    document.getElementById('adminResetUserNewPass').value = '';
-    showToast(`सदस्य (${doc.data().name || phone}) का पासवर्ड बदल दिया गया!`);
-  } catch (e) {
-    showToast("त्रुटि: " + e.message);
-  }
-}
-
-async function linkGoogleAccount() {
-  if (!currentUser || !firebase.auth) return;
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const result = await firebase.auth().signInWithPopup(provider);
-    const gUser = result.user;
-    if (gUser && gUser.email) {
-      currentUser.email = gUser.email;
-      localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-      await db.collection('users').doc(currentUser.phone).set({ email: gUser.email, googleVerified: true }, { merge: true });
-      openProfileModal();
-      showToast(`Google खाता (${gUser.email}) जुड़ गया!`);
-    }
-  } catch (err) {
-    showToast("त्रुटि: " + err.message);
-  }
-}
-
-function openProfileModal() {
-  if (!currentUser) return openAuthModal();
-  const modal = document.getElementById('userProfileModal');
-  if (!modal) return;
-
-  const nm = currentUser.name || 'सदस्य';
-  document.getElementById('profEditName').value = nm;
-  document.getElementById('profHeaderNameDisplay').innerText = nm;
-  document.getElementById('profEditLocation').value = currentUser.location || '';
-  document.getElementById('profEditPass').value = '';
-  document.getElementById('profPhoneDisplay').innerText = currentUser.phone || '';
-  document.getElementById('profEmailDisplay').innerText = currentUser.email ? `✓ ${currentUser.email}` : 'जुड़ा नहीं है';
-
-  updateProfileAvatarUI();
-
-  const studioBox = document.getElementById('ownerStudioInsideProfile');
-  if (studioBox) studioBox.classList.toggle('hidden', !isEditorOrOwner());
-
-  const sysBtn = document.getElementById('studioSystemSubBtn');
-  if (sysBtn) sysBtn.classList.toggle('hidden', !isSuperOwner());
-
-  const roleBadge = document.getElementById('profileRoleBadge');
-  if (roleBadge) {
-    if (isSuperOwner()) roleBadge.innerText = '🛡️ मुख्य व्यवस्थापक (Super Owner)';
-    else if (isEditorOrOwner()) roleBadge.innerText = '✍️ अधिकृत संपादक (Trusted Editor)';
-    else roleBadge.innerText = '👤 पंजीकृत सदस्य (Member)';
-  }
-
-  document.getElementById('statMalaTotal').innerText = malaTotalCount;
-  document.getElementById('statMalaLaps').innerText = malaLapsCount;
-
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-}
-
-function closeProfileModal() {
-  const modal = document.getElementById('userProfileModal');
-  if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-}
-
-async function saveUserProfileChanges() {
-  if (!currentUser) return;
-  const newName = document.getElementById('profEditName').value.trim();
-  const newLoc = document.getElementById('profEditLocation').value.trim();
-  const newPass = document.getElementById('profEditPass').value.trim();
-  if (!newName) return showToast("कृपया नाम खाली न छोड़ें!");
-
-  currentUser.name = newName;
-  currentUser.location = newLoc;
-  localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
-
-  const updateData = { name: newName, location: newLoc, phone: currentUser.phone };
-  if (newPass) updateData.pass = newPass;
-
-  try {
-    await db.collection('users').doc(currentUser.phone).set(updateData, { merge: true });
-    updateNavAuth();
-    closeProfileModal();
-    showToast("प्रोफ़ाइल सहेज ली गई!");
-  } catch (e) {
-    showToast("त्रुटि: " + e.message);
   }
 }
 
@@ -1979,11 +1356,7 @@ function logoutUser() {
   localStorage.removeItem('bishnoi_secure_user');
   currentUser = null;
   updateNavAuth();
-  applySoftMaintenanceBanners();
-  renderNiyams(niyamsList);
-  renderHistoryAndKidsViews();
-  listenPdfs();
-  renderFilteredChat();
+  renderAdminStudio('GUEST');
   switchTab('home');
   showToast("सफलतापूर्वक लॉगआउट किया गया।");
 }
@@ -2024,7 +1397,7 @@ function updateNavAuth() {
   }
 }
 
-// 20. DIGITAL JAAP MALA
+// 20. DIGITAL MALA LOGIC
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect')?.value;
   if (selected) document.getElementById('activeMantraDisplay').innerText = selected;
@@ -2071,7 +1444,7 @@ function resetMalaCounter() {
   });
 }
 
-// 21. PANCHANG & GUARANTEED WORKING AMAVASYA LIVE COUNTDOWN (WITH SECONDS!)
+// 21. PANCHANG & DYNAMIC AMAVASYA
 function computeAutoPanchang() {
   const now = new Date();
   const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
@@ -2091,7 +1464,6 @@ function computeAutoPanchang() {
   if (dEl) dEl.innerText = `${vaars[now.getDay()]} • विक्रम संवत ${samvat}`;
   if (dtEl) dtEl.innerText = `आज: ${now.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })} | ${paksha}, ${tithiName}`;
 
-  // Auto-calculate next Amavasya date as fallback so countdown ALWAYS works
   const daysUntilNextAmavasya = synodic - moonAge;
   const autoNextAmavasya = new Date(now.getTime() + daysUntilNextAmavasya * 24 * 60 * 60 * 1000);
   if (!amavasyaTargetDate || amavasyaTargetDate.getTime() < now.getTime()) {
@@ -2167,35 +1539,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सहेजी गई!');
 }
 
-// 22. INTEGRATED AI ENGINE
-const CURATED_AI_SANDESH_BANK = [
-  "जीव दया पालणी, रूंख लीलो नी घावै — हर मूक प्राणी में ईश्वर का वास है और हर हरा वृक्ष जीवन का आधार है।",
-  "पाणी छान पीवणा, वाणी छान बोलणा — शुद्ध जल स्वास्थ्य की और मधुर वाणी समाज की पवित्रता बनाए रखती है।",
-  "सिर साटै रूंख रहै, तो भी सस्तो जाण — खेजड़ली के ३६३ हुतात्माओं का बलिदान हमें प्रकृति रक्षा की सर्वोच्च प्रेरणा देता है।",
-  "शील संतोष सूच राखणा — सात्विक आचरण, संतोष और नशामुक्त जीवन ही सच्चे बिश्नोई की पहचान है।"
-];
-
-const CURATED_AI_QUIZ_BANK = `Q: गुरु जम्भेश्वर भगवान का जन्म किस पावन ग्राम में हुआ था?
-A) पीपासर (नागौर)
-B) मुकाम (नोखा)
-C) समराथल धोरा
-D) जांगलू
-Ans: A
-
-Q: बिश्नोई पंथ की स्थापना संवत १५४२ में किस स्थान पर हुई?
-A) लालासर साथरी
-B) समराथल धोरा
-C) खेजड़ली
-D) लोहावट
-Ans: B
-
-Q: श्री सबदवाणी में कुल कितने पवित्र शब्द (सबद) संकलित हैं?
-A) 100 शब्द
-B) 108 शब्द
-C) 120 शब्द
-D) 151 शब्द
-Ans: C`;
-
+// 22. AI INTEGRATION
 function getGeminiKey() {
   return localStorage.getItem('gemini_user_api_key') || DEFAULT_INTEGRATED_AI_KEY;
 }
@@ -2207,7 +1551,6 @@ function resetGeminiKey() {
     showToast("✅ AI API Key सहेज ली गई!");
   }
 }
-const changeApiKey = resetGeminiKey;
 
 async function callGemini(promptText, type) {
   const apiKey = getGeminiKey();
@@ -2221,7 +1564,7 @@ async function callGemini(promptText, type) {
     const data = await res.json();
     if (data.candidates?.[0]?.content?.parts?.[0]?.text) return data.candidates[0].content.parts[0].text;
   } catch (e) {}
-  return type === 'quiz' ? CURATED_AI_QUIZ_BANK : CURATED_AI_SANDESH_BANK[Math.floor(Math.random() * CURATED_AI_SANDESH_BANK.length)];
+  return "जीव दया पालणी, रूंख लीलो नी घावै — पर्यावरण एवं सभी जीवों की रक्षा करें।";
 }
 
 async function generateAiQuizQuestions() {
@@ -2238,380 +1581,29 @@ async function generateAiDailySandesh() {
   showToast("🤖 AI ने सुविचार तैयार कर दिया!");
 }
 
-async function runAiSmartBackendSync(manualTrigger) {
-  try {
-    await checkAndTriggerDueSchedules();
-    if (manualTrigger) showToast("🤖 AI ने सभी शेड्यूल और पंचांग सिंक कर दिए!");
-  } catch (e) {}
-}
-
-// 23. ROYAL CERTIFICATE GENERATOR (WITH GURU JAMBHESHWAR BHAGWAN PHOTO/EMBLEM + USER PHOTO + FULL DETAILS)
-function generateCertificate(name, score) {
-  const canvas = document.getElementById('certCanvas');
-  if (!canvas) return;
-  canvas.width = 1000;
-  canvas.height = 720;
-  const ctx = canvas.getContext('2d');
-
-  const drawCertificateContents = (guruImg, userImg) => {
-    // 1. Royal Cream Parchment Background
-    const grad = ctx.createLinearGradient(0, 0, 1000, 720);
-    grad.addColorStop(0, '#FFFDF7');
-    grad.addColorStop(0.5, '#FAF5E6');
-    grad.addColorStop(1, '#F3E9D2');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1000, 720);
-
-    // 2. Ornate Borders (Forest Green Outer + Golden Inner)
-    ctx.strokeStyle = '#143622';
-    ctx.lineWidth = 18;
-    ctx.strokeRect(24, 24, 952, 672);
-
-    ctx.strokeStyle = '#D97706';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(40, 40, 920, 640);
-
-    // Corner Golden Accents
-    [[48, 48], [952, 48], [48, 672], [952, 672]].forEach(([cx, cy]) => {
-      ctx.fillStyle = '#D97706';
-      ctx.beginPath();
-      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // 3. Top Spiritual Header
-    ctx.fillStyle = '#B34A1B';
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText('॥ ॐ विष्णवे नमः • गुरु जम्भेश्वराय नमः ॥', 500, 82);
-
-    // 4. Guru Jambheshwar Bhagwan Photo / Sacred Halo Medallion (Top Center)
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(500, 148, 46, 0, Math.PI * 2);
-    ctx.fillStyle = '#FEF3C7';
-    ctx.fill();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#D97706';
-    ctx.stroke();
-    ctx.clip();
-    if (guruImg) {
-      ctx.drawImage(guruImg, 454, 102, 92, 92);
-    } else {
-      ctx.fillStyle = '#143622';
-      ctx.fillRect(454, 102, 92, 92);
-      ctx.fillStyle = '#FBBF24';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.fillText('ॐ', 500, 152);
-    }
-    ctx.restore();
-
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('गुरु जम्भेश्वर भगवान के पावन आशीर्वाद से', 500, 212);
-
-    // 5. User Profile Photo Box (Right Side)
-    if (userImg) {
-      ctx.save();
-      ctx.strokeStyle = '#143622';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(810, 95, 105, 120);
-      ctx.drawImage(userImg, 812, 97, 101, 116);
-      ctx.restore();
-      ctx.fillStyle = '#57534E';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('प्रतिभागी फोटो', 862, 230);
-    }
-
-    // 6. Main Certificate Titles
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillText('विश्नोई समाज डिजिटल ज्ञान परीक्षा', 500, 260);
-
-    ctx.fillStyle = '#B34A1B';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText('★ गौरव एवं योग्यता सम्मान-पत्र (Certificate of Excellence) ★', 500, 298);
-
-    // 7. Participant Details & Rich Information
-    ctx.fillStyle = '#44403C';
-    ctx.font = '18px sans-serif';
-    ctx.fillText('यह सहर्ष प्रमाणित किया जाता है कि समाज के जागरूक साधक / प्रतिभागी', 500, 345);
-
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 34px sans-serif';
-    ctx.fillText(name.toUpperCase(), 500, 392);
-
-    const locText = (currentUser && currentUser.location) ? `निवासी: ${currentUser.location}` : 'विश्नोई समाज डिजिटल मंच सदस्य';
-    ctx.fillStyle = '#78716C';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText(locText, 500, 422);
-
-    const grade = score >= 90 ? 'A+ (सर्वोच्च धर्म एवं पर्यावरण रक्षक)' : (score >= 75 ? 'A (उत्कृष्ट नियम साधक)' : 'B (जागरूक समाज प्रतिभागी)');
-    ctx.fillStyle = '#292524';
-    ctx.font = '18px sans-serif';
-    ctx.fillText(`ने गुरु जम्भेश्वर भगवान द्वारा प्रवर्तित २९ नियम आचार संहिता, सबदवाणी एवं खेजड़ली बलिदान`, 500, 462);
-    ctx.fillText(`इतिहास पर आधारित ज्ञान परीक्षा में ${score}% प्राप्तांक के साथ '${grade}' श्रेणी प्राप्त की है।`, 500, 492);
-
-    // 8. Sacred Quote Banner
-    ctx.fillStyle = '#143622';
-    ctx.fillRect(210, 520, 580, 40);
-    ctx.fillStyle = '#FDE68A';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै — सिर साटै रूंख रहै, तो भी सस्तो जाण"', 500, 546);
-
-    // 9. Footer Metadata, Seal & Signature
-    const certId = 'BISHNOI-' + Date.now().toString().slice(-6);
-    const dateStr = new Date().toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#44403C';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(`दिनांक (Date): ${dateStr}`, 80, 615);
-    ctx.fillText(`प्रमाणन सं. (Cert ID): ${certId}`, 80, 640);
-
-    // Golden Seal Center
-    ctx.textAlign = 'center';
-    ctx.beginPath();
-    ctx.arc(500, 622, 34, 0, Math.PI * 2);
-    ctx.fillStyle = '#F59E0B';
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#143622';
-    ctx.stroke();
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('VERIFIED', 500, 618);
-    ctx.fillText('२९ नियम मंच', 500, 634);
-
-    // Right Signature
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('मुख्य व्यवस्थापक (Owner)', 920, 615);
-    ctx.fillStyle = '#78716C';
-    ctx.font = '13px sans-serif';
-    ctx.fillText('विश्नोई समाज डिजिटल मंच (bishnoism.vercel.app)', 920, 640);
-
-    const link = document.createElement('a');
-    link.download = `Bishnoi_Samman_Patra_${name}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast("🎓 भव्य डिजिटल सम्मान-पत्र डाउनलोड हो गया!");
-  };
-
-  // Load Optional Guru Jambheshwar Photo & User Photo safely
-  const tryLoadUserImg = (guruImgObj) => {
-    if (currentUser && currentUser.photo) {
-      const uImg = new Image();
-      uImg.crossOrigin = 'anonymous';
-      uImg.onload = () => drawCertificateContents(guruImgObj, uImg);
-      uImg.onerror = () => drawCertificateContents(guruImgObj, null);
-      uImg.src = currentUser.photo;
-    } else {
-      drawCertificateContents(guruImgObj, null);
-    }
-  };
-
-  const gImg = new Image();
-  gImg.crossOrigin = 'anonymous';
-  gImg.onload = () => tryLoadUserImg(gImg);
-  gImg.onerror = () => tryLoadUserImg(null);
-  gImg.src = localStorage.getItem('guru_jambheshwar_photo_url') || './jambhoji.jpg';
-}
-
-// 24. QUIZ ARENA & BLANK WINNER SUPPORT
+// 23. QUIZ & WINNERS
 function startQuizNow() {
   if (isSectionSoftLocked(maintenanceConfig.sections.quiz) || isSectionSoftLocked(maintenanceConfig.globalMode)) {
     return showToast(maintenanceConfig.customMessages.quiz || "नए ज्ञान परीक्षा प्रश्न जोड़े जा रहे हैं!");
   }
-  document.getElementById('quizIntroCard').classList.add('hidden');
-  document.getElementById('quizActiveBox').classList.remove('hidden');
-  currentQ = 0; qScore = 0; quizStartTime = Date.now();
-  renderQuiz();
+  examState.activeMode = 'daily_quiz';
+  startExamEngine(quizList, 15);
 }
 
 function loadQuiz() {
   db.collection('quiz').onSnapshot(snap => {
-    const adminList = document.getElementById('adminQuizManageList');
-    if (adminList) adminList.innerHTML = '';
     if (!snap.empty) {
       quizList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (adminList) {
-        snap.docs.forEach((doc, idx) => {
-          adminList.innerHTML += `
-            <div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200 gap-2">
-              <span class="truncate font-medium">${idx + 1}. ${doc.data().q}</span>
-              ${isSuperOwner() ? `<button onclick="deleteSingleQuizQuestion('${doc.id}')" class="text-red-600 font-bold shrink-0">हटाएं</button>` : ''}
-            </div>
-          `;
-        });
-      }
     } else {
       quizList = [
-        { q: "खेजड़ली गांव में ३६३ वीरों का महान बलिदान किस वर्ष हुआ था?", opts: ["1730 ईस्वी", "1485 ईस्वी", "1857 ईस्वी", "1947 ईस्वी"], ans: 0 },
-        { q: "गुरु जम्भेश्वर भगवान द्वारा २९ नियमों की घोषणा किस पवित्र स्थान पर हुई?", opts: ["मुकाम", "समराथल धोरा", "जांगलू", "लालासर"], ans: 1 },
-        { q: "अमृता देवी विश्नोई का अमर वचन क्या था?", opts: ["सत्यमेव जयते", "सिर साटै रूंख रहै, तो भी सस्तो जाण", "अहिंसा परमो धर्मः", "जय किसान"], ans: 1 }
+        { id: 'q1', q: "खेजड़ली गांव में ३६३ वीरों का महान बलिदान किस वर्ष हुआ था?", opts: ["1730 ईस्वी", "1485 ईस्वी", "1857 ईस्वी", "1947 ईस्वी"], ans: 0 },
+        { id: 'q2', q: "गुरु जम्भेश्वर भगवान द्वारा २९ नियमों की घोषणा किस पवित्र स्थान पर हुई?", opts: ["मुकाम", "समराथल धोरा", "जांगलू", "लालासर"], ans: 1 },
+        { id: 'q3', q: "अमृता देवी विश्नोई का अमर वचन क्या था?", opts: ["सत्यमेव जयते", "सिर साटै रूंख रहै, तो भी सस्तो जाण", "अहिंसा परमो धर्मः", "जय किसान"], ans: 1 }
       ];
     }
   });
 }
 
-async function deleteSingleQuizQuestion(id) {
-  if (!isSuperOwner()) return;
-  await db.collection('quiz').doc(id).delete();
-  showToast("प्रश्न हटाया गया!");
-}
-
-async function clearAllQuizQuestions() {
-  if (!isSuperOwner()) return;
-  openConfirmModal("सभी प्रश्न हटाएं?", "क्या आप सभी प्रश्न हटाना चाहते हैं?", async (res) => {
-    if (res) {
-      const snap = await db.collection('quiz').get();
-      const batch = db.batch();
-      snap.forEach(d => batch.delete(d.ref));
-      await batch.commit();
-      showToast("सभी प्रश्न हटाए गए!");
-    }
-  });
-}
-
-function renderQuiz() {
-  const box = document.getElementById('quizActiveBox');
-  if (!box || !quizList.length) return;
-
-  if (currentQ >= quizList.length) {
-    const timeTakenSeconds = Math.round((Date.now() - quizStartTime) / 1000);
-    const percentage = Math.round((qScore / quizList.length) * 100);
-    if (percentage > bestQuizPct) {
-      bestQuizPct = percentage;
-      localStorage.setItem('bishnoi_best_quiz_pct', bestQuizPct.toString());
-      updateProgressIndicators();
-    }
-    if (currentUser) {
-      db.collection('quizAttempts').add({
-        name: currentUser.name, phone: currentUser.phone || 'N/A',
-        score: qScore, total: quizList.length, timeTakenSeconds, date: new Date().toISOString()
-      });
-    }
-    if (typeof confetti === 'function') confetti({ particleCount: 70, spread: 70 });
-
-    box.innerHTML = `
-      <div class="text-center space-y-3 py-5">
-        <div class="text-5xl animate-bounce">🏆</div>
-        <h3 class="font-yatra text-2xl text-forest">परीक्षा पूर्ण हुई!</h3>
-        <p class="text-sm text-stone-600">प्राप्तांक: <strong class="text-terracotta text-lg">${qScore} / ${quizList.length}</strong> (${percentage}%)</p>
-        <p class="text-xs text-stone-400">कुल समय: ${timeTakenSeconds} सेकंड</p>
-        <div class="pt-3 flex flex-wrap justify-center gap-2.5">
-          <button onclick="backToQuizIntro()" class="px-4 py-2.5 bg-stone-200 rounded-xl text-xs font-bold">← लीडरबोर्ड देखें</button>
-          <button onclick="startQuizNow()" class="px-4 py-2.5 bg-forest text-white rounded-xl text-xs font-bold">पुनः खेलें</button>
-          <button onclick="generateCertificate('${currentUser ? currentUser.name : 'प्रतिभागी'}', ${percentage})" class="px-4 py-2.5 bg-terracotta text-white rounded-xl text-xs font-bold shadow">📜 भव्य सम्मान-पत्र डाउनलोड करें</button>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  const q = quizList[currentQ];
-  const progressPct = Math.round(((currentQ + 1) / quizList.length) * 100);
-  box.innerHTML = `
-    <div class="space-y-4">
-      <div class="space-y-1">
-        <div class="flex justify-between items-center text-xs font-bold text-forest">
-          <span>प्रश्न ${currentQ + 1} / ${quizList.length}</span>
-          <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-full">सही उत्तर: ${qScore}</span>
-        </div>
-        <div class="w-full h-2.5 bg-stone-200 rounded-full overflow-hidden p-0.5">
-          <div class="h-full bg-gradient-to-r from-[#143622] to-emerald-500 rounded-full transition-all duration-500" style="width: ${progressPct}%"></div>
-        </div>
-      </div>
-
-      <h3 class="font-bold text-base sm:text-lg text-forest leading-snug pt-1">${q.q}</h3>
-      <div class="space-y-2.5">
-        ${q.opts.map((opt, i) => `
-          <button id="qopt_btn_${i}" onclick="checkAnswer(${i})" class="elevate-card w-full text-left p-3.5 text-xs sm:text-sm rounded-2xl border border-stone-200 hover:border-forest bg-white font-semibold shadow-sm flex items-center justify-between">
-            <span><strong class="text-terracotta mr-1.5">${['A','B','C','D'][i]}.</strong> ${opt}</span>
-            <span id="qopt_icon_${i}" class="text-sm font-extrabold"></span>
-          </button>
-        `).join('')}
-      </div>
-      <div id="quizFeedbackBox" class="hidden text-xs p-3 rounded-xl font-bold"></div>
-    </div>
-  `;
-}
-
-function checkAnswer(chosen) {
-  const q = quizList[currentQ];
-  const feed = document.getElementById('quizFeedbackBox');
-  const chosenBtn = document.getElementById(`qopt_btn_${chosen}`);
-  const rightBtn = document.getElementById(`qopt_btn_${q.ans}`);
-  feed.classList.remove('hidden');
-
-  if (chosen === q.ans) {
-    qScore++;
-    if (chosenBtn) chosenBtn.className = "w-full text-left p-3.5 text-xs sm:text-sm rounded-2xl border-2 border-emerald-500 bg-emerald-50 font-bold text-emerald-950 flex items-center justify-between";
-    const ic = document.getElementById(`qopt_icon_${chosen}`);
-    if (ic) ic.innerText = "✓";
-    if (typeof confetti === 'function') confetti({ particleCount: 25, spread: 45, origin: { y: 0.8 } });
-    feed.className = "text-xs p-3 rounded-xl font-bold bg-emerald-100 text-emerald-900 border border-emerald-300";
-    feed.innerText = "✓ बिल्कुल सही उत्तर!";
-  } else {
-    if (chosenBtn) chosenBtn.className = "w-full text-left p-3.5 text-xs sm:text-sm rounded-2xl border-2 border-rose-500 bg-rose-50 font-bold text-rose-950 flex items-center justify-between";
-    if (rightBtn) rightBtn.className = "w-full text-left p-3.5 text-xs sm:text-sm rounded-2xl border-2 border-emerald-500 bg-emerald-50 font-bold text-emerald-950 flex items-center justify-between";
-    const icWrong = document.getElementById(`qopt_icon_${chosen}`);
-    const icRight = document.getElementById(`qopt_icon_${q.ans}`);
-    if (icWrong) icWrong.innerText = "✕";
-    if (icRight) icRight.innerText = "✓";
-    feed.className = "text-xs p-3 rounded-xl font-bold bg-rose-100 text-rose-900 border border-rose-300";
-    feed.innerText = `✕ गलत उत्तर! सही विकल्प है: ${q.opts[q.ans]}`;
-  }
-  setTimeout(() => { currentQ++; renderQuiz(); }, 1200);
-}
-
-function backToQuizIntro() {
-  document.getElementById('quizActiveBox').classList.add('hidden');
-  document.getElementById('quizIntroCard').classList.remove('hidden');
-}
-
-async function importBulkQuiz(bypassDraft) {
-  if (!isEditorOrOwner()) return;
-  const rawText = document.getElementById('adminBulkQuizText').value.trim();
-  if (!rawText) return showToast('प्रश्न पेस्ट करें');
-
-  // If Editor (not Super Owner), save to Draft Queue for Owner Approval!
-  if (!isSuperOwner() && !bypassDraft) {
-    await db.collection('draftQueue').add({
-      type: 'quiz', title: 'नए क्विज़ प्रश्न (Bulk)', content: rawText,
-      author: currentUser?.name || 'संपादक',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    document.getElementById('adminBulkQuizText').value = '';
-    return showToast("📝 आपके प्रश्न ड्राफ्ट में सेव हो गए हैं! Owner की स्वीकृति के बाद Live होंगे।");
-  }
-
-  const blocks = rawText.split(/\n\s*\n/);
-  let parsed = [];
-  for (let b of blocks) {
-    const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
-    let qText = '', opts = [], ansIdx = 0;
-    for (let l of lines) {
-      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, '').trim();
-      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
-      else if (l.match(/^Ans\s*:/i)) {
-        const letAns = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
-        ansIdx = letAns === 'A' ? 0 : letAns === 'B' ? 1 : letAns === 'C' ? 2 : 3;
-      }
-    }
-    if (qText && opts.length >= 2) parsed.push({ q: qText, opts, ans: ansIdx });
-  }
-  if (!parsed.length) return showToast('प्रारूप जाँचें');
-  const batch = db.batch();
-  parsed.forEach(q => batch.set(db.collection('quiz').doc(), q));
-  await batch.commit();
-  document.getElementById('adminBulkQuizText').value = '';
-  showToast(`✅ ${parsed.length} प्रश्न सीधे Live जोड़े गए!`);
-}
-
-// Blank Winner Support: Shows clean '—' instead of 'प्रतीक्षारत' if blank
 function listenWinners() {
   db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
     const w = doc.exists ? doc.data() : {};
@@ -2638,63 +1630,168 @@ async function saveDailyWinners() {
   showToast("✅ विजेता सूची अपडेट हो गई!");
 }
 
-async function clearDailyWinnersToBlank() {
-  if (!isSuperOwner()) return;
-  await db.collection('settings').doc('dailyWinners').set({
-    p1Name: '—', p1Score: '—', p2Name: '—', p2Score: '—', p3Name: '—', p3Score: '—'
-  });
-  showToast("लीडरबोर्ड के सभी स्थान खाली (Blank) कर दिए गए हैं।");
-}
+async function importBulkQuiz() {
+  if (!isEditorOrOwner()) return;
+  const rawText = document.getElementById('adminBulkQuizText').value.trim();
+  const targetCol = document.getElementById('adminQuestionTarget')?.value || 'daily_quiz';
+  if (!rawText) return showToast('प्रश्न पेस्ट करें');
 
-// 25. HIGH-DENSITY 500+ PERSON COMPACT COMMUNITY CHAT STREAM
-const BAD_WORDS_LIST = [
-  'गाली', 'मूर्ख', 'पागल', 'अभद्र', 'बकवास', 'नालायक', 'घटिया', 'कमीना', 'कमीने',
-  'हराम', 'हरामी', 'साला', 'साले', 'कुत्ता', 'कुत्ते', 'सूअर', 'चोर', 'धोखेबाज', 'गद्दार',
-  'औकात', 'जूते', 'थप्पड़', 'मारूंगा', 'दंगा', 'अश्लील', 'गंदा', 'जुआ', 'सट्टा', 'लॉटरी',
-  'idiot', 'stupid', 'abuse', 'scam', 'fraud', 'fool', 'nonsense', 'shut up', 'trash',
-  'bc', 'mc', 'bkl', 'chutiya', 'madarchod', 'bhenchod', 'gandu', 'harami', 'kamina'
-];
-const SPAM_LINK_REGEX = /(https?:\/\/|www\.|bit\.ly|t\.me\/|wa\.me\/|\.com\/|\.in\/|\.xyz|[6-9]\d{9})/i;
-
-function aiModerateMessageSafety(text) {
-  const lower = text.toLowerCase();
-  if (BAD_WORDS_LIST.some(w => lower.includes(w))) {
-    return { safe: false, reason: "🤖 AI सुरक्षा गार्ड: कृपया संवाद मंच की गरिमा बनाए रखें और अपशब्दों का प्रयोग न करें।" };
-  }
-  if (!isEditorOrOwner() && SPAM_LINK_REGEX.test(text)) {
-    return { safe: false, reason: "🤖 AI स्पैम गार्ड: सुरक्षा कारणों से बाहरी लिंक या मोबाइल नंबर स्पैम करना वर्जित है।" };
-  }
-  return { safe: true };
-}
-
-function listenBlockedUsers() {
-  db.collection('settings').doc('blockedUsers').onSnapshot(doc => {
-    blockedPhonesList = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list : [];
-    const admList = document.getElementById('adminBlockedUsersList');
-    if (admList) {
-      admList.innerHTML = blockedPhonesList.length === 0
-        ? `<div class="text-stone-400">कोई भी सदस्य म्यूट नहीं है।</div>`
-        : blockedPhonesList.map(ph => `<div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200"><span class="font-bold text-stone-700">🔇 ${ph}</span><button onclick="unblockUserPhone('${ph}')" class="text-emerald-700 font-bold">अनम्यूट</button></div>`).join('');
+  const blocks = rawText.split(/\n\s*\n/);
+  let parsed = [];
+  for (let b of blocks) {
+    const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+    let qText = '', opts = [], ansIdx = 0;
+    for (let l of lines) {
+      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, '').trim();
+      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
+      else if (l.match(/^Ans\s*:/i)) {
+        const letAns = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
+        ansIdx = letAns === 'A' ? 0 : letAns === 'B' ? 1 : letAns === 'C' ? 2 : 3;
+      }
     }
-  });
+    if (qText && opts.length >= 2) parsed.push({ q: qText, opts, ans: ansIdx, title: qText, options: opts });
+  }
+
+  if (!parsed.length) return showToast('प्रारूप जाँचें');
+  const collectionName = targetCol === 'daily_quiz' ? 'quiz' : (targetCol === 'mock_1' ? 'mockExam_1' : (targetCol === 'mock_2' ? 'mockExam_2' : 'mainExamQuestions'));
+  const batch = db.batch();
+  parsed.forEach(q => batch.set(db.collection(collectionName).doc(), q));
+  await batch.commit();
+  document.getElementById('adminBulkQuizText').value = '';
+  showToast(`✅ ${parsed.length} प्रश्न (${targetCol}) में जोड़े गए!`);
 }
 
-async function blockUserFromChat(phone, authorName) {
-  if (!isSuperOwner() || !phone || phone === OWNER_PHONE) return;
-  openConfirmModal("सदस्य को म्यूट करें?", `क्या आप '${authorName}' को संवाद मंच पर पोस्ट करने से रोकना चाहते हैं?`, async (res) => {
-    if (res) {
-      if (!blockedPhonesList.includes(phone)) blockedPhonesList.push(phone);
-      await db.collection('settings').doc('blockedUsers').set({ list: blockedPhonesList });
-      showToast(`🔇 ${authorName} को म्यूट कर दिया गया।`);
+// 24. DIRECT PDF EXPORTERS
+function downloadQuizResultsPdf() {
+  db.collection('quizAttempts').get().then(snap => {
+    if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
+    let records = [];
+    snap.forEach(d => records.push(d.data()));
+    records.sort((a, b) => b.score - a.score);
+    
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bishnoi Portal - Quiz Results", 14, 18);
+      doc.autoTable({
+        startY: 25,
+        head: [['Rank', 'Name', 'Phone', 'Score', 'Time']],
+        body: records.map((r, i) => [i + 1, r.name || '', r.phone || '', `${r.score}/${r.total}`, `${r.timeTakenSeconds || 0}s`])
+      });
+      doc.save("Bishnoi_Quiz_Results.pdf");
+    } else {
+      showToast("PDF जनरेटर लोड हो रहा है, पुनः प्रयास करें।");
     }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
   });
 }
 
-async function unblockUserPhone(phone) {
-  if (!isSuperOwner()) return;
-  blockedPhonesList = blockedPhonesList.filter(p => p !== phone);
-  await db.collection('settings').doc('blockedUsers').set({ list: blockedPhonesList });
-  showToast("सदस्य को अनम्यूट कर दिया गया!");
+function download7DaysUsersPdf() {
+  db.collection('users').get().then(snap => {
+    if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
+    let rows = [];
+    snap.forEach(d => {
+      const u = d.data();
+      rows.push([u.name || '', u.phone || d.id, u.email || '-', u.location || '-']);
+    });
+    
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bishnoi Portal - Registered Members", 14, 18);
+      doc.autoTable({ startY: 25, head: [['Name', 'Phone', 'Email', 'Location']], body: rows });
+      doc.save("Bishnoi_Members.pdf");
+    } else {
+      showToast("PDF जनरेटर लोड हो रहा है, पुनः प्रयास करें।");
+    }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
+  });
+}
+
+// 25. CHAT STREAM, MEDIA, NIYAMS & HISTORY
+function listenPosts() {
+  db.collection('posts').orderBy('createdAt', 'desc').limit(80).onSnapshot(snap => {
+    allChatPosts = [];
+    snap.forEach(doc => allChatPosts.push({ id: doc.id, ...doc.data() }));
+    renderFilteredChat();
+  });
+}
+
+function renderFilteredChat() {
+  const feed = document.getElementById('communityFeed');
+  if (!feed) return;
+  const selectedTopic = document.getElementById('chatTopicFilter')?.value || 'all';
+
+  const filtered = selectedTopic === 'all'
+    ? allChatPosts
+    : allChatPosts.filter(p => (p.topic || 'सामान्य चर्चा') === selectedTopic);
+
+  feed.className = 'divide-y divide-stone-200/80 bg-white rounded-2xl border border-stone-300 shadow-inner max-h-[62vh] overflow-y-auto';
+  feed.innerHTML = `
+    <div class="sticky top-0 z-10 bg-[#143622] text-white px-3.5 py-2 flex items-center justify-between text-xs font-bold shadow">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>समाज लाइव संवाद स्ट्रीम</span>
+      </div>
+      <span class="px-2 py-0.5 bg-white/15 rounded-full text-[10px] text-amber-300">${filtered.length} संदेश</span>
+    </div>
+  `;
+
+  if (!filtered.length) {
+    feed.innerHTML += `<div class="text-center py-8 text-xs text-stone-500">इस विषय पर अभी कोई संदेश नहीं है।</div>`;
+    return;
+  }
+
+  filtered.forEach(p => {
+    const isMyPost = Boolean(currentUser && (p.phone === currentUser.phone));
+    const canDelete = Boolean(isMyPost || isSuperOwner());
+    const timeStr = p.createdAt ? p.createdAt.toDate().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }) : 'अभी';
+
+    const itemRow = document.createElement('div');
+    itemRow.className = `px-3 py-2.5 hover:bg-stone-50/90 transition flex items-start gap-2.5 ${p.isOwner ? 'bg-amber-50/50 border-l-4 border-l-amber-500' : ''}`;
+    itemRow.innerHTML = `
+      <div class="w-7 h-7 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+        ${p.isOwner ? '🛡️' : (p.author || 'स').charAt(0).toUpperCase()}
+      </div>
+      <div class="flex-1 min-w-0 space-y-1">
+        <div class="flex items-center justify-between gap-1 text-[11px]">
+          <span class="font-extrabold text-forest">${p.author}</span>
+          <span class="text-[10px] text-stone-400">${timeStr}</span>
+        </div>
+        <p class="text-xs sm:text-sm text-stone-900 leading-snug break-words">${p.content}</p>
+        <div class="flex justify-end gap-2 text-[11px] text-stone-500">
+          ${canDelete ? `<button onclick="confirmDeletePost('${p.id}')" class="text-red-600 font-bold">हटाएं</button>` : ''}
+        </div>
+      </div>
+    `;
+    feed.appendChild(itemRow);
+  });
+}
+
+async function submitChaupalPost() {
+  if (!currentUser) return openAuthModal();
+  const txtEl = document.getElementById('postText');
+  const txt = txtEl.value.trim();
+  if (!txt) return showToast('कृपया अपना संदेश लिखें!');
+
+  const topic = document.getElementById('postTopicSelect')?.value || 'सामान्य चर्चा';
+  try {
+    await db.collection('posts').add({
+      author: currentUser.name,
+      phone: currentUser.phone || 'Member',
+      isOwner: isSuperOwner(),
+      isEditor: isEditorOrOwner(),
+      topic,
+      content: txt,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    txtEl.value = '';
+    updateCharCount();
+  } catch (e) {
+    showToast('त्रुटि: ' + e.message);
+  }
 }
 
 function updateCharCount() {
@@ -2703,66 +1800,10 @@ function updateCharCount() {
   if (el && disp) disp.innerText = `${el.value.length} / 300`;
 }
 
-function setChatReply(id, author, snippet) {
-  activeReplyObj = { id, author, snippet: snippet.substring(0, 60) };
-  const bar = document.getElementById('replyPreviewBar');
-  if (bar) {
-    document.getElementById('replyToAuthor').innerText = author;
-    document.getElementById('replyToText').innerText = activeReplyObj.snippet;
-    bar.classList.remove('hidden');
-  }
-  document.getElementById('postText')?.focus();
-}
-
-function cancelChatReply() {
-  activeReplyObj = null;
-  document.getElementById('replyPreviewBar')?.classList.add('hidden');
-}
-
-async function submitChaupalPost() {
-  if (!currentUser) return openAuthModal();
-  if (blockedPhonesList.includes(currentUser.phone)) {
-    return showToast("आपको संवाद मंच पर संदेश भेजने से रोका गया है।");
-  }
-
-  const now = Date.now();
-  if (!isEditorOrOwner() && now - lastPostTime < 10000) {
-    return showToast("कृपया अगले संदेश के लिए १० सेकंड प्रतीक्षा करें।");
-  }
-
-  const txtEl = document.getElementById('postText');
-  const txt = txtEl.value.trim();
-  if (!txt) return showToast('कृपया अपना संदेश लिखें!');
-
-  const modCheck = aiModerateMessageSafety(txt);
-  if (!modCheck.safe) return showToast(modCheck.reason);
-
-  const topic = document.getElementById('postTopicSelect')?.value || 'सामान्य चर्चा';
-  const btn = document.getElementById('postSubmitBtn');
-  if (btn) btn.disabled = true;
-
-  try {
-    await db.collection('posts').add({
-      author: currentUser.name,
-      phone: currentUser.phone || 'Member',
-      isOwner: isSuperOwner(),
-      isEditor: isEditorOrOwner(),
-      location: currentUser.location || '',
-      topic,
-      content: txt,
-      replyTo: activeReplyObj || null,
-      reactions: { pranam: 0, nature: 0, heart: 0 },
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    lastPostTime = now;
-    txtEl.value = '';
-    updateCharCount();
-    cancelChatReply();
-  } catch (e) {
-    showToast('त्रुटि: ' + e.message);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+function confirmDeletePost(id) {
+  openConfirmModal("संदेश हटाएं?", "क्या आप इस संदेश को हटाना चाहते हैं?", async (res) => {
+    if (res) { await db.collection('posts').doc(id).delete(); showToast('संदेश हटा दिया गया।'); }
+  });
 }
 
 function listenPinnedChat() {
@@ -2773,8 +1814,7 @@ function listenPinnedChat() {
     if (!banner || !txt) return;
 
     if (doc.exists && doc.data().content) {
-      const d = doc.data();
-      txt.innerText = `📌 ${d.author}: "${d.content}"`;
+      txt.innerText = `📌 ${doc.data().author}: "${doc.data().content}"`;
       banner.classList.remove('hidden');
       if (unpinBtn) unpinBtn.classList.toggle('hidden', !isSuperOwner());
     } else {
@@ -2783,233 +1823,31 @@ function listenPinnedChat() {
   });
 }
 
-async function pinChatMessage(author, content) {
-  if (!isEditorOrOwner()) return;
-  await db.collection('settings').doc('pinnedChat').set({ author, content });
-  showToast("संदेश शीर्ष पर पिन कर दिया गया!");
+function unpinChatMessage() {
+  if (!isSuperOwner()) return;
+  db.collection('settings').doc('pinnedChat').delete();
 }
 
-async function unpinChatMessage() {
-  if (!isEditorOrOwner()) return;
-  await db.collection('settings').doc('pinnedChat').delete();
-  showToast("पिन हटा दिया गया।");
-}
-
-async function reactToPost(postId, type) {
-  const storageKey = `reacted_${postId}_${type}`;
-  if (localStorage.getItem(storageKey)) return;
-  localStorage.setItem(storageKey, '1');
-  try {
-    await db.collection('posts').doc(postId).update({
-      [`reactions.${type}`]: firebase.firestore.FieldValue.increment(1)
-    });
-  } catch (e) {}
-}
-
-function listenPosts() {
-  db.collection('posts').orderBy('createdAt', 'desc').limit(80).onSnapshot(snap => {
-    allChatPosts = [];
-    snap.forEach(doc => allChatPosts.push({ id: doc.id, ...doc.data() }));
-    renderFilteredChat();
-  });
-}
-
-// High-Density Compact Stream (Built for 500+ Active Participants to Read & Chat Fast!)
-function renderFilteredChat() {
-  const feed = document.getElementById('communityFeed');
-  if (!feed) return;
-  const selectedTopic = document.getElementById('chatTopicFilter')?.value || 'all';
-
-  const filtered = selectedTopic === 'all'
-    ? allChatPosts
-    : allChatPosts.filter(p => (p.topic || 'सामान्य चर्चा') === selectedTopic);
-
-  const avatarColors = ['bg-emerald-800', 'bg-amber-700', 'bg-teal-800', 'bg-orange-800', 'bg-stone-800'];
-
-  feed.className = 'divide-y divide-stone-200/80 bg-white rounded-2xl border border-stone-300 shadow-inner max-h-[62vh] overflow-y-auto';
-  feed.innerHTML = `
-    <div class="sticky top-0 z-10 bg-[#143622] text-white px-3.5 py-2 flex items-center justify-between text-xs font-bold shadow">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span>समाज लाइव संवाद स्ट्रीम (Fast Compact Feed)</span>
-      </div>
-      <span class="px-2 py-0.5 bg-white/15 rounded-full text-[10px] text-amber-300">${filtered.length} संदेश</span>
-    </div>
-  `;
-
-  if (filtered.length === 0) {
-    feed.innerHTML += `<div class="text-center py-8 text-xs text-stone-500">इस विषय पर अभी कोई संदेश नहीं है। नीचे बॉक्स से चर्चा शुरू करें!</div>`;
-    return;
-  }
-
-  const ownerLogged = isSuperOwner();
-
-  filtered.forEach((p, idx) => {
-    const isMyPost = Boolean(currentUser && (p.phone === currentUser.phone));
-    const canDelete = Boolean(isMyPost || ownerLogged);
-    const timeStr = p.createdAt ? p.createdAt.toDate().toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }) : 'अभी';
-
-    const safeAuthor = (p.author || 'सदस्य').replace(/'/g, "\\'");
-    const safeContent = (p.content || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
-    const initial = (p.author || 'स').trim().charAt(0).toUpperCase();
-    const colorCls = p.isOwner ? 'bg-amber-500 text-stone-950' : `${avatarColors[idx % avatarColors.length]} text-white`;
-
-    const pranamCnt = p.reactions?.pranam || 0;
-    const natureCnt = p.reactions?.nature || 0;
-    const heartCnt = p.reactions?.heart || 0;
-
-    const itemRow = document.createElement('div');
-    itemRow.className = `px-3 py-2.5 hover:bg-stone-50/90 transition flex items-start gap-2.5 ${p.isOwner ? 'bg-amber-50/50 border-l-4 border-l-amber-500' : (isMyPost ? 'bg-emerald-50/30 border-l-4 border-l-forest' : '')}`;
-    itemRow.innerHTML = `
-      <div class="w-7 h-7 rounded-full ${colorCls} flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
-        ${p.isOwner ? '🛡️' : initial}
-      </div>
-
-      <div class="flex-1 min-w-0 space-y-1">
-        <div class="flex items-center justify-between gap-1 text-[11px]">
-          <div class="flex items-center gap-1.5 flex-wrap min-w-0">
-            <span class="font-extrabold text-forest truncate">${p.author}</span>
-            ${p.isOwner ? `<span class="px-1.5 py-0.2 bg-amber-400 text-stone-950 rounded text-[9px] font-extrabold">व्यवस्थापक</span>` : (p.isEditor ? `<span class="px-1.5 py-0.2 bg-emerald-100 text-forest rounded text-[9px] font-bold">संपादक</span>` : '')}
-            ${p.topic && p.topic !== 'सामान्य चर्चा' ? `<span class="px-1.5 py-0.2 bg-stone-100 text-stone-600 rounded text-[9px]">${p.topic}</span>` : ''}
-          </div>
-          <span class="text-[10px] text-stone-400 shrink-0">${timeStr}</span>
-        </div>
-
-        ${p.replyTo ? `
-          <div class="px-2 py-0.5 rounded bg-stone-100 border-l-2 border-forest text-[10px] text-stone-600 truncate">
-            ↩️ <b>${p.replyTo.author}:</b> ${p.replyTo.snippet}
-          </div>
-        ` : ''}
-
-        <p class="text-xs sm:text-sm text-stone-900 leading-snug break-words whitespace-pre-wrap">${p.content}</p>
-
-        <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-[11px]">
-          <div class="flex items-center gap-1">
-            <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 text-stone-700 font-semibold">🙏 ${pranamCnt || ''}</button>
-            <button onclick="reactToPost('${p.id}', 'nature')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-emerald-100 text-stone-700 font-semibold">🌿 ${natureCnt || ''}</button>
-            <button onclick="reactToPost('${p.id}', 'heart')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-rose-100 text-stone-700 font-semibold">❤️ ${heartCnt || ''}</button>
-          </div>
-
-          <div class="flex items-center gap-2.5 text-[11px] font-semibold text-stone-500">
-            <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="hover:text-forest">↩️ उत्तर</button>
-            ${ownerLogged ? `<button onclick="pinChatMessage('${safeAuthor}', '${safeContent}')" class="text-amber-700 font-bold">📌 पिन</button>` : ''}
-            ${ownerLogged && !p.isOwner ? `<button onclick="blockUserFromChat('${p.phone}', '${safeAuthor}')" class="text-orange-700 font-bold">🔇 म्यूट</button>` : ''}
-            ${canDelete ? `<button onclick="confirmDeletePost('${p.id}')" class="text-red-600 font-bold">हटाएं</button>` : ''}
-          </div>
-        </div>
-      </div>
-    `;
-    feed.appendChild(itemRow);
-  });
-}
-
-function confirmDeletePost(id) {
-  openConfirmModal("संदेश हटाएं?", "क्या आप इस संदेश को हटाना चाहते हैं?", async (res) => {
-    if (res) { await db.collection('posts').doc(id).delete(); showToast('संदेश हटा दिया गया।'); }
-  });
-}
-
-// 26. PDF READER, LIBRARY, NIYAMS & HISTORY (WITH DRAFT QUEUE SUPPORT FOR EDITORS)
-async function openInbuiltPdfViewer(title, link) {
-  const modal = document.getElementById('inbuiltPdfModal');
-  const titleEl = document.getElementById('pdfViewerTitle');
-  const dlBtn = document.getElementById('pdfModalDownloadBtn');
-  const spinner = document.getElementById('pdfLoadingSpinner');
-  const canvas = document.getElementById('pdfSinglePageCanvas');
-  const driveFrame = document.getElementById('pdfDriveFallbackFrame');
-  const bottomBar = document.getElementById('pdfBottomNavBar');
-  if (!modal) return;
-
-  titleEl.innerText = title;
-  dlBtn.href = link;
-  currentPdfUrl = link;
-  isPdfLandscape = false;
-  updateLandscapeButtonLabel();
-
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-
-  if (link.includes('drive.google.com/file/d/')) {
-    const match = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      spinner.classList.add('hidden'); canvas.classList.add('hidden'); bottomBar.classList.add('hidden');
-      driveFrame.src = `https://drive.google.com/file/d/${match[1]}/preview`;
-      driveFrame.classList.remove('hidden');
-      return;
+function listenBanner() {
+  db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
+    if (doc.exists && doc.data().text) {
+      currentBannerText = doc.data().text;
+      document.getElementById('dailyBannerText').innerText = currentBannerText;
     }
-  }
-
-  driveFrame.classList.add('hidden'); bottomBar.classList.remove('hidden'); canvas.classList.add('hidden'); spinner.classList.remove('hidden');
-
-  try {
-    if (!window.pdfjsLib) throw new Error("PDF.js loading");
-    const loadingTask = window.pdfjsLib.getDocument(link);
-    activePdfDoc = await loadingTask.promise;
-    totalPdfPages = activePdfDoc.numPages;
-    currentPdfPage = 1;
-    await renderSinglePdfPage(currentPdfPage);
-  } catch (err) {
-    spinner.classList.add('hidden'); bottomBar.classList.add('hidden');
-    const fullUrl = link.startsWith('http') ? link : (window.location.origin + '/' + link.replace(/^\.\//, ''));
-    driveFrame.src = isPhoneOrInstalledApp() ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}` : fullUrl;
-    driveFrame.classList.remove('hidden');
-  }
+  });
 }
 
-async function renderSinglePdfPage(pageNum) {
-  if (!activePdfDoc) return;
-  const spinner = document.getElementById('pdfLoadingSpinner');
-  const canvas = document.getElementById('pdfSinglePageCanvas');
-  const jumpInp = document.getElementById('pdfPageJumpInput');
-  const totalLbl = document.getElementById('pdfTotalPagesLabel');
-  const prevBtn = document.getElementById('pdfPrevBtn');
-  const nextBtn = document.getElementById('pdfNextBtn');
-
-  spinner.classList.remove('hidden');
-  const page = await activePdfDoc.getPage(pageNum);
-  const viewport = page.getViewport({ scale: 2.2 });
-  const ctx = canvas.getContext('2d');
-  canvas.width = viewport.width; canvas.height = viewport.height;
-
-  canvas.style.width = isPdfLandscape ? '96vw' : 'auto';
-  canvas.style.maxHeight = isPdfLandscape ? 'none' : '78vh';
-
-  await page.render({ canvasContext: ctx, viewport }).promise;
-  spinner.classList.add('hidden'); canvas.classList.remove('hidden');
-
-  if (jumpInp) { jumpInp.max = totalPdfPages; jumpInp.value = pageNum; }
-  if (totalLbl) totalLbl.innerText = `/ ${totalPdfPages}`;
-  if (prevBtn) prevBtn.disabled = (pageNum <= 1);
-  if (nextBtn) nextBtn.disabled = (pageNum >= totalPdfPages);
+async function saveAdminBanner() {
+  if (!isEditorOrOwner()) return;
+  const txt = document.getElementById('adminBannerInput').value.trim();
+  if (!txt) return;
+  await db.collection('settings').doc('dailySandesh').set({ text: txt });
+  showToast('✅ दैनिक संदेश अपडेट हुआ!');
+  document.getElementById('adminBannerInput').value = '';
 }
 
-function changePdfPage(delta) {
-  if (!activePdfDoc) return;
-  const next = currentPdfPage + delta;
-  if (next >= 1 && next <= totalPdfPages) { currentPdfPage = next; renderSinglePdfPage(currentPdfPage); }
-}
-
-function jumpToPdfPage(val) {
-  if (!activePdfDoc) return;
-  const p = parseInt(val);
-  if (p >= 1 && p <= totalPdfPages) { currentPdfPage = p; renderSinglePdfPage(currentPdfPage); }
-}
-
-async function togglePdfLandscapeMode() {
-  isPdfLandscape = !isPdfLandscape;
-  updateLandscapeButtonLabel();
-  if (activePdfDoc) renderSinglePdfPage(currentPdfPage);
-}
-
-function updateLandscapeButtonLabel() {
-  const txt = document.getElementById('landscapeBtnText');
-  if (txt) txt.innerText = isPdfLandscape ? '🔄 पोर्ट्रेट (सीधा मोड)' : '🔄 लैंडस्केप (आड़ा मोड)';
-}
-
-function closeInbuiltPdfViewer() {
-  activePdfDoc = null;
-  const modal = document.getElementById('inbuiltPdfModal');
-  if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+function shareBannerWhatsApp() {
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`🌿 पावन संदेश:\n${currentBannerText}\n${window.location.href}`)}`, '_blank');
 }
 
 function listenPdfs() {
@@ -3017,175 +1855,52 @@ function listenPdfs() {
     const grid = document.getElementById('pdfGrid');
     if (!grid) return;
     grid.innerHTML = '';
-
-    const canEdit = isSuperOwner();
-    const canDel = isSuperOwner();
-    const hideDefault = localStorage.getItem('hide_default_shabadwani_card') === '1';
-
-    if (!hideDefault) {
-      const defTag = localStorage.getItem('def_pdf_tag') || 'पवित्र ग्रंथ';
-      const defTitle = localStorage.getItem('def_pdf_title') || 'श्री सबदवाणी (१२० शब्द)';
-      const defDesc = localStorage.getItem('def_pdf_desc') || 'गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।';
-      const defLink = localStorage.getItem('def_pdf_link') || './shabadwani.pdf';
-
-      const defaultCard = document.createElement('div');
-      defaultCard.className = "elevate-card bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
-      defaultCard.innerHTML = `
-        <div>
-          <span class="text-[11px] font-bold text-terracotta uppercase tracking-wide">${defTag}</span>
-          <h3 class="font-yatra text-forest text-lg mt-1">${defTitle}</h3>
-          <p class="text-xs text-stone-500 mt-1 leading-relaxed">${defDesc}</p>
-        </div>
-        <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <button onclick="openInbuiltPdfViewer('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-extrabold rounded-lg">📖 ऐप में पढ़ें</button>
-            <a href="${defLink}" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
-          </div>
-          <div class="flex items-center gap-2.5">
-            <button onclick="sharePdfWhatsApp('${defTitle.replace(/'/g, "\\'")}', '${defLink}')" class="text-emerald-700 text-xs font-bold">साझा करें</button>
-            ${canEdit ? `<button onclick="editDefaultPdfCard()" class="text-xs text-amber-700 font-bold">Edit</button>` : ''}
-            ${canDel ? `<button onclick="deleteDefaultPdfCard()" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
-          </div>
-        </div>
-      `;
-      grid.appendChild(defaultCard);
-    }
-
     snap.forEach(doc => {
       const item = doc.data();
-      const tag = item.tag || 'पवित्र साहित्य';
-      const title = item.title || 'साहित्य ग्रंथ';
-      const desc = item.desc || 'अध्ययन एवं डाउनलोड करने हेतु उपलब्ध पावन साहित्य।';
-      const safeTitle = title.replace(/'/g, "\\'");
-      const safeLink = (item.link || '').replace(/'/g, "\\'");
-
-      const card = document.createElement('div');
-      card.className = "elevate-card bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
-      card.innerHTML = `
-        <div>
-          <span class="text-[11px] font-bold text-terracotta uppercase tracking-wide">${tag}</span>
-          <h3 class="font-yatra text-forest text-lg mt-1">${title}</h3>
-          <p class="text-xs text-stone-500 mt-1 leading-relaxed">${desc}</p>
-        </div>
-        <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-extrabold rounded-lg">📖 ऐप में पढ़ें</button>
-            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
+      grid.innerHTML += `
+        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="font-yatra text-forest text-base">${item.title}</h3>
+            <p class="text-xs text-stone-500 mt-1">${item.desc || 'पवित्र ग्रंथ'}</p>
           </div>
-          <div class="flex items-center gap-2.5">
-            <button onclick="sharePdfWhatsApp('${safeTitle}', '${safeLink}')" class="text-emerald-700 text-xs font-bold">साझा करें</button>
-            ${canEdit ? `<button onclick="editUploadedPdf('${doc.id}', '${tag.replace(/'/g, "\\'")}', '${safeTitle}', '${desc.replace(/'/g, "\\'")}')" class="text-xs text-amber-700 font-bold">Edit</button>` : ''}
-            ${canDel ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
+          <div class="mt-4 pt-2 border-t border-stone-100 flex justify-between items-center">
+            <a href="${item.link}" target="_blank" download class="px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
+            ${isSuperOwner() ? `<button onclick="db.collection('pdfs').doc('${doc.id}').delete()" class="text-xs text-rose-600 font-bold">हटाएं</button>` : ''}
           </div>
         </div>
       `;
-      grid.appendChild(card);
     });
   });
 }
 
-function editDefaultPdfCard() {
-  if (!isSuperOwner()) return;
-  const newTag = prompt("ऊपरी टैग:", localStorage.getItem('def_pdf_tag') || 'पवित्र ग्रंथ');
-  if (newTag === null) return;
-  const newTitle = prompt("पुस्तक का नाम:", localStorage.getItem('def_pdf_title') || 'श्री सबदवाणी (१२० शब्द)');
-  if (!newTitle) return;
-  const newDesc = prompt("छोटा विवरण:", localStorage.getItem('def_pdf_desc') || 'गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।');
-  const newLink = prompt("PDF लिंक:", localStorage.getItem('def_pdf_link') || './shabadwani.pdf');
-
-  localStorage.setItem('def_pdf_tag', newTag.trim());
-  localStorage.setItem('def_pdf_title', newTitle.trim());
-  localStorage.setItem('def_pdf_desc', (newDesc || '').trim());
-  localStorage.setItem('def_pdf_link', (newLink || './shabadwani.pdf').trim());
-  listenPdfs();
-  showToast("प्रथम PDF कार्ड अपडेट हो गया!");
-}
-
-function deleteDefaultPdfCard() {
-  if (!isSuperOwner()) return;
-  openConfirmModal("प्रथम PDF हटाएं?", "क्या आप प्रथम 'श्री सबदवाणी' कार्ड को हटाना चाहते हैं?", (res) => {
-    if (res) { localStorage.setItem('hide_default_shabadwani_card', '1'); listenPdfs(); showToast("हटा दिया गया।"); }
-  });
-}
-
-async function editUploadedPdf(id, oldTag, oldTitle, oldDesc) {
-  if (!isSuperOwner()) return;
-  const tag = prompt("श्रेणी टैग बदलें:", oldTag);
-  if (tag === null) return;
-  const title = prompt("पुस्तक का मुख्य नाम बदलें:", oldTitle);
-  if (!title) return;
-  const desc = prompt("छोटा विवरण बदलें:", oldDesc);
-  await db.collection('pdfs').doc(id).update({ tag: tag.trim(), title: title.trim(), desc: (desc || '').trim() });
-  showToast("PDF कार्ड अपडेट हो गया!");
-}
-
-function sharePdfWhatsApp(title, link) {
-  const url = link.startsWith('./') ? window.location.origin + '/' + link.replace('./','') : link;
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`📖 ${title}: ${url}`)}`, '_blank');
-}
-
 async function saveAdminPdf() {
-  if (!isSuperOwner()) return showToast("PDF सीधे अपलोड करने का अधिकार केवल मुख्य व्यवस्थापक के पास है!");
-  const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए!");
   const title = document.getElementById('adminPdfTitle').value.trim();
-  const desc = document.getElementById('adminPdfDesc')?.value.trim() || 'गुरु जम्भेश्वर भगवान की पावन शिक्षाएं एवं साहित्य।';
   const link = document.getElementById('adminPdfLink').value.trim();
-  if (!title || !link) return showToast('नाम और लिंक दर्ज करें');
-
-  await db.collection('pdfs').add({ tag, title, desc, link, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-  showToast('PDF साहित्य जोड़ा गया!');
+  if (!title || !link) return showToast('नाम और लिंक भरें');
+  await db.collection('pdfs').add({ title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+  showToast('PDF जोड़ा गया!');
   document.getElementById('adminPdfTitle').value = '';
   document.getElementById('adminPdfLink').value = '';
 }
 
-function confirmDeletePdf(id) {
-  if (!isSuperOwner()) return;
-  openConfirmModal("PDF हटाएं?", "क्या आप इस साहित्य को हटाना चाहते हैं?", async (res) => {
-    if (res) { await db.collection('pdfs').doc(id).delete(); showToast('PDF हटा दी गई।'); }
-  });
-}
-
 function listenAudios() {
   db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    const adminList = document.getElementById('adminAudioManageList');
-    if (adminList) adminList.innerHTML = '';
-
     if (!snap.empty) {
       audioPlaylist = [];
-      snap.forEach(doc => {
-        const a = doc.data();
-        audioPlaylist.push({ id: doc.id, title: a.title, link: a.link });
-        if (adminList) {
-          adminList.innerHTML += `<div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200"><span class="font-semibold text-stone-800 truncate">${a.title}</span>${isSuperOwner() ? `<button onclick="deleteAdminAudio('${doc.id}')" class="text-red-600 font-bold shrink-0 ml-2">हटाएं</button>` : ''}</div>`;
-        }
-      });
-      currentTrackIndex = 0;
-      const source = document.getElementById('audioSource');
-      const player = document.getElementById('audioPlayer');
-      if (source && player && audioPlaylist[0]) { source.src = audioPlaylist[0].link; player.load(); }
-      renderCustomMusicDropdown();
-    } else {
+      snap.forEach(doc => audioPlaylist.push({ id: doc.id, ...doc.data() }));
       renderCustomMusicDropdown();
     }
   });
 }
 
-async function deleteAdminAudio(id) {
-  if (!isSuperOwner()) return;
-  openConfirmModal("भजन हटाएं?", "क्या आप इस भजन को हटाना चाहते हैं?", async (res) => {
-    if (res) { await db.collection('audios').doc(id).delete(); showToast("भजन हटाया गया।"); }
-  });
-}
-
-function changeAudioTrack() { selectCustomTrackByIndex(0); }
-
 async function saveAdminAudio() {
-  if (!isSuperOwner()) return showToast("भजन अपलोड करने का अधिकार केवल मुख्य व्यवस्थापक के पास है!");
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए!");
   const title = document.getElementById('adminAudioTitle').value.trim();
   const link = document.getElementById('adminAudioLink').value.trim();
   if (!title || !link) return showToast('नाम और लिंक भरें');
   await db.collection('audios').add({ title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-  showToast('भजन प्लेयर में जोड़ा गया!');
+  showToast('भजन जोड़ा गया!');
   document.getElementById('adminAudioTitle').value = '';
   document.getElementById('adminAudioLink').value = '';
 }
@@ -3210,7 +1925,7 @@ function listenTreeCounter() {
 }
 
 async function pledgeTree() {
-  if (localStorage.getItem('has_pledged_tree')) return showToast("आपका संकल्प पहले से दर्ज है। साधुवाद!");
+  if (localStorage.getItem('has_pledged_tree')) return showToast("संकल्प पहले से दर्ज है!");
   const display = document.getElementById('treeCounterDisplay');
   let nextVal = (parseInt(display.innerText) || 1485) + 1;
   display.innerText = nextVal;
@@ -3219,57 +1934,7 @@ async function pledgeTree() {
   try { await db.collection('stats').doc('treePledges').set({ count: nextVal }, { merge: true }); } catch (e) {}
 }
 
-function listenBanner() {
-  db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
-    if (doc.exists && doc.data().text) {
-      currentBannerText = doc.data().text;
-      document.getElementById('dailyBannerText').innerText = currentBannerText;
-    }
-  });
-}
-
-async function saveAdminBanner() {
-  if (!isEditorOrOwner()) return;
-  const txt = document.getElementById('adminBannerInput').value.trim();
-  if (!txt) return;
-
-  // If Editor (not Super Owner), save to Draft Queue for Owner Approval!
-  if (!isSuperOwner()) {
-    await db.collection('draftQueue').add({
-      type: 'banner', title: 'नया पावन सुविचार', content: txt,
-      author: currentUser?.name || 'संपादक',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    document.getElementById('adminBannerInput').value = '';
-    return showToast("📝 आपका सुविचार ड्राफ्ट में सेव हो गया है! Owner की स्वीकृति के बाद Live होगा।");
-  }
-
-  await db.collection('settings').doc('dailySandesh').set({ text: txt });
-  showToast('✅ दैनिक संदेश सीधे Live अपडेट हुआ!');
-  document.getElementById('adminBannerInput').value = '';
-}
-
-function shareBannerWhatsApp() {
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`🌿 पावन संदेश:\n${currentBannerText}\n${window.location.href}`)}`, '_blank');
-}
-
-function shareNiyamWhatsApp(num, title, rule, desc) {
-  markNiyamAsRead(num);
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`🌿 नियम ${num} -${title}\n"${rule}"\nअर्थ: ${desc}`)}`, '_blank');
-}
-
-function sharePostWhatsApp(author, content) {
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`💬 समाज संवाद (${author}):\n"${content}"`)}`, '_blank');
-}
-
-function markNiyamAsRead(num) {
-  readNiyamsSet.add(num);
-  localStorage.setItem('bishnoi_read_niyams', JSON.stringify(Array.from(readNiyamsSet)));
-  updateProgressIndicators();
-}
-
 function listenCustomNiyams() {
-  document.getElementById('niyamCategoryBar')?.remove();
   db.collection('settings').doc('customNiyams').onSnapshot(doc => {
     if (doc.exists && Array.isArray(doc.data().list)) niyamsList = doc.data().list;
     renderNiyams(niyamsList);
@@ -3280,51 +1945,18 @@ function renderNiyams(data) {
   const grid = document.getElementById('niyamGrid');
   if (!grid) return;
   grid.innerHTML = '';
-
-  const canEdit = isSuperOwner();
-
   data.forEach(n => {
-    const safeTitle = (n.title || '').replace(/'/g, "\\'");
-    const safeRule = (n.rule || '').replace(/'/g, "\\'");
-    const safeDesc = (n.desc || '').replace(/'/g, "\\'");
-    const isRead = readNiyamsSet.has(n.num);
-
-    const card = document.createElement('div');
-    card.onclick = () => markNiyamAsRead(n.num);
-    card.className = `elevate-card bg-white p-4 rounded-xl border ${isRead ? 'border-emerald-300 bg-emerald-50/15' : 'border-stone-200'} space-y-2 flex flex-col justify-between shadow-sm cursor-pointer`;
-    card.innerHTML = `
-      <div>
+    grid.innerHTML += `
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-1.5">
         <div class="flex items-center justify-between text-xs">
           <span class="font-bold text-forest w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
-          <span class="text-stone-500 font-semibold text-xs">${n.title}</span>
+          <span class="text-stone-500 font-semibold">${n.title}</span>
         </div>
-        <h4 class="font-yatra text-base text-forest mt-1.5">${n.rule}</h4>
-        <p class="text-xs text-stone-700 leading-relaxed mt-1">${n.desc}</p>
-      </div>
-      <div class="pt-2 border-t border-stone-100 flex items-center justify-between">
-        ${canEdit ? `<button onclick="event.stopPropagation(); editSingleNiyam(${n.num})" class="text-xs text-amber-700 font-bold hover:underline">Edit</button>` : `<span class="text-[10px] text-emerald-700 font-semibold">${isRead ? '✓ पठित' : ''}</span>`}
-        <button onclick="event.stopPropagation(); shareNiyamWhatsApp(${n.num}, '${safeTitle}', '${safeRule}', '${safeDesc}')" class="text-xs text-emerald-700 font-bold hover:underline">साझा करें</button>
+        <h4 class="font-yatra text-base text-forest mt-1">${n.rule}</h4>
+        <p class="text-xs text-stone-700 leading-relaxed">${n.desc}</p>
       </div>
     `;
-    grid.appendChild(card);
   });
-}
-
-async function editSingleNiyam(num) {
-  if (!isSuperOwner()) return;
-  const idx = niyamsList.findIndex(x => x.num === num);
-  if (idx === -1) return;
-  const item = niyamsList[idx];
-  const newTitle = prompt(`नियम ${num} का शीर्षक:`, item.title);
-  if (newTitle === null) return;
-  const newRule = prompt(`नियम ${num} की मूल वाणी:`, item.rule);
-  if (newRule === null) return;
-  const newDesc = prompt(`नियम ${num} का अर्थ:`, item.desc);
-  if (newDesc === null) return;
-
-  niyamsList[idx] = { ...item, title: newTitle.trim() || item.title, rule: newRule.trim() || item.rule, desc: newDesc.trim() || item.desc };
-  await db.collection('settings').doc('customNiyams').set({ list: niyamsList });
-  showToast(`नियम ${num} अपडेट हो गया!`);
 }
 
 function filterNiyams() {
@@ -3335,504 +1967,37 @@ function filterNiyams() {
 function listenHistoryAndKids() {
   db.collection('settings').doc('customHistoryKids').onSnapshot(doc => {
     if (doc.exists && Array.isArray(doc.data().items) && doc.data().items.length > 0) historyItemsList = doc.data().items;
-    renderHistoryAndKidsViews();
   });
 }
 
-function toggleStoryReadMore(id) {
-  const p = document.getElementById(`story_txt_${id}`);
-  const btn = document.getElementById(`story_btn_${id}`);
-  if (!p || !btn) return;
-  if (p.classList.contains('line-clamp-2')) { p.classList.remove('line-clamp-2'); btn.innerText = 'संक्षिप्त करें ↑'; }
-  else { p.classList.add('line-clamp-2'); btn.innerText = 'पूरा पढ़ें (Read More) ↓'; }
-}
-
-function renderHistoryAndKidsViews() {
-  const histView = document.getElementById('historySubView');
-  const kidsView = document.getElementById('kidsSubView');
-  const canEdit = isSuperOwner();
-  const canDel = isSuperOwner();
-
-  if (histView) {
-    let dynamicHistWrap = document.getElementById('dynamicHistoryCardsWrap');
-    if (!dynamicHistWrap) {
-      dynamicHistWrap = document.createElement('div');
-      dynamicHistWrap.id = 'dynamicHistoryCardsWrap';
-      dynamicHistWrap.className = 'space-y-4 mb-4';
-      histView.insertBefore(dynamicHistWrap, histView.firstChild);
-    }
-
-    const histItems = historyItemsList.filter(x => x.type === 'history');
-    dynamicHistWrap.innerHTML = histItems.map(item => {
-      const safeSpeech = (item.title + '। ' + item.content + '। ' + (item.moral || '')).replace(/'/g, "\\'").replace(/\n/g, ' ');
-      return `
-        <div class="elevate-card bg-white p-5 rounded-2xl border-l-4 border-forest border border-stone-200 shadow-sm space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="px-2.5 py-0.5 bg-emerald-50 text-forest border border-emerald-200 rounded-full text-xs font-bold">${item.badge || 'इतिहास अध्याय'}</span>
-            <div class="flex items-center gap-2 text-xs">
-              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-forest rounded-lg font-semibold">🔊 सुनें</button>
-              ${canEdit ? `<button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-700 font-bold">Edit</button>` : ''}
-              ${canDel ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold">Delete</button>` : ''}
-            </div>
-          </div>
-          <h3 class="font-yatra text-lg sm:text-xl text-forest">${item.title}</h3>
-          <p id="story_txt_${item.id}" class="line-clamp-2 text-xs sm:text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">${item.content}</p>
-          <button id="story_btn_${item.id}" onclick="toggleStoryReadMore('${item.id}')" class="text-xs font-bold text-forest hover:underline">पूरा पढ़ें (Read More) ↓</button>
-          ${item.moral ? `<div class="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-semibold text-amber-900">${item.moral}</div>` : ''}
-        </div>
-      `;
-    }).join('');
-  }
-
-  if (kidsView) {
-    let dynamicKidsWrap = document.getElementById('dynamicKidsCardsWrap');
-    if (!dynamicKidsWrap) {
-      dynamicKidsWrap = document.createElement('div');
-      dynamicKidsWrap.id = 'dynamicKidsCardsWrap';
-      dynamicKidsWrap.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 mb-4';
-      kidsView.insertBefore(dynamicKidsWrap, kidsView.firstChild);
-    }
-
-    const kidsItems = historyItemsList.filter(x => x.type === 'kids');
-    dynamicKidsWrap.innerHTML = kidsItems.map(item => {
-      const safeSpeech = (item.title + '। ' + item.content + '। ' + (item.moral || '')).replace(/'/g, "\\'").replace(/\n/g, ' ');
-      return `
-        <div class="elevate-card bg-gradient-to-br from-amber-50/70 via-white to-emerald-50/70 p-5 rounded-2xl border border-amber-300 shadow-sm flex flex-col justify-between space-y-3">
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="px-3 py-1 bg-amber-400 text-stone-950 rounded-full text-xs font-extrabold">${item.badge || '🧸 बाल कहानी'}</span>
-              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-forest text-white rounded-full text-xs font-bold">🔊 कहानी सुनें</button>
-            </div>
-            <h3 class="font-yatra text-lg text-forest pt-1">${item.title}</h3>
-            <p id="story_txt_${item.id}" class="line-clamp-2 text-xs sm:text-sm text-stone-800 leading-relaxed whitespace-pre-wrap">${item.content}</p>
-            <button id="story_btn_${item.id}" onclick="toggleStoryReadMore('${item.id}')" class="text-xs font-bold text-forest hover:underline">पूरा पढ़ें (Read More) ↓</button>
-          </div>
-          <div class="space-y-2 pt-2">
-            ${item.moral ? `<div class="p-3 rounded-xl bg-emerald-900 text-amber-200 text-xs font-bold">${item.moral}</div>` : ''}
-            <div class="flex justify-end gap-3 text-xs pt-1 border-t border-amber-200">
-              ${canEdit ? `<button onclick="editHistoryOrKidsItem('${item.id}')" class="text-amber-800 font-bold">Edit</button>` : ''}
-              ${canDel ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-red-600 font-bold">Delete</button>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-}
-
-function speakKidsStory(text) {
-  if (!('speechSynthesis' in window)) return showToast("ऑडियो स्टोरी उपलब्ध नहीं है।");
-  if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); return showToast("ऑडियो रोका गया।"); }
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'hi-IN'; u.rate = 0.9;
-  window.speechSynthesis.speak(u);
-  showToast("ऑडियो सुनाया जा रहा है...");
-}
-
-async function saveAdminHistoryOrKidsItem() {
-  if (!isEditorOrOwner()) return;
-  const type = document.getElementById('adminHistType')?.value || 'history';
-  const badge = document.getElementById('adminHistBadge')?.value.trim() || (type === 'kids' ? '🧸 बाल कहानी' : 'इतिहास अध्याय');
-  const title = document.getElementById('adminHistTitle')?.value.trim() || '';
-  const content = document.getElementById('adminHistContent')?.value.trim() || '';
-  const moral = document.getElementById('adminHistMoral')?.value.trim() || '';
-  if (!title || !content) return showToast("शीर्षक और विवरण दोनों लिखें!");
-
-  // If Trusted Editor (not Super Owner), save to Draft Queue for Owner Approval!
-  if (!isSuperOwner()) {
-    await db.collection('draftQueue').add({
-      type, badge, title, content, moral,
-      author: currentUser?.name || 'संपादक',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    document.getElementById('adminHistTitle').value = '';
-    document.getElementById('adminHistContent').value = '';
-    document.getElementById('adminHistMoral').value = '';
-    return showToast("📝 आपका लेख ड्राफ्ट में सेव हो गया है! Owner की स्वीकृति के बाद Live होगा।");
-  }
-
-  historyItemsList.unshift({ id: 'item_' + Date.now(), type, badge, title, content, moral });
-  await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
-  document.getElementById('adminHistTitle').value = '';
-  document.getElementById('adminHistContent').value = '';
-  document.getElementById('adminHistMoral').value = '';
-  showToast("✅ नया अध्याय सीधे Live प्रकाशित हो गया!");
-}
-
-async function editHistoryOrKidsItem(id) {
-  if (!isSuperOwner()) return;
-  const idx = historyItemsList.findIndex(x => x.id === id);
-  if (idx === -1) return;
-  const item = historyItemsList[idx];
-  const newTitle = prompt("शीर्षक बदलें:", item.title);
-  if (newTitle === null) return;
-  const newContent = prompt("विवरण बदलें:", item.content);
-  if (newContent === null) return;
-  const newMoral = prompt("मुख्य सीख बदलें:", item.moral || '');
-
-  historyItemsList[idx] = { ...item, title: newTitle.trim() || item.title, content: newContent.trim() || item.content, moral: (newMoral || '').trim() };
-  await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
-  showToast("जानकारी अपडेट हो गई!");
-}
-
-async function deleteHistoryOrKidsItem(id) {
-  if (!isSuperOwner()) return;
-  openConfirmModal("अध्याय हटाएं?", "क्या आप इस कार्ड को हटाना चाहते हैं?", async (res) => {
-    if (res) {
-      historyItemsList = historyItemsList.filter(x => x.id !== id);
-      await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
-      showToast("कार्ड हटा दिया गया।");
-    }
+function listenBlockedUsers() {
+  db.collection('settings').doc('blockedUsers').onSnapshot(doc => {
+    blockedPhonesList = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list : [];
   });
 }
 
-function handleGlobalSearch() {
-  const q = document.getElementById('globalSearchInput')?.value.toLowerCase().trim();
-  if (!q) return;
-  const niyamMatch = niyamsList.some(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q));
-  if (niyamMatch) {
-    switchTab('niyams');
-    document.getElementById('niyamSearch').value = q;
-    filterNiyams();
-  }
-}
-// PDF Download Handlers for Admin Dashboard
-// PDF Download & Export Handlers for Admin Dashboard
-function downloadQuizResultsPdf() {
-  db.collection('quizAttempts').get().then(snap => {
-    if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
-    let records = [];
-    snap.forEach(d => records.push(d.data()));
-    records.sort((a, b) => b.score - a.score);
-    
-    if (window.jspdf && window.jspdf.jsPDF) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text("Bishnoi Portal - Quiz Results", 14, 18);
-      doc.autoTable({
-        startY: 25,
-        head: [['Rank', 'Name', 'Phone', 'Score', 'Time']],
-        body: records.map((r, i) => [i + 1, r.name || '', r.phone || '', `${r.score}/${r.total}`, `${r.timeTakenSeconds || 0}s`])
-      });
-      doc.save("Bishnoi_Quiz_Results.pdf");
-    } else {
-      showToast("PDF जनरेटर लाइब्रेरी लोड हो रही है, कृपया पुनः प्रयास करें।");
-    }
-  }).catch(err => {
-    showToast("त्रुटि: " + err.message);
+function listenTrustedEditors() {
+  db.collection('settings').doc('editorRoles').onSnapshot(doc => {
+    editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
   });
 }
 
-function download7DaysUsersPdf() {
-  db.collection('users').get().then(snap => {
-    if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
-    let rows = [];
-    snap.forEach(d => {
-      const u = d.data();
-      rows.push([u.name || '', u.phone || d.id, u.email || '-', u.location || '-']);
-    });
-    
-    if (window.jspdf && window.jspdf.jsPDF) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.text("Bishnoi Portal - Registered Members", 14, 18);
-      doc.autoTable({ startY: 25, head: [['Name', 'Phone', 'Email', 'Location']], body: rows });
-      doc.save("Bishnoi_Members.pdf");
-    } else {
-      showToast("PDF जनरेटर लाइब्रेरी लोड हो रही है, कृपया पुनः प्रयास करें।");
-    }
-  }).catch(err => {
-    showToast("त्रुटि: " + err.message);
-  });
-}
-// ==========================================
-// VISITOR ANALYTICS & DEVICE TRACKER (LAST 7 DAYS)
-// ==========================================
-
-async function trackAndStoreVisitorDetails() {
-  try {
-    // 1. IP और लोकेशन फेच करना
-    const response = await fetch('https://ipapi.co/json/');
-    const data = await response.json();
-
-    const ip = data.ip || 'Unknown IP';
-    const city = data.city || 'Unknown City';
-    const region = data.region || 'Unknown Region';
-    const country = data.country_name || 'Unknown Country';
-    const network = data.org || 'Unknown Provider';
-
-    // 2. डिवाइस टाइप डिटेक्ट करना (Mobile / Laptop / Tablet)
-    const ua = navigator.userAgent;
-    let deviceType = "Laptop / Desktop";
-    if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
-      deviceType = /ipad|tablet/i.test(ua.toLowerCase()) ? "Tablet" : "Mobile Phone";
-    }
-
-    const browserInfo = navigator.appName || 'Browser';
-
-    // 3. Firebase Firestore में सेव करना
-    await db.collection('visitorLogs').add({
-      ip,
-      city,
-      region,
-      country,
-      network,
-      deviceType,
-      userAgent: ua,
-      visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      timestamp: Date.now() // पिछले 7 दिन का डेटा फिल्टर करने के लिए आसान नंबर फॉर्मेट
-    });
-
-    console.log("✅ Visitor Logged Successfully:", { ip, city, deviceType });
-  } catch (err) {
-    console.log("Visitor tracking error:", err);
-  }
-}
-
-// पेज लोड होने पर केवल 1 बार हर विजिटर का डेटा रिकॉर्ड हो
-window.addEventListener('DOMContentLoaded', () => {
-  // लोकलस्टोरेज चेक ताकि एक ही सेशन में बार-बार काउंट न हो
-  if (!sessionStorage.getItem('visitor_logged_session')) {
-    sessionStorage.setItem('visitor_logged_session', 'true');
-    trackAndStoreVisitorDetails();
-  }
-});
-
-// 4. पिछले 7 दिनों के विज़िटर्स का डेटा कंसोल या एडमिन पैनल में देखने के लिए फ़ंक्शन
-async function fetchLast7DaysVisitors(callback) {
-  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-  try {
-    const snap = await db.collection('visitorLogs')
-      .where('timestamp', '>=', sevenDaysAgo)
-      .orderBy('timestamp', 'desc')
-      .get();
-
-    let logs = [];
-    snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
-    
-    if (typeof callback === 'function') callback(logs);
-    return logs;
-  } catch (e) {
-    console.log("Error fetching 7 days logs:", e);
-    return [];
-  }
-}
-// ==============================================================
-// 1. IP, डिवाइस डिटेक्शन एवं 7-डे ऑडिट ट्रैकिंग
-// ==============================================================
-async function trackUserLoginTelemetry(userData) {
-  try {
-    const res = await fetch('https://ipapi.co/json/');
-    const geo = await res.json();
-    
-    const ua = navigator.userAgent;
-    let deviceCategory = "Laptop / Desktop";
-    if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
-      deviceCategory = /ipad|tablet/i.test(ua.toLowerCase()) ? "Tablet" : "Mobile Phone";
-    }
-
-    const auditEntry = {
-      name: userData.name || 'Anonymous',
-      phone: userData.phone || '-',
-      email: userData.email || '-',
-      statedLocation: userData.location || '-',
-      detectedCity: geo.city || 'Unknown',
-      detectedRegion: geo.region || 'Unknown',
-      detectedCountry: geo.country_name || 'Unknown',
-      ip: geo.ip || 'Unknown',
-      network: geo.org || 'Unknown',
-      deviceType: deviceCategory,
-      timestamp: Date.now(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    await db.collection('userAccessLogs').add(auditEntry);
-  } catch (err) {
-    console.error("Telemetry failed:", err);
-  }
-}
-
-// ==============================================================
-// 2. नामांकन (ENROLLMENT) एवं यूनिक रोल नंबर
-// ==============================================================
-async function enrollStudentForExam(studentDetails) {
-  const enrollmentConfigRef = db.collection('examConfig').doc('settings');
-  const configSnap = await enrollmentConfigRef.get();
-  
-  if (!configSnap.exists || !configSnap.data().enrollmentEnabled) {
-    alert("वर्तमान में परीक्षा नामांकन बंद है।");
-    return;
-  }
-
-  // 5-अंकों का यूनिक कोड
-  const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-  const rollNumber = `JAMBH-2026-${randomSuffix}`;
-
-  const studentRecord = {
-    ...studentDetails,
-    rollNumber: rollNumber,
-    enrolledAt: Date.now()
-  };
-
-  await db.collection('examEnrolledStudents').doc(rollNumber).set(studentRecord);
-  alert(`नामांकन सफल! आपका रोल नंबर है: ${rollNumber}`);
-  return rollNumber;
-}
-
-// ==============================================================
-// 3. परीक्षा व सुरक्षा इंजन (ANTI-CHEATING & RUNTIME)
-// ==============================================================
-let examState = {
-  questions: [],
-  currentIndex: 0,
-  answers: {},
-  timeRemainingSeconds: 0,
-  timerInterval: null,
-  tabSwitchCount: 0
-};
-
-function initExamSecurity() {
-  // राइट-क्लिक एवं कॉपी प्रतिबंध
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('copy', e => e.preventDefault());
-  document.addEventListener('cut', e => e.preventDefault());
-
-  // टैब स्विचिंग डिटेक्शन
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      examState.tabSwitchCount++;
-      alert(`चेतावनी: आपने स्क्रीन बदली है! (चेतावनी: ${examState.tabSwitchCount}/3)`);
-      if (examState.tabSwitchCount >= 3) {
-        submitFinalExam(true);
-      }
-    }
+function listenDraftQueue() {
+  db.collection('draftQueue').onSnapshot(snap => {
+    draftItemsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   });
 }
 
-function startExamEngine(questionList, durationMinutes) {
-  examState.questions = questionList;
-  examState.timeRemainingSeconds = durationMinutes * 60;
-  examState.currentIndex = 0;
-  examState.answers = JSON.parse(localStorage.getItem('cachedExamAnswers') || '{}');
-
-  initExamSecurity();
-  renderQuestion(examState.currentIndex);
-  
-  examState.timerInterval = setInterval(() => {
-    examState.timeRemainingSeconds--;
-    updateTimerDisplay(examState.timeRemainingSeconds);
-    if (examState.timeRemainingSeconds <= 0) {
-      clearInterval(examState.timerInterval);
-      submitFinalExam(false);
-    }
-  }, 1000);
+function listenScheduledContent() {
+  db.collection('scheduledTasks').onSnapshot(snap => {
+    scheduledItemsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  });
 }
 
-function renderQuestion(index) {
-  if (!examState.questions[index]) return;
-  const q = examState.questions[index];
-  
-  const container = document.getElementById('examQuestionArea');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="p-4 bg-white rounded-lg shadow border border-amber-200">
-      <div class="flex justify-between items-center mb-4">
-        <span class="font-bold text-amber-800">प्रश्न ${index + 1} / ${examState.questions.length}</span>
-        <span class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">1 अंक</span>
-      </div>
-      <p class="text-base font-medium text-gray-800 mb-4">${q.title}</p>
-      <div class="space-y-2">
-        ${q.options.map((opt, i) => `
-          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-amber-50 transition">
-            <input type="radio" name="currentQ" value="${i}" 
-              ${examState.answers[q.id] === i ? 'checked' : ''} 
-              onchange="saveAnswer('${q.id}',${i})" class="text-amber-600 focus:ring-amber-500">
-            <span class="ml-3 text-sm text-gray-700">${opt}</span>
-          </label>
-        `).join('')}
-      </div>
-    </div>
-  `;
+function listenFeedbacksForAdmin() {
+  db.collection('feedbacks').limit(10).onSnapshot(snap => {});
 }
 
-function saveAnswer(questionId, selectedOption) {
-  examState.answers[questionId] = selectedOption;
-  localStorage.setItem('cachedExamAnswers', JSON.stringify(examState.answers));
-}
-
-function navigateExam(direction) {
-  const newIndex = examState.currentIndex + direction;
-  if (newIndex >= 0 && newIndex < examState.questions.length) {
-    examState.currentIndex = newIndex;
-    renderQuestion(examState.currentIndex);
-  }
-}
-
-function jumpToQuestion(targetIndex) {
-  if (targetIndex >= 0 && targetIndex < examState.questions.length) {
-    examState.currentIndex = targetIndex;
-    renderQuestion(examState.currentIndex);
-  }
-}
-
-async function submitFinalExam(isForced = false) {
-  clearInterval(examState.timerInterval);
-  const user = firebase.auth().currentUser;
-  
-  const payload = {
-    userId: user ? user.uid : 'Guest',
-    answers: examState.answers,
-    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    isForcedSubmission: isForced,
-    isPublished: false // परिणाम गुप्त रहेगा
-  };
-
-  await db.collection('examSubmissions').add(payload);
-  localStorage.removeItem('cachedExamAnswers');
-  
-  // परिणाम छिपाकर केवल पुष्टि दिखाना
-  document.getElementById('examQuestionArea').innerHTML = `
-    <div class="text-center p-8 bg-green-50 rounded-xl border border-green-200">
-      <h3 class="text-xl font-bold text-green-800 mb-2">उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है</h3>
-      <p class="text-sm text-green-700">परीक्षा परिणाम की आधिकारिक घोषणा बाद में की जाएगी।</p>
-    </div>
-  `;
-}
-
-function updateTimerDisplay(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  const el = document.getElementById('examTimerClock');
-  if (el) el.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-// ==============================================================
-// 4. ओनर स्टूडियो एवं रोल-आधारित अनुमतियाँ (RBAC)
-// ==============================================================
-const ROLE_PERMISSIONS = {
-  OWNER: ['canManageAdmins', 'canPublishExam', 'canUploadQuestions', 'canToggleEnrollment', 'canViewAuditLogs'],
-  MODERATOR: ['canUploadQuestions']
-};
-
-function renderAdminStudio(userRole, customPermissions = []) {
-  const allowed = userRole === 'OWNER' ? ROLE_PERMISSIONS.OWNER : customPermissions;
-
-  // यदि अनुमति नहीं है तो संबंधित सेक्शन को DOM से पूर्णतः छिपाना
-  toggleElementVisibility('secManageAdmins', allowed.includes('canManageAdmins'));
-  toggleElementVisibility('secPublishExam', allowed.includes('canPublishExam'));
-  toggleElementVisibility('secUploadQuestions', allowed.includes('canUploadQuestions'));
-  toggleElementVisibility('secEnrollmentToggle', allowed.includes('canToggleEnrollment'));
-  toggleElementVisibility('secAuditLogs', allowed.includes('canViewAuditLogs'));
-}
-
-function toggleElementVisibility(elementId, isVisible) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  if (isVisible) {
-    el.classList.remove('hidden');
-  } else {
-    el.classList.add('hidden');
-    el.innerHTML = ''; // अनधिकृत तत्वों का कोड भी खाली कर देना
-  }
-}
+function setupOneTimeExitFeedbackPrompt() {}
+function openFeedbackModal() {}
+function refreshOwnerAnalytics() {}
