@@ -654,7 +654,7 @@ function resetGeminiKey() {
 // Aliases so your HTML button works no matter what onclick name it uses
 const changeApiKey = resetGeminiKey;
 const updateApiKey = resetGeminiKey;
-const changeGeminiKey = resetGeminiKey;
+const changeGeminiKey = resetGeminiKey; 
 async function callGemini(promptText) {
   const apiKey = getGeminiKey();
   if (!apiKey) {
