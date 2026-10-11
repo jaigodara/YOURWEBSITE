@@ -1,14 +1,13 @@
 /* ==========================================================================
-   Bishnoi Community Portal - Master Application Engine (script.js)
-   Features:
-   - Owner Login: 9306894518 / bishnoi29
-   - 1-Click Google Login + Phone/Password Login
-   - 3-Level Pinless Forgot Password System (Google Verify + Profile + Admin Reset)
-   - Live Maintenance & Section Lock (Phone Only / Web Only / Both)
-   - Text-Only Samvad Manch (Replies, Reactions, Topic Filter, Owner Pin, Delete)
-   - User & Owner Profile Modal (Edit Name, Location, Password, Google Link, Stats)
-   - In-Built App & Website PDF Reader Modal (Read without downloading)
-   - Daily Suvichar WhatsApp Status Card Generator & 7-Day Email PDF Report
+   Bishnoi Community Portal - Elder-Friendly Master Engine (script.js)
+   Includes:
+   - Global Elder Font-Size Controller (A- / Normal / A+ / A++ Elder Mode)
+   - Smart Shabadwani Digital Reader (Auto-Fit Text, No Pinch-Zoom, Read Aloud)
+   - Full-Screen Auto-Fit PDF.js Canvas Viewer for all other PDFs
+   - Multi-Line Quiz Leaderboard Winner Names (Fixes Long Name Cutting)
+   - Owner Login (9306894518 / bishnoi29) + 1-Click Google Login + Forgot Pass
+   - Text-Only Samvad Manch + User Profile + Live Maintenance Engine
+   - Audio Manager with Admin Track Delete List
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -24,7 +23,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 2. OWNER CREDENTIALS (UPDATED TO 10-DIGIT NUMBER)
+// 2. OWNER CREDENTIALS
 const OWNER_PHONE = "9306894518";
 const OWNER_PASS = "bishnoi29";
 
@@ -41,6 +40,12 @@ let currentBannerText = '"जीव दया पालणी, रूंख ल�
 let amavasyaTargetDate = null;
 let amavasyaTimerInterval = null;
 let currentActiveTab = 'home';
+
+// Elder Font Scale State
+let appFontZoom = parseInt(localStorage.getItem('bishnoi_elder_font_zoom') || '115');
+let readerFontPx = parseInt(localStorage.getItem('bishnoi_reader_font_px') || '22');
+let pdfCanvasScale = 1.3;
+let currentPdfUrl = '';
 
 // Samvad Manch Chat State
 let allChatPosts = [];
@@ -93,7 +98,96 @@ const NIYAMS_DATA = [
   { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों को काटकर बनने वाले नीले वस्त्रों का त्याग।" }
 ];
 
-// 4. DEVICE DETECTION & MAINTENANCE ENGINE
+// श्री सबदवाणी डिजिटल पाठ (बुजुर्गों के लिए बिना ज़ूम किए स्क्रीन-फिट पढ़ने हेतु)
+const SHABADWANI_DIGITAL_BOOK = [
+  { id: 0, title: "प्रस्तावना एवं परिचय", text: "॥ श्री गुरु जम्भेश्वराय नमः ॥\nश्री गुरु जांभोजी (गुरु जम्भेश्वर) की सबद वाणी उनकी स्वयं की अनुभूत सत्य पर आधारित एक अद्वितीय ग्रंथ है[cite: 7, 8]। इसमें ज्ञान, कर्म और भक्ति का सुंदर समन्वय देखने को मिलता है[cite: 8]। गुरु जी ने कर्म पर विशेष बल देते हुए कहा था — 'खेत मुकति ले किसना अरथै, जै कंध हरै तो हरियां' अर्थात मोक्ष प्राप्त करने के लिए हमें उत्तम कर्म करने होंगे[cite: 8]।\n\nनीचे दिए गए बटनों से आप अक्षर बड़ा (अ+) कर सकते हैं, किसी भी सबद पर सीधे जा सकते हैं, या पूरा PDF पृष्ठ भी देख सकते हैं।" },
+  { id: 1, title: "सबद - 1 (गुरु महिमा)", text: "ओ३म् गुरु चीन्हों गुरु चिन्ह पुरोहित, गुरु मुख धर्म बखांणी[cite: 10]। जो गुरु होयवा सहजै शीले शब्दे नादे वेदे, तिहिं गुरु का आलिंकार पिछाणी[cite: 10]। छव दरशण जिहिं के रुपण थापण, संसार बरतण निज कर थरप्या, सो गुरु प्रत्यक्ष जाणी[cite: 10]। जिहिं के खरतर गोठ निरोतर वाचा, रहिया रुद्र समाणी[cite: 10]। गुरु आप संतोषी अवरां पोषी, तत्त्व महारस बाणी[cite: 10]। के के अलिया बासण होत हुताषण तामै क्षीर दुहीजूं[cite: 10]। रसुवन गोरस घीय न लीयूं तहां दूध न पाणी[cite: 10]। गुरु ध्याइयेरे ज्ञानी[cite: 10]। तोड्त मोहा अति खुरसांणी, छीजत लोहा पाणी[cite: 10]। छल तेरी खाल पखाला, सतगुरु तोडे मन का साला[cite: 10]। सतगुरु है तो सहज पिछाणी, कृष्ण चरित्र बिन काचे करवे रह्यो न रहसी पाणी ॥1॥[cite: 10]" },
+  { id: 2, title: "सबद - 2 (स्वरूप बोध)", text: "ओ३म् मोरे छाया न माया लोहू न मांसू रक्तुं न धातुं[cite: 10]। मोरे माई न बापूं आपण आपूं[cite: 10]। रोही न रापूं, कोपूं न कलापूं, दुःख न सरापूं[cite: 10]। लोई अलोई, त्यूं तृलोई, ऐसा न कोई जपां भी सोई[cite: 10]। जिहीं जपे आवागवण न होई[cite: 10]। मोरी आद न जाणत, महियल धूवां बखाणत[cite: 10]। उर्ध ठाकले तृसूलूं[cite: 10]। आद अनाद तो हम रचिलो[cite: 10]। हमें सिरजीलो सैकौण[cite: 10]। म्हे जोगी के भोगी के अल्प अहारी[cite: 10]। ज्ञानी के ध्यानी, के निज कर्म धारी[cite: 10]। सोषी के पोषी के जल बिंबधारी[cite: 10]। दया धर्म थापले निज बाला ब्रह्मचारी ॥2॥[cite: 10]" },
+  { id: 3, title: "सबद - 3 (अहिंसा व दया)", text: "ओ३म् मोरे अंग न अलसी तेल न मलियो[cite: 10]। ना परमल पीसीयों[cite: 10]। जीमत पीवत भोगत बिलसत[cite: 10]। दीसां नाहीं महा पण को आधारुं[cite: 10]। अड़सठ तीरथ हिरदा भीतर, बाहर लोका चारुं[cite: 10]। नान्हीं मोटी जीया जूंणी[cite: 10]। एती सास फुरन्ते सारुं[cite: 10]। बासन्दर क्यूं एक भणिजै[cite: 10]। जिहिं के पावन पिराणों[cite: 10]। आला सूका मेल्हे नाहीं, जिहीं दिश करै मुहाणों[cite: 10]। पापै गुन्है वीहै नाहीं[cite: 10]। रीस करै रिसाणौं[cite: 10]। बहुली दौरे लावण हारुं[cite: 10, 11]। भावे जाण मैं जाणूं[cite: 11]। न तूं सुर नर न तूं शंकर[cite: 11]। न तूं रावन राणौं[cite: 11]। काचै पिंड अकाजे चलावें महा अधूरत दाणों[cite: 11]। मोरै छुरी न धारुं, लोह न सारुं, न हथियारुं[cite: 11]। सुरज का रिपु बिहंडा नाहीं, तातै कहा उठावत भारुं[cite: 11]। जिहीं हाकणड़ी बलद जूं हाके, न लोहे की आरु ॥3॥[cite: 11]" },
+  { id: 4, title: "सबद - 4 (सृष्टि रचना)", text: "ओ३म् जद पवन न होता पाणी न होता[cite: 11]। न होता धर गैणारूं[cite: 11]। चन्द न होता सूर न होता, न होता गंगदर तारूं[cite: 11]। गउ न गोरुं माया जाल न होता[cite: 11]। न होता हेत पियारुं[cite: 11]। माय न बाप न बहण न भाई, साखण सैण न होता[cite: 11]। न होता पख परवारुं[cite: 11]। लख चौरासी जीया जूणी न होती[cite: 11]। न होती बणी अठारा भारुं[cite: 11]। सप्त पताल फुणीद न होता[cite: 11]। न होता सागर खारुं[cite: 11]। अजिया सजिया जीया जुणी न होती[cite: 11]। न होती कुड़ी भरतारुं[cite: 11]। अर्थ न गर्थ न गर्व न होता[cite: 11]। न होता तेजी तुरंग तुखारुं[cite: 11]। हाट पण बाजार न होता[cite: 11]। न होता राजदवारुं[cite: 11]। चाव न चहन न कोह का बाण न होता[cite: 11]। तद होता एक निरंजन शंभू[cite: 11]। के होता धंधुकारुं[cite: 11]। बात कदो की पुछे लोई[cite: 11]। जुग छतीसूं विचारुं[cite: 11]। ताह परै रे अवर छतीसूं[cite: 11]। पहला अन्त न पारुं[cite: 11]। म्हे तद पण होता अब पण आछै, बल-बल होयसां[cite: 11]। कह कद कद का करूं विचारु ॥4॥[cite: 11]" },
+  { id: 5, title: "सबद - 5 (एक निरंजन शंभु)", text: "ओ३म् अइया लो अपरं पर बाणी[cite: 11]। म्हे जपां न जाया जीऊं[cite: 11]। नव अवतार नमो नारायण, तेपण रुप हमारा थीयूं[cite: 11]। जपी तपी तक पीर ऋषेश्वर कायं जपीजै तेपण जाया जीऊं[cite: 11]। खेचर भूचर षेत्रपाला परगट गुप्ता[cite: 11]। कायं जपीजै तेपण जाया जीऊं[cite: 11]। बासग शेष गुणिन्दा फुणिन्दा[cite: 11]। कायं जपीजै तेपण जाया जीऊं[cite: 11]। चौसट जोगनि बावन बीरुं[cite: 11]। कायं जपिजै तेपण जाया जीऊं[cite: 11]। जपां तो एक निरालंभ शंभु[cite: 11]। जिहीं के माई न पीऊं[cite: 11]। न तन रक्तुं न तन धातुं[cite: 11]। न तान ताव न सीऊं[cite: 11]। सर्व सिरजत मरत बिबरजात[cite: 11]। तासन मुलज लेणा कीयों[cite: 11]। अइया लो अपरं पर बाणी[cite: 11]। म्हे जपां न जाया जीऊं ॥5॥[cite: 11]" },
+  { id: 6, title: "सबद - 6 (समभाव दर्शन)", text: "ओ३म् भवन भवन म्हे एका जोती[cite: 12]। चुन चुन लीया रतना मोती[cite: 12]। म्हे खोजी थापण होजी नाहीं, खोज लहां धुरुं खोजूं[cite: 12]। अलाह अलेख अडाल अजोनी स्वयंभू[cite: 12]। जिहिं का किसा बिनाणी[cite: 12]। म्हे शरै न बैठा सीख न पूछी, निरत सुरत सब जाणी[cite: 12]। उप्पत्ति हिन्दू जरणा जोगी, किया ब्राह्मण, दिल दरबेसां उन्मुन मुद्रा अकल मिसलमानी ॥6॥[cite: 12]" },
+  { id: 7, title: "सबद - 7 (हरि स्मरण व वृक्ष रक्षा)", text: "ओ३म् हिन्दू होयके हर क्यूं ना जंप्यो[cite: 12]। कायं दह दिश दिल पसरायों[cite: 12]। सोम अमावस आदितवारी[cite: 12]। कायं काटी बनरायों[cite: 12]। गहण गहंते, बहण बहंते, निर्जल ग्यारस मूल बहंते[cite: 12]। कायं रे मुरखां तें पालंग सेज निहाल बिछाई[cite: 12]। जा दिन तेरे होम न जाप न तप न किया[cite: 12]। जाण के भागी कपिला गाई[cite: 12]। कूड़ तणों जे करतब कीयो, नातें लाव न सायों[cite: 12]। भूला प्राणी आल बखाणी[cite: 12]। न जंप्यो सुररायों[cite: 12]। छंदे कहां तो बहुता भावे[cite: 12]। खरतर को पतियायों[cite: 12]। हिव की बेलां हिव न जाग्यो, शंक रह्यो कदरायों[cite: 12]। ठाढी बेलां ठार न जाग्यो, ताती बैलां तायों[cite: 12]। बिम्बे बेलां विष्णु न जंप्यों, ताछे का चीन्हों कछु कमायों[cite: 12]। अति आलस भोला वे भूला, न चीन्हों सुर रायों[cite: 12]। पारब्रह्म की सुध न जाणीं, तो नागे जोग न पायो परशुराम के अर्थ न मुवा, ताकी निश्चय सरी न कायों ॥7॥[cite: 12]" },
+  { id: 8, title: "सबद - 8 (जीव दया उपदेश)", text: "ओ३म् सुणरे काजी सुणरे मुल्लां[cite: 12]। सुणरे बकर कसाई[cite: 12]। किणरी थरपी छाली रोसो किणरी गाडर गाई[cite: 12]। सुल चुभीजै करक दुहेली तो है है जायो जीव न घाई[cite: 12]। थे तुर्की छुर्की भिस्ती दावो, खायवा खाज अखाजूं[cite: 12]। चर फिर आवे सहज दुहावे तिसका क्षीर हलाली[cite: 12]। जिसके गले करद क्यूं सारो थे पढ़ सुण रहिया खाली ॥8॥[cite: 12]" },
+  { id: 9, title: "सबद - 9 (मूक जीव करुणा)", text: "ओ३म् दील साबत हज कोबा नड़ै[cite: 13]। क्या उलबंग पुकारो[cite: 13]। भाई नाऊं बलद पियारो[cite: 13]। ताके गले करद क्यूं सारो[cite: 13]। बिन चिन्हें खुदाय बिबरजत केहा मुसलमानों[cite: 13]। काफर मूकर होयकर राह गमायो[cite: 13]। जोय जोय गाफल करै धिगाणो[cite: 13]। ज्यूं थे पच्छिम दिशा उलबंग पुकारो, भलजे यों चीन्हों रहमाणों[cite: 13]। तो रुंह चलंते पिंड पडंते[cite: 13]। आवे भिस्त बिमाणों[cite: 13]। चढ-चढ भीते मड़ी मसीते क्या उलबंग पुकारो[cite: 13]। काहे काजे गऊ बिणासो[cite: 13]। तो करीम गऊ क्यूं चारी[cite: 13]। काहीं लीयूं दुधुं दहियूं, काहे लीयों घियूं महियूं[cite: 13]। काहे लीयूं हाडूं मासूं[cite: 13]। काहे लीयूं रक्तुं रुंहियूं[cite: 13]। सुणरे काजे सुणरे मुल्ला[cite: 13]। यामै कौन भया मुरदारुं[cite: 13]। जीवां ऊपर जोर करीजै[cite: 13]। अंतकाल होयसी भारू ॥9॥[cite: 13]" },
+  { id: 10, title: "सबद - 10 (सच्चा ईमान)", text: "ओ३म् बिसमिल्ला रहमान रहीम[cite: 13]। जिहिं के सदके भीना भीन तो भेटीलो रहमान रहीम[cite: 13]। करीम काया दिल करणी[cite: 13]। कलमा करतब कौल कुराणों[cite: 13]। दिल खोजो दरवेश भईलो[cite: 13]। तइया मुसलमाणों[cite: 13]। पीरां पुरुषा जमी मुसल्लां[cite: 13]। कर्तब लेक सलामों[cite: 13]। हम दिल लिल्ला तुम दिल लिल्ला[cite: 13]। रहम करे रहमाणों[cite: 13]। इतने मिसले चालो मीयां[cite: 13]। तो पावो भिस्त इमाणों ॥10॥[cite: 13]" },
+  { id: 15, title: "सबद - 15 (विष्णु नाम मूल)", text: "ओ३म् सुरमां लेणां झीणा शब्दूं, म्हे भूल न भाख्या थूलूं[cite: 15]। सो पति बिरषा सींच प्राणी, जिंहीं का मीठा मूल समूलूं[cite: 15]। पाते भूला मूल न खोजो, सींचों कांय कुमूलूं[cite: 15]। विष्णु विष्णु भण अजर जरीजे, यह जीवन का मूलूं[cite: 15]। खोज प्राणी ऐसा बिनाणी केवल ज्ञानी ज्ञान गहीरूं[cite: 15]। जिहिं के गुणै न लाभत छैहूं[cite: 15]। गुरु गेंवर गरवा शीतल नीरूं मेवा ही अति मेऊं[cite: 15]। हिरदै मुक्ता कमल सन्तोषी, टेवा ही अति टेऊं[cite: 15]। चढकर बोहिता भव जल पार लंघावै[cite: 15]। सो गुरु खेवट खेवा खेहूं ॥15॥[cite: 15]" },
+  { id: 20, title: "सबद - 20 (दया धर्म विचार)", text: "ओ३म् जां जां दया न मया तां तां बिकरम कया[cite: 16]। जां जां आव न वैसूं[cite: 16]। तां तां स्वर्ग न जैसूं[cite: 16]। जां जां जीव न जोती[cite: 16]। तां तां मोक्ष न मुक्ति[cite: 16]। जां जां दया न धर्मू[cite: 16, 17]। तां तां बिकरम कर्मू[cite: 17]। जां जां पाले न शीलूं[cite: 17]। तां तां कर्म कुचीलूं[cite: 17]। जां जां खोज्या न मूलूं[cite: 17]। तां तां प्रत्यक्ष थूलूं[cite: 17]। जां जां भेद्यां न भेदूं[cite: 17]। तो स्वर्गे किसी उमेदूं[cite: 17]। जां जां घमण्डे स घमण्डूं[cite: 17]। ताकै ताव न छायों सूते सास नसायों ॥20॥[cite: 17]" },
+  { id: 23, title: "सबद - 23 (सतपंथ व आचार)", text: "ओ३म् साल्हिया हुआ मरण भय भागा, गाफिल मरणे घणा डरे[cite: 18]। सतगुरु मिलियो सतपंथ बतायो, भ्रांत चुकाई, मरणे बहु उपकार करे[cite: 18]। रतन काया सोभंति लाभे, पार गिराये जीव तिरे[cite: 18]। पार गिरायें सनेही करणी[cite: 18]। जंपो विष्णु न दोय दिल करणी[cite: 18]। जंपो विष्णु न निन्दा करणी[cite: 18]। मांडो कांध विष्णु के सरणे[cite: 18]। अतरा बोल करो जे सांचा[cite: 18]। तो पार गिराये गुरु की वाचा[cite: 18]। रवणा ठवणा चवरा भवणा[cite: 18]। ताहि परेरै रतन काया छै, लाभे किसे बिचारे[cite: 18]। जे नवीये नवणी, खवीये खवणी, जरिये जरणी, करिये करणी, तो सीख हुआ घर जाइये[cite: 18]। रतन काया साचे की ढोली गुरु परसादे केवल ज्ञाने[cite: 18]। धर्म अचारे शीले संजमें सतगुरु तुठे पाइये ॥23॥[cite: 18]" },
+  { id: 29, title: "सबद - 29 (इलोल सागर)", text: "ओ३म् गुरु के शब्द असंख्य प्रबोधी खार समन्द परीलो[cite: 20]। खार समन्द परे परे रै चैखण्ड खारूं, पहला अन्त न पारूं[cite: 20]। अनन्त क्रोड़ गुरु की दावण बिलंबी, करणी साच तरीलो[cite: 20]। सांझे जमों सवेरे थापण, गुरु की नाथ डरीलो[cite: 20]। भगवीं टोपी थल शिर आयो, हेत मिलाण करीलो[cite: 20]। अम्बाराय बधाई बाजे, हृदय हरि सिंवरीलो[cite: 20]। कृष्ण मया चैखण्ड कृषांणी, जम्बूदीप चरीलो[cite: 20]। म्हे अवधू निरपख जोगी, सहज नगर का रायों[cite: 20]। जो आवे सो त्यूं थरपां, साचा सूं सत भायों[cite: 20, 21]। म्हारे मन ही मुद्रा तन ही कंथा, जोग मारग सहलीयों[cite: 21]। डाकण साकण निद्रा खुद्या, ये मेरे मूल न थीयों ॥29॥[cite: 21]" },
+  { id: 30, title: "सबद - 30 (कूंचीवाला)", text: "ओ३म् आयो हंकारो जीवड़ो बुलायो[cite: 21]। कह जीवड़ा क्या करण कमायो[cite: 21]। थरहर कंपै जीवड़ो डोलै, उतमाई पीव न कोई बोलै[cite: 21]। सुकरत साथ संगाई चालै, स्वामी पवणा पाणी नवण करंतो[cite: 21]। चन्दे सूरे शीस नवन्तो, विष्णु सुरां पोह पूछ लहन्तो[cite: 21]। इंहिं खोटे जन मन्तर स्वामी, अहनिश तेरो नाम जपन्तो[cite: 21]। पहले क्रिया आप कमाइये, तो औरां ने फरमाइये[cite: 21]। जो कुछ कीजै मरणे पहले, मत भल कहिं मर जाइये[cite: 21]। शौच स्नान करो क्यूं नाहीं, जिवड़ा काजै न्हाइये[cite: 21]। जे नविये नवणी, खविये खवणी, जरिये जरणी, करिये करणी[cite: 21]। तो सीख हुआं घर जाइये ॥30॥[cite: 21]" },
+  { id: 67, title: "सबद - 67 (शुक्ल हंस)", text: "ओ३म् श्री गढ़ आल मोत पुर पाटण भुय नागोरी[cite: 34]। म्हे ऊंडे नीरे अवतार लियो[cite: 34]। होम करीलो दिन ठावीलो, सहस रचीलो[cite: 34]। राय विष्णु से बाद न कीजै[cite: 34]। कांय बधारों दैत्य कुलू[cite: 34]। मेरे मांय न बाप न बहण न भाई[cite: 34]। साख न सैण न लोक जणो[cite: 34]। बैकुण्ठे विश्वास बिलम्बण[cite: 34]। पार गिराये मात खिणूं[cite: 34]। विष्णु विष्णु तू भण रे प्राणी[cite: 34]। विष्णु भणन्ता अनन्त गुणूं[cite: 34]। दया रूप म्हे आप बखाणां[cite: 35]। संहार रूप म्हे आप हती ॥67॥[cite: 35]" },
+  { id: 101, title: "सबद - 101 (नित ही मावस)", text: "ओ३म् नितही मावस नित संकरांति, नितही नवग्रह वैसे पांति[cite: 46]। नितही गंग हिलोरे जाय, सतगुरु चीन्है सहजै न्हाय[cite: 46]। निरमल पाणी निरमल घाट, निरमल धोबी पांड्यो पाट[cite: 46]। जे यो धोबी जाणै धोय, घर में मैला वस्त्र रहे न कोय[cite: 46]। एकमन एकचित साबण लावै पहरंतो गाहक अति सुख पावै[cite: 46]। तिल में तेल पहुप में वास, पांच तत्त्व में लियो प्रकाश[cite: 46]। सतगुरु ऐसा तत्त्व बतावै, जुग जुग जीवै बहुर न आव ॥101॥[cite: 46]" },
+  { id: 102, title: "सबद - 102 (अजर जरीजै)", text: "ओ३म् विष्णु-विष्णु भण अजर जरीजै, धर्म हुवै पापां छूटीजै[cite: 46]। हरि पर हरि को नाम जपीजै, हरियालो हरि आण हरूं[cite: 46]। हरी नारायण देव नरूं[cite: 46]। आशा सास निराश भईलो, पाईलो मोक्ष द्वार खिणं ॥102॥[cite: 46]" },
+  { id: 119, title: "सबद - 119 (रतन काया)", text: "ओ३म् विष्णु विष्णु तू भणरे प्राणी, पैंके लाख उपाजूं[cite: 51]। रतन काया बैकुण्ठे बासो, तेरा जरा मरण भय भाजूं ॥119॥[cite: 51]" },
+  { id: 120, title: "सबद - 120 (अंतिम पावन वाणी)", text: "ओ३म् विष्णु विष्णु तू भणरे प्राणी, इस जीवन के हावैं क्षण क्षण आव घटंती जावै, मरण दिनों दिन आवै[cite: 51]। पालटीयो घट कांय न चेत्यो, घाती रोल भनावै[cite: 51]। गुरु मुख मुरखा चढै न पोहण, मन मुख भार उठावै[cite: 51]। ज्यूं लाज दुनी की लाजै, त्यूं त्यूं दाब्यो दाबै[cite: 51]। भलिया होय सो भली बुध आवै बुरिया बुरी कमावे ॥120॥[cite: 51]" }
+];
+
+// 4. ELDER-FRIENDLY FONT SIZE & ACCESSIBILITY ENGINE
+function applyGlobalElderFont(zoomPercent) {
+  appFontZoom = Math.min(150, Math.max(95, zoomPercent));
+  localStorage.setItem('bishnoi_elder_font_zoom', appFontZoom.toString());
+
+  let styleEl = document.getElementById('elderDynamicFontStyle');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'elderDynamicFontStyle';
+    document.head.appendChild(styleEl);
+  }
+
+  const ratio = appFontZoom / 100;
+  styleEl.innerHTML = `
+    html { font-size: ${16 * ratio}px !important; }
+    .text-\\[10px\\], .text-\\[11px\\] { font-size: ${Math.max(12, Math.round(12 * ratio))}px !important; line-height: 1.5 !important; }
+    .text-xs { font-size: ${Math.max(13, Math.round(14 * ratio))}px !important; line-height: 1.55 !important; }
+    .text-sm { font-size: ${Math.max(15, Math.round(16 * ratio))}px !important; line-height: 1.6 !important; }
+    /* Fix Quiz Leaderboard Long Names Cutting */
+    #winner1Name, #winner2Name, #winner3Name {
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: unset !important;
+      word-break: break-word !important;
+      line-height: 1.35 !important;
+      display: block !important;
+      min-height: 2.2em;
+    }
+  `;
+
+  const badge = document.getElementById('elderFontStatusBadge');
+  if (badge) badge.innerText = `${appFontZoom}%`;
+}
+
+function injectElderAccessibilityBar() {
+  if (document.getElementById('elderAccessibilityBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'elderAccessibilityBar';
+  bar.className = 'bg-[#0f291a] text-white px-3 py-1.5 border-b border-amber-500/30 flex flex-wrap items-center justify-between gap-2 text-xs sticky top-0 z-[90]';
+  bar.innerHTML = `
+    <div class="flex items-center gap-1.5 font-semibold text-amber-300">
+      <span>👓</span>
+      <span>अक्षर आकार (बुजुर्ग सुविधा):</span>
+      <span id="elderFontStatusBadge" class="px-1.5 py-0.5 bg-black/40 rounded text-[11px] text-white">${appFontZoom}%</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <button onclick="applyGlobalElderFont(appFontZoom - 10)" class="px-2.5 py-1 rounded bg-stone-700 hover:bg-stone-600 text-white font-bold border border-stone-500">
+        अ- छोटा
+      </button>
+      <button onclick="applyGlobalElderFont(105)" class="px-2.5 py-1 rounded bg-stone-700 hover:bg-stone-600 text-white font-semibold border border-stone-500">
+        सामान्य
+      </button>
+      <button onclick="applyGlobalElderFont(appFontZoom + 10)" class="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold shadow">
+        अ+ बड़ा करें
+      </button>
+      <button onclick="applyGlobalElderFont(135)" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold border border-emerald-400">
+        👴 बुजुर्ग मोड
+      </button>
+    </div>
+  `;
+  document.body.insertBefore(bar, document.body.firstChild);
+  applyGlobalElderFont(appFontZoom);
+}
+
+// 5. DEVICE DETECTION & MAINTENANCE ENGINE
 function isPhoneOrInstalledApp() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -112,6 +206,18 @@ function shouldLockForCurrentDevice(mode) {
 }
 
 function injectDynamicModalsAndUI() {
+  injectElderAccessibilityBar();
+
+  // Load PDF.js Library dynamically for smooth full-width mobile PDF rendering
+  if (!window.pdfjsLib) {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    };
+    document.head.appendChild(script);
+  }
+
   // 1. Global Maintenance Overlay
   if (!document.getElementById('globalMaintenanceOverlay')) {
     const overlay = document.createElement('div');
@@ -121,12 +227,12 @@ function injectDynamicModalsAndUI() {
       <div class="max-w-md w-full bg-white/10 backdrop-blur-md border border-amber-400/30 rounded-2xl p-6 space-y-4 shadow-2xl">
         <div class="text-5xl animate-bounce">🛠️</div>
         <h1 class="font-yatra text-2xl text-amber-300">सेवा अस्थायी रूप से रखरखाव में है</h1>
-        <p id="globalMaintMsgText" class="text-xs sm:text-sm text-stone-200 leading-relaxed"></p>
-        <div class="p-3 rounded-xl bg-black/25 border border-white/10 text-[11px] text-amber-200">
+        <p id="globalMaintMsgText" class="text-sm text-stone-200 leading-relaxed"></p>
+        <div class="p-3 rounded-xl bg-black/25 border border-white/10 text-xs text-amber-200">
           "जीव दया पालणी, रूंख लीलो नी घावै" — हम शीघ्र ही नए अपडेट के साथ लौटेंगे।
         </div>
         <div class="pt-4 border-t border-white/10 flex justify-center">
-          <button onclick="ownerEmergencyUnlock()" class="text-[11px] text-stone-400 hover:text-amber-300 underline">
+          <button onclick="ownerEmergencyUnlock()" class="text-xs text-stone-300 hover:text-amber-300 underline">
             🛡️ व्यवस्थापक लॉगिन (Owner Bypass)
           </button>
         </div>
@@ -143,10 +249,10 @@ function injectDynamicModalsAndUI() {
     secCard.innerHTML = `
       <div class="text-4xl">🚧</div>
       <h2 class="font-yatra text-xl text-forest">यह अनुभाग अभी मेंटेनेंस में है</h2>
-      <p id="sectionMaintMsgText" class="text-xs text-stone-600 leading-relaxed">
+      <p id="sectionMaintMsgText" class="text-sm text-stone-600 leading-relaxed">
         इस सेक्शन में सुधार एवं नए अपडेट जोड़े जा रहे हैं। कृपया अन्य सेक्शन का उपयोग करें या कुछ समय बाद पुनः प्रयास करें।
       </p>
-      <button onclick="switchTab('home')" class="mt-2 px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
+      <button onclick="switchTab('home')" class="mt-2 px-4 py-2 bg-forest text-white rounded-lg text-sm font-semibold hover:bg-emerald-950 transition">
         🏠 मुख्य पृष्ठ पर जाएं
       </button>
     `;
@@ -154,34 +260,82 @@ function injectDynamicModalsAndUI() {
     mainEl.appendChild(secCard);
   }
 
-  // 3. In-Built PDF Viewer Modal
+  // 3. ELDER-FRIENDLY FULL-SCREEN SMART BOOK & PDF READER MODAL
   if (!document.getElementById('inbuiltPdfModal')) {
     const pdfModal = document.createElement('div');
     pdfModal.id = 'inbuiltPdfModal';
-    pdfModal.className = 'fixed inset-0 z-[9990] bg-black/80 hidden flex-col';
+    pdfModal.className = 'fixed inset-0 z-[9990] bg-[#FAF7EE] hidden flex-col';
     pdfModal.innerHTML = `
-      <div class="bg-[#143622] text-white px-4 py-3 flex items-center justify-between shadow-md">
-        <div class="flex items-center gap-2 truncate">
-          <span>📖</span>
-          <h3 id="pdfViewerTitle" class="font-yatra text-sm sm:text-base text-amber-300 truncate">साहित्य पाठक (PDF Reader)</h3>
+      <!-- Top Control Header -->
+      <div class="bg-[#143622] text-white px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-lg border-b-2 border-amber-500">
+        <div class="flex items-center gap-2 truncate max-w-[60%]">
+          <span class="text-xl">📖</span>
+          <h3 id="pdfViewerTitle" class="font-yatra text-base sm:text-lg text-amber-300 truncate">साहित्य पाठक</h3>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <a id="pdfModalDownloadBtn" href="#" download class="px-3 py-1 bg-amber-500 text-stone-950 rounded-lg text-xs font-bold hover:bg-amber-400">
+          <a id="pdfModalDownloadBtn" href="#" download class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold border border-emerald-400">
             📥 डाउनलोड
           </a>
-          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">
-            बंद करें ✕
+          <button onclick="closeInbuiltPdfViewer()" class="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold shadow">
+            ✕ बंद करें
           </button>
         </div>
       </div>
-      <div class="flex-1 bg-stone-900 relative">
-        <iframe id="pdfViewerFrame" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
+
+      <!-- Elder Toolbar (Font Size, Mode Switch, Audio Speak) -->
+      <div id="smartReaderToolbar" class="bg-amber-100 border-b border-amber-300 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div id="shabadSelectWrap" class="flex items-center gap-1.5">
+          <label class="font-bold text-forest">चुनें:</label>
+          <select id="shabadJumpSelect" onchange="renderSelectedShabadView()" class="p-1.5 rounded-lg border border-amber-400 bg-white font-bold text-forest">
+            <option value="all">📜 सभी प्रमुख सबद एक साथ</option>
+          </select>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button onclick="adjustReaderFont(-3)" class="px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-900 rounded-lg font-extrabold border border-stone-400 shadow-sm">
+            अ- छोटा
+          </button>
+          <button onclick="adjustReaderFont(3)" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg font-extrabold border border-amber-600 shadow-sm">
+            अ+ अक्षर बड़ा करें
+          </button>
+          <button id="speakShabadBtn" onclick="speakCurrentReaderText()" class="px-3 py-1.5 bg-forest hover:bg-emerald-900 text-white rounded-lg font-bold shadow-sm">
+            🔊 सुनें
+          </button>
+          <button id="togglePdfModeBtn" onclick="switchToRawPdfCanvasMode()" class="px-2.5 py-1.5 bg-stone-700 hover:bg-stone-800 text-white rounded-lg font-semibold">
+            📄 मूल PDF पृष्ठ देखें
+          </button>
+        </div>
+      </div>
+
+      <!-- Mode A: Elder-Friendly Auto-Fit Digital Text Container (Zero Horizontal Scroll) -->
+      <div id="digitalBookContainer" class="flex-1 overflow-y-auto p-4 sm:p-8 max-w-4xl w-full mx-auto space-y-6"></div>
+
+      <!-- Mode B: Full-Width Canvas PDF Renderer (Auto-Fits Mobile Width + Easy +/- Buttons) -->
+      <div id="pdfCanvasContainer" class="hidden flex-1 overflow-y-auto bg-stone-800 p-2 sm:p-4 flex-col items-center gap-4">
+        <div class="sticky top-2 z-20 bg-black/80 text-white px-4 py-2 rounded-full flex items-center gap-3 shadow-xl border border-white/20">
+          <button onclick="zoomPdfCanvas(-0.25)" class="px-3 py-1 bg-stone-700 rounded-lg font-bold text-sm">➖ छोटा</button>
+          <span id="pdfZoomLabel" class="text-xs font-bold text-amber-300">Auto-Fit</span>
+          <button onclick="zoomPdfCanvas(0.25)" class="px-3 py-1 bg-amber-500 text-black rounded-lg font-extrabold text-sm">➕ बड़ा करें (Zoom)</button>
+        </div>
+        <div id="pdfPagesHolder" class="w-full max-w-4xl flex flex-col items-center gap-4"></div>
+        <iframe id="pdfFallbackIframe" class="hidden w-full h-[82vh] bg-white rounded-xl border-0"></iframe>
       </div>
     `;
     document.body.appendChild(pdfModal);
+
+    // Populate Shabad Dropdown
+    const sel = document.getElementById('shabadJumpSelect');
+    if (sel) {
+      SHABADWANI_DIGITAL_BOOK.forEach((item, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx.toString();
+        opt.innerText = item.title;
+        sel.appendChild(opt);
+      });
+    }
   }
 
-  // 4. User & Owner Profile Modal (With Change Password & Phone Update)
+  // 4. User & Owner Profile Modal
   if (!document.getElementById('userProfileModal')) {
     const profModal = document.createElement('div');
     profModal.id = 'userProfileModal';
@@ -191,7 +345,7 @@ function injectDynamicModalsAndUI() {
         <div class="flex items-center justify-between border-b border-stone-100 pb-2.5">
           <div>
             <h3 class="font-yatra text-lg text-forest">👤 मेरी प्रोफ़ाइल (My Profile)</h3>
-            <p id="profileRoleBadge" class="text-[11px] font-bold text-stone-500"></p>
+            <p id="profileRoleBadge" class="text-xs font-bold text-stone-500"></p>
           </div>
           <button onclick="closeProfileModal()" class="text-stone-400 hover:text-stone-700 text-lg font-bold">✕</button>
         </div>
@@ -199,16 +353,16 @@ function injectDynamicModalsAndUI() {
         <div class="space-y-2.5 text-xs">
           <div>
             <label class="font-bold text-stone-700 block mb-1">आपका नाम (Full Name):</label>
-            <input type="text" id="profEditName" class="w-full p-2 rounded-lg border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
+            <input type="text" id="profEditName" class="w-full p-2.5 rounded-lg border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला (Location):</label>
-              <input type="text" id="profEditLocation" class="w-full p-2 rounded-lg border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
+              <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
             </div>
             <div>
               <label class="font-bold text-stone-700 block mb-1">नया पासवर्ड (ऐच्छिक):</label>
-              <input type="password" id="profEditPass" class="w-full p-2 rounded-lg border border-stone-300" placeholder="बदलना हो तो लिखें">
+              <input type="password" id="profEditPass" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="बदलना हो तो लिखें">
             </div>
           </div>
 
@@ -223,14 +377,12 @@ function injectDynamicModalsAndUI() {
             </div>
           </div>
 
-          <!-- Google Link Button inside Profile -->
           <div id="profGoogleLinkWrap" class="pt-1">
             <button type="button" onclick="linkGoogleAccount()" class="w-full py-2 px-3 border border-stone-300 hover:bg-stone-50 rounded-lg font-semibold flex items-center justify-center gap-2 text-stone-700 transition">
               <span>🌐</span> <span id="profGoogleBtnText">Google अकाउंट जोड़ें (पासवर्ड रिकवरी हेतु)</span>
             </button>
           </div>
 
-          <!-- Personal Activity Stats -->
           <div class="grid grid-cols-3 gap-2 pt-1 text-center">
             <div class="p-2 rounded-lg bg-amber-50 border border-amber-200">
               <div id="statMalaTotal" class="font-bold text-sm text-forest">0</div>
@@ -260,7 +412,7 @@ function injectDynamicModalsAndUI() {
     document.body.appendChild(profModal);
   }
 
-  // 5. Forgot Password Modal (Safe, Private, Pinless Recovery)
+  // 5. Forgot Password Modal
   if (!document.getElementById('forgotPassModal')) {
     const fpModal = document.createElement('div');
     fpModal.id = 'forgotPassModal';
@@ -289,9 +441,9 @@ function injectDynamicModalsAndUI() {
             <span>🌐</span> <span>Google से सत्यापित कर पासवर्ड बदलें</span>
           </button>
 
-          <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-stone-600 space-y-1.5">
+          <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-stone-600 space-y-1.5">
             <div class="font-bold text-amber-900">💡 Google लिंक नहीं किया था?</div>
-            <p>१. आप बिना पासवर्ड के सीधे <b>"🌐 Google से लॉगिन करें"</b> बटन दबाकर अंदर जा सकते हैं।</p>
+            <p>१. आप बिना पासवर्ड के सीधे <b>"🌐 Google से 1-Click लॉगिन करें"</b> बटन दबाकर अंदर जा सकते हैं।</p>
             <p>२. अथवा व्यवस्थापक (Admin) से अपना पासवर्ड रीसेट करवा सकते हैं।</p>
           </div>
         </div>
@@ -300,14 +452,14 @@ function injectDynamicModalsAndUI() {
     document.body.appendChild(fpModal);
   }
 
-  // 6. Inject "Forgot Password" & "Google Login" Buttons into Auth Modal
+  // 6. Inject Forgot Password & Google Login into Auth Modal
   const authForm = document.querySelector('#authModal form');
   if (authForm && !document.getElementById('googleAuthModalBtn')) {
     const extraDiv = document.createElement('div');
     extraDiv.className = 'pt-2 border-t border-stone-200 space-y-2';
     extraDiv.innerHTML = `
       <div class="flex justify-end">
-        <button type="button" onclick="openForgotPassModal()" class="text-[11px] font-bold text-terracotta hover:underline">
+        <button type="button" onclick="openForgotPassModal()" class="text-xs font-bold text-terracotta hover:underline">
           🔑 पासवर्ड भूल गए? (Forgot Password)
         </button>
       </div>
@@ -318,7 +470,7 @@ function injectDynamicModalsAndUI() {
     authForm.appendChild(extraDiv);
   }
 
-  // 7. Inject Admin User Password Reset Card inside #tab-admin
+  // 7. Inject Admin User Password Reset & Audio Delete Manager in #tab-admin
   const adminTab = document.getElementById('tab-admin');
   if (adminTab && !document.getElementById('adminUserPassResetCard')) {
     const resetCard = document.createElement('div');
@@ -326,13 +478,17 @@ function injectDynamicModalsAndUI() {
     resetCard.className = 'bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3 mt-4';
     resetCard.innerHTML = `
       <h3 class="font-yatra text-base text-forest">🔑 सदस्य पासवर्ड रीसेट (Admin User Password Reset)</h3>
-      <p class="text-[11px] text-stone-500">यदि कोई सदस्य अपना पासवर्ड भूल गया है और उसका Google खाता लिंक नहीं है, तो यहाँ से उसका नया पासवर्ड सेट करें:</p>
+      <p class="text-xs text-stone-500">यदि कोई सदस्य अपना पासवर्ड भूल गया है, तो यहाँ से उसका नया पासवर्ड सेट करें:</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
         <input type="text" id="adminResetUserPhone" maxlength="10" placeholder="सदस्य का 10-अंकों का नंबर" class="p-2 rounded-lg border border-stone-300">
         <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड (उदा: 123456)" class="p-2 rounded-lg border border-stone-300">
         <button onclick="adminResetMemberPassword()" class="py-2 px-4 bg-terracotta hover:bg-orange-800 text-white font-bold rounded-lg shadow transition">
           पासवर्ड बदलें
         </button>
+      </div>
+      <div class="pt-3 border-t border-stone-100">
+        <h4 class="font-bold text-xs text-forest mb-2">🎵 अपलोड किए गए भजन / ऑडियो सूची:</h4>
+        <div id="adminAudioManageList" class="space-y-1.5 text-xs"></div>
       </div>
     `;
     adminTab.appendChild(resetCard);
@@ -344,7 +500,7 @@ function injectDynamicModalsAndUI() {
     const btn = document.createElement('button');
     btn.id = 'statusCardGenBtn';
     btn.onclick = downloadSuvicharStatusCard;
-    btn.className = 'mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 text-[11px] font-semibold border border-amber-300/30 transition';
+    btn.className = 'mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 text-xs font-semibold border border-amber-300/30 transition';
     btn.innerHTML = '🖼️ स्टेटस कार्ड डाउनलोड करें';
     bannerTextEl.parentElement.appendChild(btn);
   }
@@ -440,7 +596,7 @@ async function saveMaintenanceSettings() {
   showToast("🛠️ मेंटेनेंस सेटिंग्स लाइव लागू हो गईं!");
 }
 
-// 5. TOAST & MODAL UTILITIES
+// 6. TOAST & MODAL UTILITIES
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
@@ -466,7 +622,7 @@ function closeConfirmModal(result) {
   confirmCallback = null;
 }
 
-// 6. APPLICATION INITIALIZATION
+// 7. APPLICATION INITIALIZATION
 window.addEventListener('DOMContentLoaded', () => {
   injectDynamicModalsAndUI();
   syncOwnerCustomName();
@@ -504,7 +660,7 @@ async function syncOwnerCustomName() {
   }
 }
 
-// 7. NAVIGATION CONTROLS
+// 8. NAVIGATION CONTROLS
 function switchTab(id) {
   currentActiveTab = id;
   ['home', 'mala', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
@@ -545,7 +701,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 8. AUTHENTICATION, 1-CLICK GOOGLE LOGIN & 3-LEVEL FORGOT PASSWORD
+// 9. AUTHENTICATION, 1-CLICK GOOGLE LOGIN & 3-LEVEL FORGOT PASSWORD
 function openAuthModal() {
   document.getElementById('authModal').classList.remove('hidden');
 }
@@ -661,7 +817,6 @@ async function handleAuthSubmit(e) {
   }
 }
 
-// 1-CLICK GOOGLE LOGIN (Never blocks or forces phone number to enter)
 async function signInOrVerifyWithGoogle() {
   if (!firebase.auth) {
     return showToast("कृपया पेज को रिफ्रेश (Ctrl+F5) करें!");
@@ -676,7 +831,6 @@ async function signInOrVerifyWithGoogle() {
     let targetDocId = '';
     let existingData = null;
 
-    // 1. Check if this Google email is already linked to an existing phone account
     const emailSnap = await db.collection('users').where('email', '==', gUser.email).limit(1).get();
     if (!emailSnap.empty) {
       targetDocId = emailSnap.docs[0].id;
@@ -724,7 +878,6 @@ async function signInOrVerifyWithGoogle() {
   }
 }
 
-// 3-LEVEL FORGOT PASSWORD SYSTEM (Pinless, Private & Easy)
 function openForgotPassModal() {
   const typedPhone = document.getElementById('loginPhone')?.value.trim() || '';
   closeAuthModal();
@@ -767,12 +920,10 @@ async function verifyGoogleAndResetPassword() {
     const gUser = result.user;
     if (!gUser || !gUser.email) return;
 
-    // Security Check: If account already had a linked email, it MUST match!
     if (userData.email && userData.email.toLowerCase() !== gUser.email.toLowerCase()) {
       return showToast("⚠️ यह Google खाता इस मोबाइल नंबर से मेल नहीं खाता! कृपया सही Google खाता चुनें।");
     }
 
-    // Update password & link verified email
     await userRef.set({
       pass: newPass,
       email: gUser.email,
@@ -797,7 +948,6 @@ async function verifyGoogleAndResetPassword() {
   }
 }
 
-// Admin Fallback Password Reset (Level 3)
 async function adminResetMemberPassword() {
   if (!currentUser || !currentUser.isOwner) return showToast("केवल व्यवस्थापक के लिए!");
   const phone = document.getElementById('adminResetUserPhone')?.value.trim() || '';
@@ -845,7 +995,6 @@ async function linkGoogleAccount() {
   }
 }
 
-// User & Owner Profile Modal Functions
 function openProfileModal() {
   if (!currentUser) return openAuthModal();
   const modal = document.getElementById('userProfileModal');
@@ -861,10 +1010,10 @@ function openProfileModal() {
   const roleBadge = document.getElementById('profileRoleBadge');
   if (currentUser.isOwner) {
     roleBadge.innerText = '🛡️ मुख्य व्यवस्थापक (Owner)';
-    roleBadge.className = 'text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded inline-block mt-0.5';
+    roleBadge.className = 'text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded inline-block mt-0.5';
   } else {
     roleBadge.innerText = '👤 पंजीकृत सदस्य (Member)';
-    roleBadge.className = 'text-[11px] font-semibold text-stone-500';
+    roleBadge.className = 'text-xs font-semibold text-stone-500';
   }
 
   document.getElementById('statMalaTotal').innerText = malaTotalCount;
@@ -901,9 +1050,7 @@ async function saveUserProfileChanges() {
     phone: currentUser.phone,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-  if (newPass) {
-    updateData.pass = newPass;
-  }
+  if (newPass) updateData.pass = newPass;
 
   try {
     await db.collection('users').doc(currentUser.phone).set(updateData, { merge: true });
@@ -935,7 +1082,7 @@ function updateNavAuth() {
     container.innerHTML = `
       <button onclick="openProfileModal()" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 transition flex items-center gap-1 shadow-sm" title="प्रोफ़ाइल व नाम बदलें">
         <span>${currentUser.isOwner ? '🛡️' : '👤'}</span>
-        <span class="max-w-[110px] truncate">${currentUser.name}</span>
+        <span class="max-w-[140px] truncate">${currentUser.name}</span>
         <span class="text-[10px] text-stone-400">✎</span>
       </button>
       <button onclick="logoutUser()" class="text-xs text-stone-500 hover:text-red-700 font-semibold px-1 transition">लॉगआउट</button>
@@ -963,7 +1110,7 @@ function updateNavAuth() {
   }
 }
 
-// 9. DIGITAL JAAP MALA LOGIC
+// 10. DIGITAL JAAP MALA LOGIC
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect').value;
   document.getElementById('activeMantraDisplay').innerText = selected;
@@ -1013,7 +1160,7 @@ function resetMalaCounter() {
   });
 }
 
-// 10. AUTOMATED DAILY PANCHANG CALCULATOR
+// 11. AUTOMATED DAILY PANCHANG & AMAVASYA
 function computeAutoPanchang() {
   const now = new Date();
   const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
@@ -1035,7 +1182,6 @@ function computeAutoPanchang() {
   document.getElementById('autoPanchangDetails').innerText = `आज का दिन: ${now.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })} | ${paksha}, ${tithiName}। प्रातः होम एवं नाम स्मरण से दिन आरंभ करें।`;
 }
 
-// 11. DYNAMIC AMAVASYA & LIVE COUNTDOWN
 function listenAmavasyaConfig() {
   db.collection('settings').doc('amavasyaConfig').onSnapshot(doc => {
     if (doc.exists) {
@@ -1104,7 +1250,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सफलतापूर्वक सहेजी गई!');
 }
 
-// 12. GEMINI FLASH LATEST API CLIENT
+// 12. GEMINI AI CLIENT
 function getGeminiKey() {
   let key = localStorage.getItem('gemini_user_api_key');
   if (!key) {
@@ -1122,7 +1268,6 @@ function getGeminiKey() {
 function resetGeminiKey() {
   const currentKey = localStorage.getItem('gemini_user_api_key') || '';
   const newKey = prompt("अपनी नई Gemini API Key यहाँ पेस्ट करें (या हटाने के लिए खाली छोड़कर OK दबाएं):", currentKey);
-  
   if (newKey === null) return;
 
   if (newKey.trim() !== "") {
@@ -1208,7 +1353,7 @@ async function generateAiDailySandesh() {
   }
 }
 
-// 13. DIRECT PDF EXPORTS (WITH GOOGLE EMAIL IN 7-DAY REPORT)
+// 13. DIRECT PDF EXPORTS
 async function downloadQuizResultsPdf() {
   showToast("Quiz परिणाम PDF तैयार हो रहा है...");
   const snap = await db.collection('quizAttempts').get();
@@ -1300,7 +1445,7 @@ async function download7DaysUsersPdf() {
   doc.save("Bishnoi_Registered_Users_7Days.pdf");
 }
 
-// 14. CERTIFICATE & DAILY SUVICHAR STATUS CARD GENERATOR
+// 14. CERTIFICATE & SUVICHAR STATUS CARD
 function generateCertificate(name, score) {
   const canvas = document.getElementById('certCanvas');
   const ctx = canvas.getContext('2d');
@@ -1415,7 +1560,7 @@ function downloadSuvicharStatusCard() {
   showToast("🖼️ WhatsApp स्टेटस कार्ड डाउनलोड हो गया!");
 }
 
-// 15. QUIZ ARENA FLOW
+// 15. QUIZ ARENA & MULTI-LINE WINNER LEADERBOARD
 function startQuizNow() {
   document.getElementById('quizIntroCard').classList.add('hidden');
   document.getElementById('quizActiveBox').classList.remove('hidden');
@@ -1477,8 +1622,8 @@ function renderQuiz() {
       <div class="text-center space-y-3 py-4">
         <div class="text-4xl">🏆</div>
         <h3 class="font-yatra text-xl text-forest">परीक्षा पूर्ण हुई!</h3>
-        <p class="text-xs text-stone-600">कुल प्राप्तांक: <strong class="text-terracotta text-sm">${qScore} / ${quizList.length}</strong> (${percentage}%)</p>
-        <p class="text-[11px] text-stone-400">समय: ${timeTakenSeconds} सेकंड</p>
+        <p class="text-sm text-stone-600">कुल प्राप्तांक: <strong class="text-terracotta text-base">${qScore} / ${quizList.length}</strong> (${percentage}%)</p>
+        <p class="text-xs text-stone-400">समय: ${timeTakenSeconds} सेकंड</p>
         
         <div class="pt-3 flex flex-wrap justify-center gap-2">
           <button onclick="backToQuizIntro()" class="px-4 py-2 bg-stone-200 hover:bg-stone-300 rounded-lg text-xs font-semibold text-stone-700">
@@ -1506,10 +1651,10 @@ function renderQuiz() {
         <span>प्रश्न ${currentQ + 1} / ${quizList.length}</span>
         <span>Score: ${qScore}</span>
       </div>
-      <h3 class="font-bold text-sm sm:text-base text-forest">${q.q}</h3>
-      <div class="space-y-2 pt-1">
+      <h3 class="font-bold text-base sm:text-lg text-forest leading-snug">${q.q}</h3>
+      <div class="space-y-2.5 pt-1">
         ${q.opts.map((opt, i) => `
-          <button onclick="checkAnswer(${i})" class="w-full text-left p-3 text-xs rounded-xl border border-stone-200 hover:bg-amber-50 bg-white transition-all font-medium">
+          <button onclick="checkAnswer(${i})" class="w-full text-left p-3.5 text-sm rounded-xl border border-stone-300 hover:bg-amber-50 bg-white transition-all font-semibold">
             ${opt}
           </button>
         `).join('')}
@@ -1544,7 +1689,6 @@ function backToQuizIntro() {
   document.getElementById('quizIntroCard').classList.remove('hidden');
 }
 
-// 16. BULK QUIZ IMPORTER
 async function importBulkQuiz() {
   const rawText = document.getElementById('adminBulkQuizText').value.trim();
   if (!rawText) return showToast('कृपया प्रश्न टेक्स्ट पेस्ट करें');
@@ -1588,8 +1732,18 @@ async function importBulkQuiz() {
   document.getElementById('adminBulkQuizText').value = '';
 }
 
-// 17. DAILY QUIZ WINNERS
 function listenWinners() {
+  // Ensure Winner Name Elements Never Truncate Long Names
+  ['winner1Name', 'winner2Name', 'winner3Name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('truncate', 'whitespace-nowrap');
+      el.style.whiteSpace = 'normal';
+      el.style.wordBreak = 'break-word';
+      el.style.overflow = 'visible';
+    }
+  });
+
   db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
     if (doc.exists) {
       const w = doc.data();
@@ -1624,7 +1778,7 @@ async function saveDailyWinners() {
   showToast("शीर्ष विजेता सूची अपडेट हो गई!");
 }
 
-// 18. UPGRADED TEXT-ONLY SAMVAD MANCH (COMMUNITY CHAT)
+// 16. UPGRADED TEXT-ONLY SAMVAD MANCH
 const BAD_WORDS_LIST = ['गाली', 'मूर्ख', 'पागल', 'अभद्र', 'idiot', 'stupid', 'abuse'];
 
 function containsBadWords(text) {
@@ -1790,29 +1944,29 @@ function renderFilteredChat() {
         <div class="flex items-center gap-1.5 flex-wrap">
           <span class="font-bold text-forest">${p.isOwner ? '🛡️' : '👤'} ${p.author}</span>
           ${p.isOwner ? `<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-200 text-amber-900 rounded">मुख्य व्यवस्थापक</span>` : ''}
-          ${p.location ? `<span class="text-[10px] text-stone-400">• ${p.location}</span>` : ''}
+          ${p.location ? `<span class="text-[10px] text-stone-500">• ${p.location}</span>` : ''}
           <span class="px-2 py-0.5 text-[10px] bg-stone-100 text-stone-600 rounded-full border border-stone-200">${p.topic || 'सामान्य चर्चा'}</span>
         </div>
         <span class="text-[10px] text-stone-400">${dateStr} ${timeStr}</span>
       </div>
 
       ${p.replyTo ? `
-        <div class="p-2 rounded bg-stone-100 border-l-2 border-forest text-[11px] text-stone-600">
+        <div class="p-2 rounded bg-stone-100 border-l-2 border-forest text-xs text-stone-600">
           <span class="font-bold text-forest">↩️ ${p.replyTo.author}:</span>${p.replyTo.snippet}
         </div>
       ` : ''}
 
-      <p class="text-xs text-stone-800 whitespace-pre-wrap leading-relaxed">${p.content}</p>
+      <p class="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed font-medium">${p.content}</p>
 
-      <div class="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+      <div class="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex items-center gap-1.5">
-          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 border border-stone-200 transition">
+          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-amber-100 border border-stone-200 transition">
             🙏 ${pranamCnt || ''}
           </button>
-          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-emerald-100 border border-stone-200 transition">
+          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-emerald-100 border border-stone-200 transition">
             🌿 ${natureCnt || ''}
           </button>
-          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-rose-100 border border-stone-200 transition">
+          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-rose-100 border border-stone-200 transition">
             ❤️ ${heartCnt || ''}
           </button>
         </div>
@@ -1838,42 +1992,151 @@ function confirmDeletePost(id) {
   });
 }
 
-// 19. E-LIBRARY (WITH IN-BUILT PDF READER + DOWNLOAD)
+// 17. ELDER-FRIENDLY SMART BOOK & AUTO-FIT PDF.JS READER
 function openInbuiltPdfViewer(title, link) {
   const modal = document.getElementById('inbuiltPdfModal');
-  const frame = document.getElementById('pdfViewerFrame');
   const titleEl = document.getElementById('pdfViewerTitle');
   const dlBtn = document.getElementById('pdfModalDownloadBtn');
-  if (!modal || !frame) return;
+  if (!modal) return;
 
-  titleEl.innerText = `📖 ${title}`;
+  titleEl.innerText = title;
   dlBtn.href = link;
+  currentPdfUrl = link;
 
-  let viewerUrl = link;
-  if (link.includes('drive.google.com/file/d/')) {
-    const match = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      viewerUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
-    }
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+
+  // If opening Shabadwani, launch Elder-Friendly Smart Text Reader by default (No Pinch-Zoom needed!)
+  if (link.includes('shabadwani') || title.includes('सबदवाणी')) {
+    document.getElementById('shabadSelectWrap')?.classList.remove('hidden');
+    document.getElementById('speakShabadBtn')?.classList.remove('hidden');
+    document.getElementById('togglePdfModeBtn')?.classList.remove('hidden');
+    document.getElementById('digitalBookContainer')?.classList.remove('hidden');
+    document.getElementById('pdfCanvasContainer')?.classList.add('hidden');
+    renderSelectedShabadView();
   } else {
-    const fullUrl = link.startsWith('http') ? link : (window.location.origin + '/' + link.replace(/^\.\//, ''));
-    if (isPhoneOrInstalledApp()) {
-      viewerUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}`;
-    } else {
-      viewerUrl = fullUrl;
+    // For other PDFs, open directly in Full-Width Auto-Fit Canvas Mode
+    document.getElementById('shabadSelectWrap')?.classList.add('hidden');
+    document.getElementById('speakShabadBtn')?.classList.add('hidden');
+    document.getElementById('togglePdfModeBtn')?.classList.add('hidden');
+    switchToRawPdfCanvasMode();
+  }
+}
+
+function renderSelectedShabadView() {
+  const container = document.getElementById('digitalBookContainer');
+  const sel = document.getElementById('shabadJumpSelect')?.value || 'all';
+  if (!container) return;
+
+  const items = sel === 'all'
+    ? SHABADWANI_DIGITAL_BOOK
+    : [SHABADWANI_DIGITAL_BOOK[parseInt(sel)]];
+
+  container.innerHTML = items.map(item => `
+    <div class="bg-white p-5 sm:p-7 rounded-2xl border-2 border-amber-300 shadow-md space-y-3">
+      <div class="flex items-center justify-between border-b border-amber-200 pb-2">
+        <h4 class="font-yatra text-xl sm:text-2xl text-forest">${item.title}</h4>
+        <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-full text-xs font-bold">श्री सबदवाणी</span>
+      </div>
+      <p class="shabad-Elder-Text text-stone-900 font-semibold whitespace-pre-wrap" style="font-size: ${readerFontPx}px; line-height: 1.85; word-break: break-word;">${item.text}</p>
+    </div>
+  `).join('');
+}
+
+function adjustReaderFont(delta) {
+  readerFontPx = Math.min(38, Math.max(16, readerFontPx + delta));
+  localStorage.setItem('bishnoi_reader_font_px', readerFontPx.toString());
+  document.querySelectorAll('.shabad-Elder-Text').forEach(el => {
+    el.style.fontSize = `${readerFontPx}px`;
+  });
+  showToast(`अक्षर आकार: ${readerFontPx}px`);
+}
+
+function speakCurrentReaderText() {
+  if (!('speechSynthesis' in window)) {
+    return showToast("आपके फोन में वॉइस रीडर उपलब्ध नहीं है।");
+  }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    showToast("🔇 ऑडियो पाठ रोका गया।");
+    return;
+  }
+  const sel = document.getElementById('shabadJumpSelect')?.value || '0';
+  const targetIdx = sel === 'all' ? 1 : parseInt(sel);
+  const textToRead = SHABADWANI_DIGITAL_BOOK[targetIdx]?.text || '';
+
+  const utter = new SpeechSynthesisUtterance(textToRead);
+  utter.lang = 'hi-IN';
+  utter.rate = 0.85; // Slower & clearer for elders
+  window.speechSynthesis.speak(utter);
+  showToast("🔊 सबद पाठ सुनाया जा रहा है... (रोकने के लिए पुनः दबाएं)");
+}
+
+async function switchToRawPdfCanvasMode() {
+  document.getElementById('digitalBookContainer')?.classList.add('hidden');
+  const canvasWrap = document.getElementById('pdfCanvasContainer');
+  const pagesHolder = document.getElementById('pdfPagesHolder');
+  const fallbackFrame = document.getElementById('pdfFallbackIframe');
+  if (!canvasWrap || !pagesHolder) return;
+
+  canvasWrap.classList.remove('hidden');
+  canvasWrap.classList.add('flex');
+  pagesHolder.innerHTML = `<div class="text-white py-10 text-base font-bold animate-pulse">⏳ पुस्तक के पृष्ठ बड़े आकार में लोड हो रहे हैं...</div>`;
+
+  // Handle Google Drive links
+  if (currentPdfUrl.includes('drive.google.com/file/d/')) {
+    const match = currentPdfUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      pagesHolder.innerHTML = '';
+      fallbackFrame.src = `https://drive.google.com/file/d/${match[1]}/preview`;
+      fallbackFrame.classList.remove('hidden');
+      return;
     }
   }
 
-  frame.src = viewerUrl;
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
+  fallbackFrame.classList.add('hidden');
+  try {
+    if (!window.pdfjsLib) throw new Error("PDF.js loading");
+    const loadingTask = window.pdfjsLib.getDocument(currentPdfUrl);
+    const pdf = await loadingTask.promise;
+    pagesHolder.innerHTML = '';
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const containerWidth = Math.min(window.innerWidth - 24, 860);
+      const unscaledViewport = page.getViewport({ scale: 1 });
+      const autoFitScale = (containerWidth / unscaledViewport.width) * pdfCanvasScale;
+      const viewport = page.getViewport({ scale: autoFitScale });
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'bg-white rounded-lg shadow-lg max-w-full';
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      pagesHolder.appendChild(canvas);
+      await page.render({ canvasContext: context, viewport: viewport }).promise;
+    }
+  } catch (err) {
+    pagesHolder.innerHTML = '';
+    const fullUrl = currentPdfUrl.startsWith('http') ? currentPdfUrl : (window.location.origin + '/' + currentPdfUrl.replace(/^\.\//, ''));
+    fallbackFrame.src = isPhoneOrInstalledApp()
+      ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullUrl)}`
+      : fullUrl;
+    fallbackFrame.classList.remove('hidden');
+  }
+}
+
+function zoomPdfCanvas(delta) {
+  pdfCanvasScale = Math.min(2.5, Math.max(0.8, pdfCanvasScale + delta));
+  document.getElementById('pdfZoomLabel').innerText = `${Math.round(pdfCanvasScale * 100)}%`;
+  switchToRawPdfCanvasMode();
 }
 
 function closeInbuiltPdfViewer() {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   const modal = document.getElementById('inbuiltPdfModal');
-  const frame = document.getElementById('pdfViewerFrame');
   if (!modal) return;
-  if (frame) frame.src = '';
   modal.classList.add('hidden');
   modal.classList.remove('flex');
 }
@@ -1885,23 +2148,23 @@ function listenPdfs() {
     grid.innerHTML = '';
 
     const defaultCard = document.createElement('div');
-    defaultCard.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
+    defaultCard.className = "bg-white p-4 rounded-xl border-2 border-amber-300 flex flex-col justify-between shadow-sm";
     defaultCard.innerHTML = `
       <div>
-        <span class="text-[10px] font-bold text-terracotta uppercase">पवित्र ग्रंथ</span>
-        <h3 class="font-yatra text-forest text-base mt-1">श्री सबदवाणी (१२० शब्द)</h3>
-        <p class="text-xs text-stone-500 mt-1">गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।</p>
+        <span class="text-xs font-bold text-terracotta uppercase">पवित्र ग्रंथ (बुजुर्ग-अनुकूल स्मार्ट पाठ)</span>
+        <h3 class="font-yatra text-forest text-lg mt-1">श्री सबदवाणी (१२० शब्द)</h3>
+        <p class="text-xs text-stone-600 mt-1">बिना ज़ूम किए बड़े अक्षरों में आराम से पढ़ें अथवा ऑडियो में सुनें।</p>
       </div>
       <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-1.5">
-          <button onclick="openInbuiltPdfViewer('श्री सबदवाणी (१२० शब्द)', './shabadwani.pdf')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
-            📖 ऐप में पढ़ें
+        <div class="flex items-center gap-2">
+          <button onclick="openInbuiltPdfViewer('श्री सबदवाणी (१२० शब्द)', './shabadwani.pdf')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow transition">
+            📖 बड़े अक्षरों में पढ़ें
           </button>
-          <a href="./shabadwani.pdf" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
+          <a href="./shabadwani.pdf" download class="inline-block px-3 py-2 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
             📥 डाउनलोड
           </a>
         </div>
-        <button onclick="sharePdfWhatsApp('श्री सबदवाणी', './shabadwani.pdf')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
+        <button onclick="sharePdfWhatsApp('श्री सबदवाणी', './shabadwani.pdf')" class="text-emerald-700 text-xs font-bold">Share 📲</button>
       </div>
     `;
     grid.appendChild(defaultCard);
@@ -1915,20 +2178,20 @@ function listenPdfs() {
       card.className = "bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm";
       card.innerHTML = `
         <div>
-          <span class="text-[10px] font-bold text-terracotta uppercase">साहित्य</span>
-          <h3 class="font-yatra text-forest text-base mt-1">${item.title}</h3>
+          <span class="text-xs font-bold text-terracotta uppercase">साहित्य</span>
+          <h3 class="font-yatra text-forest text-lg mt-1">${item.title}</h3>
         </div>
         <div class="mt-4 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-1.5">
-            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+          <div class="flex items-center gap-2">
+            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow transition">
               📖 ऐप में पढ़ें
             </button>
-            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
+            <a href="${item.link}" target="_blank" download class="inline-block px-3 py-2 bg-forest text-white text-xs font-semibold rounded-lg hover:bg-emerald-950">
               📥 डाउनलोड
             </a>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="sharePdfWhatsApp('${safeTitle}', '${safeLink}')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
+            <button onclick="sharePdfWhatsApp('${safeTitle}', '${safeLink}')" class="text-emerald-700 text-xs font-bold">Share 📲</button>
             ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600 font-bold">Delete</button>` : ''}
           </div>
         </div>
@@ -1965,17 +2228,37 @@ function confirmDeletePdf(id) {
   });
 }
 
-// 20. AUDIO PLAYER & NOTICES
+// 18. AUDIO PLAYER & ADMIN TRACK DELETE LIST
 function listenAudios() {
   db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    if (!snap.empty) {
-      const select = document.getElementById('audioTrackSelect');
+    const select = document.getElementById('audioTrackSelect');
+    const adminList = document.getElementById('adminAudioManageList');
+    if (adminList) adminList.innerHTML = '';
+
+    if (!snap.empty && select) {
       select.innerHTML = '';
       snap.forEach(doc => {
         const a = doc.data();
         select.innerHTML += `<option value="${a.link}">${a.title}</option>`;
+        if (adminList) {
+          adminList.innerHTML += `
+            <div class="flex items-center justify-between p-2 rounded bg-stone-50 border border-stone-200">
+              <span class="font-semibold text-stone-800 truncate">${a.title}</span>
+              <button onclick="deleteAdminAudio('${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0 ml-2">🗑️ हटाएं</button>
+            </div>
+          `;
+        }
       });
       changeAudioTrack();
+    }
+  });
+}
+
+async function deleteAdminAudio(id) {
+  openConfirmModal("भजन हटाएं?", "क्या आप इस ऑडियो भजन को प्लेयर से हटाना चाहते हैं?", async (res) => {
+    if (res) {
+      await db.collection('audios').doc(id).delete();
+      showToast("भजन हटा दिया गया।");
     }
   });
 }
@@ -2019,7 +2302,7 @@ function listenNotices() {
   });
 }
 
-// 21. PLANTATION PLEDGE COUNTER
+// 19. PLANTATION PLEDGE COUNTER
 function listenTreeCounter() {
   db.collection('stats').doc('treePledges').onSnapshot(doc => {
     if (doc.exists && doc.data().count) {
@@ -2044,7 +2327,7 @@ async function pledgeTree() {
   } catch (e) {}
 }
 
-// 22. BANNER & WHATSAPP SHARING
+// 20. BANNER & WHATSAPP SHARING
 function listenBanner() {
   db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
     if (doc.exists && doc.data().text) {
@@ -2077,25 +2360,25 @@ function sharePostWhatsApp(author, content) {
   window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
 }
 
-// 23. 29 NIYAMS RENDER & SEARCH
+// 21. 29 NIYAMS RENDER & SEARCH
 function renderNiyams(data) {
   const grid = document.getElementById('niyamGrid');
   if (!grid) return;
   grid.innerHTML = '';
   data.forEach(n => {
     const card = document.createElement('div');
-    card.className = "bg-white p-3.5 rounded-xl border border-stone-200 space-y-2 flex flex-col justify-between";
+    card.className = "bg-white p-4 rounded-xl border border-stone-200 space-y-2 flex flex-col justify-between shadow-sm";
     card.innerHTML = `
       <div>
         <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-forest w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
-          <span class="text-stone-400 font-semibold text-[11px]">${n.title}</span>
+          <span class="font-bold text-forest w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
+          <span class="text-stone-500 font-semibold text-xs">${n.title}</span>
         </div>
-        <h4 class="font-yatra text-sm text-forest mt-1">${n.rule}</h4>
-        <p class="text-[11px] text-stone-600 leading-snug mt-1">${n.desc}</p>
+        <h4 class="font-yatra text-base text-forest mt-1.5">${n.rule}</h4>
+        <p class="text-xs text-stone-700 leading-relaxed mt-1 font-medium">${n.desc}</p>
       </div>
       <div class="pt-2 border-t border-stone-100 flex justify-end">
-        <button onclick="shareNiyamWhatsApp(${n.num}, '${n.title}', '${n.rule}', '${n.desc}')" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 hover:underline">
+        <button onclick="shareNiyamWhatsApp(${n.num}, '${n.title}', '${n.rule}', '${n.desc}')" class="text-xs text-emerald-700 font-bold flex items-center gap-1 hover:underline">
           <span>साझा करें</span> 📲
         </button>
       </div>
