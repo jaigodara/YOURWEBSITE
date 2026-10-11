@@ -637,10 +637,24 @@ function getGeminiKey() {
 }
 
 function resetGeminiKey() {
-  localStorage.removeItem('gemini_user_api_key');
-  showToast("Gemini API कुंजी हटा दी गई। अगली बार नई कुंजी पूछी जाएगी।");
+  const currentKey = localStorage.getItem('gemini_user_api_key') || '';
+  const newKey = prompt("अपनी नई Gemini API Key यहाँ पेस्ट करें (या हटाने के लिए खाली छोड़कर OK दबाएं):", currentKey);
+  
+  if (newKey === null) return; // User clicked Cancel
+
+  if (newKey.trim() !== "") {
+    localStorage.setItem('gemini_user_api_key', newKey.trim());
+    showToast("✅ नई Gemini API Key सफलतापूर्वक सहेज ली गई!");
+  } else {
+    localStorage.removeItem('gemini_user_api_key');
+    showToast("🗑️ पुरानी API Key हटा दी गई है।");
+  }
 }
 
+// Aliases so your HTML button works no matter what onclick name it uses
+const changeApiKey = resetGeminiKey;
+const updateApiKey = resetGeminiKey;
+const changeGeminiKey = resetGeminiKey;
 async function callGemini(promptText) {
   const apiKey = getGeminiKey();
   if (!apiKey) {
