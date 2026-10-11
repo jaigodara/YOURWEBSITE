@@ -1,5 +1,6 @@
 /* ==========================================================================
    Bishnoi Community Portal - Application Logic Engine (script.js)
+   Includes Live Maintenance & Section Lock Engine (Phone / Web / Both)
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -32,6 +33,21 @@ let lastPostTime = 0;
 let currentBannerText = '"जीव दया पालणी, रूंख लीलो नी घावै" — प्रकृति एवं सभी मूक जीवों के प्रति करुणा रखें।';
 let amavasyaTargetDate = null;
 let amavasyaTimerInterval = null;
+let currentActiveTab = 'home';
+
+// Maintenance State
+let maintenanceConfig = {
+  globalMode: 'off', // 'off' | 'phone_only' | 'web_only' | 'both'
+  message: 'हम आपके अनुभव को बेहतर बनाने के लिए ऐप को अपडेट कर रहे हैं। कृपया कुछ समय बाद पुनः प्रयास करें।',
+  sections: {
+    mala: 'off',
+    niyams: 'off',
+    library: 'off',
+    community: 'off',
+    quiz: 'off',
+    history: 'off'
+  }
+};
 
 // Digital Jaap Mala State
 let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0');
@@ -71,7 +87,168 @@ const NIYAMS_DATA = [
   { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों को काटकर बनने वाले नीले वस्त्रों का त्याग।" }
 ];
 
-// 4. TOAST & MODAL UTILITIES
+// 4. DEVICE DETECTION & MAINTENANCE ENGINE
+function isPhoneOrInstalledApp() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isNarrowScreen = window.innerWidth <= 768;
+  return isStandalone || isMobileUA || isNarrowScreen;
+}
+
+function shouldLockForCurrentDevice(mode) {
+  if (!mode || mode === 'off') return false;
+  // Owner never gets locked out
+  if (currentUser && currentUser.isOwner) return false;
+
+  const onPhone = isPhoneOrInstalledApp();
+  if (mode === 'both') return true;
+  if (mode === 'phone_only' && onPhone) return true;
+  if (mode === 'web_only' && !onPhone) return true;
+  return false;
+}
+
+function injectMaintenanceUI() {
+  // 1. Global Full-Screen Maintenance Overlay
+  if (!document.getElementById('globalMaintenanceOverlay')) {
+    const overlay = document.createElement('div');
+    overlay.id = 'globalMaintenanceOverlay';
+    overlay.className = 'fixed inset-0 z-[9999] bg-[#143622] text-white hidden flex-col items-center justify-center p-6 text-center';
+    overlay.innerHTML = `
+      <div class="max-w-md w-full bg-white/10 backdrop-blur-md border border-amber-400/30 rounded-2xl p-6 space-y-4 shadow-2xl">
+        <div class="text-5xl animate-bounce">🛠️</div>
+        <h1 class="font-yatra text-2xl text-amber-300">सेवा अस्थायी रूप से रखरखाव में है</h1>
+        <p id="globalMaintMsgText" class="text-xs sm:text-sm text-stone-200 leading-relaxed"></p>
+        <div class="p-3 rounded-xl bg-black/25 border border-white/10 text-[11px] text-amber-200">
+          "जीव दया पालणी, रूंख लीलो नी घावै" — हम शीघ्र ही नए अपडेट के साथ लौटेंगे।
+        </div>
+        <div class="pt-4 border-t border-white/10 flex justify-center">
+          <button onclick="ownerEmergencyUnlock()" class="text-[11px] text-stone-400 hover:text-amber-300 underline">
+            🛡️ व्यवस्थापक लॉगिन (Owner Bypass)
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  // 2. Section-Specific Maintenance Card
+  if (!document.getElementById('sectionMaintenanceCard')) {
+    const secCard = document.createElement('div');
+    secCard.id = 'sectionMaintenanceCard';
+    secCard.className = 'hidden max-w-xl mx-auto my-8 bg-white p-6 rounded-2xl border-2 border-amber-300 text-center space-y-3 shadow-md';
+    secCard.innerHTML = `
+      <div class="text-4xl">🚧</div>
+      <h2 class="font-yatra text-xl text-forest">यह अनुभाग अभी मेंटेनेंस में है</h2>
+      <p id="sectionMaintMsgText" class="text-xs text-stone-600 leading-relaxed">
+        इस सेक्शन में सुधार एवं नए अपडेट जोड़े जा रहे हैं। कृपया अन्य सेक्शन का उपयोग करें या कुछ समय बाद पुनः प्रयास करें।
+      </p>
+      <button onclick="switchTab('home')" class="mt-2 px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
+        🏠 मुख्य पृष्ठ पर जाएं
+      </button>
+    `;
+    const mainEl = document.querySelector('main') || document.body;
+    mainEl.appendChild(secCard);
+  }
+}
+
+function ownerEmergencyUnlock() {
+  const phone = prompt("व्यवस्थापक कोड (Owner Phone):");
+  const pass = prompt("पासवर्ड (Owner Password):");
+  if (phone === OWNER_PHONE && pass === OWNER_PASS) {
+    currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true };
+    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+    updateNavAuth();
+    applyMaintenanceRules();
+    showToast("व्यवस्थापक एक्सेस अनलॉक हो गया!");
+    switchTab('admin');
+  } else {
+    alert("गलत व्यवस्थापक विवरण!");
+  }
+}
+
+function listenMaintenanceConfig() {
+  injectMaintenanceUI();
+  db.collection('settings').doc('maintenance').onSnapshot(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      maintenanceConfig.globalMode = data.globalMode || 'off';
+      maintenanceConfig.message = data.message || 'हम आपके अनुभव को बेहतर बनाने के लिए ऐप को अपडेट कर रहे हैं। कृपया कुछ समय बाद पुनः प्रयास करें।';
+      maintenanceConfig.sections = Object.assign({
+        mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off'
+      }, data.sections || {});
+
+      // Sync Admin UI Dropdowns if present
+      const globalSel = document.getElementById('adminGlobalMaintMode');
+      const msgInp = document.getElementById('adminMaintMessage');
+      if (globalSel) globalSel.value = maintenanceConfig.globalMode;
+      if (msgInp) msgInp.value = maintenanceConfig.message;
+
+      ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+        const el = document.getElementById(`lock_${sec}`);
+        if (el) el.value = maintenanceConfig.sections[sec] || 'off';
+      });
+    }
+    applyMaintenanceRules();
+  });
+}
+
+function applyMaintenanceRules() {
+  const overlay = document.getElementById('globalMaintenanceOverlay');
+  if (!overlay) return;
+
+  // Check Global Lock
+  if (shouldLockForCurrentDevice(maintenanceConfig.globalMode)) {
+    document.getElementById('globalMaintMsgText').innerText = maintenanceConfig.message;
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    return;
+  } else {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+  }
+
+  // Re-verify active tab lock
+  enforceTabMaintenance(currentActiveTab);
+}
+
+function enforceTabMaintenance(tabId) {
+  const secCard = document.getElementById('sectionMaintenanceCard');
+  const target = document.getElementById(`tab-${tabId}`);
+  if (!secCard || !target) return;
+
+  const lockMode = maintenanceConfig.sections[tabId] || 'off';
+  if (shouldLockForCurrentDevice(lockMode)) {
+    target.classList.add('hidden');
+    document.getElementById('sectionMaintMsgText').innerText = maintenanceConfig.message;
+    secCard.classList.remove('hidden');
+  } else {
+    secCard.classList.add('hidden');
+    target.classList.remove('hidden');
+  }
+}
+
+async function saveMaintenanceSettings() {
+  if (!currentUser || !currentUser.isOwner) return showToast("केवल व्यवस्थापक ही इसे बदल सकते हैं!");
+
+  const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
+  const message = document.getElementById('adminMaintMessage')?.value.trim() || 'ऐप में नए अपडेट जोड़े जा रहे हैं, कृपया कुछ समय बाद प्रयास करें।';
+
+  const sections = {};
+  ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+    sections[sec] = document.getElementById(`lock_${sec}`)?.value || 'off';
+  });
+
+  await db.collection('settings').doc('maintenance').set({
+    globalMode,
+    message,
+    sections,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  showToast("🛠️ मेंटेनेंस सेटिंग्स लाइव लागू हो गईं!");
+}
+
+// 5. TOAST & MODAL UTILITIES
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
@@ -97,9 +274,10 @@ function closeConfirmModal(result) {
   confirmCallback = null;
 }
 
-// 5. APPLICATION INITIALIZATION
+// 6. APPLICATION INITIALIZATION
 window.addEventListener('DOMContentLoaded', () => {
   updateNavAuth();
+  listenMaintenanceConfig();
   renderNiyams(NIYAMS_DATA);
   listenBanner();
   listenPdfs();
@@ -114,8 +292,9 @@ window.addEventListener('DOMContentLoaded', () => {
   renderMalaCounters();
 });
 
-// 6. NAVIGATION CONTROLS
+// 7. NAVIGATION CONTROLS (WITH SECTION LOCK CHECK)
 function switchTab(id) {
+  currentActiveTab = id;
   ['home', 'mala', 'niyams', 'library', 'community', 'quiz', 'history', 'admin'].forEach(t => {
     const el = document.getElementById(`tab-${t}`);
     const nav = document.getElementById(`nav-${t}`);
@@ -130,6 +309,8 @@ function switchTab(id) {
     target.classList.add('view-panel');
   }
   if (activeNav) activeNav.classList.add('nav-btn-active');
+
+  enforceTabMaintenance(id);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -152,7 +333,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 7. SECURE AUTHENTICATION ENGINE
+// 8. SECURE AUTHENTICATION ENGINE
 function openAuthModal() {
   document.getElementById('authModal').classList.remove('hidden');
 }
@@ -182,6 +363,7 @@ async function handleAuthSubmit(e) {
     currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     updateNavAuth();
+    applyMaintenanceRules();
     closeAuthModal();
     showToast("व्यवस्थापक के रूप में स्वागत है!");
     switchTab('admin');
@@ -252,6 +434,7 @@ function logoutUser() {
   localStorage.removeItem('bishnoi_secure_user');
   currentUser = null;
   updateNavAuth();
+  applyMaintenanceRules();
   switchTab('home');
   showToast("सफलतापूर्वक लॉगआउट किया गया।");
 }
@@ -293,7 +476,7 @@ function updateNavAuth() {
   }
 }
 
-// 8. DIGITAL JAAP MALA LOGIC
+// 9. DIGITAL JAAP MALA LOGIC
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect').value;
   document.getElementById('activeMantraDisplay').innerText = selected;
@@ -347,7 +530,7 @@ function resetMalaCounter() {
   });
 }
 
-// 9. AUTOMATED DAILY PANCHANG CALCULATOR
+// 10. AUTOMATED DAILY PANCHANG CALCULATOR
 function computeAutoPanchang() {
   const now = new Date();
   const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
@@ -369,7 +552,7 @@ function computeAutoPanchang() {
   document.getElementById('autoPanchangDetails').innerText = `आज का दिन: ${now.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })} | ${paksha}, ${tithiName}। प्रातः होम एवं नाम स्मरण से दिन आरंभ करें।`;
 }
 
-// 10. DYNAMIC AMAVASYA & LIVE COUNTDOWN
+// 11. DYNAMIC AMAVASYA & LIVE COUNTDOWN
 function listenAmavasyaConfig() {
   db.collection('settings').doc('amavasyaConfig').onSnapshot(doc => {
     if (doc.exists) {
@@ -438,7 +621,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सफलतापूर्वक सहेजी गई!');
 }
 
-// 11. GEMINI 3.8 FLASH API CLIENT (QUERY PARAMETER AUTHENTICATION)
+// 12. GEMINI FLASH LATEST API CLIENT
 function getGeminiKey() {
   let key = localStorage.getItem('gemini_user_api_key');
   if (!key) {
@@ -464,7 +647,6 @@ async function callGemini(promptText) {
     throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
   }
 
-  // Uses the stable auto-updating model alias accepted by Google REST API
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
   const payload = {
     contents: [{ parts: [{ text: promptText }] }]
@@ -536,7 +718,7 @@ async function generateAiDailySandesh() {
   }
 }
 
-// 12. DIRECT PDF EXPORTS (jspdf INTEGRATION)
+// 13. DIRECT PDF EXPORTS (jspdf INTEGRATION)
 async function downloadQuizResultsPdf() {
   showToast("Quiz परिणाम PDF तैयार हो रहा है...");
   const snap = await db.collection('quizAttempts').get();
@@ -626,7 +808,7 @@ async function download7DaysUsersPdf() {
   doc.save("Bishnoi_Registered_Users_7Days.pdf");
 }
 
-// 13. REDESIGNED LOGICAL CERTIFICATE
+// 14. REDESIGNED LOGICAL CERTIFICATE
 function generateCertificate(name, score) {
   const canvas = document.getElementById('certCanvas');
   const ctx = canvas.getContext('2d');
@@ -634,7 +816,6 @@ function generateCertificate(name, score) {
   ctx.fillStyle = '#FAF7EE';
   ctx.fillRect(0, 0, 800, 600);
 
-  // Border Frame
   ctx.strokeStyle = '#143622';
   ctx.lineWidth = 14;
   ctx.strokeRect(20, 20, 760, 560);
@@ -643,7 +824,6 @@ function generateCertificate(name, score) {
   ctx.lineWidth = 3;
   ctx.strokeRect(32, 32, 736, 536);
 
-  // Logical Titles
   ctx.fillStyle = '#143622';
   ctx.textAlign = 'center';
   ctx.font = 'bold 32px sans-serif';
@@ -661,7 +841,6 @@ function generateCertificate(name, score) {
   ctx.font = 'bold 30px sans-serif';
   ctx.fillText(name, 400, 265);
 
-  // Adaptable Body Text
   ctx.fillStyle = '#4A3E37';
   ctx.font = '16px sans-serif';
   ctx.fillText(`ने विश्नोई समाज दैनिक ज्ञान एवं आचार संहिता परीक्षा में`, 400, 325);
@@ -671,7 +850,6 @@ function generateCertificate(name, score) {
   ctx.font = 'italic 16px sans-serif';
   ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै"', 400, 425);
 
-  // Verification & Date
   ctx.fillStyle = '#786A5E';
   ctx.font = '12px sans-serif';
   ctx.fillText(`दिनांक: ${new Date().toLocaleDateString('hi-IN')}`, 200, 505);
@@ -684,7 +862,7 @@ function generateCertificate(name, score) {
   showToast("सम्मान पत्र डाउनलोड हो गया!");
 }
 
-// 14. QUIZ ARENA FLOW
+// 15. QUIZ ARENA FLOW
 function startQuizNow() {
   document.getElementById('quizIntroCard').classList.add('hidden');
   document.getElementById('quizActiveBox').classList.remove('hidden');
@@ -813,7 +991,7 @@ function backToQuizIntro() {
   document.getElementById('quizIntroCard').classList.remove('hidden');
 }
 
-// 15. BULK QUIZ IMPORTER
+// 16. BULK QUIZ IMPORTER
 async function importBulkQuiz() {
   const rawText = document.getElementById('adminBulkQuizText').value.trim();
   if (!rawText) return showToast('कृपया प्रश्न टेक्स्ट पेस्ट करें');
@@ -857,7 +1035,7 @@ async function importBulkQuiz() {
   document.getElementById('adminBulkQuizText').value = '';
 }
 
-// 16. DAILY QUIZ WINNERS
+// 17. DAILY QUIZ WINNERS
 function listenWinners() {
   db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
     if (doc.exists) {
@@ -893,7 +1071,7 @@ async function saveDailyWinners() {
   showToast("शीर्ष विजेता सूची अपडेट हो गई!");
 }
 
-// 17. COMMUNITY FORUM (संवाद मंच)
+// 18. COMMUNITY FORUM (संवाद मंच)
 function updateCharCount() {
   const len = document.getElementById('postText').value.length;
   document.getElementById('charCountDisplay').innerText = `${len} / 300`;
@@ -1001,7 +1179,7 @@ function confirmDeletePost(id) {
   });
 }
 
-// 18. E-LIBRARY (PDFs)
+// 19. E-LIBRARY (PDFs)
 function listenPdfs() {
   db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
     const grid = document.getElementById('pdfGrid');
@@ -1075,7 +1253,7 @@ function confirmDeletePdf(id) {
   });
 }
 
-// 19. AUDIO PLAYER & NOTICES
+// 20. AUDIO PLAYER & NOTICES
 function listenAudios() {
   db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
     if (!snap.empty) {
@@ -1129,7 +1307,7 @@ function listenNotices() {
   });
 }
 
-// 20. PLANTATION PLEDGE COUNTER
+// 21. PLANTATION PLEDGE COUNTER
 function listenTreeCounter() {
   db.collection('stats').doc('treePledges').onSnapshot(doc => {
     if (doc.exists && doc.data().count) {
@@ -1154,7 +1332,7 @@ async function pledgeTree() {
   } catch(e){}
 }
 
-// 21. BANNER & WHATSAPP SHARING
+// 22. BANNER & WHATSAPP SHARING
 function listenBanner() {
   db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
     if (doc.exists && doc.data().text) {
@@ -1187,7 +1365,7 @@ function sharePostWhatsApp(author, content) {
   window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
 }
 
-// 22. 29 NIYAMS RENDER & SEARCH
+// 23. 29 NIYAMS RENDER & SEARCH
 function renderNiyams(data) {
   const grid = document.getElementById('niyamGrid');
   grid.innerHTML = '';
