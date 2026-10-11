@@ -3496,3 +3496,51 @@ function handleGlobalSearch() {
     filterNiyams();
   }
 }
+// PDF Download Handlers for Admin Dashboard
+function downloadQuizResultsPdf() {
+  db.collection('quizAttempts').get().then(snap => {
+    if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
+    let records = [];
+    snap.forEach(d => records.push(d.data()));
+    records.sort((a, b) => b.score - a.score);
+    
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bishnoi Portal - Quiz Results", 14, 18);
+      doc.autoTable({
+        startY: 25,
+        head: [['Rank', 'Name', 'Phone', 'Score', 'Time']],
+        body: records.map((r, i) => [i + 1, r.name || '', r.phone || '', `${r.score}/${r.total}`, `${r.timeTakenSeconds || 0}s`])
+      });
+      doc.save("Bishnoi_Quiz_Results.pdf");
+    } else {
+      showToast("PDF जनरेटर लाइब्रेरी लोड हो रही है, कृपया पुनः प्रयास करें।");
+    }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
+  });
+}
+
+function download7DaysUsersPdf() {
+  db.collection('users').get().then(snap => {
+    if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
+    let rows = [];
+    snap.forEach(d => {
+      const u = d.data();
+      rows.push([u.name || '', u.phone || d.id, u.email || '-', u.location || '-']);
+    });
+    
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Bishnoi Portal - Registered Members", 14, 18);
+      doc.autoTable({ startY: 25, head: [['Name', 'Phone', 'Email', 'Location']], body: rows });
+      doc.save("Bishnoi_Members.pdf");
+    } else {
+      showToast("PDF जनरेटर लाइब्रेरी लोड हो रही है, कृपया पुनः प्रयास करें।");
+    }
+  }).catch(err => {
+    showToast("त्रुटि: " + err.message);
+  });
+}
