@@ -438,7 +438,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सफलतापूर्वक सहेजी गई!');
 }
 
-// 11. MANUAL GEMINI API ENGINE (STORED SAFELY IN BROWSER STORAGE)
+// 11. GEMINI API CLIENT (QUERY PARAMETER AUTHENTICATION)
 function getGeminiKey() {
   let key = localStorage.getItem('gemini_user_api_key');
   if (!key) {
@@ -464,7 +464,8 @@ async function callGemini(promptText) {
     throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
   }
 
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  // Pass key as URL query parameter to satisfy Google's public REST API
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
   const payload = {
     contents: [{ parts: [{ text: promptText }] }]
   };
@@ -472,8 +473,7 @@ async function callGemini(promptText) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "X-goog-api-key": apiKey
+      "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
   });
@@ -482,6 +482,12 @@ async function callGemini(promptText) {
   if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
     return data.candidates[0].content.parts[0].text;
   }
+  
+  // If unauthorized, clear invalid stored key to allow entering a new key
+  if (response.status === 400 || response.status === 401 || response.status === 403) {
+    localStorage.removeItem('gemini_user_api_key');
+  }
+
   throw new Error(data.error ? data.error.message : "Gemini AI से प्रतिक्रिया प्राप्त नहीं हुई");
 }
 
@@ -1034,7 +1040,7 @@ function listenPdfs() {
           </a>
           <div class="flex items-center gap-2">
             <button onclick="sharePdfWhatsApp('${item.title}', '${item.link}')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
-            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600">Delete</button>` : ''}
+            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-red-600 text-xs">Delete</button>` : ''}
           </div>
         </div>
       `;
