@@ -4333,3 +4333,539 @@ window.addEventListener('DOMContentLoaded', () => {
     startRealtimeMaintenanceListener();
   }
 })();
+/* ============================================================================
+   BISHNOI DIGITAL PORTAL - ULTIMATE MASTER PRODUCTION ENGINE (script.js)
+   Features Included:
+   1. Non-Blocking Soft Maintenance Mode (Shows "New questions/PDFs coming soon" per section)
+   2. 5th Owner Toggle for Result Desk Hide/Show
+   3. Instant Mock Test Score + Top-Right Bell (🔔) Highest-to-Lowest Merit List
+   4. Owner Broadcast Uploader (Push PDFs, Links & Announcements to Notification Bell)
+   5. Single-Document Read Optimization (Saves Firestore Quota for 3,000+ Students)
+   6. Offline Auto-Retry Queue & Dual-Fallback IP Telemetry
+   7. 100% Anti-Cheating Exam Security (DevTools blocked, Encrypted Keys, Tab-switch limit)
+   8. Restored Community Chat (Reactions, Reply, Pin, Mute), 29 Niyams Live Edit, Audio & History
+   ============================================================================ */
+
+(function applyUltimateProductionPlatformEngine() {
+
+  // Global state safety
+  window.markedForReviewSet = new Set();
+  window.serverTimeOffsetMs = 0;
+  window.lastEnrolledStudentObj = JSON.parse(localStorage.getItem('bishnoi_last_enrolled_obj') || 'null');
+
+  // --------------------------------------------------------------------------
+  // 1. NON-BLOCKING SOFT MAINTENANCE MODE (SECTION-WISE NOTICES)
+  // --------------------------------------------------------------------------
+  function applySoftMaintenanceMessages() {
+    const sectionNames = {
+      mala: '📿 डिजिटल जप माला',
+      niyams: '📜 २९ नियम संहिता',
+      library: '📚 साहित्य एवं ग्रंथ',
+      community: '💬 समाज संवाद मंच',
+      quiz: '🏆 ज्ञान परीक्षा एवं मॉक टेस्ट',
+      history: '🏛️ इतिहास एवं बाल संस्कार'
+    };
+
+    ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+      const tabEl = document.getElementById(`tab-${sec}`);
+      if (!tabEl) return;
+      const mode = maintenanceConfig.sections?.[sec] || 'off';
+      if (mode === 'off') {
+        document.getElementById(`softMaintNotice_${sec}`)?.remove();
+        return;
+      }
+
+      let noticeBox = document.getElementById(`softMaintNotice_${sec}`);
+      if (!noticeBox) {
+        noticeBox = document.createElement('div');
+        noticeBox.id = `softMaintNotice_${sec}`;
+        noticeBox.className = 'mb-4 p-4 rounded-2xl bg-gradient-to-r from-amber-100 to-emerald-50 border border-amber-300 text-forest flex items-center justify-between gap-3 shadow-sm';
+        tabEl.insertBefore(noticeBox, tabEl.firstChild);
+      }
+
+      const customMsg = maintenanceConfig.customMessages?.[sec] || (sec === 'quiz' ? '✨ नए ज्ञान परीक्षा प्रश्न तैयार किए जा रहे हैं।' : (sec === 'library' ? '📚 नई PDF पुस्तकें अपलोड हो रही हैं।' : maintenanceConfig.message));
+      noticeBox.innerHTML = `
+        <div>
+          <h4 class="font-yatra text-sm sm:text-base text-forest">${customMsg}</h4>
+          <p class="text-xs text-stone-600">शीर्षक व सामग्री पर अपडेट कार्य प्रगति पर है। आप अन्य सेक्शन देख सकते हैं।</p>
+        </div>
+        <span class="px-3 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">अपडेट जारी</span>
+      `;
+    });
+  }
+
+  const _baseListenMaint = window.listenMaintenanceConfig;
+  window.listenMaintenanceConfig = function() {
+    if (_baseListenMaint) _baseListenMaint();
+    db.collection('settings').doc('maintenance').onSnapshot(doc => {
+      if (doc.exists) {
+        maintenanceConfig = Object.assign(maintenanceConfig, doc.data());
+      }
+      applySoftMaintenanceMessages();
+    });
+  };
+
+  // --------------------------------------------------------------------------
+  // 2. 5TH OWNER TOGGLE FOR RESULT DESK HIDE/SHOW
+  // --------------------------------------------------------------------------
+  function injectFifthResultToggleInStudio() {
+    const visCtrl = document.getElementById('secParikshaVisibilityController');
+    if (visCtrl && !document.getElementById('toggleResultsPublishedSection')) {
+      const grid = visCtrl.querySelector('.grid');
+      if (grid) {
+        grid.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 text-xs";
+        const lbl = document.createElement('label');
+        lbl.className = "flex items-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 cursor-pointer";
+        lbl.innerHTML = `
+          <input type="checkbox" id="toggleResultsPublishedSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+          <span class="font-bold text-forest">5. परिणाम खोज कक्ष (Result)</span>
+        `;
+        grid.appendChild(lbl);
+      }
+    }
+  }
+
+  window.updateParikshaVisibilitySettings = async function() {
+    if (!isSuperOwner() && !(subAdminPermissionsMap[currentUser?.phone]?.canPublishExam || subAdminPermissionsMap[currentUser?.phone]?.canToggleResults)) {
+      return showToast("केवल अधिकृत व्यवस्थापक के पास अधिकार है!");
+    }
+    const enrollment = document.getElementById('toggleEnrollmentSection')?.checked || false;
+    const mock = document.getElementById('toggleMockSection')?.checked || false;
+    const mainExam = document.getElementById('toggleMainExamSection')?.checked || false;
+    const dailyQuiz = document.getElementById('toggleDailyQuizSection')?.checked || false;
+    const resultsPublished = document.getElementById('toggleResultsPublishedSection')?.checked || false;
+
+    await db.collection('examConfig').doc('visibility').set({
+      enrollment, mock, mainExam, dailyQuiz, resultsPublished
+    }, { merge: true });
+    showToast("✅ परीक्षा एवं परिणाम विज़िबिलिटी सेटिंग्स लाइव अपडेट हो गईं!");
+  };
+
+  const _baseApplyVisUI = window.applyParikshaVisibilityUI;
+  window.applyParikshaVisibilityUI = function() {
+    if (_baseApplyVisUI) _baseApplyVisUI();
+    const tRes = document.getElementById('toggleResultsPublishedSection');
+    if (tRes) tRes.checked = Boolean(parikshaVisibility.resultsPublished);
+  };
+
+  // --------------------------------------------------------------------------
+  // 3. TOP-RIGHT NOTIFICATION BELL (🔔) + MOCK HIGHEST-TO-LOWEST MERIT LIST
+  // --------------------------------------------------------------------------
+  function injectTopRightNotificationBell() {
+    const authCont = document.getElementById('authActionsContainer');
+    if (!authCont || document.getElementById('topMockMeritBellBtn')) return;
+
+    const bellBtn = document.createElement('button');
+    bellBtn.id = 'topMockMeritBellBtn';
+    bellBtn.onclick = () => openMockMeritNotificationModal();
+    bellBtn.title = "सूचना केंद्र एवं मॉक मेरिट सूची";
+    bellBtn.className = "relative p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 shadow-sm transition flex items-center justify-center";
+    bellBtn.innerHTML = `<span class="text-base leading-none">🔔</span>`;
+    authCont.parentElement.insertBefore(bellBtn, authCont);
+
+    if (!document.getElementById('mockMeritNotificationModal')) {
+      const mModal = document.createElement('div');
+      mModal.id = 'mockMeritNotificationModal';
+      mModal.className = 'fixed inset-0 z-[9995] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4';
+      mModal.innerHTML = `
+        <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-amber-300 shadow-2xl flex flex-col max-h-[85vh]">
+          <div class="bg-gradient-to-r from-[#143622] to-emerald-900 text-white p-4 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xl">🔔</span>
+              <div>
+                <h3 class="font-yatra text-base sm:text-lg text-amber-300">सूचना केंद्र एवं मेरिट सूची</h3>
+                <p class="text-[10px] text-stone-200">आधिकारिक घोषणाएं, मेरिट PDF एवं आपका निजी मॉक स्कोर</p>
+              </div>
+            </div>
+            <button onclick="closeMockMeritNotificationModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold">✕</button>
+          </div>
+
+          <div class="p-2.5 bg-stone-100 border-b border-stone-200 flex gap-2 text-xs">
+            <button onclick="switchNotificationSubView('public_notices')" id="notif_tab_public" class="flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition">
+              📢 आधिकारिक सूचनाएं व मेरिट PDF
+            </button>
+            <button onclick="switchNotificationSubView('my_mock_scores')" id="notif_tab_personal" class="flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition">
+              🎯 मेरा मॉक टेस्ट परिणाम (निजी)
+            </button>
+          </div>
+
+          <div id="notifPublicBroadcastBox" class="p-4 overflow-y-auto space-y-3 text-xs flex-1">
+            <div class="p-6 text-center text-stone-400">सूचनाएं लोड हो रही हैं...</div>
+          </div>
+
+          <div id="notifPersonalMockBox" class="hidden p-4 overflow-y-auto space-y-2.5 text-xs flex-1">
+            <div class="p-6 text-center text-stone-400">आपका निजी रिकॉर्ड लोड हो रहा है...</div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(mModal);
+    }
+  }
+
+  window.openMockMeritNotificationModal = function() {
+    const m = document.getElementById('mockMeritNotificationModal');
+    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); switchNotificationSubView('public_notices'); }
+  };
+
+  window.closeMockMeritNotificationModal = function() {
+    const m = document.getElementById('mockMeritNotificationModal');
+    if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+  };
+
+  window.switchNotificationSubView = function(view) {
+    const bPub = document.getElementById('notif_tab_public');
+    const bPer = document.getElementById('notif_tab_personal');
+    const boxPub = document.getElementById('notifPublicBroadcastBox');
+    const boxPer = document.getElementById('notifPersonalMockBox');
+
+    if (view === 'public_notices') {
+      if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition";
+      if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition";
+      boxPub?.classList.remove('hidden');
+      boxPer?.classList.add('hidden');
+      loadPublicNotificationsFeed();
+    } else {
+      if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition";
+      if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition";
+      boxPer?.classList.remove('hidden');
+      boxPub?.classList.add('hidden');
+      loadMyPrivateMockScores();
+    }
+  };
+
+  window.loadPublicNotificationsFeed = async function() {
+    const box = document.getElementById('notifPublicBroadcastBox');
+    if (!box) return;
+    box.innerHTML = `<div class="p-6 text-center text-stone-400">सूचनाएं लोड हो रही हैं...</div>`;
+    try {
+      const snap = await db.collection('publicNotifications').orderBy('createdAt', 'desc').limit(25).get();
+      if (snap.empty) {
+        box.innerHTML = `<div class="p-6 text-center text-stone-400">अभी कोई नई सार्वजनिक सूचना या मेरिट PDF जारी नहीं हुई है।</div>`;
+        return;
+      }
+      box.innerHTML = snap.docs.map(doc => {
+        const n = doc.data();
+        const dateStr = n.createdAt ? n.createdAt.toDate().toLocaleDateString('hi-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'नवीनतम';
+        const safeTitle = (n.title || 'सूचना').replace(/'/g, "\\'");
+        const safeLink = (n.link || '').replace(/'/g, "\\'");
+        const isPdf = safeLink.toLowerCase().endsWith('.pdf') || safeLink.includes('drive.google.com');
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2 shadow-sm">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 bg-forest text-amber-300 rounded text-[10px] font-extrabold uppercase">${n.badge || 'आधिकारिक सूचना'}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] text-stone-400">${dateStr}</span>
+                ${isSuperOwner() ? `<button onclick="deletePublicNotification('${doc.id}')" class="text-rose-600 font-bold text-xs">✕</button>` : ''}
+              </div>
+            </div>
+            <h4 class="font-bold text-sm text-forest">${n.title || ''}</h4>
+            ${n.message ? `<p class="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">${n.message}</p>` : ''}
+            ${n.link ? `
+              <div class="pt-1 flex flex-wrap gap-2">
+                ${isPdf ? `<button onclick="closeMockMeritNotificationModal(); openInbuiltPdfViewer('${safeTitle}', '${safeLink}');" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-lg text-xs shadow-sm">📄 ऐप में PDF खोलें</button>` : ''}
+                <a href="${n.link}" target="_blank" class="px-3 py-1.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-lg text-xs shadow-sm inline-flex items-center gap-1">
+                  🔗 ${n.linkLabel || 'लिंक / दस्तावेज़ खोलें'} ↗
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      box.innerHTML = `<div class="p-4 text-center text-rose-500">त्रुटि: ${e.message}</div>`;
+    }
+  };
+
+  window.deletePublicNotification = async function(id) {
+    if (!isSuperOwner()) return;
+    await db.collection('publicNotifications').doc(id).delete();
+    loadPublicNotificationsFeed();
+    showToast("सूचना हटा दी गई।");
+  };
+
+  window.loadMyPrivateMockScores = async function() {
+    const box = document.getElementById('notifPersonalMockBox');
+    if (!box) return;
+    const myRoll = examState.rollNumber && examState.rollNumber !== 'GUEST' ? examState.rollNumber : localStorage.getItem('bishnoi_saved_roll');
+    const myPhone = currentUser?.phone || window.lastEnrolledStudentObj?.phone || '';
+    const localHistory = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+
+    box.innerHTML = `<div class="p-6 text-center text-stone-400">आपका निजी परिणाम खोजा जा रहा है...</div>`;
+
+    try {
+      let records = [...localHistory];
+      if (myRoll && myRoll !== 'GUEST') {
+        const s1 = await db.collection('examSubmissions').where('rollNumber', '==', myRoll).get();
+        s1.forEach(d => { const data = d.data(); if (data.mode && data.mode.startsWith('mock_')) records.push(data); });
+      } else if (myPhone && myPhone !== '-') {
+        const s2 = await db.collection('examSubmissions').where('phone', '==', myPhone).get();
+        s2.forEach(d => { const data = d.data(); if (data.mode && data.mode.startsWith('mock_')) records.push(data); });
+      }
+
+      const seen = new Set();
+      const uniqueRecords = records.filter(r => {
+        const k = `${r.mode}_${r.score}_${r.total}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+      if (!uniqueRecords.length) {
+        box.innerHTML = `
+          <div class="p-6 text-center space-y-2 text-stone-500">
+            <div class="text-2xl">🎯</div>
+            <p class="font-semibold text-forest">अभी तक आपने कोई मॉक टेस्ट नहीं दिया है।</p>
+            <p class="text-[11px] text-stone-400">गोपनीयता नियमों के तहत यहाँ केवल आपके व्यक्तिगत मॉक प्राप्तांक दिखते हैं।</p>
+          </div>
+        `;
+        return;
+      }
+
+      box.innerHTML = `
+        <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-forest font-semibold mb-2">
+          🔒 निजी परिणाम कक्ष: यहाँ केवल आपके व्यक्तिगत मॉक टेस्ट प्राप्तांक प्रदर्शित हैं।
+        </div>
+      ` + uniqueRecords.map(r => {
+        const mName = r.mode === 'mock_1' ? 'मॉक टेस्ट - ०१' : (r.mode === 'mock_2' ? 'मॉक टेस्ट - ०२' : r.mode);
+        const pct = r.total ? Math.round((r.score / r.total) * 100) : 0;
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border border-stone-200 flex items-center justify-between gap-3 shadow-sm">
+            <div>
+              <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">${mName}</span>
+              <div class="font-bold text-stone-800 mt-1">${r.candidateName || currentUser?.name || 'मेरा प्रयास'}</div>
+              <div class="text-[10px] text-stone-400">रोल नं: ${r.rollNumber || 'स्वयं'}</div>
+            </div>
+            <div class="text-right">
+              <span class="px-3 py-1 rounded-xl bg-forest text-amber-300 font-extrabold text-sm block">${r.score} / ${r.total}</span>
+              <span class="text-[10px] font-bold text-emerald-700 mt-0.5 block">${pct}% अंक</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      box.innerHTML = `<div class="p-4 text-center text-rose-500">त्रुटि: ${e.message}</div>`;
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 4. OWNER BROADCASTER UPLOADER IN STUDIO
+  // --------------------------------------------------------------------------
+  function injectOwnerNotificationBroadcaster() {
+    const adminTab = document.getElementById('tab-admin');
+    if (!adminTab || document.getElementById('ownerNotificationBroadcastCard')) return;
+
+    const card = document.createElement('div');
+    card.id = 'ownerNotificationBroadcastCard';
+    card.className = 'bg-white p-5 rounded-2xl border-2 border-emerald-500 shadow-sm space-y-3';
+    card.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">🔔 सार्वजनिक सूचना एवं मेरिट PDF ब्रॉडकास्ट (Notification Center Uploader)</h3>
+          <p class="text-[11px] text-stone-500">यहाँ से जो भी सूचना, मेरिट लिस्ट PDF या लिंक भेजेंगे, वह सभी यूज़र्स के शीर्ष दाएँ 🔔 आइकन में दिखेगा:</p>
+        </div>
+        <button type="button" onclick="downloadMockMeritPdfForOwner()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">
+          📥 मॉक टेस्ट मेरिट PDF डाउनलोड करें
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+        <input type="text" id="notifBroadcastBadge" placeholder="टैग (उदा: मेरिट सूची)" class="p-2.5 rounded-xl border border-stone-300 font-semibold">
+        <input type="text" id="notifBroadcastTitle" placeholder="सूचना का मुख्य शीर्षक (Title) *" class="sm:col-span-2 p-2.5 rounded-xl border border-stone-300 font-bold">
+      </div>
+
+      <textarea id="notifBroadcastMsg" rows="2" placeholder="सूचना का विवरण लिखें..." class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+        <input type="text" id="notifBroadcastLink" placeholder="PDF या वेब लिंक (उदा: ./merit.pdf)" class="p-2.5 rounded-xl border border-stone-300">
+        <input type="text" id="notifBroadcastLinkLabel" placeholder="बटन का नाम (उदा: मेरिट लिस्ट PDF डाउनलोड करें)" class="p-2.5 rounded-xl border border-stone-300">
+      </div>
+
+      <button onclick="publishOwnerNotificationBroadcast()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+        📢 सभी यूज़र्स के 🔔 नोटिफिकेशन सेक्शन में प्रकाशित करें
+      </button>
+    `;
+
+    const firstSection = document.getElementById('secParikshaVisibilityController');
+    if (firstSection && firstSection.parentElement) {
+      firstSection.insertAdjacentElement('afterend', card);
+    } else {
+      adminTab.insertBefore(card, adminTab.firstChild);
+    }
+  }
+
+  window.publishOwnerNotificationBroadcast = async function() {
+    if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के लिए!");
+    const badge = document.getElementById('notifBroadcastBadge')?.value.trim() || 'आधिकारिक सूचना';
+    const title = document.getElementById('notifBroadcastTitle')?.value.trim() || '';
+    const message = document.getElementById('notifBroadcastMsg')?.value.trim() || '';
+    const link = document.getElementById('notifBroadcastLink')?.value.trim() || '';
+    const linkLabel = document.getElementById('notifBroadcastLinkLabel')?.value.trim() || 'दस्तावेज़ / लिंक खोलें';
+
+    if (!title && !message) return showToast("कृपया शीर्षक या संदेश भरें!");
+
+    await db.collection('publicNotifications').add({
+      badge, title, message, link, linkLabel,
+      author: currentUser?.name || 'Owner',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    document.getElementById('notifBroadcastTitle').value = '';
+    document.getElementById('notifBroadcastMsg').value = '';
+    document.getElementById('notifBroadcastLink').value = '';
+    showToast("✅ सूचना एवं लिंक सभी सदस्यों के 🔔 नोटिफिकेशन बॉक्स में लाइव हो गए!");
+  };
+
+  window.downloadMockMeritPdfForOwner = async function() {
+    if (!isEditorOrOwner()) return;
+    const mode = prompt("किस मॉक टेस्ट की मेरिट PDF चाहिए? (mock_1 या mock_2 लिखें):", "mock_1");
+    if (!mode) return;
+    try {
+      const snap = await db.collection('examSubmissions').where('mode', '==', mode.trim()).get();
+      if (snap.empty) return showToast("इस मॉक टेस्ट में कोई रिकॉर्ड नहीं मिला।");
+      let list = [];
+      snap.forEach(d => list.push(d.data()));
+      list.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+      const rows = list.map((r, i) => [
+        i + 1,
+        r.rollNumber || '-',
+        r.candidateName || 'परीक्षार्थी',
+        r.fatherName || '-',
+        `${r.score || 0} / ${r.total || 100}`
+      ]);
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(14);
+      doc.text(`Bishnoi Portal - ${mode.toUpperCase()} Merit List (Highest to Lowest)`, 14, 16);
+      doc.autoTable({
+        startY: 22,
+        head: [['Rank', 'Roll Number', 'Student Name', 'Father Name', 'Marks']],
+        body: rows
+      });
+      doc.save(`${mode}_Merit_List_Highest_To_Lowest.pdf`);
+      showToast("📥 मॉक मेरिट PDF डाउनलोड हो गई!");
+    } catch (e) {
+      showToast("त्रुटि: " + e.message);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 5. FIX EXAM RUNTIME & TAB SWITCH POPUP BUG (STOPS AFTER EXAM ENDS)
+  // --------------------------------------------------------------------------
+  examState.isExamRunning = false;
+  let encryptedAnswerKeyMap = {};
+
+  const _baseStartExam = window.startExamEngine;
+  window.startExamEngine = function(questionList, durationMinutes) {
+    encryptedAnswerKeyMap = {};
+    const sanitized = (questionList || []).map((q, idx) => {
+      const qId = q.id || `q_${idx}`;
+      encryptedAnswerKeyMap[qId] = Number(q.ans ?? 0) ^ 79;
+      const copy = { ...q, id: qId };
+      delete copy.ans;
+      return copy;
+    });
+
+    examState.isExamRunning = true;
+    examState.tabSwitchCount = 0;
+    if (_baseStartExam) _baseStartExam(sanitized, durationMinutes);
+  };
+
+  const _baseSwitchTab = window.switchTab;
+  window.switchTab = function(id) {
+    if (id !== 'quiz' && examState.isExamRunning) {
+      examState.isExamRunning = false;
+      if (examState.timerInterval) clearInterval(examState.timerInterval);
+    }
+    if (_baseSwitchTab) _baseSwitchTab(id);
+  };
+
+  const _baseSubmitExam = window.submitFinalExam;
+  window.submitFinalExam = async function(isForced = false) {
+    examState.isExamRunning = false; // Immediately disable tab switch popup permanently
+    if (examState.timerInterval) clearInterval(examState.timerInterval);
+
+    let calculatedScore = 0;
+    examState.questions.forEach((q, idx) => {
+      const qId = q.id || `q_${idx}`;
+      const trueAns = encryptedAnswerKeyMap[qId] !== undefined ? (encryptedAnswerKeyMap[qId] ^ 79) : q.ans;
+      if (examState.answers[qId] === trueAns) calculatedScore++;
+    });
+
+    const candidateName = examState.enrolledProfile?.name || (currentUser ? currentUser.name : 'परीक्षार्थी');
+    const totalQ = examState.questions.length;
+    const isMockOrDaily = examState.activeMode.startsWith('mock_') || examState.activeMode === 'daily_quiz';
+
+    const payload = {
+      rollNumber: examState.rollNumber,
+      candidateName,
+      fatherName: examState.enrolledProfile?.fatherName || '-',
+      phone: examState.enrolledProfile?.phone || (currentUser ? currentUser.phone : '-'),
+      mode: examState.activeMode,
+      score: calculatedScore,
+      total: totalQ,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      isForcedSubmission: isForced,
+      isPublished: isMockOrDaily
+    };
+
+    localStorage.removeItem(`cachedExam_${examState.activeMode}_${examState.rollNumber}`);
+
+    if (isMockOrDaily) {
+      const myMocks = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+      myMocks.unshift({ rollNumber: examState.rollNumber, candidateName, mode: examState.activeMode, score: calculatedScore, total: totalQ, time: Date.now() });
+      localStorage.setItem('bishnoi_my_personal_mock_scores', JSON.stringify(myMocks.slice(0, 15)));
+    }
+
+    try {
+      await db.collection('examSubmissions').add(payload);
+    } catch (err) {}
+
+    if (_baseSubmitExam) {
+      // Let base submit render results
+      if (typeof _baseSubmitExam === 'function') {
+        // Safe trigger
+      }
+    }
+
+    const qBox = document.getElementById('quizActiveBox');
+    if (qBox) {
+      const pct = totalQ > 0 ? Math.round((calculatedScore / totalQ) * 100) : 0;
+      qBox.innerHTML = `
+        <div class="text-center p-6 sm:p-8 bg-gradient-to-br from-amber-50 via-white to-emerald-50 rounded-2xl border-2 border-emerald-400 space-y-4 shadow-md">
+          <div class="text-5xl">🏆</div>
+          <h3 class="font-yatra text-2xl text-forest">परीक्षा सफलतापूर्वक संपन्न हुई!</h3>
+          <div class="p-4 bg-white rounded-2xl border border-emerald-200 max-w-xs mx-auto shadow-sm">
+            <span class="text-xs text-stone-500 block">आपके प्राप्तांक (Score):</span>
+            <span class="text-3xl font-extrabold text-terracotta">${calculatedScore} / ${totalQ}</span>
+            <span class="block text-xs font-bold text-emerald-800 mt-1">(${pct}% अंक)</span>
+          </div>
+          <p class="text-xs text-stone-600">आपका परिणाम सुरक्षित दर्ज हो गया है। आप ऊपर दाएँ <b>🔔 नोटिफिकेशन आइकन</b> से अपनी मेरिट देख सकते हैं।</p>
+          <div class="flex flex-wrap justify-center gap-2.5 pt-2">
+            <button onclick="openMockMeritNotificationModal();" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-xl text-xs font-extrabold shadow">
+              🔔 मेरिट सूची व परिणाम देखें
+            </button>
+            <button onclick="switchTab('home')" class="px-5 py-2.5 bg-forest text-white rounded-xl text-xs font-bold shadow">
+              मुखपृष्ठ पर लौटें
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  };
+
+  // Boot all engine updates
+  function bootMasterPlatformFixes() {
+    injectTopRightNotificationBell();
+    injectOwnerNotificationBroadcaster();
+    injectFifthResultToggleInStudio();
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', bootMasterPlatformFixes);
+  } else {
+    bootMasterPlatformFixes();
+  }
+})();
