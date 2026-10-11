@@ -74,6 +74,7 @@ const NIYAMS_DATA = [
 // 4. TOAST & MODAL UTILITIES
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
+  if (!toast) return;
   document.getElementById('toastMsg').innerText = msg;
   toast.classList.remove('-translate-y-20', 'opacity-0');
   toast.classList.add('translate-y-0', 'opacity-100');
@@ -151,7 +152,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 7. SECURE AUTHENTICATION ENGINE (STRICT 10-DIGIT CHECK & REGISTER RESTRICTION)
+// 7. SECURE AUTHENTICATION ENGINE
 function openAuthModal() {
   document.getElementById('authModal').classList.remove('hidden');
 }
@@ -176,7 +177,7 @@ async function handleAuthSubmit(e) {
   const pass = document.getElementById('loginPass').value.trim();
   const nameInput = document.getElementById('loginName').value.trim();
 
-  // 1. Direct Owner Verification (Allows special owner phone)
+  // Owner Login
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
     currentUser = { name: "व्यवस्थापक (Owner)", phone: OWNER_PHONE, isOwner: true };
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
@@ -187,12 +188,12 @@ async function handleAuthSubmit(e) {
     return;
   }
 
-  // 2. Strict 10-Digit Mobile Validation for general members
+  // Strict 10-Digit Mobile Check
   if (!/^[6-9]\d{9}$/.test(phone)) {
     return showToast("कृपया सही १० अंकों का भारतीय मोबाइल नंबर दर्ज करें!");
   }
 
-  // 3. Registration Mode
+  // Registration Mode
   if (isRegisterMode) {
     if (!nameInput) {
       return showToast("कृपया अपना पूरा नाम दर्ज करें!");
@@ -221,7 +222,7 @@ async function handleAuthSubmit(e) {
     return;
   }
 
-  // 4. Sign In Mode (Strict User Verification)
+  // Sign In Mode
   try {
     const userDoc = await db.collection('users').doc(phone).get();
     if (!userDoc.exists) {
@@ -437,14 +438,14 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सफलतापूर्वक सहेजी गई!');
 }
 
-// 11. SECURE CHATGPT INTEGRATION (NO HARDCODED LEAKS)
-function getOpenAiKey() {
-  let key = localStorage.getItem('openai_user_api_key');
+// 11. MANUAL GEMINI API ENGINE (STORED SAFELY IN BROWSER STORAGE)
+function getGeminiKey() {
+  let key = localStorage.getItem('gemini_user_api_key');
   if (!key) {
-    key = prompt("कृपया अपनी OpenAI ChatGPT API Key यहाँ पेस्ट करें:");
-    if (key && key.trim().startsWith("sk-")) {
+    key = prompt("कृपया अपनी Gemini API Key यहाँ पेस्ट करें:");
+    if (key && key.trim()) {
       key = key.trim();
-      localStorage.setItem('openai_user_api_key', key);
+      localStorage.setItem('gemini_user_api_key', key);
     } else {
       return null;
     }
@@ -452,43 +453,41 @@ function getOpenAiKey() {
   return key;
 }
 
-function resetOpenAiKey() {
-  localStorage.removeItem('openai_user_api_key');
-  showToast("API कुंजी हटा दी गई। अगली बार नई कुंजी पूछी जाएगी।");
+function resetGeminiKey() {
+  localStorage.removeItem('gemini_user_api_key');
+  showToast("Gemini API कुंजी हटा दी गई। अगली बार नई कुंजी पूछी जाएगी।");
 }
 
-async function callChatGpt(promptText) {
-  const apiKey = getOpenAiKey();
+async function callGemini(promptText) {
+  const apiKey = getGeminiKey();
   if (!apiKey) {
-    throw new Error("वैध OpenAI API Key दर्ज नहीं की गई।");
+    throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  const payload = {
+    contents: [{ parts: [{ text: promptText }] }]
+  };
+
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
+      "X-goog-api-key": apiKey
     },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a knowledgeable assistant in Bishnoi heritage, 29 Niyams, and environmental ethics." },
-        { role: "user", content: promptText }
-      ],
-      temperature: 0.7
-    })
+    body: JSON.stringify(payload)
   });
 
   const data = await response.json();
-  if (data.choices && data.choices[0] && data.choices[0].message) {
-    return data.choices[0].message.content;
+  if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+    return data.candidates[0].content.parts[0].text;
   }
-  throw new Error(data.error ? data.error.message : "ChatGPT से प्रतिक्रिया प्राप्त नहीं हुई");
+  throw new Error(data.error ? data.error.message : "Gemini AI से प्रतिक्रिया प्राप्त नहीं हुई");
 }
 
 async function generateAiQuizQuestions() {
   const btn = document.getElementById('aiQuizGenBtn');
-  btn.innerText = "⏳ ChatGPT प्रश्न बना रहा है...";
+  btn.innerText = "⏳ Gemini प्रश्न बना रहा है...";
   btn.disabled = true;
 
   const prompt = `विश्नोई समाज के २९ नियमों, पर्यावरण रक्षा, खेजड़ली बलिदान एवं नैतिक मूल्यों पर आधारित ५ प्रामाणिक वस्तुनिष्ठ (MCQ) प्रश्न हिंदी में बनाएं। 
@@ -502,13 +501,13 @@ D) विकल्प 4
 Ans: A`;
 
   try {
-    const result = await callChatGpt(prompt);
+    const result = await callGemini(prompt);
     document.getElementById('adminBulkQuizText').value = result.trim();
-    showToast("ChatGPT ने ५ नए प्रश्न तैयार कर दिए! नीचे 'Publish All' पर क्लिक करें।");
+    showToast("Gemini ने ५ नए प्रश्न तैयार कर दिए! नीचे 'Publish All' पर क्लिक करें।");
   } catch (err) {
     showToast("AI Error: " + err.message);
   } finally {
-    btn.innerHTML = `<span class="font-bold text-xs text-amber-200">⚡ ChatGPT से 5 नए प्रश्न बनवाएं</span><span class="text-[11px] text-stone-300 mt-1">AI स्वतः प्रश्न व विकल्प तैयार कर नीचे बल्क बॉक्स में दर्ज करेगा।</span>`;
+    btn.innerHTML = `<span class="font-bold text-xs text-amber-200">⚡ Gemini से 5 नए प्रश्न बनवाएं</span><span class="text-[11px] text-stone-300 mt-1">AI स्वतः प्रश्न व विकल्प तैयार कर नीचे बल्क बॉक्स में दर्ज करेगा।</span>`;
     btn.disabled = false;
   }
 }
@@ -521,13 +520,13 @@ async function generateAiDailySandesh() {
   const prompt = `Write a short, highly inspirational 1-line quote in Hindi for the Bishnoi community focusing on tree protection, kindness to all animals, or moral virtues. Do not add quotes or formatting.`;
 
   try {
-    const result = await callChatGpt(prompt);
+    const result = await callGemini(prompt);
     document.getElementById('adminBannerInput').value = result.trim();
-    showToast("ChatGPT ने नया सुविचार लिख दिया! 'Update Banner' दबाकर लाइव करें।");
+    showToast("Gemini ने नया सुविचार लिख दिया! 'Update Banner' दबाकर लाइव करें।");
   } catch (err) {
     showToast("AI Error: " + err.message);
   } finally {
-    btn.innerHTML = `<span class="font-bold text-xs text-amber-200">📢 ChatGPT से नया पावन सुविचार लिखवाएं</span><span class="text-[11px] text-stone-300 mt-1">जीव रक्षा व आचार संहिता पर सुविचार तैयार करें।</span>`;
+    btn.innerHTML = `<span class="font-bold text-xs text-amber-200">📢 Gemini से नया पावन सुविचार लिखवाएं</span><span class="text-[11px] text-stone-300 mt-1">जीव रक्षा व आचार संहिता पर सुविचार तैयार करें।</span>`;
     btn.disabled = false;
   }
 }
