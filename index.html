@@ -41,10 +41,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
   <!-- Firebase SDKs -->
-  <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -272,6 +271,19 @@
         <p class="text-xs text-stone-600">पवित्र नाम स्मरण • स्पर्श एवं स्पंदन अनुभव</p>
       </div>
 
+      <!-- CLEAN PROFILE STATS CARD -->
+      <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 flex justify-around text-center shadow-sm">
+        <div>
+          <div class="text-2xl font-bold font-mono text-amber-900" id="userTotalMantra">0</div>
+          <div class="text-xs text-amber-800 font-medium mt-0.5">कुल मंत्र जप</div>
+        </div>
+        <div class="border-r border-amber-200"></div>
+        <div>
+          <div class="text-2xl font-bold font-mono text-amber-900" id="userCompletedMala">0</div>
+          <div class="text-xs text-amber-800 font-medium mt-0.5">पूर्ण माला</div>
+        </div>
+      </div>
+
       <div class="bg-white p-6 rounded-3xl border border-stone-200 shadow-lg text-center space-y-6">
         
         <!-- MANTRA SELECTOR -->
@@ -340,74 +352,134 @@
       <div id="pdfGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- 5. COMMUNITY FORUM (संवाद मंच - REPLACED 'चौपाल') -->
-    <!-- 💬 UPGRADED SAMVAD MANCH (TEXT-ONLY CHAT) -->
-<section id="tab-community" class="hidden space-y-4">
-  <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-    <div>
-      <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद मंच (Live Community Chat)</h2>
-      <p class="text-xs text-stone-500">विचार, नियम चर्चा एवं समाज संवाद (केवल टेक्स्ट चैट)</p>
-    </div>
-    <!-- Topic Filter Dropdown -->
-    <select id="chatTopicFilter" onchange="renderFilteredChat()" class="p-2 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-stone-700">
-      <option value="all">📋 सभी विषय (All Topics)</option>
-      <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
-      <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
-      <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
-      <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
-    </select>
-  </div>
-
-  <!-- 📌 Admin Pinned Message Banner -->
-  <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm flex items-start justify-between gap-3">
-    <div class="text-xs space-y-0.5">
-      <div class="font-bold text-amber-900 flex items-center gap-1">📌 पिन किया गया संदेश (Pinned by Owner)</div>
-      <p id="pinnedChatText" class="text-stone-700 font-medium"></p>
-    </div>
-    <button id="unpinChatBtn" onclick="unpinChatMessage()" class="hidden text-[11px] text-red-600 font-bold hover:underline shrink-0">हटाएं ✕</button>
-  </div>
-
-  <!-- Chat Messages Stream -->
-  <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-xl border border-stone-200"></div>
-
-  <!-- Login Prompt if Guest -->
-  <div id="postAuthPrompt" class="bg-white p-4 rounded-xl border border-stone-200 text-center space-y-2">
-    <p class="text-xs text-stone-600">संवाद मंच में संदेश भेजने के लिए कृपया लॉगिन करें।</p>
-    <button onclick="openAuthModal()" class="px-4 py-2 bg-forest text-white text-xs font-semibold rounded-lg">लॉगिन / शामिल हों</button>
-  </div>
-
-  <!-- Text-Only Chat Composer Box -->
-  <div id="postEditor" class="hidden bg-white p-3.5 rounded-xl border-2 border-emerald-800/20 shadow-md space-y-2.5">
-    <!-- Reply Preview Bar -->
-    <div id="replyPreviewBar" class="hidden bg-stone-100 p-2 rounded-lg border-l-4 border-forest flex items-center justify-between text-xs">
-      <div class="truncate pr-2">
-        <span class="font-bold text-forest" id="replyToAuthor"></span>:
-        <span class="text-stone-600" id="replyToText"></span>
+    <!-- 5. COMMUNITY FORUM (संवाद मंच) -->
+    <section id="tab-community" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद मंच (Live Community Chat)</h2>
+          <p class="text-xs text-stone-500">विचार, नियम चर्चा एवं समाज संवाद (केवल टेक्स्ट चैट)</p>
+        </div>
+        <!-- Topic Filter Dropdown -->
+        <select id="chatTopicFilter" onchange="renderFilteredChat()" class="p-2 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-stone-700">
+          <option value="all">📋 सभी विषय (All Topics)</option>
+          <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
+          <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
+          <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
+          <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
+        </select>
       </div>
-      <button onclick="cancelChatReply()" class="text-stone-500 hover:text-red-600 font-bold px-1">✕</button>
-    </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <select id="postTopicSelect" class="p-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-forest">
-        <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
-        <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
-        <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
-        <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
-      </select>
-      <span id="charCountDisplay" class="text-[11px] text-stone-400">0 / 300</span>
-    </div>
+      <!-- 📌 Admin Pinned Message Banner -->
+      <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm flex items-start justify-between gap-3">
+        <div class="text-xs space-y-0.5">
+          <div class="font-bold text-amber-900 flex items-center gap-1">📌 पिन किया गया संदेश (Pinned by Owner)</div>
+          <p id="pinnedChatText" class="text-stone-700 font-medium"></p>
+        </div>
+        <button id="unpinChatBtn" onclick="unpinChatMessage()" class="hidden text-[11px] text-red-600 font-bold hover:underline shrink-0">हटाएं ✕</button>
+      </div>
 
-    <div class="flex gap-2">
-      <textarea id="postText" rows="2" maxlength="300" oninput="updateCharCount()" placeholder="यहाँ अपना संदेश लिखें..." class="flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-forest resize-none"></textarea>
-      <button id="postSubmitBtn" onclick="submitChaupalPost()" class="px-4 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center">
-        भेजें ➤
-      </button>
-    </div>
-  </div>
-</section>
+      <!-- Chat Messages Stream -->
+      <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-xl border border-stone-200"></div>
 
-    <!-- 6. QUIZ ARENA TAB -->
-    <section id="tab-quiz" class="hidden max-w-2xl mx-auto space-y-6">
+      <!-- Login Prompt if Guest -->
+      <div id="postAuthPrompt" class="bg-white p-4 rounded-xl border border-stone-200 text-center space-y-2">
+        <p class="text-xs text-stone-600">संवाद मंच में संदेश भेजने के लिए कृपया लॉगिन करें।</p>
+        <button onclick="openAuthModal()" class="px-4 py-2 bg-forest text-white text-xs font-semibold rounded-lg">लॉगिन / शामिल हों</button>
+      </div>
+
+      <!-- Text-Only Chat Composer Box -->
+      <div id="postEditor" class="hidden bg-white p-3.5 rounded-xl border-2 border-emerald-800/20 shadow-md space-y-2.5">
+        <!-- Reply Preview Bar -->
+        <div id="replyPreviewBar" class="hidden bg-stone-100 p-2 rounded-lg border-l-4 border-forest flex items-center justify-between text-xs">
+          <div class="truncate pr-2">
+            <span class="font-bold text-forest" id="replyToAuthor"></span>:
+            <span class="text-stone-600" id="replyToText"></span>
+          </div>
+          <button onclick="cancelChatReply()" class="text-stone-500 hover:text-red-600 font-bold px-1">✕</button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <select id="postTopicSelect" class="p-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-forest">
+            <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
+            <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
+            <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
+            <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
+          </select>
+          <span id="charCountDisplay" class="text-[11px] text-stone-400">0 / 300</span>
+        </div>
+
+        <div class="flex gap-2">
+          <textarea id="postText" rows="2" maxlength="300" oninput="updateCharCount()" placeholder="यहाँ अपना संदेश लिखें..." class="flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-forest resize-none"></textarea>
+          <button id="postSubmitBtn" onclick="submitChaupalPost()" class="px-4 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center">
+            भेजें ➤
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. QUIZ & EXAMINATION PORTAL (HIGH SECURITY & ZERO LAG) -->
+    <section id="tab-quiz" class="hidden max-w-3xl mx-auto space-y-6">
+
+      <!-- ENROLLMENT BOX (TOGGLEABLE BY OWNER) -->
+      <div id="examEnrollmentBox" class="hidden bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-amber-100 pb-2">
+          <div>
+            <h3 class="font-yatra text-lg text-forest">📝 जाम्भाणी साहित्य परीक्षा - प्रवेश व नामांकन</h3>
+            <p class="text-xs text-stone-500">परीक्षा में भाग लेने हेतु अपना अनिवार्य विवरण दर्ज करें।</p>
+          </div>
+          <span class="px-2 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-md">प्रवेश जारी</span>
+        </div>
+        <form onsubmit="handleExamEnrollment(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">परीक्षार्थी का नाम *</label>
+            <input type="text" id="enrollName" required placeholder="पूरा नाम दर्ज करें" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">मोबाइल नंबर *</label>
+            <input type="tel" id="enrollPhone" required maxlength="10" placeholder="10 अंकों का मोबाइल नंबर" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">ईमेल (वैकल्पिक)</label>
+            <input type="email" id="enrollEmail" placeholder="ईमेल पता" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">ज़िला / राज्य *</label>
+            <input type="text" id="enrollLocation" required placeholder="जैसे: हिसार, हरियाणा" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div class="sm:col-span-2 pt-1">
+            <button type="submit" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">
+              पंजीकरण करें एवं रोल नंबर प्राप्त करें 🎫
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- MOCK TESTS HUB -->
+      <div id="mockTestsHub" class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <div>
+            <h3 class="font-yatra text-base text-forest">🎯 अभ्यास एवं मॉक टेस्ट मंच (Practice Tests)</h3>
+            <p class="text-xs text-stone-500">मुख्य परीक्षा से पूर्व अपनी तैयारी को परखें।</p>
+          </div>
+          <span class="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">निःशुल्क</span>
+        </div>
+        <div id="mockTestsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div class="p-3 rounded-xl border border-stone-200 hover:border-forest transition flex items-center justify-between">
+            <div>
+              <h4 class="font-bold text-xs text-forest">मॉक टेस्ट - ०१ (२९ नियम व आचार संहिता)</h4>
+              <p class="text-[11px] text-stone-400">१०० प्रश्न • ६० मिनट</p>
+            </div>
+            <button onclick="startMockTestEngine(1)" class="px-3 py-1.5 bg-stone-100 hover:bg-forest hover:text-white rounded-lg text-xs font-semibold transition">आरंभ करें</button>
+          </div>
+          <div class="p-3 rounded-xl border border-stone-200 hover:border-forest transition flex items-center justify-between">
+            <div>
+              <h4 class="font-bold text-xs text-forest">मॉक टेस्ट - ०२ (इतिहास व खेजड़ली बलिदान)</h4>
+              <p class="text-[11px] text-stone-400">१०० प्रश्न • ६० मिनट</p>
+            </div>
+            <button onclick="startMockTestEngine(2)" class="px-3 py-1.5 bg-stone-100 hover:bg-forest hover:text-white rounded-lg text-xs font-semibold transition">आरंभ करें</button>
+          </div>
+        </div>
+      </div>
 
       <!-- STEP 1: PODIUM & START BUTTON -->
       <div id="quizIntroCard" class="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 p-6 rounded-2xl border border-amber-300 text-center space-y-4 shadow-sm">
@@ -445,8 +517,47 @@
         </div>
       </div>
 
-      <!-- STEP 2: ACTIVE QUIZ QUESTIONS BOX -->
-      <div id="quizActiveBox" class="hidden bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4"></div>
+      <!-- STEP 2: ACTIVE QUIZ & EXAM RUNTIME ENGINE -->
+      <div id="quizActiveBox" class="hidden bg-white p-5 sm:p-6 rounded-2xl border border-stone-200 shadow-lg space-y-4">
+        <!-- Top Sticky Exam Bar -->
+        <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-forest" id="examCandidateRoll">रोल: JAMBH-2026</span>
+          </div>
+          <div class="flex items-center gap-2 font-mono text-sm bg-red-50 text-red-700 px-3 py-1 rounded-lg border border-red-200 font-bold">
+            <span>⏱️ समय शेष:</span>
+            <span id="examTimerClock">00:00</span>
+          </div>
+        </div>
+
+        <!-- Question View Container (1-by-1) -->
+        <div id="examQuestionArea" class="min-h-[220px]">
+          <!-- Dynamic Question rendered here -->
+        </div>
+
+        <!-- Pagination & Jump Grid Navigation -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-stone-100">
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button onclick="navigateExam(-1)" class="flex-1 sm:flex-none px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold">
+              ◀ पिछला (Previous)
+            </button>
+            <button onclick="navigateExam(1)" class="flex-1 sm:flex-none px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold">
+              अगला (Next) ▶
+            </button>
+          </div>
+          <button onclick="submitFinalExam(false)" class="w-full sm:w-auto px-6 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-lg shadow">
+            परीक्षा समाप्त व जमा करें (Final Submit) 📤
+          </button>
+        </div>
+
+        <!-- Direct Jump Grid (1-100) -->
+        <div class="pt-3 border-t border-stone-100">
+          <span class="block text-[11px] font-bold text-stone-500 mb-2">सीधे प्रश्न पर जाएं (Question Grid):</span>
+          <div id="questionGridPills" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-stone-50 rounded-lg border border-stone-200">
+            <!-- Dynamic 1 to 100 pill buttons generated via JS -->
+          </div>
+        </div>
+      </div>
 
       <!-- HIDDEN CANVAS FOR LOGICAL CERTIFICATE -->
       <canvas id="certCanvas" width="800" height="600" class="hidden"></canvas>
@@ -491,6 +602,7 @@
             <h3 class="font-yatra text-base text-forest mt-0.5">खेजड़ली का अमर पर्यावरण बलिदान</h3>
             <p class="text-xs text-stone-600 mt-1 leading-relaxed">भाद्रपद शुक्ल दशमी को अमृता देवी विश्नोई के नेतृत्व में ३६३ स्त्री-पुरुषों ने हरे खेजड़ी वृक्षों की रक्षा हेतु अपने शीश समर्पित किए।</p>
           </div>
+        </div>
       </div>
 
       <!-- SUB-TAB 2: KIDS CORNER -->
@@ -531,12 +643,12 @@
 
     </section>
 
-    <!-- 8. OWNER ADMIN HUB (WITH CHATGPT & PDF EXPORTS) -->
+    <!-- 8. OWNER ADMIN HUB (WITH RBAC, EXAM SCHEDULER & 7-DAY AUDIT LOGS) -->
     <section id="tab-admin" class="hidden space-y-6">
       <div class="bg-stone-900 text-stone-100 p-5 rounded-xl flex items-center justify-between">
         <div>
           <h2 class="font-yatra text-xl text-amber-300">व्यवस्थापक नियंत्रण कक्ष (Owner Admin Hub)</h2>
-          <p class="text-xs text-stone-400">ChatGPT AI Assistant, Amavasya Manager, Audio, Quiz & Direct PDF Reports</p>
+          <p class="text-xs text-stone-400">Exam Controller, RBAC Permissions, Dynamic Amavasya & Direct PDF Reports</p>
         </div>
       </div>
 
@@ -556,6 +668,62 @@
         </div>
       </div>
 
+      <!-- RBAC: SUB-ADMIN PERMISSIONS CONTROLLER (EXCLUSIVE TO OWNER) -->
+      <div id="secManageAdmins" class="bg-white p-5 rounded-xl border-2 border-amber-300 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <h3 class="font-bold text-forest text-sm">🛡️ अधिकार एवं सब-एडमिन नियंत्रण (Role-Based Permissions)</h3>
+          <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">OWNER ONLY</span>
+        </div>
+        <p class="text-xs text-stone-500">
+          सह-प्रबंधक को केवल वही अधिकार दें जो आवश्यक हों। अनधिकृत ऑप्शन्स उनकी स्क्रीन से स्वतः गायब रहेंगे:
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+            <input type="checkbox" id="permUploadQ" class="rounded text-forest mr-2" checked>
+            <span>प्रश्न अपलोड व ड्राफ्ट अधिकार</span>
+          </label>
+          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+            <input type="checkbox" id="permPublishExam" class="rounded text-forest mr-2">
+            <span>परीक्षा लाइव व परिणाम जारी करना</span>
+          </label>
+          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+            <input type="checkbox" id="permEnrollToggle" class="rounded text-forest mr-2">
+            <span>नामांकन पोर्टल चालू/बंद करना</span>
+          </label>
+          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+            <input type="checkbox" id="permViewAudit" class="rounded text-forest mr-2">
+            <span>७-दिवसीय IP व ऑडिट लॉग्स देखना</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- EXAM SCHEDULE & DRAFT CONTROLLER -->
+      <div id="secPublishExam" class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-bold text-forest text-sm">📅 मुख्य परीक्षा शेड्यूलर एवं लाइव ट्रिगर</h3>
+        <p class="text-xs text-stone-500">प्रश्नों को ड्राफ्ट में रखें और तय समय पर एक क्लिक से सभी छात्रों के लिए लाइव करें:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="block font-semibold text-stone-600 mb-1">परीक्षा की तारीख व समय चुनें</label>
+            <input type="datetime-local" id="adminExamScheduleTime" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-600 mb-1">कुल समय सीमा (मिनट में)</label>
+            <input type="number" id="adminExamDuration" value="60" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-2">
+          <button onclick="saveExamAsDraft()" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold">
+            ड्राफ्ट में सुरक्षित रखें (Save to Draft)
+          </button>
+          <button onclick="publishMainExamLive()" class="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold shadow">
+            अभी लाइव करें (Publish Exam Live)
+          </button>
+          <button onclick="publishExamResultsOfficially()" class="px-4 py-2 bg-forest hover:bg-emerald-950 text-white rounded-lg text-xs font-bold shadow">
+            परिणाम घोषित करें (Publish Results Officially) 📢
+          </button>
+        </div>
+      </div>
+
       <!-- CHATGPT INTELLIGENCE CENTER (SECURE PROMPT-DRIVEN KEY) -->
       <div class="bg-gradient-to-r from-emerald-950 via-forest to-emerald-950 text-white p-5 rounded-2xl border border-emerald-500/40 space-y-4 shadow-md">
         <div class="flex items-center justify-between">
@@ -566,9 +734,9 @@
               <p class="text-[11px] text-stone-300">Quiz प्रश्न अथवा प्रेरक संदेश लिखवाने हेतु AI इंजन का प्रयोग करें</p>
             </div>
           </div>
-         <button type="button" onclick="resetGeminiKey()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow">
-  🔑 API Key बदलें
-</button>
+          <button type="button" onclick="resetGeminiKey()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow">
+            🔑 API Key बदलें
+          </button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -637,7 +805,7 @@
         <!-- CARD 3: AUDIO PLAYER MANAGER -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
           <h3 class="font-bold text-forest text-sm">🎵 Audio Player Manager (ऑडियो जोड़ें)</h3>
-          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई MP3 फाइल (जैसे <code>./aarti.mp3</code>) या ऑनलाइन ऑडियो लिंक:</p>
+          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई MP3 फाइल या ऑनलाइन ऑडियो लिंक:</p>
           <input type="text" id="adminAudioTitle" placeholder="ऑडियो का नाम (जैसे: आरती व साखी)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
           <input type="text" id="adminAudioLink" placeholder="ऑडियो लिंक (जैसे: ./aarti.mp3)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
           <button onclick="saveAdminAudio()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
@@ -648,7 +816,7 @@
         <!-- CARD 4: ADD PDF DOCUMENT -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
           <h3 class="font-bold text-forest text-sm">📄 Add PDF Document</h3>
-          <p class="text-xs text-stone-500">गिटहब फ़ाइल लिंक (जैसे <code>./shabadwani.pdf</code>) या ड्राइव लिंक जोड़ें:</p>
+          <p class="text-xs text-stone-500">गिटहब फ़ाइल लिंक या ड्राइव लिंक जोड़ें:</p>
           <input type="text" id="adminPdfTitle" placeholder="Document Title (e.g. २९ नियम विवरण)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
           <input type="text" id="adminPdfLink" placeholder="File Link (e.g. ./shabadwani.pdf)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
           <button onclick="saveAdminPdf()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
@@ -665,115 +833,123 @@
             Update Banner
           </button>
         </div>
-        <!-- 🛠️ LIVE MAINTENANCE & SECTION LOCK CONTROLLER (Add inside #tab-admin) -->
-<div class="bg-white p-4 rounded-xl border-2 border-red-200 shadow-sm space-y-4 mt-4">
-  <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-    <div>
-      <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण (Maintenance Control)</h3>
-      <p class="text-[11px] text-stone-500">यहाँ से ऐप, वेबसाइट या किसी विशेष टैब को मेंटेनेंस में डालें।</p>
-    </div>
-    <span class="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 rounded">LIVE CONTROL</span>
-  </div>
 
-  <!-- 1. Global Maintenance Mode -->
-  <div class="space-y-1.5">
-    <label class="text-xs font-bold text-stone-700">1. संपूर्ण प्लेटफॉर्म मेंटेनेंस (Full App/Website Lock):</label>
-    <select id="adminGlobalMaintMode" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold">
-      <option value="off">🟢 चालू है (Normal - No Maintenance)</option>
-      <option value="phone_only">📱 केवल फ़ोन / ऐप बंद करें (Maintenance on Phone/App Only)</option>
-      <option value="web_only">💻 केवल कंप्यूटर वेबसाइट बंद करें (Maintenance on PC Website Only)</option>
-      <option value="both">🔴 दोनों बंद करें (Maintenance on Both Phone & Website)</option>
-    </select>
-  </div>
+        <!-- LIVE MAINTENANCE & SECTION LOCK CONTROLLER -->
+        <div class="bg-white p-4 rounded-xl border-2 border-red-200 shadow-sm space-y-4 md:col-span-2">
+          <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+            <div>
+              <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण (Maintenance Control)</h3>
+              <p class="text-[11px] text-stone-500">यहाँ से ऐप, वेबसाइट या किसी विशेष टैब को मेंटेनेंस में डालें।</p>
+            </div>
+            <span class="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 rounded">LIVE CONTROL</span>
+          </div>
 
-  <!-- Custom Maintenance Message -->
-  <div class="space-y-1.5">
-    <label class="text-xs font-bold text-stone-700">मेंटेनेंस संदेश (Custom Message):</label>
-    <input type="text" id="adminMaintMessage" placeholder="उदा: ऐप में नए फीचर जोड़े जा रहे हैं, कृपया कुछ समय बाद प्रयास करें..." class="w-full p-2 text-xs rounded-lg border border-stone-300">
-  </div>
+          <!-- 1. Global Maintenance Mode -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-stone-700">1. संपूर्ण प्लेटफॉर्म मेंटेनेंस (Full App/Website Lock):</label>
+            <select id="adminGlobalMaintMode" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold">
+              <option value="off">🟢 चालू है (Normal - No Maintenance)</option>
+              <option value="phone_only">📱 केवल फ़ोन / ऐप बंद करें (Maintenance on Phone/App Only)</option>
+              <option value="web_only">💻 केवल कंप्यूटर वेबसाइट बंद करें (Maintenance on PC Website Only)</option>
+              <option value="both">🔴 दोनों बंद करें (Maintenance on Both Phone & Website)</option>
+            </select>
+          </div>
 
-  <!-- 2. Particular Section / Tab Lock -->
-  <div class="space-y-2 pt-2 border-t border-stone-100">
-    <label class="text-xs font-bold text-stone-700">2. विशेष सेक्शन लॉक करें (Lock Particular Section):</label>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-      
-      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-        <span class="font-semibold">📿 जप माला (Mala)</span>
-        <select id="lock_mala" class="p-1 rounded border text-[11px]">
-          <option value="off">🟢 Open</option>
-          <option value="phone_only">📱 Phone Lock</option>
-          <option value="web_only">💻 Web Lock</option>
-          <option value="both">🔴 Lock Both</option>
-        </select>
-      </div>
+          <!-- Custom Maintenance Message -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-stone-700">मेंटेनेंस संदेश (Custom Message):</label>
+            <input type="text" id="adminMaintMessage" placeholder="उदा: ऐप में नए फीचर जोड़े जा रहे हैं, कृपया कुछ समय बाद प्रयास करें..." class="w-full p-2 text-xs rounded-lg border border-stone-300">
+          </div>
 
-      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-        <span class="font-semibold">📜 २९ नियम (Niyams)</span>
-        <select id="lock_niyams" class="p-1 rounded border text-[11px]">
-          <option value="off">🟢 Open</option>
-          <option value="phone_only">📱 Phone Lock</option>
-          <option value="web_only">💻 Web Lock</option>
-          <option value="both">🔴 Lock Both</option>
-        </select>
-      </div>
+          <!-- 2. Particular Section / Tab Lock -->
+          <div class="space-y-2 pt-2 border-t border-stone-100">
+            <label class="text-xs font-bold text-stone-700">2. विशेष सेक्शन लॉक करें (Lock Particular Section):</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+                <span class="font-semibold">📿 जप माला (Mala)</span>
+                <select id="lock_mala" class="p-1 rounded border text-[11px]">
+                  <option value="off">🟢 Open</option>
+                  <option value="phone_only">📱 Phone Lock</option>
+                  <option value="web_only">💻 Web Lock</option>
+                  <option value="both">🔴 Lock Both</option>
+                </select>
+              </div>
 
-      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-        <span class="font-semibold">📚 साहित्य (Library)</span>
-        <select id="lock_library" class="p-1 rounded border text-[11px]">
-          <option value="off">🟢 Open</option>
-          <option value="phone_only">📱 Phone Lock</option>
-          <option value="web_only">💻 Web Lock</option>
-          <option value="both">🔴 Lock Both</option>
-        </select>
-      </div>
+              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+                <span class="font-semibold">📜 २९ नियम (Niyams)</span>
+                <select id="lock_niyams" class="p-1 rounded border text-[11px]">
+                  <option value="off">🟢 Open</option>
+                  <option value="phone_only">📱 Phone Lock</option>
+                  <option value="web_only">💻 Web Lock</option>
+                  <option value="both">🔴 Lock Both</option>
+                </select>
+              </div>
 
-      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-        <span class="font-semibold">💬 संवाद मंच (Community)</span>
-        <select id="lock_community" class="p-1 rounded border text-[11px]">
-          <option value="off">🟢 Open</option>
-          <option value="phone_only">📱 Phone Lock</option>
-          <option value="web_only">💻 Web Lock</option>
-          <option value="both">🔴 Lock Both</option>
-        </select>
-      </div>
+              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+                <span class="font-semibold">📚 साहित्य (Library)</span>
+                <select id="lock_library" class="p-1 rounded border text-[11px]">
+                  <option value="off">🟢 Open</option>
+                  <option value="phone_only">📱 Phone Lock</option>
+                  <option value="web_only">💻 Web Lock</option>
+                  <option value="both">🔴 Lock Both</option>
+                </select>
+              </div>
 
-      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-        <span class="font-semibold">🏆 ज्ञान परीक्षा (Quiz)</span>
-        <select id="lock_quiz" class="p-1 rounded border text-[11px]">
-          <option value="off">🟢 Open</option>
-          <option value="phone_only">📱 Phone Lock</option>
-          <option value="web_only">💻 Web Lock</option>
-          <option value="both">🔴 Lock Both</option>
-        </select>
-      </div>
+              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+                <span class="font-semibold">💬 संवाद मंच (Community)</span>
+                <select id="lock_community" class="p-1 rounded border text-[11px]">
+                  <option value="off">🟢 Open</option>
+                  <option value="phone_only">📱 Phone Lock</option>
+                  <option value="web_only">💻 Web Lock</option>
+                  <option value="both">🔴 Lock Both</option>
+                </select>
+              </div>
 
-      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-        <span class="font-semibold">🏛️ इतिहास (History)</span>
-        <select id="lock_history" class="p-1 rounded border text-[11px]">
-          <option value="off">🟢 Open</option>
-          <option value="phone_only">📱 Phone Lock</option>
-          <option value="web_only">💻 Web Lock</option>
-          <option value="both">🔴 Lock Both</option>
-        </select>
-      </div>
+              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+                <span class="font-semibold">🏆 ज्ञान परीक्षा (Quiz)</span>
+                <select id="lock_quiz" class="p-1 rounded border text-[11px]">
+                  <option value="off">🟢 Open</option>
+                  <option value="phone_only">📱 Phone Lock</option>
+                  <option value="web_only">💻 Web Lock</option>
+                  <option value="both">🔴 Lock Both</option>
+                </select>
+              </div>
 
-    </div>
-  </div>
+              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+                <span class="font-semibold">🏛️ इतिहास (History)</span>
+                <select id="lock_history" class="p-1 rounded border text-[11px]">
+                  <option value="off">🟢 Open</option>
+                  <option value="phone_only">📱 Phone Lock</option>
+                  <option value="web_only">💻 Web Lock</option>
+                  <option value="both">🔴 Lock Both</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-  <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-lg shadow transition">
-    💾 मेंटेनेंस सेटिंग्स लागू करें (Save & Apply Live)
-  </button>
-</div>
+          <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-lg shadow transition">
+            💾 मेंटेनेंस सेटिंग्स लागू करें (Save & Apply Live)
+          </button>
+        </div>
 
-        <!-- CARD 6: BULK QUIZ IMPORTER -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
+        <!-- CARD 6: BULK QUIZ & EXAM QUESTION IMPORTER -->
+        <div id="secUploadQuestions" class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
           <div class="flex items-center justify-between">
-            <h3 class="font-bold text-forest text-sm">⚡ Bulk Quiz Importer (Paste All at Once)</h3>
+            <h3 class="font-bold text-forest text-sm">⚡ Bulk Quiz & Exam Question Importer</h3>
             <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">One-Click</span>
           </div>
           <p class="text-xs text-stone-500">
-            प्रश्नों को एक साथ पेस्ट करें या ऊपर दिए गए <b>ChatGPT बटन</b> से स्वतः बनवाएं:
+            प्रश्नों को सीधे पेस्ट करें अथवा श्रेणी चुनकर बल्क में अपलोड करें:
           </p>
+
+          <div class="flex gap-2">
+            <select id="adminQuestionTarget" class="p-2 text-xs border border-stone-300 rounded-lg bg-stone-50 font-semibold text-stone-700">
+              <option value="daily_quiz">दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
+              <option value="mock_1">मॉक टेस्ट - ०१</option>
+              <option value="mock_2">मॉक टेस्ट - ०२</option>
+              <option value="main_exam">मुख्य जाम्भाणी परीक्षा (Main Exam)</option>
+            </select>
+          </div>
 
           <textarea id="adminBulkQuizText" rows="7" class="w-full p-3 font-mono text-xs border border-stone-300 rounded-lg bg-stone-50" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
@@ -795,11 +971,44 @@ Ans: B"></textarea>
         </div>
 
       </div>
+
+      <!-- 7-DAY AUDIT & VISITOR TELEMETRY LOGS TABLE -->
+      <div id="secAuditLogs" class="mt-6 bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <div>
+            <h4 class="font-bold text-forest text-sm">📊 विगत ७ दिवस के सक्रिय सदस्य एवं टेलीमेट्री लॉग्स</h4>
+            <p class="text-[11px] text-stone-500">नाम, फ़ोन, ईमेल, IP पता, डिवाइस (Mobile/Laptop) व लोकेशन विवरण</p>
+          </div>
+          <button onclick="refreshAuditLogs()" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 rounded text-xs font-semibold text-stone-700">
+            🔄 रिफ्रेश करें
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-stone-100 text-stone-600 border-b">
+                <th class="p-2.5">नाम / फ़ोन</th>
+                <th class="p-2.5">ईमेल</th>
+                <th class="p-2.5">IP एड्रेस</th>
+                <th class="p-2.5">डिवाइस (Type)</th>
+                <th class="p-2.5">लोकेशन (Stated / IP)</th>
+                <th class="p-2.5">समय</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody" class="divide-y divide-stone-100 text-stone-700">
+              <tr>
+                <td colspan="6" class="p-4 text-center text-stone-400">लॉग्स लोड किए जा रहे हैं...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </section>
 
   </main>
 
-  <!-- STRICT AUTHENTICATION MODAL (STRICT 10-DIGIT & REGISTER RESTRICTION) -->
+  <!-- STRICT AUTHENTICATION MODAL -->
   <div id="authModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b border-stone-200 pb-2">
