@@ -646,6 +646,105 @@
             Update Banner
           </button>
         </div>
+        <!-- 🛠️ LIVE MAINTENANCE & SECTION LOCK CONTROLLER (Add inside #tab-admin) -->
+<div class="bg-white p-4 rounded-xl border-2 border-red-200 shadow-sm space-y-4 mt-4">
+  <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+    <div>
+      <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण (Maintenance Control)</h3>
+      <p class="text-[11px] text-stone-500">यहाँ से ऐप, वेबसाइट या किसी विशेष टैब को मेंटेनेंस में डालें।</p>
+    </div>
+    <span class="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 rounded">LIVE CONTROL</span>
+  </div>
+
+  <!-- 1. Global Maintenance Mode -->
+  <div class="space-y-1.5">
+    <label class="text-xs font-bold text-stone-700">1. संपूर्ण प्लेटफॉर्म मेंटेनेंस (Full App/Website Lock):</label>
+    <select id="adminGlobalMaintMode" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold">
+      <option value="off">🟢 चालू है (Normal - No Maintenance)</option>
+      <option value="phone_only">📱 केवल फ़ोन / ऐप बंद करें (Maintenance on Phone/App Only)</option>
+      <option value="web_only">💻 केवल कंप्यूटर वेबसाइट बंद करें (Maintenance on PC Website Only)</option>
+      <option value="both">🔴 दोनों बंद करें (Maintenance on Both Phone & Website)</option>
+    </select>
+  </div>
+
+  <!-- Custom Maintenance Message -->
+  <div class="space-y-1.5">
+    <label class="text-xs font-bold text-stone-700">मेंटेनेंस संदेश (Custom Message):</label>
+    <input type="text" id="adminMaintMessage" placeholder="उदा: ऐप में नए फीचर जोड़े जा रहे हैं, कृपया कुछ समय बाद प्रयास करें..." class="w-full p-2 text-xs rounded-lg border border-stone-300">
+  </div>
+
+  <!-- 2. Particular Section / Tab Lock -->
+  <div class="space-y-2 pt-2 border-t border-stone-100">
+    <label class="text-xs font-bold text-stone-700">2. विशेष सेक्शन लॉक करें (Lock Particular Section):</label>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+      
+      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+        <span class="font-semibold">📿 जप माला (Mala)</span>
+        <select id="lock_mala" class="p-1 rounded border text-[11px]">
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 Web Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+        <span class="font-semibold">📜 २९ नियम (Niyams)</span>
+        <select id="lock_niyams" class="p-1 rounded border text-[11px]">
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 Web Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+        <span class="font-semibold">📚 साहित्य (Library)</span>
+        <select id="lock_library" class="p-1 rounded border text-[11px]">
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 Web Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+        <span class="font-semibold">💬 संवाद मंच (Community)</span>
+        <select id="lock_community" class="p-1 rounded border text-[11px]">
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 Web Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+        <span class="font-semibold">🏆 ज्ञान परीक्षा (Quiz)</span>
+        <select id="lock_quiz" class="p-1 rounded border text-[11px]">
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 Web Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        </select>
+      </div>
+
+      <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+        <span class="font-semibold">🏛️ इतिहास (History)</span>
+        <select id="lock_history" class="p-1 rounded border text-[11px]">
+          <option value="off">🟢 Open</option>
+          <option value="phone_only">📱 Phone Lock</option>
+          <option value="web_only">💻 Web Lock</option>
+          <option value="both">🔴 Lock Both</option>
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-lg shadow transition">
+    💾 मेंटेनेंस सेटिंग्स लागू करें (Save & Apply Live)
+  </button>
+</div>
 
         <!-- CARD 6: BULK QUIZ IMPORTER -->
         <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
