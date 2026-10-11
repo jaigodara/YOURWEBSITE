@@ -244,7 +244,7 @@
         </div>
       </div>
 
-      <!-- PLANTATION COUNTER (REFINED SLOGAN & TITLE) -->
+      <!-- PLANTATION COUNTER -->
       <div class="bg-emerald-900/90 text-white rounded-2xl p-5 border border-emerald-700/50 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
         <div class="space-y-1 text-center sm:text-left">
           <span class="text-[11px] font-bold tracking-wider uppercase text-amber-300">हरित धरोहर महासंकल्प</span>
@@ -271,7 +271,7 @@
         <p class="text-xs text-stone-600">पवित्र नाम स्मरण • स्पर्श एवं स्पंदन अनुभव</p>
       </div>
 
-      <!-- CLEAN PROFILE STATS CARD -->
+      <!-- PURE PROFILE CARD (2 CLEAN BOXES ONLY) -->
       <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 flex justify-around text-center shadow-sm">
         <div>
           <div class="text-2xl font-bold font-mono text-amber-900" id="userTotalMantra">0</div>
@@ -417,33 +417,50 @@
       </div>
     </section>
 
-    <!-- 6. QUIZ & EXAMINATION PORTAL (HIGH SECURITY & ZERO LAG) -->
+    <!-- 6. QUIZ & EXAMINATION PORTAL (DYNAMIC OWNER VISIBILITY DRIVEN) -->
     <section id="tab-quiz" class="hidden max-w-3xl mx-auto space-y-6">
 
-      <!-- ENROLLMENT BOX (TOGGLEABLE BY OWNER) -->
+      <!-- DEFAULT FALLBACK NOTICE (Shown when Owner closes all sections) -->
+      <div id="examClosedNoticeBox" class="bg-white p-8 rounded-2xl border border-stone-200 text-center space-y-3 shadow-sm">
+        <div class="text-3xl">🕊️</div>
+        <h3 class="font-yatra text-xl text-forest">जाम्भाणी ज्ञान एवं साहित्य परीक्षा</h3>
+        <p class="text-xs sm:text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
+          वर्तमान में परीक्षा, मॉक टेस्ट एवं नामांकन पोर्टल प्रक्रियाधीन हैं। व्यवस्थापक द्वारा सूचना जारी होते ही यह मंच स्वतः सक्रिय हो जाएगा।
+        </p>
+      </div>
+
+      <!-- 1. ENROLLMENT BOX (ONLY VISIBLE WHEN OWNER TURNS ON) -->
       <div id="examEnrollmentBox" class="hidden bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3">
         <div class="flex items-center justify-between border-b border-amber-100 pb-2">
           <div>
-            <h3 class="font-yatra text-lg text-forest">📝 जाम्भाणी साहित्य परीक्षा - प्रवेश व नामांकन</h3>
+            <h3 class="font-yatra text-lg text-forest">📝 जाम्भाणी साहित्य परीक्षा - प्रवेश व नामांकन पत्र</h3>
             <p class="text-xs text-stone-500">परीक्षा में भाग लेने हेतु अपना अनिवार्य विवरण दर्ज करें।</p>
           </div>
-          <span class="px-2 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-md">प्रवेश जारी</span>
+          <span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-md">नामांकन चालू</span>
         </div>
         <form onsubmit="handleExamEnrollment(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div>
-            <label class="block font-semibold text-stone-700 mb-1">परीक्षार्थी का नाम *</label>
-            <input type="text" id="enrollName" required placeholder="पूरा नाम दर्ज करें" class="w-full p-2 border border-stone-300 rounded-lg">
+            <label class="block font-semibold text-stone-700 mb-1">परीक्षार्थी का पूरा नाम *</label>
+            <input type="text" id="enrollName" required placeholder="अपना पूरा नाम दर्ज करें" class="w-full p-2 border border-stone-300 rounded-lg">
           </div>
           <div>
-            <label class="block font-semibold text-stone-700 mb-1">मोबाइल नंबर *</label>
+            <label class="block font-semibold text-stone-700 mb-1">पिता का नाम *</label>
+            <input type="text" id="enrollFatherName" required placeholder="पिता का नाम दर्ज करें" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">जन्मतिथि (Date of Birth) *</label>
+            <input type="date" id="enrollDob" required class="w-full p-2 border border-stone-300 rounded-lg font-semibold">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">मोबाइल नंबर (10 अंक) *</label>
             <input type="tel" id="enrollPhone" required maxlength="10" placeholder="10 अंकों का मोबाइल नंबर" class="w-full p-2 border border-stone-300 rounded-lg">
           </div>
           <div>
             <label class="block font-semibold text-stone-700 mb-1">ईमेल (वैकल्पिक)</label>
-            <input type="email" id="enrollEmail" placeholder="ईमेल पता" class="w-full p-2 border border-stone-300 rounded-lg">
+            <input type="email" id="enrollEmail" placeholder="ईमेल पता दर्ज करें" class="w-full p-2 border border-stone-300 rounded-lg">
           </div>
           <div>
-            <label class="block font-semibold text-stone-700 mb-1">ज़िला / राज्य *</label>
+            <label class="block font-semibold text-stone-700 mb-1">गाँव / शहर एवं राज्य *</label>
             <input type="text" id="enrollLocation" required placeholder="जैसे: हिसार, हरियाणा" class="w-full p-2 border border-stone-300 rounded-lg">
           </div>
           <div class="sm:col-span-2 pt-1">
@@ -454,8 +471,8 @@
         </form>
       </div>
 
-      <!-- MOCK TESTS HUB -->
-      <div id="mockTestsHub" class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+      <!-- 2. MOCK TESTS HUB (ONLY VISIBLE WHEN OWNER TURNS ON) -->
+      <div id="mockTestsHub" class="hidden bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between border-b border-stone-100 pb-2">
           <div>
             <h3 class="font-yatra text-base text-forest">🎯 अभ्यास एवं मॉक टेस्ट मंच (Practice Tests)</h3>
@@ -481,8 +498,62 @@
         </div>
       </div>
 
-      <!-- STEP 1: PODIUM & START BUTTON -->
-      <div id="quizIntroCard" class="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 p-6 rounded-2xl border border-amber-300 text-center space-y-4 shadow-sm">
+      <!-- 3. MAIN EXAM LAUNCHER & PRE-EXAM COUNTDOWN (ONLY VISIBLE WHEN OWNER TURNS ON) -->
+      <div id="mainExamLaunchBox" class="hidden bg-gradient-to-br from-emerald-950 via-forest to-emerald-950 text-white p-6 rounded-2xl border border-emerald-500/40 shadow-lg space-y-4 text-center">
+        <span class="inline-block px-3 py-0.5 bg-amber-400/20 text-amber-300 rounded-full text-xs font-extrabold uppercase tracking-wide">
+          वार्षिक जाम्भाणी साहित्य मुख्य परीक्षा
+        </span>
+        <h3 class="font-yatra text-2xl text-white">🚩 मुख्य परीक्षा पोर्टल</h3>
+        <p class="text-xs text-stone-200 max-w-md mx-auto">
+          कुल १०० प्रश्न • समय: १२० मिनट • सख्त एंटी-चीटिंग व स्वतः सबमिशन प्रणाली।
+        </p>
+
+        <!-- Dynamic Countdown of Time Left Before Exam Starts -->
+        <div id="examCountdownBox" class="p-3 bg-black/40 rounded-xl border border-white/10 max-w-xs mx-auto">
+          <span class="text-[10px] text-amber-300 uppercase block font-bold">परीक्षा प्रारंभ होने में शेष समय:</span>
+          <div id="examCountdownDisplay" class="font-mono text-xl font-extrabold text-white mt-0.5">00:00:00</div>
+        </div>
+
+        <div class="pt-2">
+          <button id="startMainExamBtn" onclick="launchMainExamPortal()" class="px-6 py-2.5 bg-amber-400 hover:bg-amber-300 text-stone-950 rounded-xl text-sm font-extrabold shadow transition transform hover:scale-105">
+            📝 परीक्षा कक्ष में प्रवेश करें (Enter Exam Hall)
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. OFFICIAL RESULT CHECK DESK (ONLY VISIBLE WHEN OWNER PUBLISHES RESULTS) -->
+      <div id="examResultCheckDesk" class="hidden bg-white p-5 rounded-2xl border-2 border-emerald-400 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-emerald-100 pb-2">
+          <div>
+            <h3 class="font-yatra text-lg text-forest">🏆 परीक्षा परिणाम एवं प्राप्तांक खोजें</h3>
+            <p class="text-xs text-stone-500">अपना नाम, रोल नंबर एवं जन्मतिथि दर्ज कर परिणाम देखें।</p>
+          </div>
+          <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">परिणाम घोषित</span>
+        </div>
+        <form onsubmit="handleIndividualResultCheck(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">रोल नंबर (Roll No.) *</label>
+            <input type="text" id="resCheckRoll" required placeholder="JAMBH-2026-XXXXX" class="w-full p-2 border border-stone-300 rounded-lg font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">परीक्षार्थी का नाम *</label>
+            <input type="text" id="resCheckName" required placeholder="दर्ज किया गया नाम" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">जन्मतिथि (DOB) *</label>
+            <input type="date" id="resCheckDob" required class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div class="sm:col-span-3 pt-1">
+            <button type="submit" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">
+              परिणाम देखें व डिजिटल मार्कशीट डाउनलोड करें 📄
+            </button>
+          </div>
+        </form>
+        <div id="studentPersonalResultDisplay" class="hidden pt-3 border-t border-stone-100"></div>
+      </div>
+
+      <!-- 5. DAILY QUIZ INTRO PODIUM (ONLY VISIBLE WHEN OWNER TURNS ON) -->
+      <div id="quizIntroCard" class="hidden bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 p-6 rounded-2xl border border-amber-300 text-center space-y-4 shadow-sm">
         <span class="text-[11px] font-bold uppercase tracking-wider text-terracotta">दैनिक ज्ञान प्रतियोगिता</span>
         <h3 class="font-yatra text-2xl text-forest">🏆 आज के शीर्ष प्रतिभागी</h3>
         
@@ -490,21 +561,21 @@
           <div class="bg-white p-3 rounded-xl border border-amber-200 shadow-sm flex flex-col items-center">
             <span class="text-2xl">🥈</span>
             <span class="text-[10px] text-stone-400 font-bold">द्वितीय स्थान</span>
-            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner2Name">प्रतीक्षारत</h4>
+            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner2Name">—</h4>
             <span class="text-[10px] text-terracotta font-semibold" id="winner2Score">-</span>
           </div>
 
           <div class="bg-white p-3 rounded-xl border-2 border-amber-400 shadow-md flex flex-col items-center transform -translate-y-1">
             <span class="text-3xl">🥇</span>
             <span class="text-[10px] text-amber-600 font-bold uppercase">प्रथम स्थान</span>
-            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner1Name">प्रतीक्षारत</h4>
+            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner1Name">—</h4>
             <span class="text-[10px] text-terracotta font-semibold" id="winner1Score">-</span>
           </div>
 
           <div class="bg-white p-3 rounded-xl border border-amber-200 shadow-sm flex flex-col items-center">
             <span class="text-2xl">🥉</span>
             <span class="text-[10px] text-stone-400 font-bold">तृतीय स्थान</span>
-            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner3Name">प्रतीक्षारत</h4>
+            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner3Name">—</h4>
             <span class="text-[10px] text-terracotta font-semibold" id="winner3Score">-</span>
           </div>
         </div>
@@ -517,7 +588,7 @@
         </div>
       </div>
 
-      <!-- STEP 2: ACTIVE QUIZ & EXAM RUNTIME ENGINE -->
+      <!-- ACTIVE EXAM & RUNTIME ENGINE (1-BY-1 QUESTION NAVIGATION) -->
       <div id="quizActiveBox" class="hidden bg-white p-5 sm:p-6 rounded-2xl border border-stone-200 shadow-lg space-y-4">
         <!-- Top Sticky Exam Bar -->
         <div class="flex items-center justify-between border-b border-stone-200 pb-3">
@@ -535,7 +606,7 @@
           <!-- Dynamic Question rendered here -->
         </div>
 
-        <!-- Pagination & Jump Grid Navigation -->
+        <!-- Pagination & Submit Controls -->
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-stone-100">
           <div class="flex items-center gap-2 w-full sm:w-auto">
             <button onclick="navigateExam(-1)" class="flex-1 sm:flex-none px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold">
@@ -552,15 +623,15 @@
 
         <!-- Direct Jump Grid (1-100) -->
         <div class="pt-3 border-t border-stone-100">
-          <span class="block text-[11px] font-bold text-stone-500 mb-2">सीधे प्रश्न पर जाएं (Question Grid):</span>
+          <span class="block text-[11px] font-bold text-stone-500 mb-2">सीधे प्रश्न पर जाएं (Question Grid 1-100):</span>
           <div id="questionGridPills" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-stone-50 rounded-lg border border-stone-200">
             <!-- Dynamic 1 to 100 pill buttons generated via JS -->
           </div>
         </div>
       </div>
 
-      <!-- HIDDEN CANVAS FOR LOGICAL CERTIFICATE -->
-      <canvas id="certCanvas" width="800" height="600" class="hidden"></canvas>
+      <!-- HIDDEN CANVAS FOR CERTIFICATE GENERATION -->
+      <canvas id="certCanvas" width="1000" height="720" class="hidden"></canvas>
     </section>
 
     <!-- 7. HISTORY & KIDS CORNER -->
@@ -643,72 +714,111 @@
 
     </section>
 
-    <!-- 8. OWNER ADMIN HUB (WITH RBAC, EXAM SCHEDULER & 7-DAY AUDIT LOGS) -->
+    <!-- 8. OWNER ADMIN HUB (LOGICALLY ORGANIZED) -->
     <section id="tab-admin" class="hidden space-y-6">
-      <div class="bg-stone-900 text-stone-100 p-5 rounded-xl flex items-center justify-between">
+      <div class="bg-stone-900 text-stone-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
         <div>
-          <h2 class="font-yatra text-xl text-amber-300">व्यवस्थापक नियंत्रण कक्ष (Owner Admin Hub)</h2>
-          <p class="text-xs text-stone-400">Exam Controller, RBAC Permissions, Dynamic Amavasya & Direct PDF Reports</p>
+          <h2 class="font-yatra text-xl text-amber-300">व्यवस्थापक नियंत्रण कक्ष (Owner Admin Studio)</h2>
+          <p class="text-xs text-stone-400">Exam Controller, RBAC Permissions, PDF Reports & Visitor Telemetry</p>
         </div>
       </div>
 
-      <!-- DIRECT PDF DOWNLOADS BAR -->
-      <div class="bg-white p-4 rounded-xl border border-stone-200 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-        <div>
-          <h3 class="font-bold text-forest text-xs sm:text-sm">📄 डेटा रिपोर्ट डाउनलोड (Direct PDF Format)</h3>
-          <p class="text-[11px] text-stone-500">सभी परीक्षार्थियों के प्राप्तांक एवं ७ दिनों के सदस्यों का दस्तावेज़</p>
+      <!-- 1. EXAM VISIBILITY SWITCH BOARD (TOGGLES FOR WHAT APPEARS IN PARIKSHA SECTION) -->
+      <div id="secParikshaVisibilityController" class="bg-white p-5 rounded-2xl border-2 border-emerald-600 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <h3 class="font-bold text-forest text-sm">🎛️ परीक्षा अनुभाग विज़िबिलिटी नियंत्रण (Pariksha Display Controls)</h3>
+          <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">LIVE SWITCH BOARD</span>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button onclick="downloadQuizResultsPdf()" class="px-3.5 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 flex items-center gap-1 shadow-sm transition">
-            <span>Download Quiz Results (PDF)</span> 📑
+        <p class="text-xs text-stone-500">
+          यहाँ से तय करें कि परीक्षार्थियों को 'ज्ञान परीक्षा' टैब में इस समय क्या दिखना चाहिए:
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+          <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+            <input type="checkbox" id="toggleEnrollmentSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
+            <span class="font-semibold text-stone-800">1. नामांकन पत्र (Enrollment)</span>
+          </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+            <input type="checkbox" id="toggleMockSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
+            <span class="font-semibold text-stone-800">2. मॉक टेस्ट कार्ड्स (Mocks)</span>
+          </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+            <input type="checkbox" id="toggleMainExamSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
+            <span class="font-semibold text-stone-800">3. मुख्य परीक्षा पोर्टल (Main Exam)</span>
+          </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+            <input type="checkbox" id="toggleDailyQuizSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
+            <span class="font-semibold text-stone-800">4. दैनिक क्विज़ (Daily Quiz)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 2. OFFICIAL PDF EXPORT SUITE -->
+      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <h3 class="font-bold text-forest text-sm">📄 आधिकारिक परीक्षा दस्तावेज़ व PDF निर्यात (Direct PDF Exports)</h3>
+          <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">REPORTS</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+          <button onclick="downloadEnrolledStudentsPdf()" class="p-3 bg-forest text-white rounded-xl text-xs font-bold hover:bg-emerald-950 flex flex-col justify-between shadow-sm">
+            <span>📋 नामांकित छात्रों की सूची (PDF)</span>
+            <span class="text-[10px] text-stone-300 font-normal mt-1">रोल नंबर, नाम, पिता का नाम, संपर्क, स्थान</span>
           </button>
-          <button onclick="download7DaysUsersPdf()" class="px-3.5 py-2 bg-terracotta text-white rounded-lg text-xs font-semibold hover:bg-amber-800 flex items-center gap-1 shadow-sm transition">
-            <span>Download 7-Day Users (PDF)</span> 👥
+          <button onclick="downloadExamResultsMeritPdf()" class="p-3 bg-terracotta text-white rounded-xl text-xs font-bold hover:bg-amber-800 flex flex-col justify-between shadow-sm">
+            <span>🏆 परीक्षा परिणाम मेरिट सूची (PDF)</span>
+            <span class="text-[10px] text-stone-300 font-normal mt-1">रैंक, रोल नंबर, नाम, पिता का नाम, प्राप्तांक</span>
+          </button>
+          <button onclick="download7DaysUsersPdf()" class="p-3 bg-stone-800 text-white rounded-xl text-xs font-bold hover:bg-black flex flex-col justify-between shadow-sm">
+            <span>👥 विगत ७ दिवस सदस्य सूची (PDF)</span>
+            <span class="text-[10px] text-stone-300 font-normal mt-1">पंजीकृत सदस्यों का विवरण</span>
           </button>
         </div>
       </div>
 
-      <!-- RBAC: SUB-ADMIN PERMISSIONS CONTROLLER (EXCLUSIVE TO OWNER) -->
-      <div id="secManageAdmins" class="bg-white p-5 rounded-xl border-2 border-amber-300 shadow-sm space-y-3">
+      <!-- 3. GRANULAR RBAC PERMISSIONS (SUB-ADMIN POWER DELEGATOR - OWNER EXCLUSIVE) -->
+      <div id="secManageAdmins" class="bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3">
         <div class="flex items-center justify-between border-b border-stone-100 pb-2">
           <h3 class="font-bold text-forest text-sm">🛡️ अधिकार एवं सब-एडमिन नियंत्रण (Role-Based Permissions)</h3>
           <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">OWNER ONLY</span>
         </div>
         <p class="text-xs text-stone-500">
-          सह-प्रबंधक को केवल वही अधिकार दें जो आवश्यक हों। अनधिकृत ऑप्शन्स उनकी स्क्रीन से स्वतः गायब रहेंगे:
+          सह-प्रबंधक (Sub-Admin) को 1-by-1 अधिकार दें। जो अधिकार आप नहीं देंगे, उसका विकल्प उनकी स्क्रीन पर बिल्कुल नहीं दिखेगा:
         </p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          <label class="flex items-center p-2 rounded-lg bg-stone-50 border border-stone-200">
             <input type="checkbox" id="permUploadQ" class="rounded text-forest mr-2" checked>
-            <span>प्रश्न अपलोड व ड्राफ्ट अधिकार</span>
+            <span>प्रश्न अपलोड व ड्राफ्ट</span>
           </label>
-          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+          <label class="flex items-center p-2 rounded-lg bg-stone-50 border border-stone-200">
             <input type="checkbox" id="permPublishExam" class="rounded text-forest mr-2">
-            <span>परीक्षा लाइव व परिणाम जारी करना</span>
+            <span>परीक्षा लाइव व शेड्यूलर</span>
           </label>
-          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
-            <input type="checkbox" id="permEnrollToggle" class="rounded text-forest mr-2">
-            <span>नामांकन पोर्टल चालू/बंद करना</span>
+          <label class="flex items-center p-2 rounded-lg bg-stone-50 border border-stone-200">
+            <input type="checkbox" id="permToggleResults" class="rounded text-forest mr-2">
+            <span>परिणाम घोषित करना</span>
           </label>
-          <label class="flex items-center p-2 rounded bg-stone-50 border border-stone-200">
+          <label class="flex items-center p-2 rounded-lg bg-stone-50 border border-stone-200">
             <input type="checkbox" id="permViewAudit" class="rounded text-forest mr-2">
-            <span>७-दिवसीय IP व ऑडिट लॉग्स देखना</span>
+            <span>७-दिवसीय टेलीमेट्री लॉग्स</span>
           </label>
         </div>
       </div>
 
-      <!-- EXAM SCHEDULE & DRAFT CONTROLLER -->
-      <div id="secPublishExam" class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
-        <h3 class="font-bold text-forest text-sm">📅 मुख्य परीक्षा शेड्यूलर एवं लाइव ट्रिगर</h3>
-        <p class="text-xs text-stone-500">प्रश्नों को ड्राफ्ट में रखें और तय समय पर एक क्लिक से सभी छात्रों के लिए लाइव करें:</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+      <!-- 4. MAIN EXAM SCHEDULER, DRAFTS & RESULT PUBLISHING -->
+      <div id="secPublishExam" class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-bold text-forest text-sm">📅 मुख्य परीक्षा शेड्यूलर एवं परिणाम घोषणा</h3>
+        <p class="text-xs text-stone-500">परीक्षा का समय निर्धारित करें, ड्राफ्ट तैयार रखें और तय समय पर परीक्षा व परिणाम लाइव करें:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <label class="block font-semibold text-stone-600 mb-1">परीक्षा की तारीख व समय चुनें</label>
+            <label class="block font-semibold text-stone-600 mb-1">परीक्षा प्रारंभ तारीख व समय</label>
             <input type="datetime-local" id="adminExamScheduleTime" class="w-full p-2 border border-stone-300 rounded-lg">
           </div>
           <div>
-            <label class="block font-semibold text-stone-600 mb-1">कुल समय सीमा (मिनट में)</label>
-            <input type="number" id="adminExamDuration" value="60" class="w-full p-2 border border-stone-300 rounded-lg">
+            <label class="block font-semibold text-stone-600 mb-1">परीक्षा समाप्ति तारीख व समय</label>
+            <input type="datetime-local" id="adminExamEndTime" class="w-full p-2 border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-600 mb-1">कुल समय सीमा (मिनट)</label>
+            <input type="number" id="adminExamDuration" value="120" class="w-full p-2 border border-stone-300 rounded-lg">
           </div>
         </div>
         <div class="flex flex-wrap gap-2 pt-2">
@@ -724,7 +834,7 @@
         </div>
       </div>
 
-      <!-- CHATGPT INTELLIGENCE CENTER (SECURE PROMPT-DRIVEN KEY) -->
+      <!-- 5. CHATGPT INTELLIGENCE CENTER -->
       <div class="bg-gradient-to-r from-emerald-950 via-forest to-emerald-950 text-white p-5 rounded-2xl border border-emerald-500/40 space-y-4 shadow-md">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -752,206 +862,26 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        
-        <!-- CARD 1: DYNAMIC AMAVASYA MANAGER -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">🌑 पावन अमावस्या तिथि प्रबंधक</h3>
-          <p class="text-xs text-stone-500">महीने में एक बार तारीख चुनें। समय शेष और उस दिन का संदेश स्वतः चलेगा:</p>
-          
-          <div>
-            <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">अमावस्या का नाम</label>
-            <input type="text" id="adminAmavasyaName" placeholder="जैसे: कार्तिक अमावस्या (दीपावली महापर्व)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">अमावस्या की तारीख (Date)</label>
-            <input type="date" id="adminAmavasyaDate" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">विशेष संदेश / उपवास विवरण</label>
-            <input type="text" id="adminAmavasyaDesc" placeholder="जैसे: उपवास, ध्यान एवं हवन साधना" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          </div>
+      <!-- 6. QUESTION IMPORTER & DRAFT REPOSITORY -->
+      <div id="secUploadQuestions" class="bg-white p-5 rounded-2xl border border-stone-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-forest text-sm">⚡ बल्क प्रश्न बैंक (Bulk Question Bank for Exam & Mocks)</h3>
+          <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">One-Click Upload</span>
+        </div>
+        <p class="text-xs text-stone-500">
+          प्रश्नों को यहाँ पेस्ट करें और श्रेणी चुनें (ड्राफ्ट में जाएगा और तय समय पर लाइव होगा):
+        </p>
 
-          <button onclick="saveAmavasyaConfig()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
-            Save Amavasya Date
-          </button>
+        <div class="flex gap-2">
+          <select id="adminQuestionTarget" class="p-2 text-xs border border-stone-300 rounded-lg bg-stone-50 font-semibold text-stone-700">
+            <option value="main_exam">मुख्य जाम्भाणी परीक्षा (100 Questions)</option>
+            <option value="mock_1">मॉक टेस्ट - ०१</option>
+            <option value="mock_2">मॉक टेस्ट - ०२</option>
+            <option value="daily_quiz">दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
+          </select>
         </div>
 
-        <!-- CARD 2: SET DAILY QUIZ WINNERS -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">🏆 Set Daily Quiz Winners (शीर्ष ३ विजेता)</h3>
-          <p class="text-xs text-stone-500">वेबसाइट के Quiz Arena में प्रदर्शित होने वाले विजेता:</p>
-          
-          <div class="space-y-2">
-            <div class="flex gap-2">
-              <input type="text" id="win1InputName" placeholder="1st Place Name" class="w-2/3 p-2 text-xs border border-stone-300 rounded-lg">
-              <input type="text" id="win1InputScore" placeholder="Score (e.g. 10/10)" class="w-1/3 p-2 text-xs border border-stone-300 rounded-lg">
-            </div>
-            <div class="flex gap-2">
-              <input type="text" id="win2InputName" placeholder="2nd Place Name" class="w-2/3 p-2 text-xs border border-stone-300 rounded-lg">
-              <input type="text" id="win2InputScore" placeholder="Score (e.g. 9/10)" class="w-1/3 p-2 text-xs border border-stone-300 rounded-lg">
-            </div>
-            <div class="flex gap-2">
-              <input type="text" id="win3InputName" placeholder="3rd Place Name" class="w-2/3 p-2 text-xs border border-stone-300 rounded-lg">
-              <input type="text" id="win3InputScore" placeholder="Score (e.g. 9/10)" class="w-1/3 p-2 text-xs border border-stone-300 rounded-lg">
-            </div>
-          </div>
-
-          <button onclick="saveDailyWinners()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
-            Publish Winners
-          </button>
-        </div>
-
-        <!-- CARD 3: AUDIO PLAYER MANAGER -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">🎵 Audio Player Manager (ऑडियो जोड़ें)</h3>
-          <p class="text-xs text-stone-500">गिटहब पर अपलोड की गई MP3 फाइल या ऑनलाइन ऑडियो लिंक:</p>
-          <input type="text" id="adminAudioTitle" placeholder="ऑडियो का नाम (जैसे: आरती व साखी)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <input type="text" id="adminAudioLink" placeholder="ऑडियो लिंक (जैसे: ./aarti.mp3)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <button onclick="saveAdminAudio()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
-            Add to Audio Player
-          </button>
-        </div>
-
-        <!-- CARD 4: ADD PDF DOCUMENT -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
-          <h3 class="font-bold text-forest text-sm">📄 Add PDF Document</h3>
-          <p class="text-xs text-stone-500">गिटहब फ़ाइल लिंक या ड्राइव लिंक जोड़ें:</p>
-          <input type="text" id="adminPdfTitle" placeholder="Document Title (e.g. २९ नियम विवरण)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <input type="text" id="adminPdfLink" placeholder="File Link (e.g. ./shabadwani.pdf)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
-          <button onclick="saveAdminPdf()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
-            Publish PDF
-          </button>
-        </div>
-
-        <!-- CARD 5: UPDATE DAILY BANNER -->
-        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
-          <h3 class="font-bold text-forest text-sm">📢 Update Daily Sandesh (Banner)</h3>
-          <p class="text-xs text-stone-500">शीर्ष बैनर पर लाइव दिखेगा:</p>
-          <textarea id="adminBannerInput" rows="2" placeholder="जैसे: सिर साटै रूंख रहै, तो भी सस्तो जाण..." class="w-full p-2 text-xs border border-stone-300 rounded-lg"></textarea>
-          <button onclick="saveAdminBanner()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
-            Update Banner
-          </button>
-        </div>
-
-        <!-- LIVE MAINTENANCE & SECTION LOCK CONTROLLER -->
-        <div class="bg-white p-4 rounded-xl border-2 border-red-200 shadow-sm space-y-4 md:col-span-2">
-          <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-            <div>
-              <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण (Maintenance Control)</h3>
-              <p class="text-[11px] text-stone-500">यहाँ से ऐप, वेबसाइट या किसी विशेष टैब को मेंटेनेंस में डालें।</p>
-            </div>
-            <span class="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 rounded">LIVE CONTROL</span>
-          </div>
-
-          <!-- 1. Global Maintenance Mode -->
-          <div class="space-y-1.5">
-            <label class="text-xs font-bold text-stone-700">1. संपूर्ण प्लेटफॉर्म मेंटेनेंस (Full App/Website Lock):</label>
-            <select id="adminGlobalMaintMode" class="w-full p-2.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold">
-              <option value="off">🟢 चालू है (Normal - No Maintenance)</option>
-              <option value="phone_only">📱 केवल फ़ोन / ऐप बंद करें (Maintenance on Phone/App Only)</option>
-              <option value="web_only">💻 केवल कंप्यूटर वेबसाइट बंद करें (Maintenance on PC Website Only)</option>
-              <option value="both">🔴 दोनों बंद करें (Maintenance on Both Phone & Website)</option>
-            </select>
-          </div>
-
-          <!-- Custom Maintenance Message -->
-          <div class="space-y-1.5">
-            <label class="text-xs font-bold text-stone-700">मेंटेनेंस संदेश (Custom Message):</label>
-            <input type="text" id="adminMaintMessage" placeholder="उदा: ऐप में नए फीचर जोड़े जा रहे हैं, कृपया कुछ समय बाद प्रयास करें..." class="w-full p-2 text-xs rounded-lg border border-stone-300">
-          </div>
-
-          <!-- 2. Particular Section / Tab Lock -->
-          <div class="space-y-2 pt-2 border-t border-stone-100">
-            <label class="text-xs font-bold text-stone-700">2. विशेष सेक्शन लॉक करें (Lock Particular Section):</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="font-semibold">📿 जप माला (Mala)</span>
-                <select id="lock_mala" class="p-1 rounded border text-[11px]">
-                  <option value="off">🟢 Open</option>
-                  <option value="phone_only">📱 Phone Lock</option>
-                  <option value="web_only">💻 Web Lock</option>
-                  <option value="both">🔴 Lock Both</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="font-semibold">📜 २९ नियम (Niyams)</span>
-                <select id="lock_niyams" class="p-1 rounded border text-[11px]">
-                  <option value="off">🟢 Open</option>
-                  <option value="phone_only">📱 Phone Lock</option>
-                  <option value="web_only">💻 Web Lock</option>
-                  <option value="both">🔴 Lock Both</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="font-semibold">📚 साहित्य (Library)</span>
-                <select id="lock_library" class="p-1 rounded border text-[11px]">
-                  <option value="off">🟢 Open</option>
-                  <option value="phone_only">📱 Phone Lock</option>
-                  <option value="web_only">💻 Web Lock</option>
-                  <option value="both">🔴 Lock Both</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="font-semibold">💬 संवाद मंच (Community)</span>
-                <select id="lock_community" class="p-1 rounded border text-[11px]">
-                  <option value="off">🟢 Open</option>
-                  <option value="phone_only">📱 Phone Lock</option>
-                  <option value="web_only">💻 Web Lock</option>
-                  <option value="both">🔴 Lock Both</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="font-semibold">🏆 ज्ञान परीक्षा (Quiz)</span>
-                <select id="lock_quiz" class="p-1 rounded border text-[11px]">
-                  <option value="off">🟢 Open</option>
-                  <option value="phone_only">📱 Phone Lock</option>
-                  <option value="web_only">💻 Web Lock</option>
-                  <option value="both">🔴 Lock Both</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="font-semibold">🏛️ इतिहास (History)</span>
-                <select id="lock_history" class="p-1 rounded border text-[11px]">
-                  <option value="off">🟢 Open</option>
-                  <option value="phone_only">📱 Phone Lock</option>
-                  <option value="web_only">💻 Web Lock</option>
-                  <option value="both">🔴 Lock Both</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-lg shadow transition">
-            💾 मेंटेनेंस सेटिंग्स लागू करें (Save & Apply Live)
-          </button>
-        </div>
-
-        <!-- CARD 6: BULK QUIZ & EXAM QUESTION IMPORTER -->
-        <div id="secUploadQuestions" class="bg-white p-5 rounded-xl border border-stone-200 space-y-3 md:col-span-2">
-          <div class="flex items-center justify-between">
-            <h3 class="font-bold text-forest text-sm">⚡ Bulk Quiz & Exam Question Importer</h3>
-            <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">One-Click</span>
-          </div>
-          <p class="text-xs text-stone-500">
-            प्रश्नों को सीधे पेस्ट करें अथवा श्रेणी चुनकर बल्क में अपलोड करें:
-          </p>
-
-          <div class="flex gap-2">
-            <select id="adminQuestionTarget" class="p-2 text-xs border border-stone-300 rounded-lg bg-stone-50 font-semibold text-stone-700">
-              <option value="daily_quiz">दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
-              <option value="mock_1">मॉक टेस्ट - ०१</option>
-              <option value="mock_2">मॉक टेस्ट - ०२</option>
-              <option value="main_exam">मुख्य जाम्भाणी परीक्षा (Main Exam)</option>
-            </select>
-          </div>
-
-          <textarea id="adminBulkQuizText" rows="7" class="w-full p-3 font-mono text-xs border border-stone-300 rounded-lg bg-stone-50" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
+        <textarea id="adminBulkQuizText" rows="7" class="w-full p-3 font-mono text-xs border border-stone-300 rounded-lg bg-stone-50" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
 C) 1857 ईस्वी
@@ -965,19 +895,72 @@ C) 36
 D) 108
 Ans: B"></textarea>
 
-          <button onclick="importBulkQuiz()" class="px-5 py-2 bg-terracotta text-white rounded-lg text-xs font-semibold hover:bg-amber-800 transition">
-            Publish All Questions to Quiz
+        <button onclick="importBulkQuiz()" class="px-5 py-2 bg-terracotta text-white rounded-lg text-xs font-semibold hover:bg-amber-800 transition">
+          प्रश्नों को ड्राफ्ट / परीक्षा बैंक में सुरक्षित करें
+        </button>
+      </div>
+
+      <!-- 7. ESSENTIAL MANAGERS: AMAVASYA, BANNER & MEDIA -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        
+        <!-- CARD: DYNAMIC AMAVASYA MANAGER -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+          <h3 class="font-bold text-forest text-sm">🌑 पावन अमावस्या तिथि प्रबंधक</h3>
+          <div>
+            <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">अमावस्या का नाम</label>
+            <input type="text" id="adminAmavasyaName" placeholder="उदा: कार्तिक अमावस्या" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">अमावस्या की तारीख (Date)</label>
+            <input type="date" id="adminAmavasyaDate" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">विशेष संदेश / उपवास विवरण</label>
+            <input type="text" id="adminAmavasyaDesc" placeholder="उपवास, ध्यान एवं हवन साधना" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          </div>
+          <button onclick="saveAmavasyaConfig()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
+            Save Amavasya Date
+          </button>
+        </div>
+
+        <!-- CARD: TOP BANNER UPDATE -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+          <h3 class="font-bold text-forest text-sm">📢 Update Daily Sandesh (Banner)</h3>
+          <p class="text-xs text-stone-500">शीर्ष बैनर पर लाइव दिखेगा:</p>
+          <textarea id="adminBannerInput" rows="3" placeholder="जैसे: जीव दया पालणी, रूंख लीलो नी घावै..." class="w-full p-2 text-xs border border-stone-300 rounded-lg"></textarea>
+          <button onclick="saveAdminBanner()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
+            Update Banner
+          </button>
+        </div>
+
+        <!-- CARD: AUDIO PLAYER MANAGER -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+          <h3 class="font-bold text-forest text-sm">🎵 Audio Player Manager (ऑडियो जोड़ें)</h3>
+          <input type="text" id="adminAudioTitle" placeholder="ऑडियो का नाम (जैसे: आरती व साखी)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <input type="text" id="adminAudioLink" placeholder="ऑडियो लिंक (जैसे: ./aarti.mp3)" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <button onclick="saveAdminAudio()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
+            Add to Audio Player
+          </button>
+        </div>
+
+        <!-- CARD: ADD PDF DOCUMENT -->
+        <div class="bg-white p-5 rounded-xl border border-stone-200 space-y-3">
+          <h3 class="font-bold text-forest text-sm">📄 Add PDF Document</h3>
+          <input type="text" id="adminPdfTitle" placeholder="दस्तावेज़ का नाम" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <input type="text" id="adminPdfLink" placeholder="PDF फ़ाइल लिंक" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
+          <button onclick="saveAdminPdf()" class="px-4 py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
+            Publish PDF
           </button>
         </div>
 
       </div>
 
-      <!-- 7-DAY AUDIT & VISITOR TELEMETRY LOGS TABLE -->
-      <div id="secAuditLogs" class="mt-6 bg-white p-5 rounded-xl border border-stone-200 shadow-sm space-y-3">
+      <!-- 8. 7-DAY AUDIT & VISITOR TELEMETRY TABLE -->
+      <div id="secAuditLogs" class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between border-b border-stone-100 pb-2">
           <div>
-            <h4 class="font-bold text-forest text-sm">📊 विगत ७ दिवस के सक्रिय सदस्य एवं टेलीमेट्री लॉग्स</h4>
-            <p class="text-[11px] text-stone-500">नाम, फ़ोन, ईमेल, IP पता, डिवाइस (Mobile/Laptop) व लोकेशन विवरण</p>
+            <h4 class="font-bold text-forest text-sm">📊 विगत ७ दिवस के सक्रिय सदस्य एवं टेलीमेट्री ऑडिट लॉग्स</h4>
+            <p class="text-[11px] text-stone-500">नाम, फ़ोन, ईमेल, IP पता, उपकरण (Device) व भौगोलिक स्थिति</p>
           </div>
           <button onclick="refreshAuditLogs()" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 rounded text-xs font-semibold text-stone-700">
             🔄 रिफ्रेश करें
@@ -990,8 +973,8 @@ Ans: B"></textarea>
                 <th class="p-2.5">नाम / फ़ोन</th>
                 <th class="p-2.5">ईमेल</th>
                 <th class="p-2.5">IP एड्रेस</th>
-                <th class="p-2.5">डिवाइस (Type)</th>
-                <th class="p-2.5">लोकेशन (Stated / IP)</th>
+                <th class="p-2.5">डिवाइस (Mobile/Laptop)</th>
+                <th class="p-2.5">लोकेशन (City/Region)</th>
                 <th class="p-2.5">समय</th>
               </tr>
             </thead>
