@@ -438,7 +438,7 @@ async function saveAmavasyaConfig() {
   showToast('अमावस्या तिथि सफलतापूर्वक सहेजी गई!');
 }
 
-// 11. GEMINI API CLIENT (QUERY PARAMETER AUTHENTICATION)
+// 11. GEMINI 3.8 FLASH API CLIENT (QUERY PARAMETER AUTHENTICATION)
 function getGeminiKey() {
   let key = localStorage.getItem('gemini_user_api_key');
   if (!key) {
@@ -464,8 +464,8 @@ async function callGemini(promptText) {
     throw new Error("वैध Gemini API Key दर्ज नहीं की गई।");
   }
 
-  // Pass key as URL query parameter to satisfy Google's public REST API
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  // Active Gemini 3.8 Flash endpoint with URL query parameter authentication
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
   const payload = {
     contents: [{ parts: [{ text: promptText }] }]
   };
@@ -483,7 +483,7 @@ async function callGemini(promptText) {
     return data.candidates[0].content.parts[0].text;
   }
   
-  // If unauthorized, clear invalid stored key to allow entering a new key
+  // If rejected for invalid authorization, clear the key so the user can re-enter it
   if (response.status === 400 || response.status === 401 || response.status === 403) {
     localStorage.removeItem('gemini_user_api_key');
   }
@@ -1040,7 +1040,7 @@ function listenPdfs() {
           </a>
           <div class="flex items-center gap-2">
             <button onclick="sharePdfWhatsApp('${item.title}', '${item.link}')" class="text-emerald-700 text-xs font-semibold">Share 📲</button>
-            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-red-600 text-xs">Delete</button>` : ''}
+            ${currentUser && currentUser.isOwner ? `<button onclick="confirmDeletePdf('${doc.id}')" class="text-xs text-red-600">Delete</button>` : ''}
           </div>
         </div>
       `;
