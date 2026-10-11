@@ -3545,3 +3545,75 @@ function download7DaysUsersPdf() {
     showToast("त्रुटि: " + err.message);
   });
 }
+// ==========================================
+// VISITOR ANALYTICS & DEVICE TRACKER (LAST 7 DAYS)
+// ==========================================
+
+async function trackAndStoreVisitorDetails() {
+  try {
+    // 1. IP और लोकेशन फेच करना
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+
+    const ip = data.ip || 'Unknown IP';
+    const city = data.city || 'Unknown City';
+    const region = data.region || 'Unknown Region';
+    const country = data.country_name || 'Unknown Country';
+    const network = data.org || 'Unknown Provider';
+
+    // 2. डिवाइस टाइप डिटेक्ट करना (Mobile / Laptop / Tablet)
+    const ua = navigator.userAgent;
+    let deviceType = "Laptop / Desktop";
+    if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
+      deviceType = /ipad|tablet/i.test(ua.toLowerCase()) ? "Tablet" : "Mobile Phone";
+    }
+
+    const browserInfo = navigator.appName || 'Browser';
+
+    // 3. Firebase Firestore में सेव करना
+    await db.collection('visitorLogs').add({
+      ip,
+      city,
+      region,
+      country,
+      network,
+      deviceType,
+      userAgent: ua,
+      visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      timestamp: Date.now() // पिछले 7 दिन का डेटा फिल्टर करने के लिए आसान नंबर फॉर्मेट
+    });
+
+    console.log("✅ Visitor Logged Successfully:", { ip, city, deviceType });
+  } catch (err) {
+    console.log("Visitor tracking error:", err);
+  }
+}
+
+// पेज लोड होने पर केवल 1 बार हर विजिटर का डेटा रिकॉर्ड हो
+window.addEventListener('DOMContentLoaded', () => {
+  // लोकलस्टोरेज चेक ताकि एक ही सेशन में बार-बार काउंट न हो
+  if (!sessionStorage.getItem('visitor_logged_session')) {
+    sessionStorage.setItem('visitor_logged_session', 'true');
+    trackAndStoreVisitorDetails();
+  }
+});
+
+// 4. पिछले 7 दिनों के विज़िटर्स का डेटा कंसोल या एडमिन पैनल में देखने के लिए फ़ंक्शन
+async function fetchLast7DaysVisitors(callback) {
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  try {
+    const snap = await db.collection('visitorLogs')
+      .where('timestamp', '>=', sevenDaysAgo)
+      .orderBy('timestamp', 'desc')
+      .get();
+
+    let logs = [];
+    snap.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+    
+    if (typeof callback === 'function') callback(logs);
+    return logs;
+  } catch (e) {
+    console.log("Error fetching 7 days logs:", e);
+    return [];
+  }
+}
