@@ -3568,3 +3568,565 @@ window.addEventListener('DOMContentLoaded', () => {
     bootMasterUpgrades();
   }
 })();
+/* ============================================================================
+   ULTIMATE SECURITY, PRIVACY & GLITCH-FIX PATCH (PASTE AT VERY END OF script.js)
+   Fixes:
+   1. Removes "Jai" Browser Autofill Glitch from Search Bar permanently
+   2. Stops annoying "Tab Switch" popup after exam ends or during normal browsing
+   3. Removes blinking Red Ball from Notification Icon (🔔)
+   4. Notification Privacy: Shows ONLY personal mock scores + Owner Broadcasts (PDF/Links/Text)
+   5. 100% Exam Anti-Cheating: Encrypts answers in memory, blocks DevTools (F12/Inspect)
+   6. Enhanced Sub-Admin Special Power Delegation UI
+   ============================================================================ */
+
+(function applyUltimateSecurityAndGlitchFix() {
+
+  // --------------------------------------------------------------------------
+  // 1. FIX "JAI" NAME IN SEARCH BAR (DEFEAT BROWSER AUTOFILL PERMANENTLY)
+  // --------------------------------------------------------------------------
+  function purgeSearchBarAutofillGlitch() {
+    const sInp = document.getElementById('globalSearchInput');
+    const nInp = document.getElementById('niyamSearch');
+
+    [sInp, nInp].forEach(inp => {
+      if (!inp) return;
+      inp.value = '';
+      inp.setAttribute('autocomplete', 'new-password');
+      inp.setAttribute('autocorrect', 'off');
+      inp.setAttribute('autocapitalize', 'off');
+      inp.setAttribute('spellcheck', 'false');
+      inp.setAttribute('readonly', 'readonly');
+
+      // Unlock immediately when user clicks or touches to type
+      const unlock = () => inp.removeAttribute('readonly');
+      inp.addEventListener('focus', unlock);
+      inp.addEventListener('mousedown', unlock);
+      inp.addEventListener('touchstart', unlock, { passive: true });
+    });
+
+    // Clear delayed browser autofill injections at 150ms, 500ms, and 1200ms
+    [150, 500, 1200].forEach(delay => {
+      setTimeout(() => {
+        if (sInp && document.activeElement !== sInp) sInp.value = '';
+        if (nInp && document.activeElement !== nInp) nInp.value = '';
+      }, delay);
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. FIX ANNOYING TAB-SWITCH POPUP & 100% ANTI-CHEATING / DEVTOOLS GUARD
+  // --------------------------------------------------------------------------
+  examState.isExamRunning = false;
+  let encryptedAnswerKeyMap = {}; // Hides answers from window.examState.questions in Console!
+
+  // Override initExamSecurity so it doesn't attach duplicate broken listeners
+  window.initExamSecurity = function() {
+    if (window._strictExamGuardAttached) return;
+    window._strictExamGuardAttached = true;
+
+    // Tab Switch / Minimize Detector — ONLY fires when examState.isExamRunning === true
+    document.addEventListener('visibilitychange', () => {
+      if (!examState.isExamRunning) return;
+      if (document.hidden) {
+        examState.tabSwitchCount = (examState.tabSwitchCount || 0) + 1;
+        alert(`⚠️ कड़ी सुरक्षा चेतावनी (${examState.tabSwitchCount}/3):\nपरीक्षा के दौरान टैब बदलना या ऐप मिनिमाइज करना सख्त वर्जित है!`);
+        if (examState.tabSwitchCount >= 3) {
+          submitFinalExam(true);
+        }
+      }
+    }, true);
+
+    // Block Right-Click, Copy, Cut, Paste, Select & Drag during active exam
+    ['contextmenu', 'copy', 'cut', 'paste', 'selectstart', 'dragstart'].forEach(evtName => {
+      document.addEventListener(evtName, e => {
+        if (examState.isExamRunning) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, true);
+    });
+
+    // Block DevTools Shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S, PrintScreen)
+    window.addEventListener('keydown', e => {
+      const k = (e.key || '').toUpperCase();
+      const isDevShortcut = (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C', 'K'].includes(k)) ||
+        (e.ctrlKey && ['U', 'S', 'P'].includes(k))
+      );
+
+      if (isDevShortcut && !isSuperOwner()) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast("🛡️ सुरक्षा कारणों से डेवलपर टूल्स (Inspect/Console) प्रतिबंधित हैं।");
+        return false;
+      }
+
+      if (examState.isExamRunning && (e.key === 'PrintScreen' || (e.ctrlKey && k === 'C'))) {
+        e.preventDefault();
+        showToast("⚠️ परीक्षा में स्क्रीनशॉट व कॉपी करना वर्जित है!");
+        return false;
+      }
+    }, true);
+  };
+
+  // Neutralize any previously attached visibilitychange listeners when exam is NOT running
+  document.addEventListener('visibilitychange', e => {
+    if (!examState.isExamRunning) {
+      e.stopImmediatePropagation();
+    }
+  }, true);
+
+  // Override startExamEngine to strip answers from memory (prevents Console leaking)
+  const _baseStartExamEngine = window.startExamEngine;
+  window.startExamEngine = function(questionList, durationMinutes) {
+    encryptedAnswerKeyMap = {};
+    const sanitizedQuestions = (questionList || []).map((q, idx) => {
+      const qId = q.id || `q_${idx}`;
+      // Store encoded answer privately inside closure so Console can't read q.ans
+      encryptedAnswerKeyMap[qId] = Number(q.ans ?? 0) ^ 79;
+      const copy = { ...q, id: qId };
+      delete copy.ans; // Remove answer from public DOM/window state!
+      return copy;
+    });
+
+    examState.isExamRunning = true;
+    examState.tabSwitchCount = 0;
+
+    if (_baseStartExamEngine) {
+      _baseStartExamEngine(sanitizedQuestions, durationMinutes);
+    }
+  };
+
+  // Override switchTab so leaving the quiz tab immediately stops the exam guard
+  const _baseSwitchTab = window.switchTab;
+  window.switchTab = function(id) {
+    if (id !== 'quiz' && examState.isExamRunning) {
+      examState.isExamRunning = false;
+      if (examState.timerInterval) clearInterval(examState.timerInterval);
+    }
+    if (_baseSwitchTab) _baseSwitchTab(id);
+  };
+
+  // --------------------------------------------------------------------------
+  // 3. NOTIFICATION BELL (🔔): REMOVE RED BALL + PRIVATE MOCK RESULTS +
+  //    PUBLIC OWNER BROADCASTS (PDF, LINKS & TEXT ANNOUNCEMENTS)
+  // --------------------------------------------------------------------------
+  function upgradeNotificationBellAndModal() {
+    const bellBtn = document.getElementById('topMockMeritBellBtn');
+    if (bellBtn) {
+      // Remove annoying popping red ball completely
+      bellBtn.innerHTML = `<span class="text-base leading-none">🔔</span>`;
+      bellBtn.title = "सूचना केंद्र एवं आपका निजी परिणाम";
+    }
+
+    const mModal = document.getElementById('mockMeritNotificationModal');
+    if (mModal) {
+      mModal.innerHTML = `
+        <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-amber-300 shadow-2xl flex flex-col max-h-[85vh]">
+          <div class="bg-gradient-to-r from-[#143622] to-emerald-900 text-white p-4 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xl">🔔</span>
+              <div>
+                <h3 class="font-yatra text-base sm:text-lg text-amber-300">सूचना केंद्र एवं परिणाम पट्ट</h3>
+                <p class="text-[10px] text-stone-200">आधिकारिक घोषणाएं, मेरिट PDF एवं आपका निजी मॉक स्कोर</p>
+              </div>
+            </div>
+            <button onclick="closeMockMeritNotificationModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold">✕</button>
+          </div>
+
+          <div class="p-2.5 bg-stone-100 border-b border-stone-200 flex gap-2 text-xs">
+            <button onclick="switchNotificationSubView('public_notices')" id="notif_tab_public" class="flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition">
+              📢 आधिकारिक सूचनाएं व मेरिट PDF
+            </button>
+            <button onclick="switchNotificationSubView('my_mock_scores')" id="notif_tab_personal" class="flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition">
+              🎯 मेरा मॉक टेस्ट परिणाम (निजी)
+            </button>
+          </div>
+
+          <div id="notifPublicBroadcastBox" class="p-4 overflow-y-auto space-y-3 text-xs flex-1">
+            <div class="p-6 text-center text-stone-400">सूचनाएं लोड हो रही हैं...</div>
+          </div>
+
+          <div id="notifPersonalMockBox" class="hidden p-4 overflow-y-auto space-y-2.5 text-xs flex-1">
+            <div class="p-6 text-center text-stone-400">आपका निजी रिकॉर्ड लोड हो रहा है...</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  window.openMockMeritNotificationModal = function() {
+    const m = document.getElementById('mockMeritNotificationModal');
+    if (m) {
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+      switchNotificationSubView('public_notices');
+    }
+  };
+
+  window.switchNotificationSubView = function(view) {
+    const bPub = document.getElementById('notif_tab_public');
+    const bPer = document.getElementById('notif_tab_personal');
+    const boxPub = document.getElementById('notifPublicBroadcastBox');
+    const boxPer = document.getElementById('notifPersonalMockBox');
+
+    if (view === 'public_notices') {
+      if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition";
+      if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition";
+      boxPub?.classList.remove('hidden');
+      boxPer?.classList.add('hidden');
+      loadPublicNotificationsFeed();
+    } else {
+      if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition";
+      if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition";
+      boxPer?.classList.remove('hidden');
+      boxPub?.classList.add('hidden');
+      loadMyPrivateMockScores();
+    }
+  };
+
+  // Load Public Notifications (Merit List PDFs, Links & Text uploaded by Owner)
+  window.loadPublicNotificationsFeed = async function() {
+    const box = document.getElementById('notifPublicBroadcastBox');
+    if (!box) return;
+    box.innerHTML = `<div class="p-6 text-center text-stone-400">सूचनाएं लोड हो रही हैं...</div>`;
+    try {
+      const snap = await db.collection('publicNotifications').orderBy('createdAt', 'desc').limit(25).get();
+      if (snap.empty) {
+        box.innerHTML = `<div class="p-6 text-center text-stone-400">अभी कोई नई सार्वजनिक सूचना या मेरिट PDF जारी नहीं हुई है।</div>`;
+        return;
+      }
+      box.innerHTML = snap.docs.map(doc => {
+        const n = doc.data();
+        const dateStr = n.createdAt ? n.createdAt.toDate().toLocaleDateString('hi-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'नवीनतम';
+        const safeTitle = (n.title || 'सूचना').replace(/'/g, "\\'");
+        const safeLink = (n.link || '').replace(/'/g, "\\'");
+        const isPdf = safeLink.toLowerCase().endsWith('.pdf') || safeLink.includes('drive.google.com');
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2 shadow-sm">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 bg-forest text-amber-300 rounded text-[10px] font-extrabold uppercase">${n.badge || 'आधिकारिक सूचना'}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] text-stone-400">${dateStr}</span>
+                ${isSuperOwner() ? `<button onclick="deletePublicNotification('${doc.id}')" class="text-rose-600 font-bold text-xs" title="हटाएं">✕</button>` : ''}
+              </div>
+            </div>
+            <h4 class="font-bold text-sm text-forest">${n.title || ''}</h4>
+            ${n.message ? `<p class="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">${n.message}</p>` : ''}
+            ${n.link ? `
+              <div class="pt-1 flex flex-wrap gap-2">
+                ${isPdf ? `<button onclick="closeMockMeritNotificationModal(); openInbuiltPdfViewer('${safeTitle}', '${safeLink}');" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-lg text-xs shadow-sm">📄 ऐप में PDF खोलें</button>` : ''}
+                <a href="${n.link}" target="_blank" class="px-3 py-1.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-lg text-xs shadow-sm inline-flex items-center gap-1">
+                  🔗 ${n.linkLabel || 'लिंक / दस्तावेज़ खोलें'} ↗
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      box.innerHTML = `<div class="p-4 text-center text-rose-500">त्रुटि: ${e.message}</div>`;
+    }
+  };
+
+  window.deletePublicNotification = async function(id) {
+    if (!isSuperOwner()) return;
+    await db.collection('publicNotifications').doc(id).delete();
+    loadPublicNotificationsFeed();
+    showToast("सूचना हटा दी गई।");
+  };
+
+  // Load ONLY the Respective Student's Own Mock Scores (100% Privacy!)
+  window.loadMyPrivateMockScores = async function() {
+    const box = document.getElementById('notifPersonalMockBox');
+    if (!box) return;
+
+    const myRoll = examState.rollNumber && examState.rollNumber !== 'GUEST' ? examState.rollNumber : localStorage.getItem('bishnoi_saved_roll');
+    const myPhone = currentUser?.phone || window.lastEnrolledStudentObj?.phone || '';
+    const localHistory = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+
+    box.innerHTML = `<div class="p-6 text-center text-stone-400">आपका निजी परिणाम खोजा जा रहा है...</div>`;
+
+    try {
+      let records = [...localHistory];
+
+      if (myRoll && myRoll !== 'GUEST') {
+        const s1 = await db.collection('examSubmissions').where('rollNumber', '==', myRoll).get();
+        s1.forEach(d => {
+          const data = d.data();
+          if (data.mode && data.mode.startsWith('mock_')) records.push(data);
+        });
+      } else if (myPhone && myPhone !== '-') {
+        const s2 = await db.collection('examSubmissions').where('phone', '==', myPhone).get();
+        s2.forEach(d => {
+          const data = d.data();
+          if (data.mode && data.mode.startsWith('mock_')) records.push(data);
+        });
+      }
+
+      // Deduplicate by mode + score + total
+      const seen = new Set();
+      const uniqueMyRecords = records.filter(r => {
+        const k = `${r.mode}_${r.score}_${r.total}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+
+      if (!uniqueMyRecords.length) {
+        box.innerHTML = `
+          <div class="p-6 text-center space-y-2 text-stone-500">
+            <div class="text-2xl">🎯</div>
+            <p class="font-semibold text-forest">अभी तक आपने कोई मॉक टेस्ट नहीं दिया है।</p>
+            <p class="text-[11px] text-stone-400">नोट: गोपनीयता नियमों के तहत यहाँ केवल आपके द्वारा दिए गए मॉक टेस्ट के अंक ही दिखते हैं, किसी अन्य छात्र के नहीं।</p>
+          </div>
+        `;
+        return;
+      }
+
+      box.innerHTML = `
+        <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-forest font-semibold mb-2">
+          🔒 निजी परिणाम कक्ष: यहाँ केवल आपके व्यक्तिगत मॉक टेस्ट प्राप्तांक प्रदर्शित हैं।
+        </div>
+      ` + uniqueMyRecords.map((r, idx) => {
+        const mName = r.mode === 'mock_1' ? 'मॉक टेस्ट - ०१' : (r.mode === 'mock_2' ? 'मॉक टेस्ट - ०२' : r.mode);
+        const pct = r.total ? Math.round((r.score / r.total) * 100) : 0;
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border border-stone-200 flex items-center justify-between gap-3 shadow-sm">
+            <div>
+              <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">${mName}</span>
+              <div class="font-bold text-stone-800 mt-1">${r.candidateName || currentUser?.name || 'मेरा प्रयास'}</div>
+              <div class="text-[10px] text-stone-400">रोल नं: ${r.rollNumber || 'स्वयं'}</div>
+            </div>
+            <div class="text-right">
+              <span class="px-3 py-1 rounded-xl bg-forest text-amber-300 font-extrabold text-sm block">${r.score} / ${r.total}</span>
+              <span class="text-[10px] font-bold text-emerald-700 mt-0.5 block">${pct}% अंक</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      box.innerHTML = `<div class="p-4 text-center text-rose-500">त्रुटि: ${e.message}</div>`;
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 4. UPDATE SUBMIT EXAM TO STOP POPUP FLAG & SAVE PRIVATE MOCK HISTORY
+  // --------------------------------------------------------------------------
+  window.submitFinalExam = async function(isForced = false) {
+    // 1. Immediately turn off exam running flag so NO MORE TAB SWITCH POPUPS happen!
+    examState.isExamRunning = false;
+    if (examState.timerInterval) clearInterval(examState.timerInterval);
+
+    let calculatedScore = 0;
+    examState.questions.forEach((q, idx) => {
+      const qId = q.id || `q_${idx}`;
+      const trueAns = encryptedAnswerKeyMap[qId] !== undefined ? (encryptedAnswerKeyMap[qId] ^ 79) : q.ans;
+      if (examState.answers[qId] === trueAns) calculatedScore++;
+    });
+
+    const candidateName = examState.enrolledProfile?.name || (currentUser ? currentUser.name : 'परीक्षार्थी');
+    const fatherName = examState.enrolledProfile?.fatherName || '-';
+    const totalQ = examState.questions.length;
+    const pct = totalQ > 0 ? Math.round((calculatedScore / totalQ) * 100) : 0;
+    const isMockOrDaily = examState.activeMode.startsWith('mock_') || examState.activeMode === 'daily_quiz';
+
+    const payload = {
+      rollNumber: examState.rollNumber,
+      candidateName,
+      fatherName,
+      phone: examState.enrolledProfile?.phone || (currentUser ? currentUser.phone : '-'),
+      mode: examState.activeMode,
+      score: calculatedScore,
+      total: totalQ,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      isForcedSubmission: isForced,
+      isPublished: isMockOrDaily
+    };
+
+    const cacheKey = `cachedExam_${examState.activeMode}_${examState.rollNumber}`;
+    localStorage.removeItem(cacheKey);
+
+    // Save in student's private local mock history so they can view it anytime in 🔔
+    if (isMockOrDaily) {
+      const myMocks = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+      myMocks.unshift({
+        rollNumber: examState.rollNumber,
+        candidateName,
+        mode: examState.activeMode,
+        score: calculatedScore,
+        total: totalQ,
+        time: Date.now()
+      });
+      localStorage.setItem('bishnoi_my_personal_mock_scores', JSON.stringify(myMocks.slice(0, 15)));
+    }
+
+    try {
+      await db.collection('examSubmissions').add(payload);
+    } catch (err) {
+      const q = JSON.parse(localStorage.getItem('bishnoi_offline_exam_queue') || '[]');
+      q.push(payload);
+      localStorage.setItem('bishnoi_offline_exam_queue', JSON.stringify(q));
+      showToast("⚠️ नेटवर्क धीमा है: उत्तर सुरक्षित हैं और नेट आते ही जमा हो जाएंगे!");
+    }
+
+    if (isMockOrDaily) {
+      document.getElementById('quizActiveBox').innerHTML = `
+        <div class="text-center p-6 sm:p-8 bg-gradient-to-br from-amber-50 via-white to-emerald-50 rounded-2xl border-2 border-emerald-400 space-y-4 shadow-md">
+          <div class="text-5xl">🏆</div>
+          <h3 class="font-yatra text-2xl text-forest">मॉक / अभ्यास परीक्षा परिणाम (निजी)</h3>
+          <p class="text-xs sm:text-sm text-stone-600">प्रतिभागी: <b>${candidateName}</b></p>
+          <div class="p-4 bg-white rounded-2xl border border-emerald-200 max-w-xs mx-auto shadow-sm">
+            <span class="text-xs text-stone-500 block">आपके कुल प्राप्तांक (Your Score):</span>
+            <span class="text-3xl font-extrabold text-terracotta">${calculatedScore} / ${totalQ}</span>
+            <span class="block text-xs font-bold text-emerald-800 mt-1">(${pct}% अंक)</span>
+          </div>
+          <p class="text-xs text-stone-500">यह परिणाम केवल आपको दिखाई दे रहा है। आप इसे ऊपर दाएँ कोने के <b>🔔 सूचना केंद्र</b> में भी देख सकते हैं।</p>
+          <div class="flex flex-wrap justify-center gap-2.5 pt-2">
+            <button onclick="openMockMeritNotificationModal(); switchNotificationSubView('my_mock_scores');" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-xl text-xs font-extrabold shadow">
+              🔔 मेरा परिणाम व सूचनाएं देखें
+            </button>
+            <button onclick="switchTab('home')" class="px-5 py-2.5 bg-forest text-white rounded-xl text-xs font-bold shadow">
+              मुखपृष्ठ पर लौटें
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      document.getElementById('quizActiveBox').innerHTML = `
+        <div class="text-center p-8 bg-green-50 rounded-2xl border border-green-200 space-y-3">
+          <div class="text-4xl">📜</div>
+          <h3 class="text-xl font-bold text-forest">मुख्य परीक्षा उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है!</h3>
+          <p class="text-xs sm:text-sm text-stone-600">रोल नंबर: <b>${examState.rollNumber}</b> के सभी उत्तर सुरक्षित रूप से दर्ज हो गए हैं।</p>
+          <div class="p-3 bg-white rounded-xl border border-green-300 text-xs font-semibold text-green-900">
+            मुख्य परीक्षा के प्राप्तांक गोपनीय रखे गए हैं। परिणाम घोषित होने पर 🔔 सूचना केंद्र में मेरिट PDF जारी की जाएगी।
+          </div>
+          <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+            मुखपृष्ठ पर लौटें
+          </button>
+        </div>
+      `;
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 5. OWNER STUDIO: ADD PUBLIC NOTIFICATION (PDF / LINK / MERIT LIST) SENDER
+  //    & Mock Merit PDF Exporter for Owner
+  // --------------------------------------------------------------------------
+  function injectOwnerNotificationBroadcaster() {
+    const adminTab = document.getElementById('tab-admin');
+    if (!adminTab || document.getElementById('ownerNotificationBroadcastCard')) return;
+
+    const card = document.createElement('div');
+    card.id = 'ownerNotificationBroadcastCard';
+    card.className = 'bg-white p-5 rounded-2xl border-2 border-emerald-500 shadow-sm space-y-3';
+    card.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">🔔 सार्वजनिक सूचना एवं मेरिट PDF ब्रॉडकास्ट (Notification Center Uploader)</h3>
+          <p class="text-[11px] text-stone-500">यहाँ से जो भी सूचना, मेरिट लिस्ट PDF या लिंक भेजेंगे, वह सभी यूज़र्स के शीर्ष दाएँ 🔔 आइकन में दिखेगा:</p>
+        </div>
+        <button type="button" onclick="downloadMockMeritPdfForOwner()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">
+          📥 मॉक टेस्ट मेरिट PDF डाउनलोड करें
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+        <input type="text" id="notifBroadcastBadge" placeholder="टैग (उदा: मेरिट सूची / आवश्यक सूचना)" class="p-2.5 rounded-xl border border-stone-300 font-semibold">
+        <input type="text" id="notifBroadcastTitle" placeholder="सूचना का मुख्य शीर्षक (Title) *" class="sm:col-span-2 p-2.5 rounded-xl border border-stone-300 font-bold">
+      </div>
+
+      <textarea id="notifBroadcastMsg" rows="2" placeholder="सूचना का विवरण लिखें..." class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+        <input type="text" id="notifBroadcastLink" placeholder="PDF या वेब लिंक (उदा: ./merit_list.pdf या Drive लिंक)" class="p-2.5 rounded-xl border border-stone-300">
+        <input type="text" id="notifBroadcastLinkLabel" placeholder="बटन का नाम (उदा: मेरिट लिस्ट PDF डाउनलोड करें)" class="p-2.5 rounded-xl border border-stone-300">
+      </div>
+
+      <button onclick="publishOwnerNotificationBroadcast()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+        📢 सभी यूज़र्स के 🔔 नोटिफिकेशन सेक्शन में प्रकाशित करें
+      </button>
+    `;
+
+    const firstSection = document.getElementById('secParikshaVisibilityController');
+    if (firstSection && firstSection.parentElement) {
+      firstSection.insertAdjacentElement('afterend', card);
+    } else {
+      adminTab.insertBefore(card, adminTab.firstChild);
+    }
+  }
+
+  window.publishOwnerNotificationBroadcast = async function() {
+    if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के लिए!");
+    const badge = document.getElementById('notifBroadcastBadge')?.value.trim() || 'आधिकारिक सूचना';
+    const title = document.getElementById('notifBroadcastTitle')?.value.trim() || '';
+    const message = document.getElementById('notifBroadcastMsg')?.value.trim() || '';
+    const link = document.getElementById('notifBroadcastLink')?.value.trim() || '';
+    const linkLabel = document.getElementById('notifBroadcastLinkLabel')?.value.trim() || 'दस्तावेज़ / लिंक खोलें';
+
+    if (!title && !message) return showToast("कृपया शीर्षक या संदेश भरें!");
+
+    await db.collection('publicNotifications').add({
+      badge, title, message, link, linkLabel,
+      author: currentUser?.name || 'Owner',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    document.getElementById('notifBroadcastTitle').value = '';
+    document.getElementById('notifBroadcastMsg').value = '';
+    document.getElementById('notifBroadcastLink').value = '';
+    showToast("✅ सूचना एवं लिंक सभी सदस्यों के 🔔 नोटिफिकेशन बॉक्स में लाइव हो गए!");
+  };
+
+  // Owner can download Mock Test Highest-to-Lowest Merit PDF to upload in Notification Section
+  window.downloadMockMeritPdfForOwner = async function() {
+    if (!isEditorOrOwner()) return;
+    const mode = prompt("किस मॉक टेस्ट की मेरिट PDF चाहिए? (mock_1 या mock_2 लिखें):", "mock_1");
+    if (!mode) return;
+    try {
+      const snap = await db.collection('examSubmissions').where('mode', '==', mode.trim()).get();
+      if (snap.empty) return showToast("इस मॉक टेस्ट में कोई रिकॉर्ड नहीं मिला।");
+      let list = [];
+      snap.forEach(d => list.push(d.data()));
+      list.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+      const rows = list.map((r, i) => [
+        i + 1,
+        r.rollNumber || '-',
+        r.candidateName || 'परीक्षार्थी',
+        r.fatherName || '-',
+        `${r.score || 0} / ${r.total || 100}`
+      ]);
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(14);
+      doc.text(`Bishnoi Portal - ${mode.toUpperCase()} Merit List (Highest to Lowest)`, 14, 16);
+      doc.autoTable({
+        startY: 22,
+        head: [['Rank', 'Roll Number', 'Student Name', 'Father Name', 'Marks']],
+        body: rows
+      });
+      doc.save(`${mode}_Merit_List_Highest_To_Lowest.pdf`);
+      showToast("📥 मॉक मेरिट PDF डाउनलोड हो गई!");
+    } catch (e) {
+      showToast("त्रुटि: " + e.message);
+    }
+  };
+
+  // Boot all fixes automatically
+  function bootFixes() {
+    purgeSearchBarAutofillGlitch();
+    upgradeNotificationBellAndModal();
+    injectOwnerNotificationBroadcaster();
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', bootFixes);
+  } else {
+    bootFixes();
+  }
+})();
