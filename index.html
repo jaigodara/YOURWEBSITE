@@ -43,7 +43,7 @@
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -340,44 +340,70 @@
     </section>
 
     <!-- 5. COMMUNITY FORUM (संवाद मंच - REPLACED 'चौपाल') -->
-    <section id="tab-community" class="hidden space-y-6">
-      <div class="border-b border-stone-200 pb-3">
-        <h2 class="text-2xl font-yatra text-forest">समाज संवाद मंच</h2>
-        <p class="text-xs text-stone-600">समाज बन्धु अपने विचार, प्रश्न और प्रेरक अनुभव साझा करें</p>
-      </div>
+    <!-- 💬 UPGRADED SAMVAD MANCH (TEXT-ONLY CHAT) -->
+<section id="tab-community" class="hidden space-y-4">
+  <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div>
+      <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद मंच (Live Community Chat)</h2>
+      <p class="text-xs text-stone-500">विचार, नियम चर्चा एवं समाज संवाद (केवल टेक्स्ट चैट)</p>
+    </div>
+    <!-- Topic Filter Dropdown -->
+    <select id="chatTopicFilter" onchange="renderFilteredChat()" class="p-2 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-stone-700">
+      <option value="all">📋 सभी विषय (All Topics)</option>
+      <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
+      <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
+      <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
+      <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
+    </select>
+  </div>
 
-      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
-        <div id="postAuthPrompt" class="text-center py-4 text-xs text-stone-600">
-          संवाद में भाग लेने के लिए कृपया पहले <button onclick="openAuthModal()" class="text-terracotta font-semibold underline">लॉगिन करें</button>।
-        </div>
-        
-        <div id="postEditor" class="hidden space-y-3">
-          <textarea id="postText" maxlength="300" oninput="updateCharCount()" rows="3" placeholder="समाज कल्याण हेतु कोई संदेश या प्रश्न लिखें (अधिकतम 300 अक्षर)..." class="w-full p-2.5 text-xs sm:text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest bg-stone-50"></textarea>
-          
-          <div class="flex items-center justify-between text-xs">
-            <span id="charCountDisplay" class="text-stone-400 text-[11px]">0 / 300</span>
-            <div class="flex items-center gap-3">
-              <label class="cursor-pointer font-semibold text-terracotta flex items-center gap-1 hover:underline">
-                📷 चित्र जोड़ें
-                <input type="file" id="postPhoto" accept="image/*" class="hidden" onchange="previewPostImg(event)">
-              </label>
-              <button onclick="submitChaupalPost()" id="postSubmitBtn" class="px-4 py-1.5 bg-forest text-white rounded-lg font-semibold hover:bg-emerald-950 transition-all">
-                संदेश भेजें
-              </button>
-            </div>
-          </div>
+  <!-- 📌 Admin Pinned Message Banner -->
+  <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm flex items-start justify-between gap-3">
+    <div class="text-xs space-y-0.5">
+      <div class="font-bold text-amber-900 flex items-center gap-1">📌 पिन किया गया संदेश (Pinned by Owner)</div>
+      <p id="pinnedChatText" class="text-stone-700 font-medium"></p>
+    </div>
+    <button id="unpinChatBtn" onclick="unpinChatMessage()" class="hidden text-[11px] text-red-600 font-bold hover:underline shrink-0">हटाएं ✕</button>
+  </div>
 
-          <div id="postImgPreviewWrap" class="hidden relative inline-block">
-            <img id="postImgPreview" src="" class="max-h-40 rounded-lg border border-stone-200 object-cover" alt="preview">
-            <button onclick="clearPostImg()" class="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 text-xs">✕</button>
-          </div>
-        </div>
-      </div>
+  <!-- Chat Messages Stream -->
+  <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-xl border border-stone-200"></div>
 
-      <div id="communityFeed" class="space-y-4">
-        <div class="text-center py-8 text-xs text-stone-500">संवाद संदेश लोड हो रहे हैं...</div>
+  <!-- Login Prompt if Guest -->
+  <div id="postAuthPrompt" class="bg-white p-4 rounded-xl border border-stone-200 text-center space-y-2">
+    <p class="text-xs text-stone-600">संवाद मंच में संदेश भेजने के लिए कृपया लॉगिन करें।</p>
+    <button onclick="openAuthModal()" class="px-4 py-2 bg-forest text-white text-xs font-semibold rounded-lg">लॉगिन / शामिल हों</button>
+  </div>
+
+  <!-- Text-Only Chat Composer Box -->
+  <div id="postEditor" class="hidden bg-white p-3.5 rounded-xl border-2 border-emerald-800/20 shadow-md space-y-2.5">
+    <!-- Reply Preview Bar -->
+    <div id="replyPreviewBar" class="hidden bg-stone-100 p-2 rounded-lg border-l-4 border-forest flex items-center justify-between text-xs">
+      <div class="truncate pr-2">
+        <span class="font-bold text-forest" id="replyToAuthor"></span>:
+        <span class="text-stone-600" id="replyToText"></span>
       </div>
-    </section>
+      <button onclick="cancelChatReply()" class="text-stone-500 hover:text-red-600 font-bold px-1">✕</button>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <select id="postTopicSelect" class="p-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-forest">
+        <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
+        <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
+        <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
+        <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
+      </select>
+      <span id="charCountDisplay" class="text-[11px] text-stone-400">0 / 300</span>
+    </div>
+
+    <div class="flex gap-2">
+      <textarea id="postText" rows="2" maxlength="300" oninput="updateCharCount()" placeholder="यहाँ अपना संदेश लिखें..." class="flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-forest resize-none"></textarea>
+      <button id="postSubmitBtn" onclick="submitChaupalPost()" class="px-4 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center">
+        भेजें ➤
+      </button>
+    </div>
+  </div>
+</section>
 
     <!-- 6. QUIZ ARENA TAB -->
     <section id="tab-quiz" class="hidden max-w-2xl mx-auto space-y-6">
