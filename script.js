@@ -177,7 +177,10 @@ document.addEventListener("DOMContentLoaded", () => {
     render29NiyamCards();
     injectInteractiveJaapMalaAndReminderUI();
     initJaapMalaAndStreakUI();
-    injectInteractiveChaupalAndMeraPodhaForms();
+    function injectInteractiveChaupalAndMeraPodhaForms() {
+    const chaupalSec = document.getElementById("chaupal") || document.getElementById("parikshaMasterHubWrapper");
+    if (!chaupalSec || document.getElementById("chaupalAndMeraPodhaMasterHub")) return;
+}
     renderChaupalFeed();
     renderMeraPodhaGallery();
     renderNotificationsBell();
@@ -3212,7 +3215,17 @@ Object.assign(window, {
     askAiSahayakBottomEngine: askAiSahayakBottomEngine,
     toggleQuestionBookmark: toggleQuestionBookmark,
     renderClearBookmarksInProfile: renderClearBookmarksInProfile,
-    renderCompleteStudentProfileDashboard: renderCompleteStudentProfileDashboard,
+    function renderCompleteStudentProfileDashboard() {
+    const profileSec = document.getElementById("profile");
+    if (!profileSec) return;
+    let dash = document.getElementById("studentCompleteProfileMaster");
+    if (!dash) {
+        dash = document.createElement("div");
+        dash.id = "studentCompleteProfileMaster";
+        dash.className = "max-w-5xl mx-auto my-6 space-y-6 px-2";
+        profileSec.prepend(dash);
+    }
+}
     enrollStudentWithPhotoAndGenerateAdmitCard: enrollStudentWithPhotoAndGenerateAdmitCard,
     handleHubStudentEnrollmentSubmit: handleHubStudentEnrollmentSubmit,
     openNationalStandardAdmitCardPrintWindow: openNationalStandardAdmitCardPrintWindow,
