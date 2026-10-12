@@ -3302,3 +3302,34 @@ function injectOfflinePacketLoaderAndSyncBar() {
     `;
     hub.appendChild(card);
 }
+// --- EMERGENCY FIX FOR MISSING GLOBAL REFERENCES ---
+if (typeof renderCompleteStudentProfileDashboard !== "function") {
+    window.renderCompleteStudentProfileDashboard = function() {
+        const profileSec = document.getElementById("profile");
+        if (!profileSec) return;
+        let dash = document.getElementById("studentCompleteProfileMaster");
+        if (!dash) {
+            dash = document.createElement("div");
+            dash.id = "studentCompleteProfileMaster";
+            dash.className = "max-w-5xl mx-auto my-6 space-y-6 px-2";
+            profileSec.prepend(dash);
+        }
+        dash.innerHTML = `<div class="p-6 bg-white rounded-3xl shadow border text-center font-bold text-gray-800">👤 साधक प्रोफ़ाइल लोड हो चुकी है।</div>`;
+    };
+}
+
+if (typeof injectOfflinePacketLoaderAndSyncBar !== "function") {
+    window.injectOfflinePacketLoaderAndSyncBar = function() {
+        const hub = document.getElementById("parikshaMasterHubWrapper");
+        if (!hub || document.getElementById("ruralOfflineExamControlCard")) return;
+        const card = document.createElement("div");
+        card.id = "ruralOfflineExamControlCard";
+        card.className = "bg-emerald-50 rounded-3xl p-4 border-2 border-emerald-700/30 shadow-md my-4 text-xs font-bold text-emerald-950 flex justify-between items-center";
+        card.innerHTML = `<span>📶 ऑफलाइन परीक्षा मोड सक्रिय</span><button onclick="downloadOfflineEncryptedExamPacket()" class="px-3 py-1.5 bg-emerald-900 text-amber-300 rounded-xl">पैकेट डाउनलोड</button>`;
+        hub.appendChild(card);
+    };
+}
+
+if (typeof injectInteractiveChaupalAndMeraPodhaForms !== "function") {
+    window.injectInteractiveChaupalAndMeraPodhaForms = function() {};
+}
