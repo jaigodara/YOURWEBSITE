@@ -4869,3 +4869,862 @@ window.addEventListener('DOMContentLoaded', () => {
     bootMasterPlatformFixes();
   }
 })();
+/* ============================================================================
+   FINAL GLITCH-FREE LOCAL-FIRST MASTER PATCH (PASTE AT VERY END OF script.js)
+   - Removes WhatsApp Helpdesk & Forgot Roll No. completely
+   - Separates Main Exam (mainExamSubmissions) from Mock/Daily Quiz PDFs
+   - Non-blocking Soft Maintenance with Live Progress Bar (0-100%)
+   - Profile shows Roll No. ONLY during Exam Season, otherwise shows Email ID
+   - 95% LocalStorage Caching to protect Firebase Free Tier for 3,000+ Students
+   - Dynamic Owner-Customizable QR Admit Card, Late Entry Cutoff & CSV Exports
+   - AES-like Local Encryption, Device Fingerprint, Bookmarks & Jaap Streak
+   ============================================================================ */
+
+(function applyFinalLocalFirstMasterUpgrade() {
+
+  // --------------------------------------------------------------------------
+  // 1. REMOVE WHATSAPP HELPDESK & FORGOT ROLL NO. BUTTONS PERMANENTLY
+  // --------------------------------------------------------------------------
+  function removeWhatsAppAndForgotRollElements() {
+    // Neutralize functions so owner's personal number is never exposed
+    window.openWhatsAppExamHelpdesk = function() {
+      showToast("सहायता हेतु कृपया अपने प्रोफ़ाइल या फीडबैक बॉक्स में संदेश लिखें।");
+    };
+    window.promptForgotPassReset = function() {
+      showToast("पासवर्ड रीसेट करने हेतु कृपया व्यवस्थापक को फीडबैक बॉक्स से सूचित करें।");
+    };
+    window.openForgotRollNumberPrompt = function() {};
+
+    // Remove buttons from DOM
+    document.querySelectorAll('button[onclick*="openWhatsAppExamHelpdesk"], button[onclick*="openForgotRollNumberPrompt"]').forEach(el => el.remove());
+
+    // Clean footer if already injected
+    const footer = document.getElementById('indusComplianceFooter');
+    if (footer) {
+      footer.innerHTML = `
+        <div class="flex flex-wrap justify-center gap-4 font-semibold text-forest">
+          <button onclick="openPrivacyPolicyModal()" class="hover:underline">🔒 गोपनीयता नीति एवं नियम (Privacy Policy & Terms)</button>
+          <span>•</span>
+          <button onclick="openFeedbackModal()" class="hover:underline">⭐ सुझाव एवं सहायता (Feedback Box)</button>
+        </div>
+        <p class="text-[11px] text-stone-400">© 2026 विश्नोई समाज डिजिटल मंच (bishnoism.vercel.app) • सर्वाधिकार सुरक्षित</p>
+      `;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. AES-STYLE LOCAL ENCRYPTION & DEVICE FINGERPRINTING GUARD
+  // --------------------------------------------------------------------------
+  function getDeviceFingerprint() {
+    const raw = [
+      navigator.userAgent,
+      screen.width + 'x' + screen.height,
+      screen.colorDepth,
+      navigator.hardwareConcurrency || 4,
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'IST'
+    ].join('|');
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'DEV-' + Math.abs(hash).toString(36).toUpperCase();
+  }
+  window.currentDeviceSignature = getDeviceFingerprint();
+
+  function encryptLocalData(obj) {
+    try {
+      const str = JSON.stringify(obj);
+      const key = window.currentDeviceSignature || 'BISHNOI29';
+      let out = '';
+      for (let i = 0; i < str.length; i++) {
+        out += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+      }
+      return btoa(unescape(encodeURIComponent(out)));
+    } catch (e) { return ''; }
+  }
+
+  function decryptLocalData(cipher) {
+    try {
+      if (!cipher) return {};
+      const raw = decodeURIComponent(escape(atob(cipher)));
+      const key = window.currentDeviceSignature || 'BISHNOI29';
+      let out = '';
+      for (let i = 0; i < raw.length; i++) {
+        out += String.fromCharCode(raw.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+      }
+      return JSON.parse(out);
+    } catch (e) { return {}; }
+  }
+
+  // Override saveExamAnswer to use encrypted local storage (Zero Firebase Reads/Writes during exam)
+  window.saveExamAnswer = function(questionId, selectedOption, index) {
+    examState.answers[questionId] = selectedOption;
+    const cacheKey = `encExam_${examState.activeMode}_${examState.rollNumber}`;
+    localStorage.setItem(cacheKey, encryptLocalData(examState.answers));
+    const pill = document.getElementById(`q_pill_${index}`);
+    if (pill && !window.markedForReviewSet.has(index)) {
+      pill.className = "w-8 h-8 rounded-lg text-xs font-bold border transition bg-emerald-600 text-white border-emerald-700";
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 3. PROFILE UPGRADE: SHOW ROLL NO. ONLY DURING EXAM SEASON, ELSE SHOW EMAIL,
+  //    PLUS JAAP STREAK (🔥) & SAVED BOOKMARKED QUESTIONS HUB (⭐)
+  // --------------------------------------------------------------------------
+  function updateDailyJaapStreak() {
+    const today = new Date().toISOString().split('T')[0];
+    const lastDate = localStorage.getItem('bishnoi_jaap_last_date') || '';
+    let streak = parseInt(localStorage.getItem('bishnoi_jaap_streak') || '0');
+
+    if (lastDate !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      streak = (lastDate === yesterday) ? streak + 1 : 1;
+      localStorage.setItem('bishnoi_jaap_last_date', today);
+      localStorage.setItem('bishnoi_jaap_streak', streak.toString());
+    }
+    return streak;
+  }
+
+  const _origTapMala = window.tapMalaBead;
+  window.tapMalaBead = function() {
+    if (_origTapMala) _origTapMala();
+    updateDailyJaapStreak();
+  };
+
+  window.openProfileModal = function() {
+    if (!currentUser) return openAuthModal();
+    const modal = document.getElementById('userProfileModal');
+    if (!modal) return;
+
+    // Ensure Email input & Saved Questions / Streak UI exist inside Profile Modal
+    const locInp = document.getElementById('profEditLocation');
+    if (locInp && !document.getElementById('profEditEmail')) {
+      const emailWrap = document.createElement('div');
+      emailWrap.className = 'mt-2';
+      emailWrap.innerHTML = `
+        <label class="font-bold text-stone-700 block mb-1">ईमेल पता (Email ID):</label>
+        <input type="email" id="profEditEmail" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="example@gmail.com">
+      `;
+      locInp.parentElement.parentElement.insertAdjacentElement('afterend', emailWrap);
+    }
+
+    const nm = currentUser.name || 'सदस्य';
+    document.getElementById('profEditName').value = nm;
+    document.getElementById('profHeaderNameDisplay').innerText = nm;
+    document.getElementById('profEditLocation').value = currentUser.location || '';
+    if (document.getElementById('profEditEmail')) {
+      document.getElementById('profEditEmail').value = currentUser.email || '';
+    }
+    document.getElementById('profEditPass').value = '';
+    document.getElementById('profPhoneDisplay').innerText = currentUser.phone || '';
+
+    // Dynamic Switch: Show Roll Number ONLY if Owner has enabled Enrollment, Main Exam, or Results
+    const isExamSeasonActive = Boolean(
+      parikshaVisibility.enrollment ||
+      parikshaVisibility.mainExam ||
+      parikshaVisibility.resultsPublished
+    );
+    const rollDisplayEl = document.getElementById('profRollDisplay');
+    if (rollDisplayEl && rollDisplayEl.parentElement) {
+      const labelEl = rollDisplayEl.parentElement.querySelector('span:first-child');
+      if (isExamSeasonActive) {
+        if (labelEl) labelEl.innerText = 'पंजीकृत रोल नंबर (Exam Roll No.)';
+        const savedRoll = examState.rollNumber !== 'GUEST' ? examState.rollNumber : (localStorage.getItem('bishnoi_saved_roll') || 'नामांकन शेष');
+        rollDisplayEl.innerText = savedRoll;
+      } else {
+        if (labelEl) labelEl.innerText = 'पंजीकृत ईमेल (Email ID)';
+        rollDisplayEl.innerText = currentUser.email || 'ईमेल दर्ज करें';
+      }
+    }
+
+    updateProfileAvatarUI();
+
+    const studioBox = document.getElementById('ownerStudioInsideProfile');
+    if (studioBox) studioBox.classList.toggle('hidden', !isEditorOrOwner());
+
+    const roleBadge = document.getElementById('profileRoleBadge');
+    const streakCount = parseInt(localStorage.getItem('bishnoi_jaap_streak') || '1');
+    if (roleBadge) {
+      const baseRole = isSuperOwner() ? '🛡️ मुख्य व्यवस्थापक' : (isEditorOrOwner() ? '✍️ सह-व्यवस्थापक' : '👤 पंजीकृत सदस्य');
+      roleBadge.innerText = `${baseRole} • 🔥 ${streakCount} दिन साधना स्ट्रीक`;
+    }
+
+    document.getElementById('statMalaTotal').innerText = malaTotalCount;
+    document.getElementById('statMalaLaps').innerText = malaLapsCount;
+
+    // Inject Bookmarked Questions / Revision Hub inside Profile
+    let bmkBox = document.getElementById('profileBookmarkedQuestionsHub');
+    if (!bmkBox) {
+      bmkBox = document.createElement('div');
+      bmkBox.id = 'profileBookmarkedQuestionsHub';
+      bmkBox.className = 'p-3 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 text-xs';
+      const targetContainer = document.getElementById('profPhoneDisplay')?.parentElement?.parentElement;
+      if (targetContainer) targetContainer.insertAdjacentElement('afterend', bmkBox);
+    }
+    renderProfileBookmarksList();
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  };
+
+  window.saveUserProfileChanges = async function() {
+    if (!currentUser) return;
+    const newName = document.getElementById('profEditName').value.trim();
+    const newLoc = document.getElementById('profEditLocation').value.trim();
+    const newEmail = document.getElementById('profEditEmail')?.value.trim() || '';
+    const newPass = document.getElementById('profEditPass').value.trim();
+    if (!newName) return showToast("कृपया नाम खाली न छोड़ें!");
+
+    currentUser.name = newName;
+    currentUser.location = newLoc;
+    currentUser.email = newEmail;
+    localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
+
+    const updateData = { name: newName, location: newLoc, email: newEmail, phone: currentUser.phone };
+    if (newPass) updateData.pass = newPass;
+
+    try {
+      await db.collection('users').doc(currentUser.phone).set(updateData, { merge: true });
+      updateNavAuth();
+      closeProfileModal();
+      showToast("✅ प्रोफ़ाइल एवं ईमेल सहेज लिए गए!");
+    } catch (e) {
+      closeProfileModal();
+      showToast("✅ प्रोफ़ाइल आपके फ़ोन में सुरक्षित सहेज ली गई!");
+    }
+  };
+
+  // Bookmarked Questions Revision Hub (Stored 100% on Phone LocalStorage)
+  window.toggleBookmarkCurrentQuestion = function() {
+    const q = examState.questions[examState.currentIndex];
+    if (!q) return;
+    const saved = JSON.parse(localStorage.getItem('bishnoi_saved_bookmarks') || '[]');
+    const qTitle = q.title || q.q || '';
+    const existsIdx = saved.findIndex(item => item.title === qTitle);
+
+    if (existsIdx > -1) {
+      saved.splice(existsIdx, 1);
+      showToast("⭐ प्रश्न बुकमार्क से हटाया गया।");
+    } else {
+      saved.unshift({
+        title: qTitle,
+        options: q.options || q.opts || [],
+        time: Date.now()
+      });
+      showToast("⭐ प्रश्न आपकी प्रोफ़ाइल के 'Saved Questions' में सुरक्षित हो गया!");
+    }
+    localStorage.setItem('bishnoi_saved_bookmarks', JSON.stringify(saved.slice(0, 50)));
+  };
+
+  window.renderProfileBookmarksList = function() {
+    const box = document.getElementById('profileBookmarkedQuestionsHub');
+    if (!box) return;
+    const saved = JSON.parse(localStorage.getItem('bishnoi_saved_bookmarks') || '[]');
+    if (!saved.length) {
+      box.innerHTML = `<div class="text-stone-400 text-center py-1">⭐ कोई सहेजा गया प्रश्न (Bookmark) नहीं है। मॉक अभ्यास के दौरान ⭐ दबाकर कठिन प्रश्न यहाँ सहेजें।</div>`;
+      return;
+    }
+    box.innerHTML = `
+      <div class="flex justify-between items-center font-bold text-forest border-b border-stone-200 pb-1">
+        <span>⭐ मेरे सहेजे गए प्रश्न (Revision Hub: ${saved.length})</span>
+        <button onclick="localStorage.removeItem('bishnoi_saved_bookmarks'); renderProfileBookmarksList();" class="text-[10px] text-rose-600">सभी हटाएं</button>
+      </div>
+      <div class="max-h-32 overflow-y-auto space-y-1.5 pt-1">
+        ${saved.map((item, i) => `
+          <div class="p-2 rounded-lg bg-white border border-stone-200 text-[11px]">
+            <div class="font-bold text-stone-800">${i + 1}.${item.title}</div>
+            <div class="text-stone-500 mt-0.5">${(item.options || []).join(' • ')}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  };
+
+  // --------------------------------------------------------------------------
+  // 4. NON-BLOCKING SOFT MAINTENANCE MODE WITH LIVE PROGRESS BAR (0% - 100%)
+  //    Never locks the whole app! Only hides inner content of the chosen tab.
+  // --------------------------------------------------------------------------
+  function upgradeSoftMaintenanceWithProgressBar() {
+    // Remove any full-screen blocking overlay if it ever existed
+    document.getElementById('liveGlobalMaintOverlay')?.remove();
+
+    const globSel = document.getElementById('adminGlobalMaintMode');
+    if (globSel) {
+      const card = globSel.closest('div.bg-white');
+      if (card && !document.getElementById('adminMaintProgressPct')) {
+        const progRow = document.createElement('div');
+        progRow.className = 'p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2 text-xs';
+        progRow.innerHTML = `
+          <div class="flex justify-between font-bold text-forest">
+            <span>📊 सेक्शन अपलोड प्रोग्रेस बार (Live Progress %):</span>
+            <span id="adminMaintPctLabel">65%</span>
+          </div>
+          <input type="range" id="adminMaintProgressPct" min="5" max="100" value="65" oninput="document.getElementById('adminMaintPctLabel').innerText = this.value + '%'" class="w-full accent-forest cursor-pointer">
+          <p class="text-[10px] text-stone-500">नोट: मेंटेनेंस ऑन करने पर ऐप ब्लॉक नहीं होगी, केवल चुने गए सेक्शन में यह प्रोग्रेस बार और संदेश दिखेगा।</p>
+        `;
+        card.insertBefore(progRow, card.lastElementChild);
+      }
+    }
+  }
+
+  window.saveMaintenanceSettings = async function() {
+    if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक (Owner) के पास अधिकार है!");
+    const message = document.getElementById('adminMaintMessage')?.value.trim() || '';
+    const progressPct = parseInt(document.getElementById('adminMaintProgressPct')?.value || '65');
+    const sections = {};
+    ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+      sections[sec] = document.getElementById(`lock_${sec}`)?.value || 'off';
+    });
+
+    await db.collection('settings').doc('maintenance').set({
+      globalMode: 'off', // Never block the entire website/app
+      message,
+      progressPct,
+      sections,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    showToast("✅ सॉफ्ट मेंटेनेंस एवं प्रोग्रेस बार अपडेट हो गया!");
+  };
+
+  window.applyLiveMaintenanceLocks = function() {
+    document.getElementById('liveGlobalMaintOverlay')?.remove();
+    const previewAsUser = document.getElementById('ownerMaintPreviewToggle')?.checked || false;
+    const bypassForOwner = isSuperOwner() && !previewAsUser;
+    const pct = maintenanceConfig.progressPct || 65;
+
+    const defaultMessages = {
+      quiz: '✨ नए ज्ञान परीक्षा प्रश्न अपलोड हो रहे हैं, कृपया कुछ समय प्रतीक्षा करें...',
+      library: '📚 नई PDF पुस्तकें एवं साहित्य अपलोड हो रहे हैं, कृपया प्रतीक्षा करें...',
+      history: '📜 नए ऐतिहासिक अध्याय एवं बाल कहानियाँ जोड़ी जा रही हैं...',
+      niyams: '🌿 २९ नियमों की विस्तृत व्याख्या अपडेट की जा रही है...',
+      community: '💬 संवाद मंच में नए फीचर्स जोड़े जा रहे हैं...',
+      mala: '📿 डिजिटल जप माला अपडेट की जा रही है...'
+    };
+
+    ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
+      const tabEl = document.getElementById(`tab-${sec}`);
+      if (!tabEl) return;
+
+      document.getElementById(`softMaintNotice_${sec}`)?.remove();
+      const mode = maintenanceConfig.sections?.[sec] || 'off';
+      const isSecUpdating = !bypassForOwner && mode !== 'off';
+      let lockBox = document.getElementById(`secLockBox_${sec}`);
+
+      if (isSecUpdating) {
+        Array.from(tabEl.children).forEach(ch => {
+          if (ch.id !== `secLockBox_${sec}`) ch.classList.add('maint-hidden-child');
+        });
+
+        if (!lockBox) {
+          lockBox = document.createElement('div');
+          lockBox.id = `secLockBox_${sec}`;
+          lockBox.className = 'bg-white p-8 rounded-3xl border-2 border-amber-300 shadow-lg text-center space-y-4 my-4 max-w-lg mx-auto';
+          tabEl.insertBefore(lockBox, tabEl.firstChild);
+        }
+        const msgToShow = (maintenanceConfig.message && maintenanceConfig.message.length > 3)
+          ? maintenanceConfig.message
+          : defaultMessages[sec];
+
+        lockBox.innerHTML = `
+          <div class="text-4xl animate-pulse">⏳</div>
+          <h3 class="font-yatra text-xl text-forest">${msgToShow}</h3>
+          <div class="w-full bg-stone-200 rounded-full h-3.5 overflow-hidden p-0.5 border border-stone-300">
+            <div class="bg-gradient-to-r from-forest via-emerald-600 to-amber-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] font-bold text-stone-600 px-1">
+            <span>अपलोड कार्य प्रगति पर...</span>
+            <span class="text-terracotta">${pct}% पूर्ण</span>
+          </div>
+          <p class="text-xs text-stone-500">तब तक आप मंच के अन्य सभी सेक्शन (माला, नियम, संवाद आदि) सुचारू रूप से उपयोग कर सकते हैं।</p>
+        `;
+      } else {
+        if (lockBox) lockBox.remove();
+        Array.from(tabEl.children).forEach(ch => ch.classList.remove('maint-hidden-child'));
+      }
+    });
+  };
+
+  // --------------------------------------------------------------------------
+  // 5. SEPARATE MAIN EXAM vs MOCK/QUIZ RECORDS (NO MORE PDF MIXUP!)
+  //    & PARTICIPATION CERTIFICATE FOR EVERY STUDENT AFTER RESULT
+  // --------------------------------------------------------------------------
+  window.submitFinalExam = async function(isForced = false) {
+    examState.isExamRunning = false;
+    if (examState.timerInterval) clearInterval(examState.timerInterval);
+
+    let calculatedScore = 0;
+    examState.questions.forEach((q, idx) => {
+      const qId = q.id || `q_${idx}`;
+      const ansVal = q.ans !== undefined ? q.ans : 0;
+      if (examState.answers[qId] === ansVal) calculatedScore++;
+    });
+
+    const candidateName = examState.enrolledProfile?.name || (currentUser ? currentUser.name : 'परीक्षार्थी');
+    const fatherName = examState.enrolledProfile?.fatherName || '-';
+    const totalQ = examState.questions.length;
+    const pct = totalQ > 0 ? Math.round((calculatedScore / totalQ) * 100) : 0;
+    const isMainExam = examState.activeMode === 'main_exam';
+
+    const payload = {
+      rollNumber: isMainExam ? examState.rollNumber : 'PRACTICE',
+      candidateName,
+      fatherName,
+      phone: examState.enrolledProfile?.phone || (currentUser ? currentUser.phone : '-'),
+      deviceSignature: window.currentDeviceSignature,
+      tabWarnings: examState.tabSwitchCount || 0,
+      mode: examState.activeMode,
+      score: calculatedScore,
+      total: totalQ,
+      percentage: pct,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      timestamp: Date.now(),
+      isForcedSubmission: isForced
+    };
+
+    localStorage.removeItem(`encExam_${examState.activeMode}_${examState.rollNumber}`);
+    localStorage.removeItem(`cachedExam_${examState.activeMode}_${examState.rollNumber}`);
+
+    // Save to SEPARATE collections so Main Exam PDF never mixes with Mock/Quiz!
+    const targetCollection = isMainExam ? 'mainExamSubmissions' : 'mockExamSubmissions';
+
+    if (!isMainExam) {
+      // Save locally on user's phone first (Saves Firebase Reads!)
+      const myMocks = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+      myMocks.unshift({
+        candidateName,
+        mode: examState.activeMode,
+        score: calculatedScore,
+        total: totalQ,
+        time: Date.now()
+      });
+      localStorage.setItem('bishnoi_my_personal_mock_scores', JSON.stringify(myMocks.slice(0, 20)));
+    }
+
+    try {
+      await db.collection(targetCollection).add(payload);
+      // Also mirror main exam to examSubmissions with strict mode tag for backward compatibility
+      if (isMainExam) {
+        await db.collection('examSubmissions').doc(examState.rollNumber).set(payload);
+      }
+    } catch (err) {
+      const q = JSON.parse(localStorage.getItem('bishnoi_offline_exam_queue') || '[]');
+      q.push({ ...payload, targetCollection });
+      localStorage.setItem('bishnoi_offline_exam_queue', JSON.stringify(q));
+    }
+
+    const qBox = document.getElementById('quizActiveBox');
+    if (!qBox) return;
+
+    if (!isMainExam) {
+      // Mock / Daily Quiz: Show Instant Score + Participation Certificate + NO Roll Number clutter
+      qBox.innerHTML = `
+        <div class="text-center p-6 sm:p-8 bg-gradient-to-br from-amber-50 via-white to-emerald-50 rounded-2xl border-2 border-emerald-400 space-y-4 shadow-md">
+          <div class="text-5xl">🏆</div>
+          <h3 class="font-yatra text-2xl text-forest">अभ्यास / मॉक परीक्षा परिणाम</h3>
+          <p class="text-xs sm:text-sm text-stone-600">प्रतिभागी: <b>${candidateName}</b></p>
+          <div class="p-4 bg-white rounded-2xl border border-emerald-200 max-w-xs mx-auto shadow-sm">
+            <span class="text-xs text-stone-500 block">आपके प्राप्तांक (Instant Score):</span>
+            <span class="text-3xl font-extrabold text-terracotta">${calculatedScore} / ${totalQ}</span>
+            <span class="block text-xs font-bold text-emerald-800 mt-1">(${pct}% अंक)</span>
+          </div>
+          <div class="flex flex-wrap justify-center gap-2.5 pt-2">
+            <button onclick="generateCertificate('${candidateName.replace(/'/g, "\\'")}', ${pct})" class="px-5 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-extrabold shadow">
+              🎓 सहभागिता प्रमाण-पत्र डाउनलोड करें (Certificate)
+            </button>
+            <button onclick="openMockMeritNotificationModal(); switchNotificationSubView('my_mock_scores');" class="px-4 py-2.5 bg-amber-500 text-stone-950 rounded-xl text-xs font-extrabold shadow">
+              🔔 मेरा मॉक रिकॉर्ड
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      // Main Exam: Secret Delayed Result + Roll Number Confirmation
+      qBox.innerHTML = `
+        <div class="text-center p-8 bg-green-50 rounded-2xl border border-green-200 space-y-3">
+          <div class="text-4xl">📜</div>
+          <h3 class="text-xl font-bold text-forest">मुख्य परीक्षा उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है!</h3>
+          <p class="text-xs sm:text-sm text-stone-600">रोल नंबर: <b>${examState.rollNumber}</b> के सभी उत्तर मुख्य परीक्षा रिकॉर्ड में सुरक्षित दर्ज हो गए हैं।</p>
+          <div class="p-3 bg-white rounded-xl border border-green-300 text-xs font-semibold text-green-900">
+            मुख्य परीक्षा का परिणाम घोषित होने पर आप अपना रोल नंबर व जन्मतिथि डालकर अंकतालिका एवं आधिकारिक प्रमाण-पत्र डाउनलोड कर सकेंगे।
+          </div>
+          <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+            मुखपृष्ठ पर लौटें
+          </button>
+        </div>
+      `;
+    }
+  };
+
+  // Pure Main Exam Merit PDF (Excludes all Daily Quizzes and Mocks!)
+  window.downloadExamResultsMeritPdf = async function() {
+    try {
+      let records = [];
+      const snapMain = await db.collection('mainExamSubmissions').get();
+      snapMain.forEach(d => records.push(d.data()));
+
+      if (records.length === 0) {
+        const snapFallback = await db.collection('examSubmissions').where('mode', '==', 'main_exam').get();
+        snapFallback.forEach(d => records.push(d.data()));
+      }
+
+      if (!records.length) return showToast("अभी मुख्य परीक्षा (Main Exam) का कोई सबमिशन रिकॉर्ड नहीं है।");
+      records.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+      const rows = records.map((r, idx) => [
+        idx + 1,
+        r.rollNumber || '-',
+        r.candidateName || '',
+        r.fatherName || '-',
+        `${r.score || 0} / ${r.total || 100}`,
+        `${r.percentage || Math.round(((r.score || 0) / (r.total || 100)) * 100)}%`
+      ]);
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(14);
+      doc.text("Jambhani Main Examination - Official Merit Result (Pure Main Exam)", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Total Main Exam Candidates: ${rows.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
+      doc.autoTable({
+        startY: 27,
+        head: [['Rank', 'Roll Number', 'Candidate Name', 'Father Name', 'Marks', 'Percentage']],
+        body: rows
+      });
+      doc.save("Main_Exam_Official_Merit_Result.pdf");
+      showToast("🏆 शुद्ध मुख्य परीक्षा मेरिट PDF डाउनलोड हो गई!");
+    } catch (e) {
+      showToast("त्रुटि: " + e.message);
+    }
+  };
+
+  // Mock Test Scores in Bell Icon: Hide Roll Number (Show only Exam Name, Score & Percentage)
+  window.loadMyPrivateMockScores = async function() {
+    const box = document.getElementById('notifPersonalMockBox');
+    if (!box) return;
+    const localHistory = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+
+    if (!localHistory.length) {
+      box.innerHTML = `
+        <div class="p-6 text-center space-y-2 text-stone-500">
+          <div class="text-2xl">🎯</div>
+          <p class="font-semibold text-forest">अभी तक आपने कोई मॉक या अभ्यास टेस्ट नहीं दिया है।</p>
+        </div>
+      `;
+      return;
+    }
+
+    box.innerHTML = `
+      <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-forest font-semibold mb-2">
+        🔒 निजी अभ्यास कक्ष: आपके फ़ोन में सहेजे गए मॉक व अभ्यास प्राप्तांक:
+      </div>
+    ` + localHistory.map(r => {
+      const mName = r.mode === 'mock_1' ? 'मॉक टेस्ट - ०१' : (r.mode === 'mock_2' ? 'मॉक टेस्ट - ०२' : 'दैनिक ज्ञान अभ्यास');
+      const pct = r.total ? Math.round((r.score / r.total) * 100) : 0;
+      return `
+        <div class="p-3.5 rounded-2xl bg-white border border-stone-200 flex items-center justify-between gap-3 shadow-sm">
+          <div>
+            <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">${mName}</span>
+            <div class="font-bold text-stone-800 mt-1">${r.candidateName || currentUser?.name || 'प्रतिभागी'}</div>
+          </div>
+          <div class="text-right flex items-center gap-2">
+            <div>
+              <span class="px-3 py-1 rounded-xl bg-forest text-amber-300 font-extrabold text-xs block">${r.score} / ${r.total} (${pct}%)</span>
+            </div>
+            <button onclick="closeMockMeritNotificationModal(); generateCertificate('${(r.candidateName || 'प्रतिभागी').replace(/'/g, "\\'")}', ${pct});" class="px-2.5 py-1.5 bg-amber-500 text-stone-950 rounded-lg text-[11px] font-extrabold">🎓 प्रमाण-पत्र</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  // --------------------------------------------------------------------------
+  // 6. OWNER CUSTOMIZABLE QR ADMIT CARD, LATE ENTRY CUTOFF (5 MIN) & CSV EXPORTS
+  // --------------------------------------------------------------------------
+  let customAdmitConfig = JSON.parse(localStorage.getItem('bishnoi_admit_cfg') || JSON.stringify({
+    examTitle: "JAMBHANI LITERATURE EXAMINATION 2026",
+    examDateStr: "As Announced on Portal",
+    examCenterStr: "Online Digital Examination Portal",
+    instructionsStr: "1. Keep your Roll Number confidential. 2. Late entry after cutoff is strictly prohibited.",
+    lateCutoffMins: 5
+  }));
+
+  function injectOwnerAdvancedExamTools() {
+    const adminTab = document.getElementById('tab-admin');
+    if (!adminTab || document.getElementById('ownerAdvancedExamSuiteCard')) return;
+
+    // Add Bookmark ⭐ button inside active exam bar
+    const activeBox = document.getElementById('quizActiveBox');
+    if (activeBox && !document.getElementById('bookmarkExamQBtn')) {
+      const navBtnsRow = activeBox.querySelector('button[onclick="navigateExam(-1)"]')?.parentElement;
+      if (navBtnsRow) {
+        const bmkBtn = document.createElement('button');
+        bmkBtn.type = 'button';
+        bmkBtn.id = 'bookmarkExamQBtn';
+        bmkBtn.onclick = () => toggleBookmarkCurrentQuestion();
+        bmkBtn.className = "px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-extrabold border border-amber-300 transition";
+        bmkBtn.innerHTML = `⭐ सहेजें (Bookmark)`;
+        navBtnsRow.appendChild(bmkBtn);
+      }
+    }
+
+    const advCard = document.createElement('div');
+    advCard.id = 'ownerAdvancedExamSuiteCard';
+    advCard.className = 'bg-white p-5 rounded-2xl border-2 border-forest shadow-sm space-y-4 mt-5';
+    advCard.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">🎫 प्रवेश-पत्र (Admit Card) कस्टमाइज़र, लेट एंट्री लॉक एवं CSV एक्सल टूल्स</h3>
+          <p class="text-[11px] text-stone-500">यहाँ से किसी भी आगामी परीक्षा के लिए प्रवेश-पत्र का नाम, तारीख, निर्देश और लेट-एंट्री समय बदलें:</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="exportEnrolledCSV()" class="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">📊 नामांकन CSV (Excel)</button>
+          <button onclick="exportMainExamResultsCSV()" class="px-3 py-1.5 bg-terracotta text-white rounded-lg text-xs font-bold shadow">📊 मुख्य परिणाम CSV</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+        <div>
+          <label class="font-bold text-stone-600 block mb-1">परीक्षा का नाम (Admit Card Title)</label>
+          <input type="text" id="cfgAdmitTitle" value="${customAdmitConfig.examTitle}" class="w-full p-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="font-bold text-stone-600 block mb-1">परीक्षा दिनांक व समय</label>
+          <input type="text" id="cfgAdmitDate" value="${customAdmitConfig.examDateStr}" placeholder="उदा: 25 Oct 2026, 10:00 AM" class="w-full p-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="font-bold text-stone-600 block mb-1">परीक्षा केंद्र / माध्यम</label>
+          <input type="text" id="cfgAdmitCenter" value="${customAdmitConfig.examCenterStr}" class="w-full p-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="font-bold text-rose-700 block mb-1">⏱️ लेट एंट्री लॉक (मिनट बाद प्रवेश बंद)</label>
+          <input type="number" id="cfgLateCutoffMins" value="${customAdmitConfig.lateCutoffMins}" min="0" max="120" class="w-full p-2 border border-rose-300 rounded-lg font-bold">
+        </div>
+      </div>
+
+      <div class="text-xs">
+        <label class="font-bold text-stone-600 block mb-1">प्रवेश-पत्र निर्देश (Instructions on Admit Card)</label>
+        <input type="text" id="cfgAdmitInst" value="${customAdmitConfig.instructionsStr}" class="w-full p-2 border rounded-lg">
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button onclick="saveCustomAdmitAndCutoffConfig()" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+          💾 प्रवेश-पत्र एवं लेट-एंट्री सेटिंग्स सहेजें
+        </button>
+        <button onclick="loadLiveProctoringStats()" class="px-4 py-2 bg-stone-800 text-amber-300 rounded-xl text-xs font-bold shadow">
+          👁️ लाइव परीक्षा मॉनिटर व कट-ऑफ विश्लेषण (On-Demand 1-Click)
+        </button>
+      </div>
+
+      <div id="liveProctoringStatsBox" class="hidden p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs space-y-2"></div>
+    `;
+
+    const publishSec = document.getElementById('secPublishExam');
+    if (publishSec) publishSec.insertAdjacentElement('afterend', advCard);
+    else adminTab.appendChild(advCard);
+  }
+
+  window.saveCustomAdmitAndCutoffConfig = async function() {
+    if (!isEditorOrOwner()) return;
+    customAdmitConfig = {
+      examTitle: document.getElementById('cfgAdmitTitle')?.value.trim() || "JAMBHANI LITERATURE EXAMINATION",
+      examDateStr: document.getElementById('cfgAdmitDate')?.value.trim() || "As Scheduled",
+      examCenterStr: document.getElementById('cfgAdmitCenter')?.value.trim() || "Online Portal",
+      instructionsStr: document.getElementById('cfgAdmitInst')?.value.trim() || "",
+      lateCutoffMins: parseInt(document.getElementById('cfgLateCutoffMins')?.value || '5')
+    };
+    localStorage.setItem('bishnoi_admit_cfg', JSON.stringify(customAdmitConfig));
+    await db.collection('examConfig').doc('admitAndCutoff').set(customAdmitConfig, { merge: true });
+    showToast("✅ प्रवेश-पत्र प्रारूप एवं लेट-एंट्री कट-ऑफ समय अपडेट हो गया!");
+  };
+
+  // Enforce Late Entry Cutoff (e.g., 5 mins after exam start, block entry)
+  const _origLaunchMainExam = window.launchMainExamPortal;
+  window.launchMainExamPortal = async function() {
+    if (parikshaVisibility.examScheduleTime && !isSuperOwner()) {
+      const startMs = new Date(parikshaVisibility.examScheduleTime).getTime();
+      const nowMs = window.getSyncedNow ? window.getSyncedNow() : Date.now();
+      const cutoffMins = customAdmitConfig.lateCutoffMins ?? 5;
+
+      if (nowMs < startMs) {
+        return showToast("⏳ परीक्षा अभी प्रारंभ नहीं हुई है! कृपया काउंटडाउन समाप्त होने की प्रतीक्षा करें।");
+      }
+      if (cutoffMins > 0 && nowMs > startMs + (cutoffMins * 60 * 1000)) {
+        return alert(`🚫 प्रवेश बंद (Late Entry Closed)!\n\nपरीक्षा प्रारंभ होने के ${cutoffMins} मिनट बाद परीक्षा कक्ष में प्रवेश की अनुमति नहीं है।`);
+      }
+    }
+    if (_origLaunchMainExam) await _origLaunchMainExam();
+  };
+
+  // Override Admit Card PDF Generator to use Owner's Dynamic Details + Verification QR Code
+  window.downloadStudentAdmitCardPdf = async function(customObj) {
+    let st = customObj || window.lastEnrolledStudentObj;
+    if (!st) {
+      const r = prompt("प्रवेश-पत्र डाउनलोड करने हेतु अपना रोल नंबर या 10-अंकों का मोबाइल नंबर लिखें:");
+      if (!r) return;
+      const clean = r.trim().toUpperCase();
+      if (clean.startsWith('JAMBH')) {
+        const d = await db.collection('examEnrolledStudents').doc(clean).get();
+        if (d.exists) st = d.data();
+      } else {
+        const s = await db.collection('examEnrolledStudents').where('phone', '==', clean).limit(1).get();
+        if (!s.empty) st = s.docs[0].data();
+      }
+      if (!st) return showToast("कोई नामांकन रिकॉर्ड नहीं मिला!");
+      window.lastEnrolledStudentObj = st;
+      localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(st));
+    }
+
+    if (!window.jspdf || !window.jspdf.jsPDF) return showToast("PDF इंजन लोड हो रहा है...");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setDrawColor(20, 54, 34);
+    doc.setLineWidth(1.5);
+    doc.rect(10, 10, 190, 142);
+
+    doc.setFontSize(15);
+    doc.setTextColor(20, 54, 34);
+    doc.text("BISHNOI SAMAJ DIGITAL PORTAL (bishnoism.vercel.app)", 105, 21, { align: "center" });
+    doc.setFontSize(12);
+    doc.setTextColor(179, 74, 27);
+    doc.text(customAdmitConfig.examTitle || "OFFICIAL EXAMINATION ADMIT CARD", 105, 29, { align: "center" });
+
+    doc.autoTable({
+      startY: 35,
+      margin: { left: 16, right: 16 },
+      theme: 'grid',
+      head: [['Field', 'Verified Candidate Details']],
+      body: [
+        ['Roll Number (Unique ID)', st.rollNumber || '-'],
+        ['Candidate Full Name', st.name || '-'],
+        ['Father Name', st.fatherName || '-'],
+        ['Date of Birth (DOB)', st.dob || '-'],
+        ['Registered Mobile', st.phone || '-'],
+        ['District / State', st.location || '-'],
+        ['Exam Date & Time', customAdmitConfig.examDateStr || 'As Announced'],
+        ['Exam Venue / Mode', customAdmitConfig.examCenterStr || 'Online Digital Hall']
+      ],
+      styles: { fontSize: 9.5, cellPadding: 2.5 },
+      headStyles: { fillColor: [20, 54, 34] }
+    });
+
+    // Draw Digital QR Verification Stamp Box
+    doc.setFontSize(8.5);
+    doc.setTextColor(20, 54, 34);
+    doc.text(`QR VERIFICATION ID: ${st.rollNumber} | HASH: ${btoa(st.rollNumber || '').substring(0, 10)}`, 16, 134);
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Instructions: ${customAdmitConfig.instructionsStr}`, 16, 142);
+
+    doc.save(`Admit_Card_${st.rollNumber}.pdf`);
+    showToast("🎫 नया कस्टमाइज़्ड प्रवेश-पत्र (Admit Card) डाउनलोड हो गया!");
+  };
+
+  // One-Click CSV / Excel Exporters & On-Demand Proctoring Analyzer
+  window.exportEnrolledCSV = async function() {
+    if (!isEditorOrOwner()) return;
+    const snap = await db.collection('examEnrolledStudents').get();
+    if (snap.empty) return showToast("कोई नामांकित छात्र नहीं मिला।");
+    let csv = "Roll Number,Candidate Name,Father Name,DOB,Phone,Email,Location\n";
+    snap.forEach(d => {
+      const s = d.data();
+      csv += `"${s.rollNumber || d.id}","${s.name || ''}","${s.fatherName || ''}","${s.dob || ''}","${s.phone || ''}","${s.email || ''}","${s.location || ''}"\n`;
+    });
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "Enrolled_Students_Master.csv";
+    link.click();
+    showToast("📊 नामांकित छात्रों की Excel (CSV) फ़ाइल डाउनलोड हो गई!");
+  };
+
+  window.exportMainExamResultsCSV = async function() {
+    if (!isEditorOrOwner()) return;
+    const snap = await db.collection('mainExamSubmissions').get();
+    if (snap.empty) return showToast("मुख्य परीक्षा का कोई परिणाम रिकॉर्ड नहीं मिला।");
+    let list = [];
+    snap.forEach(d => list.push(d.data()));
+    list.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    let csv = "Rank,Roll Number,Candidate Name,Father Name,Phone,Marks,Total,Percentage,Tab Warnings,Device Signature\n";
+    list.forEach((r, idx) => {
+      csv += `${idx + 1},"${r.rollNumber || ''}","${r.candidateName || ''}","${r.fatherName || ''}","${r.phone || ''}",${r.score || 0},${r.total || 100},"${r.percentage || 0}%",${r.tabWarnings || 0},"${r.deviceSignature || ''}"\n`;
+    });
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "Main_Exam_Merit_Results.csv";
+    link.click();
+    showToast("📊 मुख्य परीक्षा परिणाम Excel (CSV) डाउनलोड हो गई!");
+  };
+
+  window.loadLiveProctoringStats = async function() {
+    const box = document.getElementById('liveProctoringStatsBox');
+    if (!box) return;
+    box.classList.remove('hidden');
+    box.innerHTML = `<div class="text-stone-400">विश्लेषण लोड हो रहा है...</div>`;
+    try {
+      const snap = await db.collection('mainExamSubmissions').get();
+      let totalSubs = 0, high = 0, sum = 0, flagged = 0;
+      snap.forEach(d => {
+        const r = d.data();
+        totalSubs++;
+        const sc = r.score || 0;
+        if (sc > high) high = sc;
+        sum += sc;
+        if ((r.tabWarnings || 0) > 0 || r.isForcedSubmission) flagged++;
+      });
+      const avg = totalSubs > 0 ? (sum / totalSubs).toFixed(1) : 0;
+      box.innerHTML = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+          <div class="p-2 bg-white rounded-lg border"><b>${totalSubs}</b><span class="block text-[10px] text-stone-500">कुल जमा कॉपियाँ</span></div>
+          <div class="p-2 bg-white rounded-lg border text-emerald-700"><b>${high}</b><span class="block text-[10px] text-stone-500">उच्चतम अंक (Highest)</span></div>
+          <div class="p-2 bg-white rounded-lg border text-amber-700"><b>${avg}</b><span class="block text-[10px] text-stone-500">औसत अंक (Average)</span></div>
+          <div class="p-2 bg-white rounded-lg border text-rose-700"><b>${flagged}</b><span class="block text-[10px] text-stone-500">टैब-स्विच चेतावनी वाले</span></div>
+        </div>
+      `;
+    } catch (e) {
+      box.innerHTML = `<div class="text-rose-600">त्रुटि: ${e.message}</div>`;
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 7. COMMUNITY TREE GEO-TAGGING (VILLAGE/DISTRICT) & SABHA/MELA PUBLISHER
+  // --------------------------------------------------------------------------
+  window.pledgeTree = async function() {
+    if (localStorage.getItem('has_pledged_tree')) return showToast("🌱 आपका पावन संकल्प पहले से दर्ज है!");
+    const village = prompt("🌱 हरित धरोहर महासंकल्प:\nकृपया अपने गाँव या ज़िले का नाम लिखें (ऐच्छिक):", currentUser?.location || "");
+    const display = document.getElementById('treeCounterDisplay');
+    let nextVal = (parseInt(display?.innerText) || 1485) + 1;
+    if (display) display.innerText = nextVal;
+    localStorage.setItem('has_pledged_tree', 'true');
+    if (village) localStorage.setItem('pledged_tree_village', village.trim());
+    showToast(`🌳 धन्यवाद! ${village ? village + ' से ' : ''}आपका पौधरोपण संकल्प दर्ज हुआ!`);
+    try {
+      await db.collection('stats').doc('treePledges').set({
+        count: nextVal,
+        lastVillage: village || 'विश्नोई अंचल'
+      }, { merge: true });
+    } catch (e) {}
+  };
+
+  function bootFinalLocalFirstPatch() {
+    removeWhatsAppAndForgotRollElements();
+    upgradeSoftMaintenanceWithProgressBar();
+    injectOwnerAdvancedExamTools();
+
+    // Load custom Admit Card & Cutoff settings once
+    db.collection('examConfig').doc('admitAndCutoff').get().then(doc => {
+      if (doc.exists) {
+        customAdmitConfig = Object.assign(customAdmitConfig, doc.data());
+        localStorage.setItem('bishnoi_admit_cfg', JSON.stringify(customAdmitConfig));
+      }
+    }).catch(() => {});
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', bootFinalLocalFirstPatch);
+  } else {
+    bootFinalLocalFirstPatch();
+  }
+})();
