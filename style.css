@@ -1,70 +1,20 @@
 /* ==========================================================================
-   विश्नोई समाज डिजिटल मंच — आधिकारिक स्टाइलशीट (style.css)
-   २९वें नियम ("नील नहीं पहरणा") के पूर्णतः अनुकूल — शून्य नीला रंग (Zero Blue)
-   रंग संयोजन: खेजड़ी हरा (#143622), तपोवन क्रीम (#F8F5EE), केसरिया-टेराकोटा (#8C3B1A)
+   Bishnoi Community Portal - Custom Stylesheet (style.css)
    ========================================================================== */
 
-:root {
-  --bg-cream: #F8F5EE;
-  --bg-card: #FFFFFF;
-  --bg-subtle: #FAF8F3;
-  --forest-green: #143622;
-  --forest-dark: #0E2618;
-  --terracotta: #8C3B1A;
-  --saffron-gold: #D97706;
-  --amber-soft: #FEF3C7;
-  --text-main: #231B15;
-  --text-muted: #5C5346;
-  --border-warm: #E5DEC9;
-}
-
-/* 1. Base Typography, Layout & Strict Zero-Blue Selection/Highlight */
-*, *::before, *::after {
-  box-sizing: border-box;
-  /* मोबाइल पर टैप करने पर आने वाली डिफ़ॉल्ट नीली चमक (Blue Tap Highlight) को पूर्णतः बंद करना */
-  -webkit-tap-highlight-color: transparent !important;
-}
-
-html, body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  background-color: var(--bg-cream) !important;
-  color: var(--text-main);
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+/* Base Typography & Background */
+body {
+  background-color: #F8F5EE;
+  color: #231B15;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   margin: 0;
   padding: 0;
-  padding-bottom: 84px !important;
-  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
 }
 
-/* टेक्स्ट सेलेक्ट करने पर डिफ़ॉल्ट नीला रंग हटाकर खेजड़ी हरा व स्वर्ण रंग */
-::selection {
-  background-color: #143622 !important;
-  color: #FEF3C7 !important;
-}
-
-::-moz-selection {
-  background-color: #143622 !important;
-  color: #FEF3C7 !important;
-}
-
-/* 2. Hide Redundant Top Navbars (Clean 5-Icon Bottom Nav Architecture) */
-header nav,
-#nav-home,
-#nav-niyams,
-#nav-mala,
-#nav-library,
-#nav-community,
-#nav-quiz,
-#nav-history,
-#nav-admin,
-#nav-admin-mobile {
-  display: none !important;
-}
-
-/* 3. Navigation & Bottom Bar Active States */
+/* Navigation Buttons */
 .nav-btn {
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.8rem;
   border-radius: 0.5rem;
   font-size: 0.825rem;
   font-weight: 500;
@@ -78,127 +28,41 @@ header nav,
 
 .nav-btn:hover {
   background-color: #EBE4D5;
-  color: var(--forest-green);
+  color: #143622;
 }
 
 .nav-btn-active {
-  background-color: var(--forest-green) !important;
+  background-color: #143622 !important;
   color: #FFFFFF !important;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(20, 54, 34, 0.2);
+  box-shadow: 0 1px 3px rgba(20, 54, 34, 0.2);
 }
 
-.bnav-item-active {
-  color: var(--forest-green) !important;
-  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
-  border-color: #D97706 !important;
-  font-weight: 800 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
-}
-
-/* 4. Human-Crafted Institutional Card Polish */
-.elevate-card {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease !important;
-}
-
-.elevate-card:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 10px 22px -8px rgba(20, 54, 34, 0.14) !important;
-  border-color: #D6CEB8 !important;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* 5. Digital Jaap Mala Interactive Bead Circle */
+/* Digital Jaap Mala Interactive Bead Circle */
 .mala-circle {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
   outline: none;
   cursor: pointer;
-  box-shadow: 0 12px 28px rgba(20, 54, 34, 0.32);
+  box-shadow: 0 12px 28px rgba(20, 54, 34, 0.35);
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
 .mala-circle:active {
-  transform: scale(0.95);
-  box-shadow: 0 5px 12px rgba(20, 54, 34, 0.22);
+  transform: scale(0.94);
+  box-shadow: 0 6px 14px rgba(20, 54, 34, 0.25);
 }
 
-/* 6. Exam OMR Question Grid Pills & Review Colors (Zero Blue/Indigo) */
-.omr-pill {
-  transition: all 0.15s ease;
-}
-
-.omr-pill-answered {
-  background-color: var(--forest-green) !important;
-  color: #FFFFFF !important;
-  border-color: var(--forest-dark) !important;
-}
-
-/* पुनर्विचार (Review) के लिए भी नीला/बैंगनी हटाकर केसरिया-ताम्र (Terracotta Saffron) रंग */
-.omr-pill-review,
-#markForReviewExamBtn {
-  background-color: #9A3412 !important;
-  color: #FEF3C7 !important;
-  border-color: #7C2D12 !important;
-}
-
-/* 7. Soft Maintenance Mode Helper Class */
-.maint-hidden-child {
-  display: none !important;
-}
-
-/* 8. Form Elements, Checkboxes, Radios & Links (Override Browser Default Blue) */
-input[type="checkbox"],
-input[type="radio"],
-input[type="range"] {
-  accent-color: var(--forest-green) !important;
-}
-
-input:focus,
-textarea:focus,
-select:focus,
-button:focus,
-button:focus-visible {
-  border-color: var(--forest-green) !important;
-  outline: none !important;
-  box-shadow: 0 0 0 2px rgba(20, 54, 34, 0.15) !important;
-}
-
-/* किसी भी लिंक पर डिफ़ॉल्ट नीला रंग न आने पाए */
-a {
-  color: var(--forest-green);
-  text-decoration: none;
-}
-
-a:hover {
-  color: var(--terracotta);
-}
-
-/* 9. Smooth View Transitions */
-.view-panel,
-#tab-home,
-#tab-library,
-#tab-community,
-#tab-quiz,
-#tab-niyams,
-#tab-mala,
-#tab-history,
-#tab-admin {
-  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+/* Custom Smooth Transitions */
+.view-panel {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -206,7 +70,7 @@ a:hover {
   }
 }
 
-/* 10. Custom Warm Scrollbar */
+/* Clean Custom Scrollbar for Long Feeds & Code Boxes */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -222,5 +86,11 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #143622;
+  background: #A89C87;
+}
+
+/* Form Element Polish */
+input:focus, textarea:focus, select:focus {
+  border-color: #143622 !important;
+  outline: none !important;
 }
