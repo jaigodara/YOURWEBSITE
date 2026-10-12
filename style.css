@@ -1,74 +1,18 @@
 /* ==========================================================================
    Bishnoi Community Portal - Custom Stylesheet (style.css)
-   Exact Original Color Palette + Smooth Human-Crafted Animations
    ========================================================================== */
 
-/* 1. Base Typography & Exact Original Background */
-*, *::before, *::after {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent !important;
-}
-
-html, body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  background-color: #F8F5EE !important;
+/* Base Typography & Background */
+body {
+  background-color: #F8F5EE;
   color: #231B15;
   font-family: 'Plus Jakarta Sans', sans-serif;
   margin: 0;
   padding: 0;
-  padding-bottom: 84px !important;
   box-sizing: border-box;
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
 }
 
-/* टेक्स्ट सेलेक्ट करने पर नीला रंग हटाकर मूल गहरा हरा (#143622) */
-::selection {
-  background-color: #143622;
-  color: #F8F5EE;
-}
-
-/* 2. Exact Theme Utility Classes (Fallback for Tailwind Custom Colors) */
-.text-forest {
-  color: #143622 !important;
-}
-
-.bg-forest {
-  background-color: #143622 !important;
-}
-
-.border-forest {
-  border-color: #143622 !important;
-}
-
-.text-terracotta {
-  color: #B34A1B !important;
-}
-
-.bg-terracotta {
-  background-color: #B34A1B !important;
-}
-
-.font-yatra {
-  font-family: 'Yatra One', 'Plus Jakarta Sans', serif;
-}
-
-/* 3. Hide Old Top Navbars so Only the Clean 5-Icon Bottom Nav Shows */
-header nav,
-#nav-home,
-#nav-niyams,
-#nav-mala,
-#nav-library,
-#nav-community,
-#nav-quiz,
-#nav-history,
-#nav-admin,
-#nav-admin-mobile {
-  display: none !important;
-}
-
-/* 4. Original Navigation Buttons */
+/* Navigation Buttons */
 .nav-btn {
   padding: 0.45rem 0.8rem;
   border-radius: 0.5rem;
@@ -94,108 +38,25 @@ header nav,
   box-shadow: 0 1px 3px rgba(20, 54, 34, 0.2);
 }
 
-/* 5. Bottom Navigation Bar Active Animation (Exact Original Gold & Forest Theme) */
-#standardMobileBottomNav button {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-#standardMobileBottomNav button:active {
-  transform: scale(0.93);
-}
-
-.bnav-item-active {
-  color: #143622 !important;
-  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
-  border-color: #F59E0B !important;
-  font-weight: 800 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
-}
-
-/* 6. Interactive Card Hover & Press Animations */
-.elevate-card {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.2s ease !important;
-  will-change: transform, box-shadow;
-}
-
-.elevate-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 12px 24px -8px rgba(20, 54, 34, 0.15) !important;
-}
-
-.elevate-card:active {
-  transform: translateY(-1px) scale(0.99) !important;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* 7. Digital Jaap Mala Interactive Bead Circle (With Spiritual Aura Ring) */
+/* Digital Jaap Mala Interactive Bead Circle */
 .mala-circle {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
   outline: none;
   cursor: pointer;
-  box-shadow: 0 12px 28px rgba(20, 54, 34, 0.35), 0 0 0 6px rgba(20, 54, 34, 0.06);
-  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
-}
-
-.mala-circle:hover {
-  box-shadow: 0 14px 32px rgba(20, 54, 34, 0.42), 0 0 0 8px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 12px 28px rgba(20, 54, 34, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
 .mala-circle:active {
-  transform: scale(0.93);
-  box-shadow: 0 6px 14px rgba(20, 54, 34, 0.25), 0 0 0 12px rgba(245, 158, 11, 0.25);
+  transform: scale(0.94);
+  box-shadow: 0 6px 14px rgba(20, 54, 34, 0.25);
 }
 
-/* 8. Exam Question OMR Grid Pills (Zero Blue — Uses Forest Green & Terracotta) */
-.omr-pill {
-  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.omr-pill:hover {
-  transform: translateY(-1px);
-  border-color: #143622;
-}
-
-.omr-pill-answered {
-  background-color: #143622 !important;
-  color: #FFFFFF !important;
-  border-color: #143622 !important;
-  box-shadow: 0 2px 6px rgba(20, 54, 34, 0.2);
-}
-
-.omr-pill-review,
-#markForReviewExamBtn {
-  background-color: #B34A1B !important;
-  color: #FFFFFF !important;
-  border-color: #8C3B1A !important;
-}
-
-/* 9. Soft Maintenance Helper */
-.maint-hidden-child {
-  display: none !important;
-}
-
-/* 10. Custom Smooth View & Modal Transitions */
-.view-panel,
-#tab-home,
-#tab-library,
-#tab-community,
-#tab-quiz,
-#tab-niyams,
-#tab-mala,
-#tab-history,
-#tab-admin {
-  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+/* Custom Smooth Transitions */
+.view-panel {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeIn {
@@ -209,27 +70,7 @@ header nav,
   }
 }
 
-/* Modal Smooth Pop-In Effect */
-#userProfileModal > div,
-#mockMeritNotificationModal > div,
-#authModal > div,
-#userFeedbackModal > div,
-#customConfirmModal > div {
-  animation: modalPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes modalPopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-/* 11. Clean Custom Scrollbar (Exact Original Colors) */
+/* Clean Custom Scrollbar for Long Feeds & Code Boxes */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -248,26 +89,8 @@ header nav,
   background: #A89C87;
 }
 
-/* 12. Form Element Polish & Zero-Blue Focus Controls */
-input[type="checkbox"],
-input[type="radio"],
-input[type="range"] {
-  accent-color: #143622 !important;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
+/* Form Element Polish */
+input:focus, textarea:focus, select:focus {
   border-color: #143622 !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px rgba(20, 54, 34, 0.1) !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-button {
-  transition: transform 0.12s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-button:active:not(:disabled) {
-  transform: scale(0.98);
 }
