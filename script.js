@@ -3213,15 +3213,9 @@ Object.assign(window, {
     manualTriggerOfflineSync: manualTriggerOfflineSync,
     checkStudentResultByRollNumber: checkStudentResultByRollNumber,
     askAiSahayakBottomEngine: askAiSahayakBottomEngine,
-    toggleQuestionBookmark: toggleQuestionBookmark,
+   toggleQuestionBookmark: toggleQuestionBookmark,
     renderClearBookmarksInProfile: renderClearBookmarksInProfile,
-    toggleQuestionBookmark: toggleQuestionBookmark,
-    renderClearBookmarksInProfile: renderClearBookmarksInProfile,
-    renderCompleteStudentProfileDashboard: function() {
-        const profileSec = document.getElementById("profile");
-        if (!profileSec) return;
-        return;
-    },
+    renderCompleteStudentProfileDashboard: renderCompleteStudentProfileDashboard,
     enrollStudentWithPhotoAndGenerateAdmitCard: enrollStudentWithPhotoAndGenerateAdmitCard,
     handleHubStudentEnrollmentSubmit: handleHubStudentEnrollmentSubmit,
     openNationalStandardAdmitCardPrintWindow: openNationalStandardAdmitCardPrintWindow,
