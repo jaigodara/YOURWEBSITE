@@ -189,8 +189,10 @@ document.addEventListener("DOMContentLoaded", () => {
     bindRefreshSafeAntiCheatListeners();
 
     // 4. Render Pariksha Hub, Owner Studio & Profile
-    renderParikshaHubIfIdle();
-    injectOfflinePacketLoaderAndSyncBar();
+   renderParikshaHubIfIdle();
+    if (typeof injectOfflinePacketLoaderAndSyncBar === "function") {
+        injectOfflinePacketLoaderAndSyncBar();
+    }
     renderDailyWinnerPublicBanner();
     renderOwnerAdminStudioCompleteUI();
     renderCompleteStudentProfileDashboard();
@@ -3279,7 +3281,24 @@ Object.assign(window, {
     validateBulkQuestionFormat: validateBulkQuestionBankInput,
     promptOwnerQuickVercelPaste: promptOwnerQuickVercelPaste
 });
-
-/* ============================================================================
-   END OF COMPLETE SCRIPT.JS (PART 2 OF 2) — 100% PRODUCTION READY
-   ============================================================================ */
+function injectOfflinePacketLoaderAndSyncBar() {
+    const hub = document.getElementById("parikshaMasterHubWrapper");
+    if (!hub || document.getElementById("ruralOfflineExamControlCard")) return;
+    
+    const card = document.createElement("div");
+    card.id = "ruralOfflineExamControlCard";
+    card.className = "bg-emerald-50 rounded-3xl p-5 border-2 border-emerald-700/30 shadow-md my-4";
+    card.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="px-2.5 py-0.5 bg-emerald-900 text-amber-300 font-extrabold text-xs rounded-lg">📶 ग्रामीण ऑफलाइन परीक्षा मोड</span>
+                <h4 class="font-extrabold text-sm md:text-base text-gray-900 mt-1">एन्क्रिप्टेड परीक्षा पैकेट (.bpk)</h4>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="downloadOfflineEncryptedExamPacket()" class="px-4 py-2 bg-emerald-900 text-amber-300 font-extrabold text-xs rounded-xl shadow">📥 पैकेट डाउनलोड करें</button>
+                <button onclick="manualTriggerOfflineSync()" class="px-4 py-2 bg-amber-500 text-emerald-950 font-extrabold text-xs rounded-xl shadow">☁️ उत्तर सिंक करें</button>
+            </div>
+        </div>
+    `;
+    hub.appendChild(card);
+}
