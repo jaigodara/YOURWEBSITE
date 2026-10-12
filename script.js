@@ -3215,17 +3215,13 @@ Object.assign(window, {
     askAiSahayakBottomEngine: askAiSahayakBottomEngine,
     toggleQuestionBookmark: toggleQuestionBookmark,
     renderClearBookmarksInProfile: renderClearBookmarksInProfile,
-    function renderCompleteStudentProfileDashboard() {
-    const profileSec = document.getElementById("profile");
-    if (!profileSec) return;
-    let dash = document.getElementById("studentCompleteProfileMaster");
-    if (!dash) {
-        dash = document.createElement("div");
-        dash.id = "studentCompleteProfileMaster";
-        dash.className = "max-w-5xl mx-auto my-6 space-y-6 px-2";
-        profileSec.prepend(dash);
-    }
-}
+    toggleQuestionBookmark: toggleQuestionBookmark,
+    renderClearBookmarksInProfile: renderClearBookmarksInProfile,
+    renderCompleteStudentProfileDashboard: function() {
+        const profileSec = document.getElementById("profile");
+        if (!profileSec) return;
+        return;
+    },
     enrollStudentWithPhotoAndGenerateAdmitCard: enrollStudentWithPhotoAndGenerateAdmitCard,
     handleHubStudentEnrollmentSubmit: handleHubStudentEnrollmentSubmit,
     openNationalStandardAdmitCardPrintWindow: openNationalStandardAdmitCardPrintWindow,
