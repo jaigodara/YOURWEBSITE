@@ -1,16 +1,29 @@
 <!DOCTYPE html>
 <html lang="hi" class="scroll-smooth">
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#143622">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#143622">
+
+  <!-- AUTO CACHE-BUSTER FOR SERVICE WORKER SO UPDATES ALWAYS SHOW IMMEDIATELY -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.update();
+        }
+      });
+      if (window.caches && !sessionStorage.getItem('sw_cache_refreshed_v5')) {
+        caches.keys().then(function(names) {
+          for (let name of names) caches.delete(name);
+        });
+        sessionStorage.setItem('sw_cache_refreshed_v5', 'true');
+      }
+      navigator.serviceWorker.register('sw.js?v=2026.5');
+    }
+  </script>
+
   <title>विश्नोई समाज डिजिटल मंच | Bishnoi Community Portal</title>
   <meta name="description" content="विश्नोई समाज आचार संहिता, २९ नियम, इतिहास दर्शन, बाल संस्कार, सबदवाणी पाठ, संवाद मंच एवं ज्ञान परीक्षा।">
   
@@ -23,8 +36,8 @@
   <!-- Favicon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌳</text></svg>">
 
-  <!-- External Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <!-- External Stylesheet (Versioned to Force Instant Reload) -->
+  <link rel="stylesheet" href="style.css?v=2026.5">
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -114,9 +127,9 @@
         </div>
       </a>
 
-      <!-- GLOBAL SEARCH BAR -->
+      <!-- GLOBAL SEARCH BAR (Autofill Protected) -->
       <div class="relative flex-grow max-w-xs hidden sm:block">
-        <input type="text" id="globalSearchInput" oninput="handleGlobalSearch()" placeholder="नियम, साहित्य, प्रश्न खोजें..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-forest">
+        <input type="search" id="globalSearchInput" name="portal_search_query_field" autocomplete="off" oninput="handleGlobalSearch()" placeholder="नियम, साहित्य, प्रश्न खोजें..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-forest">
         <span class="absolute left-2.5 top-1.5 text-stone-400 text-xs">🔍</span>
       </div>
 
@@ -134,8 +147,13 @@
         </button>
       </nav>
 
-      <!-- AUTH BUTTON CONTAINER -->
-      <div id="authActionsContainer" class="flex items-center gap-2 flex-shrink-0"></div>
+      <!-- TOP RIGHT ACTIONS: NOTIFICATION BELL (🔔) + AUTH BUTTON CONTAINER -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button id="topMockMeritBellBtn" type="button" onclick="openMockMeritNotificationModal()" title="सूचना केंद्र एवं परिणाम" class="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 shadow-sm transition flex items-center justify-center">
+          <span class="text-sm sm:text-base leading-none">🔔</span>
+        </button>
+        <div id="authActionsContainer" class="flex items-center gap-2 flex-shrink-0"></div>
+      </div>
     </div>
 
     <!-- MOBILE NAVIGATION BAR -->
@@ -210,7 +228,7 @@
 
       </div>
 
-      <!-- AUDIO PLAYER (STANDALONE) -->
+      <!-- AUDIO PLAYER (STANDALONE - FIXED 404 AUDIO LINK) -->
       <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -221,12 +239,11 @@
             </div>
           </div>
           <select id="audioTrackSelect" onchange="changeAudioTrack()" class="text-xs p-1.5 border border-stone-300 rounded-lg bg-stone-50">
-            <option value="https://actions.google.com/sounds/v1/ambiences/temple_bell.ogg">आरती व साखी पाठ</option>
-            <option value="https://actions.google.com/sounds/v1/ambiences/gentle_morning.ogg">प्रातः संध्या पाठ</option>
+            <option value="./bhajan1.mp3">आरती व साखी पाठ</option>
           </select>
         </div>
-        <audio id="audioPlayer" controls class="w-full h-9 rounded-lg">
-          <source id="audioSource" src="https://actions.google.com/sounds/v1/ambiences/temple_bell.ogg" type="audio/ogg">
+        <audio id="audioPlayer" controls preload="none" class="w-full h-9 rounded-lg">
+          <source id="audioSource" src="./bhajan1.mp3" type="audio/mpeg">
           आपका ब्राउज़र ऑडियो प्लेबैक का समर्थन नहीं करता है।
         </audio>
       </div>
@@ -338,7 +355,7 @@
           <h2 class="text-2xl font-yatra text-forest">गुरु जाम्भोजी के २९ नियम</h2>
           <p class="text-xs text-stone-600">समराथल धोरे पर प्रतिपादित पावन आचार संहिता</p>
         </div>
-        <input type="text" id="niyamSearch" oninput="filterNiyams()" placeholder="नियम खोजें..." class="p-2 text-xs border border-stone-300 rounded-lg w-full sm:w-60 bg-white">
+        <input type="search" id="niyamSearch" name="niyam_search_query_field" autocomplete="off" oninput="filterNiyams()" placeholder="नियम खोजें..." class="p-2 text-xs border border-stone-300 rounded-lg w-full sm:w-60 bg-white">
       </div>
       <div id="niyamGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </section>
@@ -608,7 +625,7 @@
 
         <!-- Pagination & Submit Controls -->
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-stone-100">
-          <div class="flex items-center gap-2 w-full sm:w-auto">
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button onclick="navigateExam(-1)" class="flex-1 sm:flex-none px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold">
               ◀ पिछला (Previous)
             </button>
@@ -723,7 +740,7 @@
         </div>
       </div>
 
-      <!-- 1. EXAM VISIBILITY SWITCH BOARD (TOGGLES FOR WHAT APPEARS IN PARIKSHA SECTION) -->
+      <!-- 1. EXAM VISIBILITY SWITCH BOARD (WITH ALL 5 TOGGLES INCLUDING RESULT CHECK DESK) -->
       <div id="secParikshaVisibilityController" class="bg-white p-5 rounded-2xl border-2 border-emerald-600 shadow-sm space-y-3">
         <div class="flex items-center justify-between border-b border-stone-100 pb-2">
           <h3 class="font-bold text-forest text-sm">🎛️ परीक्षा अनुभाग विज़िबिलिटी नियंत्रण (Pariksha Display Controls)</h3>
@@ -732,7 +749,7 @@
         <p class="text-xs text-stone-500">
           यहाँ से तय करें कि परीक्षार्थियों को 'ज्ञान परीक्षा' टैब में इस समय क्या दिखना चाहिए:
         </p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
           <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
             <input type="checkbox" id="toggleEnrollmentSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
             <span class="font-semibold text-stone-800">1. नामांकन पत्र (Enrollment)</span>
@@ -749,6 +766,10 @@
             <input type="checkbox" id="toggleDailyQuizSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
             <span class="font-semibold text-stone-800">4. दैनिक क्विज़ (Daily Quiz)</span>
           </label>
+          <label class="flex items-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 cursor-pointer">
+            <input type="checkbox" id="toggleResultsPublishedSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
+            <span class="font-bold text-forest">5. परिणाम खोज कक्ष (Result)</span>
+          </label>
         </div>
       </div>
 
@@ -764,8 +785,8 @@
             <span class="text-[10px] text-stone-300 font-normal mt-1">रोल नंबर, नाम, पिता का नाम, संपर्क, स्थान</span>
           </button>
           <button onclick="downloadExamResultsMeritPdf()" class="p-3 bg-terracotta text-white rounded-xl text-xs font-bold hover:bg-amber-800 flex flex-col justify-between shadow-sm">
-            <span>🏆 परीक्षा परिणाम मेरिट सूची (PDF)</span>
-            <span class="text-[10px] text-stone-300 font-normal mt-1">रैंक, रोल नंबर, नाम, पिता का नाम, प्राप्तांक</span>
+            <span>🏆 मुख्य परीक्षा परिणाम मेरिट (PDF)</span>
+            <span class="text-[10px] text-stone-300 font-normal mt-1">केवल मुख्य परीक्षा के शुद्ध प्राप्तांक व रैंक</span>
           </button>
           <button onclick="download7DaysUsersPdf()" class="p-3 bg-stone-800 text-white rounded-xl text-xs font-bold hover:bg-black flex flex-col justify-between shadow-sm">
             <span>👥 विगत ७ दिवस सदस्य सूची (PDF)</span>
@@ -840,7 +861,7 @@
           <div class="flex items-center gap-2">
             <span class="text-2xl">✨</span>
             <div>
-              <h3 class="font-yatra text-amber-300 text-base">ChatGPT AI सहायक (OpenAI Engine)</h3>
+              <h3 class="font-yatra text-amber-300 text-base">AI सहायक (Smart Engine)</h3>
               <p class="text-[11px] text-stone-300">Quiz प्रश्न अथवा प्रेरक संदेश लिखवाने हेतु AI इंजन का प्रयोग करें</p>
             </div>
           </div>
@@ -851,12 +872,12 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <button onclick="generateAiQuizQuestions()" id="aiQuizGenBtn" class="p-3 bg-white/10 hover:bg-white/20 rounded-xl text-left border border-white/10 transition-all flex flex-col justify-between">
-            <span class="font-bold text-xs text-amber-200">⚡ ChatGPT से 5 नए प्रश्न बनवाएं</span>
+            <span class="font-bold text-xs text-amber-200">⚡ AI से 5 नए प्रश्न बनवाएं</span>
             <span class="text-[11px] text-stone-300 mt-1">AI स्वतः प्रश्न व विकल्प तैयार कर नीचे बल्क बॉक्स में दर्ज करेगा।</span>
           </button>
 
           <button onclick="generateAiDailySandesh()" id="aiSandeshGenBtn" class="p-3 bg-white/10 hover:bg-white/20 rounded-xl text-left border border-white/10 transition-all flex flex-col justify-between">
-            <span class="font-bold text-xs text-amber-200">📢 ChatGPT से नया पावन सुविचार लिखवाएं</span>
+            <span class="font-bold text-xs text-amber-200">📢 AI से नया पावन सुविचार लिखवाएं</span>
             <span class="text-[11px] text-stone-300 mt-1">जीव रक्षा व आचार संहिता पर सुविचार तैयार करें।</span>
           </button>
         </div>
@@ -869,7 +890,7 @@
           <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">One-Click Upload</span>
         </div>
         <p class="text-xs text-stone-500">
-          प्रश्नों को यहाँ पेस्ट करें और श्रेणी चुनें (ड्राफ्ट में जाएगा और तय समय पर लाइव होगा):
+          प्रश्नों को यहाँ पेस्ट करें और श्रेणी चुनें (सिंगल-बंडल हाई-स्पीड मोड में सेव होगा):
         </p>
 
         <div class="flex gap-2">
@@ -1026,7 +1047,7 @@ Ans: B"></textarea>
     </div>
   </div>
 
-  <!-- APPLICATION LOGIC ENGINE -->
-  <script src="script.js"></script>
+  <!-- APPLICATION LOGIC ENGINE (Versioned to Force Instant Reload) -->
+  <script src="script.js?v=2026.5"></script>
 </body>
 </html>
