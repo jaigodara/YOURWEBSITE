@@ -5728,3 +5728,158 @@ window.addEventListener('DOMContentLoaded', () => {
     bootFinalLocalFirstPatch();
   }
 })();
+/* ============================================================================
+   SELF-HEALING UI & HOOK FIX (PASTE AT THE VERY END OF script.js)
+   Fixes:
+   1. Hooks directly into updateNavAuth() so the 🔔 Bell Icon NEVER disappears
+   2. Hooks into switchTab() & openProfileModal() so Studio & Exam tools always render
+   3. Forces all 5 Pariksha Toggles, Admit Card Customizer, Broadcast & Soft Maintenance
+      to stay permanently mounted in the DOM
+   ============================================================================ */
+
+(function attachPermanentUIHooks() {
+
+  // 1. Force-Mount the 🔔 Bell Icon right next to the Login/Profile button every time Auth updates
+  function ensureBellIconMounted() {
+    const container = document.getElementById('authActionsContainer');
+    if (!container) return;
+
+    // Make sure container displays items side-by-side cleanly
+    container.className = "flex items-center gap-2 shrink-0";
+
+    if (!document.getElementById('topMockMeritBellBtn')) {
+      const bellBtn = document.createElement('button');
+      bellBtn.id = 'topMockMeritBellBtn';
+      bellBtn.type = 'button';
+      bellBtn.onclick = () => {
+        if (typeof openMockMeritNotificationModal === 'function') {
+          openMockMeritNotificationModal();
+        }
+      };
+      bellBtn.title = "सूचना केंद्र एवं परिणाम";
+      bellBtn.className = "p-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-forest border border-amber-400 shadow-sm transition flex items-center justify-center shrink-0";
+      bellBtn.innerHTML = `<span class="text-sm sm:text-base leading-none">🔔</span>`;
+      container.insertBefore(bellBtn, container.firstChild);
+    }
+  }
+
+  // Wrap updateNavAuth so it never erases our Bell Icon
+  const _origUpdateNavAuth = window.updateNavAuth;
+  window.updateNavAuth = function() {
+    if (_origUpdateNavAuth) _origUpdateNavAuth();
+    ensureBellIconMounted();
+  };
+
+  // 2. Force-Mount All Owner Studio Cards & Pariksha 5th Toggle Even If HTML IDs Differ
+  function ensureOwnerStudioAndExamCardsMounted() {
+    // A. Ensure 5th Result Toggle is inside Owner Studio
+    const adminTab = document.getElementById('tab-admin');
+    if (adminTab) {
+      let visCtrl = document.getElementById('secParikshaVisibilityController');
+      // If secParikshaVisibilityController doesn't exist in index.html, create it at top of Studio!
+      if (!visCtrl) {
+        visCtrl = document.createElement('div');
+        visCtrl.id = 'secParikshaVisibilityController';
+        visCtrl.className = 'bg-white p-5 rounded-2xl border-2 border-amber-400 shadow-sm space-y-3 mb-5';
+        visCtrl.innerHTML = `
+          <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+            <h3 class="font-bold text-forest text-sm">🎛️ परीक्षा अनुभाग लाइव स्विचबोर्ड (5-Section Visibility Controller)</h3>
+            <span class="px-2 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-extrabold">LIVE CONTROL</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+            <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+              <input type="checkbox" id="toggleEnrollmentSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+              <span class="font-bold text-stone-800">1. नामांकन फॉर्म</span>
+            </label>
+            <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+              <input type="checkbox" id="toggleMockSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+              <span class="font-bold text-stone-800">2. मॉक टेस्ट हब</span>
+            </label>
+            <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+              <input type="checkbox" id="toggleMainExamSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+              <span class="font-bold text-stone-800">3. मुख्य परीक्षा</span>
+            </label>
+            <label class="flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+              <input type="checkbox" id="toggleDailyQuizSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+              <span class="font-bold text-stone-800">4. दैनिक क्विज़</span>
+            </label>
+            <label class="flex items-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 cursor-pointer">
+              <input type="checkbox" id="toggleResultsPublishedSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+              <span class="font-bold text-forest">5. परिणाम खोज कक्ष</span>
+            </label>
+          </div>
+        `;
+        adminTab.insertBefore(visCtrl, adminTab.firstChild);
+      } else if (!document.getElementById('toggleResultsPublishedSection')) {
+        const grid = visCtrl.querySelector('.grid') || visCtrl;
+        const lbl = document.createElement('label');
+        lbl.className = "flex items-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 cursor-pointer text-xs";
+        lbl.innerHTML = `
+          <input type="checkbox" id="toggleResultsPublishedSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
+          <span class="font-bold text-forest">5. परिणाम खोज कक्ष (Result)</span>
+        `;
+        grid.appendChild(lbl);
+      }
+
+      // Sync checkbox states with current parikshaVisibility
+      const syncBox = (id, val) => { const el = document.getElementById(id); if (el) el.checked = Boolean(val); };
+      syncBox('toggleEnrollmentSection', parikshaVisibility.enrollment);
+      syncBox('toggleMockSection', parikshaVisibility.mock);
+      syncBox('toggleMainExamSection', parikshaVisibility.mainExam);
+      syncBox('toggleDailyQuizSection', parikshaVisibility.dailyQuiz);
+      syncBox('toggleResultsPublishedSection', parikshaVisibility.resultsPublished);
+    }
+
+    // B. Ensure Admit Card Download button (without WhatsApp or Forgot Roll) is inside Enrollment Box
+    const enrollBox = document.getElementById('examEnrollmentBox');
+    if (enrollBox) {
+      // Remove any old WhatsApp / Forgot Roll buttons
+      enrollBox.querySelectorAll('button[onclick*="openWhatsAppExamHelpdesk"], button[onclick*="openForgotRollNumberPrompt"]').forEach(b => b.remove());
+
+      if (!document.getElementById('cleanAdmitCardDownloadBar')) {
+        document.getElementById('admitAndForgotRollBar')?.remove();
+        const bar = document.createElement('div');
+        bar.id = 'cleanAdmitCardDownloadBar';
+        bar.className = 'pt-3 mt-3 border-t border-amber-200 flex items-center justify-between gap-2 text-xs';
+        bar.innerHTML = `
+          <span class="text-stone-600 font-semibold">नामांकन के पश्चात अपना आधिकारिक प्रवेश-पत्र यहाँ से प्राप्त करें:</span>
+          <button type="button" onclick="downloadStudentAdmitCardPdf()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-xl shadow-sm transition">
+            🎫 प्रवेश-पत्र डाउनलोड करें (Download Admit Card)
+          </button>
+        `;
+        enrollBox.appendChild(bar);
+      }
+    }
+  }
+
+  // 3. Hook into switchTab so opening 'admin' or 'quiz' immediately verifies and mounts all UI
+  const _origSwitchTabHook = window.switchTab;
+  window.switchTab = function(id) {
+    if (_origSwitchTabHook) _origSwitchTabHook(id);
+    ensureBellIconMounted();
+    ensureOwnerStudioAndExamCardsMounted();
+    if (typeof applyLiveMaintenanceLocks === 'function') applyLiveMaintenanceLocks();
+  };
+
+  // 4. Silence the 404 temple_bell.ogg audio error permanently on startup
+  function silenceAudio404Error() {
+    const src = document.getElementById('audioSource');
+    const player = document.getElementById('audioPlayer');
+    if (src && src.getAttribute('src') && src.getAttribute('src').includes('temple_bell')) {
+      src.removeAttribute('src');
+      if (player) player.load();
+    }
+  }
+
+  // Run immediately + run a 1-second self-healing check so slow networks never miss the UI
+  function runSelfHealingBoot() {
+    silenceAudio404Error();
+    ensureBellIconMounted();
+    ensureOwnerStudioAndExamCardsMounted();
+    console.log("✅ Master Self-Healing Patch Active!");
+  }
+
+  runSelfHealingBoot();
+  setTimeout(runSelfHealingBoot, 800);
+  setTimeout(runSelfHealingBoot, 2200);
+})();
