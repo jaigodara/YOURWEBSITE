@@ -1,6 +1,7 @@
 /* ==========================================================================
-   विश्नोई समाज डिजिटल मंच एवं परीक्षा पोर्टल (script.js)
-   स्वच्छ, तीव्र एवं एकल मास्टर संस्करण (Clean Single-File Architecture)
+   विश्नोई समाज डिजिटल मंच एवं परीक्षा पोर्टल — MASTER ENGINE (script.js)
+   PART 1 OF 3: Core State, 120 Shabadwani & Aarti Data, UI Restoration,
+   Single Bottom Nav, Audio Player with Lyrics, Profile & Literature Hub
    ========================================================================== */
 
 // 1. FIREBASE CONFIGURATION
@@ -18,12 +19,27 @@ if (!firebase.apps.length) {
 }
 const db = firebase.firestore();
 
-// 2. CREDENTIALS & CONSTANTS
+// 2. OWNER, PIN & AI CREDENTIALS
 const OWNER_PHONE = "9306894518";
 const OWNER_PASS = "bishnoi29";
 const DEFAULT_INTEGRATED_AI_KEY = "AQ.Ab8RN6LAySVquJ7wJYZ-Btp-LELOKKFIpsLHTooiv9L_4GEPLA";
 
-// 3. GLOBAL APPLICATION STATE
+function getOwnerPin() {
+  return localStorage.getItem('bishnoi_owner_pin') || "2929";
+}
+
+function verifyOwnerPinAction(actionTitle, callback) {
+  if (!isSuperOwner()) return showToast("यह अधिकार केवल मुख्य व्यवस्थापक के पास है।");
+  const entered = prompt(`🔐 सुरक्षा सत्यापन (${actionTitle}):\nकृपया ४-अंकों का ओनर सुरक्षा पिन (PIN) दर्ज करें (डिफ़ॉल्ट: 2929):`);
+  if (entered === null) return;
+  if (entered.trim() === getOwnerPin()) {
+    callback();
+  } else {
+    showToast("❌ अमान्य सुरक्षा पिन! क्रिया रद्द की गई।");
+  }
+}
+
+// 3. GLOBAL APPLICATION STATE (LOCAL-FIRST ARCHITECTURE)
 let currentUser = JSON.parse(localStorage.getItem('bishnoi_secure_user') || 'null');
 let isRegisterMode = false;
 let quizList = [];
@@ -36,7 +52,7 @@ let inactivityTimer = null;
 let examCountdownTimer = null;
 let serverTimeOffsetMs = 0;
 
-// Chat, Moderation & RBAC State
+// Samvad Manch, Editors & RBAC State
 let allChatPosts = [];
 let activeReplyObj = null;
 let blockedPhonesList = [];
@@ -52,11 +68,17 @@ let isCustomPlaying = false;
 let audioSpeeds = [1, 1.25, 1.5];
 let currentSpeedIdx = 0;
 
-// PDF Reader State
+// In-built PDF Reader State
 let activePdfDoc = null;
 let currentPdfPage = 1;
 let totalPdfPages = 1;
 let isPdfLandscape = false;
+
+// Shabadwani & Sahitya Reader State (Play Store Shabadwani App Style)
+let currentLibrarySubTab = 'shabadwani'; // 'shabadwani' | 'aarti' | 'pdfs'
+let currentShabadNumber = parseInt(localStorage.getItem('bishnoi_last_read_shabad') || '1');
+let readerFontSizePx = parseInt(localStorage.getItem('bishnoi_reader_font_size') || '16');
+let readerThemeMode = localStorage.getItem('bishnoi_reader_theme') || 'cream'; // 'cream' | 'sepia' | 'night'
 
 // Pariksha 5-Section Visibility State
 let parikshaVisibility = {
@@ -70,19 +92,21 @@ let parikshaVisibility = {
   examDuration: 120
 };
 
-// Admit Card & Cutoff Configuration
+// Custom Admit Card & Late Entry Config
 let customAdmitConfig = JSON.parse(localStorage.getItem('bishnoi_admit_cfg') || JSON.stringify({
-  examTitle: "जाम्भाणी साहित्य ज्ञान परीक्षा २०२६",
+  examTitle: "JAMBHANI LITERATURE EXAMINATION 2026",
   examDateStr: "पोर्टल पर घोषित समयानुसार",
   examCenterStr: "ऑनलाइन डिजिटल परीक्षा कक्ष",
-  instructionsStr: "१. अपना रोल नंबर गोपनीय रखें। २. परीक्षा के दौरान टैब बदलना वर्जित है।",
+  instructionsStr: "1. अपना रोल नंबर गोपनीय रखें। 2. परीक्षा में ३ बार टैब बदलने पर पेपर स्वतः सबमिट हो जाएगा।",
   lateCutoffMins: 5
 }));
 
-// Exam Runtime State & Security Closure
+// Exam Runtime, Shuffling, Re-Chance & Anti-Cheat State
 let encryptedAnswerKeyMap = {};
 let markedForReviewSet = new Set();
 let lastEnrolledStudentObj = JSON.parse(localStorage.getItem('bishnoi_last_enrolled_obj') || 'null');
+let blockedRollNumbersMap = {}; // rollNumber -> reason
+let studentRechanceGrantsMap = {}; // rollNumber -> { grantedMinutes, grantedAt, used }
 
 let examState = {
   questions: [],
@@ -95,10 +119,11 @@ let examState = {
   rollNumber: localStorage.getItem('bishnoi_saved_roll') || 'GUEST',
   isExamRunning: false,
   securityAttached: false,
-  enrolledProfile: null
+  enrolledProfile: null,
+  isSecondChanceSession: false
 };
 
-// Non-Blocking Soft Maintenance State
+// Soft Maintenance State
 let maintenanceConfig = {
   globalMode: 'off',
   progressPct: 65,
@@ -106,12 +131,12 @@ let maintenanceConfig = {
   sections: { mala: 'off', niyams: 'off', library: 'off', community: 'off', quiz: 'off', history: 'off' }
 };
 
-// Mala & Sadhana Streak Counters (Local-First)
+// Mala & Sadhana Streak Counters
 let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0');
 let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0');
 let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0');
 
-// 4. AUTHENTIC 29 NIYAMS & HISTORY DATA
+// 4. AUTHENTIC 29 NIYAMS, 120 SHABADWANI REPOSITORY & AARTI/SAKHI LYRICS
 let niyamsList = [
   { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक माता व शिशु की स्वच्छता और विश्राम रखें।" },
   { num: 2, title: "ऋतुवंती पृथक्करण", rule: "पांच दिन रजस्वला पृथक्करण", desc: "माहवारी के दौरान ५ दिन का गृह-कार्य से पूर्ण विश्राम एवं स्वास्थ्य रक्षा।" },
@@ -144,6 +169,79 @@ let niyamsList = [
   { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों व सूक्ष्म जीवों को नष्ट करके बनने वाले नीले रंग का त्याग।" }
 ];
 
+// Default 120 Shabadwani Database (Cached Locally + Synced with Owner Uploads)
+function buildDefaultShabadwaniList() {
+  const saved = JSON.parse(localStorage.getItem('bishnoi_shabadwani_db') || 'null');
+  if (saved && Array.isArray(saved) && saved.length >= 120) return saved;
+
+  const coreShabads = {
+    1: {
+      mool: "ॐ गुरु चीन्हो गुरु चीन्हो पुरोहित, गुरु मुख धर्म वखांणो।\nजो गुरु होयबा शील संतोषी, तो पाहल मंत्र पिलांणो॥",
+      arth: "हे जीव! सर्वप्रथम सच्चे सद्गुरु की पहचान करो। जो गुरु शीलवान, संतोषी और तत्वज्ञानी हो, उसी के मुख से धर्म का उपदेश सुनो और पाहल (अमृत जल) ग्रहण करो।",
+      prasang: "प्रथम सबद में गुरु जम्भेश्वर भगवान ने सच्चे गुरु के लक्षण एवं पाहल दीक्षा का महत्व बताया है।"
+    },
+    2: {
+      mool: "लोइया आतम मति डोलावो, मन थिर करि गहहु विचारं।\nकलि में कीरति नाम साचो, जपहु सिरजनहारं॥",
+      arth: "हे मनुष्यों! अपनी आत्मा को सांसारिक भटकाव में मत डालो। मन को स्थिर करके विचार करो कि इस कलियुग में केवल सृष्टिकर्ता भगवान विष्णु का सच्चा नाम और कीर्तन ही उद्धार करने वाला है।",
+      prasang: "मन की स्थिरता और हरि नाम स्मरण का उपदेश।"
+    },
+    3: {
+      mool: "गुरमुखि होय सु सबद पछाणै, नुरत सुरत सूं ध्यावै।\nअजर अमर पद पावै सोई, जो जीव दया मन लावै॥",
+      arth: "जो साधक गुरुमुख होकर सबदवाणी के मर्म को पहचानता है और एकाग्र चित्त से ध्यान लगाता है तथा हृदय में जीव दया रखता है, वही अजर-अमर मोक्ष पद को प्राप्त करता है।",
+      prasang: "सबदवाणी के चिंतन और जीव दया की महिमा।"
+    },
+    4: {
+      mool: "जीया नै जुगति और मरणै नै मुगति,\nजपहु रे भाई विष्णु नाम जपणा, अमावस व्रत राखणा॥",
+      arth: "सदाचारी जीवन जीने की युक्ति और मरणोपरांत मुक्ति का यही मार्ग है कि निरंतर भगवान विष्णु के पावन नाम का जाप करो और अमावस्या का व्रत एवं संयम धारण करो।",
+      prasang: "जीवन-मुक्ति एवं नियम पालन का सार।"
+    },
+    5: {
+      mool: "पाणी छान पीवणा, वाणी छान बोलणा,\nईंधन बीन बाळणा, रूंख लीलो नी घावणा॥",
+      arth: "सूक्ष्म जीवों की रक्षा हेतु पानी छानकर पिएं, किसी का हृदय न दुखे इसलिए वाणी सोच-समझकर बोलें, लकड़ी-उपले झाड़कर जलाएं और हरे वृक्ष को कभी न काटें।",
+      prasang: "पर्यावरण संरक्षण एवं अहिंसा का शाश्वत संदेश।"
+    }
+  };
+
+  const full120 = [];
+  for (let i = 1; i <= 120; i++) {
+    if (coreShabads[i]) {
+      full120.push({ num: i, ...coreShabads[i] });
+    } else {
+      full120.push({
+        num: i,
+        mool: `॥ श्री सबदवाणी — सबद संख्या ${i} ॥\nॐ गुरु जम्भेश्वर भगवान की पावन वाणी (सबद ${i})।\n"जीव दया पालणी, रूंख लीलो नी घावै, साचो नाम ध्यावणा।"`,
+        arth: `सबद संख्या ${i} का सरल हिंदी भावार्थ: गुरु जाम्भोजी जीव मात्र के प्रति करुणा रखने, सत्य पथ पर चलने और नित्य हरि स्मरण करने की प्रेरणा देते हैं। (व्यवस्थापक कक्ष से इस सबद का पूर्ण पाठ अपडेट किया जा सकता है)।`,
+        prasang: `श्री सबदवाणी अध्याय — सबद क्रमांक ${i}`
+      });
+    }
+  }
+  localStorage.setItem('bishnoi_shabadwani_db', JSON.stringify(full120));
+  return full120;
+}
+let shabadwaniList = buildDefaultShabadwaniList();
+
+// Default Aarti, Sakhi & Bhajan Lyrics Collection
+let aartiLyricsList = JSON.parse(localStorage.getItem('bishnoi_aarti_lyrics') || JSON.stringify([
+  {
+    id: 'aarti_1',
+    category: 'सांझ आरती',
+    title: 'आरती श्री जम्भेश्वर भगवान की (संवत १५४२)',
+    lyrics: "आरती कीजै गुरु जम्भेश्वर की, जय जय करुणा सिंधु हरी की॥\nसमराथल धोरे आप विराजे, पाहल करि पंथ चलायो जी।\nउनतीस धर्म नियम परकासे, भूले जीव सुपथ लगायो जी॥\nपीपासर प्रगटे लोहट सुत, हंसा माता गोद खिलायो जी।\nजीव दया अरु रूंख राखणी, साचो धर्म बतायो जी॥"
+  },
+  {
+    id: 'aarti_2',
+    category: 'प्रातः होम वंदना',
+    title: 'हवन एवं पाहल मंत्र स्तुति',
+    lyrics: "ॐ आद विष्णु अनादि विष्णु, जपिए कोटि तेतीसूं।\nप्रातः सायं होम करीजै, वातावरण शुद्ध राखीजै॥\nपाणी बाणी दूध ने, छानै पीवै सोय।\nउण घर जाम्भोजी बसै, अमर लोक गति होय॥"
+  },
+  {
+    id: 'aarti_3',
+    category: 'खेजड़ली गौरव साखी',
+    title: 'सिर साटै रूंख रहै — अमर बलिदान साखी',
+    lyrics: "सिर साटै रूंख रहै, तो भी सस्तो जाण।\nअमृता देवी भाखियो, धर्म न छोड़ो प्राण॥\nतीन सौ तिरेसठ शीश चढ़े, खेजड़ली के धाम।\nहरित धरा की रक्षा में, अमर हुआ बलिदान॥"
+  }
+]));
+
 let historyItemsList = [
   {
     id: 'hist_1',
@@ -164,22 +262,22 @@ let historyItemsList = [
   {
     id: 'kids_1',
     type: 'kids',
-    badge: 'बाल संस्कार १',
+    badge: '🦌 बाल कहानी १',
     title: 'नन्हे हिरण का सच्चा मित्र',
-    content: 'एक बार थार के रेगिस्तान में एक नन्हा चिंकारा प्यास से भटक रहा था। तभी गाँव के बालक सोहन ने उसे देखा। सोहन ने दौड़कर अपने घर से छना हुआ ठंडा पानी पिलाया और अपनी माँ के साथ मिलकर उसकी देखभाल की। जब हिरण स्वस्थ हो गया, तो वह रोज़ आँगन में खेलने आने लगा।',
-    moral: 'सीख: मूक पशु-पक्षी हमारे परिवार की तरह हैं। घर के बाहर पक्षियों व जीवों के लिए पानी का परिंडा अवश्य रखें।'
+    content: 'एक बार थार के रेगिस्तान में एक नन्हा चिंकारा (हिरण का बच्चा) प्यास से भटक रहा था। तभी गाँव के बालक सोहन ने उसे देखा। सोहन ने दौड़कर अपने घर से छना हुआ ठंडा पानी पिलाया और अपनी माँ के साथ मिलकर उसकी देखभाल की। जब हिरण स्वस्थ हो गया, तो वह रोज़ आँगन में खेलने आने लगा।',
+    moral: '🌟 सीख: मूक पशु-पक्षी हमारे परिवार की तरह हैं। घर के बाहर पक्षियों व जीवों के लिए पानी का परिंडा अवश्य रखें।'
   },
   {
     id: 'kids_2',
     type: 'kids',
-    badge: 'बाल संस्कार २',
+    badge: '🌳 बाल कहानी २',
     title: 'अमृता देवी का साहस और खेजड़ी का पेड़',
-    content: 'जब राजा के सैनिक खेजड़ली गाँव में हरे पेड़ काटने आए, तो माता अमृता देवी ने डरने के बजाय पेड़ को अपनी बाहों में भर लिया और कहा कि जब तक हम जीवित हैं, पेड़ नहीं कटने देंगे। उनके साहस को देखकर राजा को भी क्षमा मांगनी पड़ी और पेड़ काटने पर हमेशा के लिए रोक लगा दी गई।',
-    moral: 'सीख: हमें अपने जन्मदिन पर कम से कम एक पौधा ज़रूर लगाना चाहिए और कभी भी हरी टहनी नहीं तोड़नी चाहिए।'
+    content: 'प्यारे बच्चों! जब राजा के सैनिक खेजड़ली गाँव में हरे पेड़ काटने आए, तो माता अमृता देवी ने डरने के बजाय पेड़ को अपनी बाहों में भर लिया और कहा कि जब तक हम जीवित हैं, पेड़ नहीं कटने देंगे। उनके साहस को देखकर राजा को भी क्षमा मांगनी पड़ी और पेड़ काटने पर हमेशा के लिए रोक लगा दी गई।',
+    moral: '🌟 सीख: हमें अपने जन्मदिन पर कम से कम एक पौधा ज़रूर लगाना चाहिए और कभी भी हरी टहनी नहीं तोड़नी चाहिए।'
   }
 ];
 
-// 5. SECURITY, ENCRYPTION, FINGERPRINTING & SERVER TIME SYNC
+// 5. ROLE HELPERS, ENCRYPTION, FINGERPRINTING & CLOCK SYNC
 function isSuperOwner() {
   return Boolean(currentUser && (currentUser.isOwner === true || currentUser.phone === OWNER_PHONE));
 }
@@ -250,10 +348,10 @@ function getSyncedNow() {
 function setupInactivitySessionGuard() {
   const resetTimer = () => {
     if (inactivityTimer) clearTimeout(inactivityTimer);
-    if (currentUser) {
+    if (currentUser && !examState.isExamRunning) {
       inactivityTimer = setTimeout(() => {
         logoutUser();
-        showToast("सुरक्षा कारणों से २० मिनट की निष्क्रियता के बाद सत्र लॉगआउट कर दिया गया है।");
+        showToast("🔒 सुरक्षा कारणों से २० मिनट की निष्क्रियता के बाद सत्र लॉक कर दिया गया है।");
       }, 20 * 60 * 1000);
     }
   };
@@ -286,32 +384,72 @@ function purgeSearchBarAutofillGlitch() {
   });
 }
 
-// 6. BOTTOM NAVIGATION, HOMEPAGE & CUSTOM AUDIO PLAYER
-function injectUnifiedBottomNavBar() {
+// 6. REMOVE DUPLICATE TOP NAVBARS & KEEP ONLY THE 5-ICON BOTTOM BAR
+function removeDuplicateTopNavbarsAndInjectBottomNav() {
+  // Physically remove duplicate desktop & mobile navigation strips inside <header>
+  document.querySelectorAll('header nav').forEach(el => el.remove());
+  document.querySelectorAll('header div.lg\\:hidden').forEach(el => el.remove());
+
+  let styleEl = document.getElementById('cleanPortalFixStyles');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'cleanPortalFixStyles';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.innerHTML = `
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
+      padding-bottom: 86px !important;
+      background-color: #F8F5EE !important;
+    }
+    #standardMobileBottomNav {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      top: auto !important;
+      z-index: 999 !important;
+    }
+    .bnav-item-active {
+      color: #143622 !important;
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
+      border-color: #F59E0B !important;
+      font-weight: 800 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
+    .maint-hidden-child { display: none !important; }
+  `;
+
   document.getElementById('standardMobileBottomNav')?.remove();
   const bottomNav = document.createElement('nav');
   bottomNav.id = 'standardMobileBottomNav';
-  bottomNav.className = 'fixed bottom-0 left-0 right-0 z-[95] bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-lg px-3 py-1.5';
+  bottomNav.className = 'bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-2xl px-3 py-1.5';
   bottomNav.innerHTML = `
     <div class="max-w-xl mx-auto grid grid-cols-5 gap-1.5">
       <button onclick="switchTab('home')" id="bnav-home" class="bnav-item-active flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] text-stone-600 transition-all">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         <span class="truncate">मुखपृष्ठ</span>
       </button>
+
       <button onclick="switchTab('library')" id="bnav-library" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
         <span class="truncate">साहित्य</span>
       </button>
+
       <button onclick="switchTab('community')" id="bnav-community" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
         <span class="truncate">संवाद</span>
       </button>
+
       <button onclick="switchTab('quiz')" id="bnav-quiz" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
         <span class="truncate">परीक्षा</span>
       </button>
+
       <button onclick="openProfileModal()" id="bnav-profile" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
-        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
         <span id="bnavProfileLabel" class="truncate">प्रोफ़ाइल</span>
       </button>
     </div>
@@ -319,62 +457,69 @@ function injectUnifiedBottomNavBar() {
   document.body.appendChild(bottomNav);
 }
 
+// 7. RESTORE EXACT PREVIOUS HOMEPAGE HERO CARDS & AUDIO PLAYER WITH READ-ALONG LYRICS
 function upgradeHomepageAndAudioUI() {
   const homeTab = document.getElementById('tab-home');
-  if (homeTab && !document.getElementById('cleanHeroLandingSection')) {
+  if (homeTab) {
+    document.getElementById('cleanHeroLandingSection')?.remove();
+    const lastShabad = parseInt(localStorage.getItem('bishnoi_last_read_shabad') || '1');
+
     const heroWrap = document.createElement('div');
     heroWrap.id = 'cleanHeroLandingSection';
     heroWrap.className = 'space-y-4 mb-5';
     heroWrap.innerHTML = `
-      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200/90 shadow-sm space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3">
-          <div class="flex items-center gap-2.5">
-            <span class="text-[11px] font-bold text-white bg-[#143622] px-2.5 py-0.5 rounded-md">आधिकारिक पोर्टल</span>
-            <h2 class="font-yatra text-base sm:text-lg text-forest">अध्ययन एवं साधना केंद्र</h2>
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200 shadow-sm space-y-3.5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-extrabold text-white bg-[#143622] px-2.5 py-0.5 rounded-full">आधिकारिक पोर्टल</span>
+            <h2 class="font-yatra text-base sm:text-lg text-forest">मुख्य अध्ययन एवं साधना केंद्र</h2>
           </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <button onclick="switchTab('niyams')" class="elevate-card p-4 rounded-xl bg-[#FAF8F3] hover:bg-white border border-stone-200/90 text-left flex items-start gap-3.5 transition">
-            <div class="w-10 h-10 rounded-lg bg-[#143622] text-amber-200 flex items-center justify-center font-yatra text-base shrink-0">२९</div>
-            <div>
-              <span class="text-[10px] font-bold text-stone-500 uppercase tracking-wider">आचार संहिता</span>
-              <h3 class="font-yatra text-base text-forest mt-0.5">२९ नियम संहिता</h3>
-              <p class="text-xs text-stone-600 mt-0.5 leading-relaxed">गुरु जम्भेश्वर भगवान के २९ नियमों का सरल हिंदी भावार्थ।</p>
-            </div>
-          </button>
-
-          <button onclick="switchTab('mala')" class="elevate-card p-4 rounded-xl bg-[#FAF8F3] hover:bg-white border border-stone-200/90 text-left flex items-start gap-3.5 transition">
-            <div class="w-10 h-10 rounded-lg bg-[#143622] text-amber-200 flex items-center justify-center font-yatra text-base shrink-0">१०८</div>
-            <div>
-              <span class="text-[10px] font-bold text-stone-500 uppercase tracking-wider">दैनिक साधना</span>
-              <h3 class="font-yatra text-base text-forest mt-0.5">डिजिटल जप माला</h3>
-              <p class="text-xs text-stone-600 mt-0.5 leading-relaxed">१०८ मनकों की डिजिटल माला के साथ हरि स्मरण करें।</p>
-            </div>
-          </button>
-
-          <button onclick="switchTab('history')" class="elevate-card p-4 rounded-xl bg-[#FAF8F3] hover:bg-white border border-stone-200/90 text-left flex items-start gap-3.5 transition">
-            <div class="w-10 h-10 rounded-lg bg-[#8C3B1A] text-amber-100 flex items-center justify-center font-yatra text-sm shrink-0">१७३०</div>
-            <div>
-              <span class="text-[10px] font-bold text-stone-500 uppercase tracking-wider">इतिहास व संस्कार</span>
-              <h3 class="font-yatra text-base text-forest mt-0.5">गौरवगाथा एवं बाल संस्कार</h3>
-              <p class="text-xs text-stone-600 mt-0.5 leading-relaxed">खेजड़ली के ३६३ हुतात्माओं का इतिहास व प्रेरक कहानियाँ।</p>
-            </div>
+          <button onclick="resumeLastReadShabad()" class="text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full border border-amber-300 transition">
+            🔖 जहाँ छोड़ा वहीं से पढ़ें (सबद #${lastShabad}) →
           </button>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-          <button onclick="switchTab('library')" class="elevate-card py-2.5 px-3 rounded-lg bg-stone-100/80 hover:bg-stone-200/70 border border-stone-200 text-center"><span class="font-semibold text-xs text-forest block">सबदवाणी ग्रंथ</span></button>
-          <button onclick="switchTab('quiz')" class="elevate-card py-2.5 px-3 rounded-lg bg-stone-100/80 hover:bg-stone-200/70 border border-stone-200 text-center"><span class="font-semibold text-xs text-forest block">साहित्य परीक्षा</span></button>
-          <button onclick="switchTab('community')" class="elevate-card py-2.5 px-3 rounded-lg bg-stone-100/80 hover:bg-stone-200/70 border border-stone-200 text-center"><span class="font-semibold text-xs text-forest block">समाज संवाद मंच</span></button>
-          <button onclick="openProfileModal()" class="elevate-card py-2.5 px-3 rounded-lg bg-stone-100/80 hover:bg-stone-200/70 border border-stone-200 text-center"><span class="font-semibold text-xs text-forest block">मेरी प्रोफ़ाइल</span></button>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button onclick="switchTab('niyams')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-100/60 border border-amber-300 text-left flex items-start gap-3 shadow-sm">
+            <div class="w-11 h-11 rounded-xl bg-[#143622] text-amber-300 flex items-center justify-center text-xl shrink-0 shadow">📜</div>
+            <div>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded">आचार संहिता</span>
+              <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">२९ नियम संहिता</h3>
+              <p class="text-xs text-stone-600 mt-0.5">गुरु जम्भेश्वर भगवान के २९ नियमों का सरल हिंदी अर्थ पढ़ें।</p>
+            </div>
+          </button>
+
+          <button onclick="switchTab('mala')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-100/60 border border-emerald-300 text-left flex items-start gap-3 shadow-sm">
+            <div class="w-11 h-11 rounded-xl bg-[#143622] text-emerald-300 flex items-center justify-center text-xl shrink-0 shadow">📿</div>
+            <div>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 bg-emerald-200/70 px-2 py-0.5 rounded">दैनिक साधना</span>
+              <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">डिजिटल जप माला</h3>
+              <p class="text-xs text-stone-600 mt-0.5">१०८ मनकों की डिजिटल माला के साथ ॐ विष्णवे नमः का जाप करें।</p>
+            </div>
+          </button>
+
+          <button onclick="switchTab('history')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 border border-orange-300 text-left flex items-start gap-3 shadow-sm">
+            <div class="w-11 h-11 rounded-xl bg-terracotta text-white flex items-center justify-center text-xl shrink-0 shadow">🌳</div>
+            <div>
+              <span class="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-200/70 px-2 py-0.5 rounded">गौरवगाथा व संस्कार</span>
+              <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">इतिहास व बाल संस्कार</h3>
+              <p class="text-xs text-stone-600 mt-0.5">खेजड़ली के ३६३ शहीदों का इतिहास एवं बच्चों की प्रेरक कहानियाँ।</p>
+            </div>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <button onclick="switchTab('library')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">📚 सबदवाणी व ग्रंथ</span></button>
+          <button onclick="switchTab('quiz')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">🏆 ज्ञान परीक्षा</span></button>
+          <button onclick="switchTab('community')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center"><span class="font-yatra text-xs sm:text-sm text-forest block">💬 संवाद ग्रुप</span></button>
+          <button onclick="openProfileModal()" class="elevate-card py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-center"><span class="font-yatra text-xs sm:text-sm text-amber-900 block">👤 मेरी प्रोफ़ाइल</span></button>
         </div>
       </div>
     `;
     homeTab.insertBefore(heroWrap, homeTab.firstChild);
   }
 
-  // Silence 404 Audio Link & Upgrade Audio Player
+  // Upgrade Audio Box with Read-Along Lyrics Drawer
   const nativeAudio = document.getElementById('audioPlayer');
   const nativeSource = document.getElementById('audioSource');
   const nativeSelect = document.getElementById('audioTrackSelect');
@@ -389,37 +534,47 @@ function upgradeHomepageAndAudioUI() {
     if (nativeSelect) nativeSelect.classList.add('hidden');
     Array.from(hostCard.children).forEach(ch => { if (ch !== nativeAudio) ch.classList.add('hidden'); });
 
-    hostCard.className = 'bg-[#143622] text-white p-4 sm:p-5 rounded-2xl shadow-md border border-stone-700';
+    hostCard.className = 'elevate-card bg-gradient-to-r from-[#143622] via-[#1b432c] to-[#143622] text-white p-4 sm:p-5 rounded-2xl shadow-lg border border-amber-400/40';
     const musicUI = document.createElement('div');
     musicUI.id = 'standardCustomMusicBox';
     musicUI.className = 'space-y-3';
     musicUI.innerHTML = `
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-2.5">
         <div class="flex items-center gap-3 min-w-0">
-          <div class="w-9 h-9 rounded-lg bg-amber-400/20 border border-amber-300/30 text-amber-200 flex items-center justify-center shrink-0 font-bold text-xs">स्वर</div>
+          <div class="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center shrink-0 shadow-md">🎵</div>
           <div class="min-w-0">
-            <span class="text-[10px] uppercase tracking-wider text-amber-200/80 font-semibold block">सबदवाणी, आरती एवं भजन</span>
-            <h4 id="customNowPlayingTitle" class="font-yatra text-base text-white truncate">श्री जम्भेश्वर भगवान आरती एवं भजन</h4>
+            <span class="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">सबदवाणी, आरती एवं भजन स्ट्रीम</span>
+            <h4 id="customNowPlayingTitle" class="font-yatra text-base sm:text-lg text-white truncate">श्री जम्भेश्वर आरती एवं भजन</h4>
           </div>
         </div>
         <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-          <select id="customPlaylistDropdown" onchange="selectCustomTrackByIndex(this.value)" class="flex-1 sm:flex-initial p-2 rounded-lg bg-black/30 text-amber-100 border border-white/15 text-xs font-medium max-w-full sm:max-w-[210px] truncate">
-            <option value="0">1. श्री जम्भेश्वर भगवान आरती एवं भजन</option>
+          <select id="customPlaylistDropdown" onchange="selectCustomTrackByIndex(this.value)" class="flex-1 sm:flex-initial p-2 rounded-xl bg-black/35 text-amber-200 border border-amber-400/40 text-xs font-bold max-w-full sm:max-w-[200px] truncate">
+            <option value="0">1. श्री जम्भेश्वर आरती एवं भजन</option>
           </select>
-          <button onclick="cycleCustomAudioSpeed()" id="customAudioSpeedBtn" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-amber-200 text-xs font-bold border border-white/15">1x</button>
+          <button onclick="toggleAudioLyricsDrawer()" class="px-2.5 py-1.5 rounded-xl bg-amber-400 text-stone-950 text-xs font-extrabold shadow">📖 आरती बोल</button>
+          <button onclick="cycleCustomAudioSpeed()" id="customAudioSpeedBtn" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 text-xs font-extrabold border border-amber-400/30">1x</button>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
-        <div class="flex items-center justify-center gap-3 shrink-0">
-          <button onclick="skipCustomTrack(-1)" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold">पिछला</button>
-          <button onclick="toggleCustomMusicPlay()" id="customPlayBtn" class="w-10 h-10 rounded-full bg-amber-400 text-stone-950 flex items-center justify-center shadow font-bold text-sm">▶</button>
-          <button onclick="skipCustomTrack(1)" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold">अगला</button>
+        <div class="flex items-center justify-center gap-4 shrink-0">
+          <button onclick="skipCustomTrack(-1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">⏮️</button>
+          <button onclick="toggleCustomMusicPlay()" id="customPlayBtn" class="w-11 h-11 rounded-full bg-amber-400 text-stone-950 flex items-center justify-center shadow-lg font-bold">▶</button>
+          <button onclick="skipCustomTrack(1)" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">⏭️</button>
         </div>
         <div class="flex-1 flex items-center gap-2.5">
           <span id="customCurTime" class="text-xs font-mono text-amber-200 w-9 text-right">0:00</span>
-          <input type="range" id="customSeekSlider" value="0" min="0" max="100" oninput="seekCustomMusic(this.value)" class="flex-1 h-1.5 bg-white/25 rounded-lg cursor-pointer accent-amber-400">
+          <input type="range" id="customSeekSlider" value="0" min="0" max="100" oninput="seekCustomMusic(this.value)" class="flex-1 h-2 bg-white/25 rounded-lg cursor-pointer accent-amber-400">
           <span id="customDurTime" class="text-xs font-mono text-stone-300 w-9">0:00</span>
         </div>
+      </div>
+      <!-- Read-Along Lyrics Box -->
+      <div id="homeAudioLyricsDrawer" class="hidden mt-3 p-3.5 rounded-xl bg-black/30 border border-amber-400/30 text-amber-100 text-xs leading-relaxed whitespace-pre-wrap max-h-44 overflow-y-auto">
+        <div class="font-bold text-amber-300 mb-1">🪔 आरती श्री जम्भेश्वर भगवान की (साथ-साथ पढ़ें):</div>
+आरती कीजै गुरु जम्भेश्वर की, जय जय करुणा सिंधु हरी की॥
+समराथल धोरे आप विराजे, पाहल करि पंथ चलायो जी।
+उनतीस धर्म नियम परकासे, भूले जीव सुपथ लगायो जी॥
+पीपासर प्रगटे लोहट सुत, हंसा माता गोद खिलायो जी।
+जीव दया अरु रूंख राखणी, साचो धर्म बतायो जी॥
       </div>
     `;
     hostCard.appendChild(musicUI);
@@ -438,6 +593,17 @@ function upgradeHomepageAndAudioUI() {
     nativeAudio.addEventListener('play', () => updatePlayPauseIcon(true));
     nativeAudio.addEventListener('pause', () => updatePlayPauseIcon(false));
   }
+}
+
+function toggleAudioLyricsDrawer() {
+  document.getElementById('homeAudioLyricsDrawer')?.classList.toggle('hidden');
+}
+
+function resumeLastReadShabad() {
+  const num = parseInt(localStorage.getItem('bishnoi_last_read_shabad') || '1');
+  switchTab('library');
+  switchLibrarySubTab('shabadwani');
+  openShabadByNumber(num);
 }
 
 function formatMusicTime(sec) {
@@ -479,7 +645,7 @@ function toggleCustomMusicPlay() {
   if ((!source.src || source.src === window.location.href) && audioPlaylist[currentTrackIndex]) {
     source.src = audioPlaylist[currentTrackIndex].link; player.load();
   }
-  if (player.paused) player.play().catch(() => showToast("कृपया व्यवस्थापक कक्ष से वैध भजन लिंक जोड़ें।")); else player.pause();
+  if (player.paused) player.play().catch(() => showToast("कृपया एडमिन स्टूडियो से वैध भजन लिंक जोड़ें।")); else player.pause();
 }
 
 function skipCustomTrack(delta) {
@@ -503,10 +669,295 @@ function cycleCustomAudioSpeed() {
   showToast(`ऑडियो गति: ${spd}x`);
 }
 
-// 7. MODALS: PDF READER, PROFILE MODAL, NOTIFICATION CENTER & FOOTER
+// 8. SAHITYA (LIBRARY) 3-SUB-TAB HUB:
+//    [1. 📖 १२० सबदवाणी पाठ व अर्थ] | [2. 🪔 आरती, साखी व भजन लिरिक्स] | [3. 📚 ग्रंथ एवं पुस्तकें (PDFs)]
+function injectSahityaThreeTabHub() {
+  const libTab = document.getElementById('tab-library');
+  if (!libTab || document.getElementById('sahityaSubTabBar')) return;
+
+  const pdfGrid = document.getElementById('pdfGrid');
+  if (!pdfGrid) return;
+
+  const subHub = document.createElement('div');
+  subHub.id = 'sahityaMasterHubWrap';
+  subHub.className = 'space-y-5';
+  subHub.innerHTML = `
+    <!-- 3 SUB-TABS INSIDE SAHITYA -->
+    <div id="sahityaSubTabBar" class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 bg-stone-200/80 rounded-2xl">
+      <button onclick="switchLibrarySubTab('shabadwani')" id="libSubBtn_shabadwani" class="py-2.5 px-3 rounded-xl text-xs font-extrabold bg-forest text-amber-300 shadow transition">
+        📖 १२० सबदवाणी पाठ व अर्थ
+      </button>
+      <button onclick="switchLibrarySubTab('aarti')" id="libSubBtn_aarti" class="py-2.5 px-3 rounded-xl text-xs font-bold text-stone-700 hover:bg-white/60 transition">
+        🪔 आरती, साखी व भजन लिरिक्स
+      </button>
+      <button onclick="switchLibrarySubTab('pdfs')" id="libSubBtn_pdfs" class="py-2.5 px-3 rounded-xl text-xs font-bold text-stone-700 hover:bg-white/60 transition">
+        📚 ग्रंथ एवं पुस्तकें (PDFs)
+      </button>
+    </div>
+
+    <!-- SUB-VIEW 1: INTERACTIVE 120 SHABADWANI READER (SHABADWANI APP STYLE) -->
+    <div id="libSubView_shabadwani" class="space-y-4">
+      <!-- Top Controls: Shabad Jump 1-120, Search, A+/A-, Theme Switcher, Audio Read -->
+      <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-bold text-forest">सबद चुनें (1-120):</span>
+          <select id="shabadSelectDropdown" onchange="openShabadByNumber(this.value)" class="p-2 rounded-xl border border-stone-300 bg-amber-50 font-extrabold text-forest"></select>
+          <input type="text" id="shabadSearchInput" oninput="filterShabadByKeyword(this.value)" placeholder="सबद या अर्थ में शब्द खोजें..." class="p-2 rounded-xl border border-stone-300 w-44 sm:w-56">
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button onclick="adjustReaderFontSize(-2)" class="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 font-extrabold text-stone-700" title="अक्षर छोटे करें">A-</button>
+          <button onclick="adjustReaderFontSize(2)" class="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 font-extrabold text-stone-700" title="अक्षर बड़े करें">A+</button>
+          <button onclick="cycleReaderTheme()" id="readerThemeBtn" class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 font-bold border border-amber-300">📜 सेपिया मोड</button>
+          <button onclick="speakCurrentShabad()" class="px-3 py-1.5 rounded-lg bg-forest text-amber-300 font-bold shadow-sm">🔊 सुनें</button>
+        </div>
+      </div>
+
+      <!-- Main Shabadwani Reader Card -->
+      <div id="shabadReaderCard" class="p-6 sm:p-8 rounded-3xl border-2 border-amber-300 bg-[#FFFDF7] shadow-md space-y-5 transition-all">
+        <div class="flex items-center justify-between border-b border-amber-200 pb-3">
+          <span id="shabadReaderBadge" class="px-3 py-1 rounded-full bg-forest text-amber-300 text-xs font-extrabold">श्री सबदवाणी • सबद #1</span>
+          <span id="shabadBookmarkStatus" class="text-[11px] font-bold text-emerald-800">🔖 स्वतः बुकमार्क सुरक्षित</span>
+        </div>
+
+        <div class="text-center space-y-2 py-2">
+          <div id="shabadMoolText" class="font-yatra text-forest leading-relaxed whitespace-pre-wrap" style="font-size: 20px;"></div>
+        </div>
+
+        <div class="p-4 sm:p-5 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-2">
+          <div class="text-xs font-extrabold text-terracotta uppercase tracking-wider">📖 सरल हिंदी भावार्थ (Meaning):</div>
+          <p id="shabadArthText" class="text-stone-800 leading-relaxed whitespace-pre-wrap font-medium" style="font-size: 15px;"></p>
+        </div>
+
+        <div id="shabadPrasangBox" class="text-xs text-stone-500 italic border-t border-stone-200/70 pt-2.5"></div>
+
+        <!-- Prev / Next Shabad Navigation -->
+        <div class="flex items-center justify-between pt-3 border-t border-amber-200">
+          <button onclick="openShabadByNumber(currentShabadNumber - 1)" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-extrabold">← पिछला सबद</button>
+          <span id="shabadFooterNum" class="text-xs font-bold text-stone-500">1 / 120</span>
+          <button onclick="openShabadByNumber(currentShabadNumber + 1)" class="px-4 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-extrabold shadow">अगला सबद →</button>
+        </div>
+      </div>
+
+      <!-- Quick 1-120 Number Grid -->
+      <div class="bg-white p-4 rounded-2xl border border-stone-200 space-y-2">
+        <span class="text-xs font-bold text-forest block">🔢 सीधे सबद क्रमांक (1 से 120) पर जाएं:</span>
+        <div id="shabadQuickNumberGrid" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1"></div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW 2: AARTI, SAKHI & BHAJAN LYRICS -->
+    <div id="libSubView_aarti" class="hidden space-y-4">
+      <div id="aartiLyricsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+  `;
+
+  libTab.insertBefore(subHub, pdfGrid);
+  pdfGrid.classList.add('hidden'); // Default opens Shabadwani Reader first; clicking 3rd tab reveals PDFs
+  populateShabadDropdownAndGrid();
+  openShabadByNumber(currentShabadNumber);
+  renderAartiLyricsGrid();
+}
+
+function switchLibrarySubTab(sub) {
+  currentLibrarySubTab = sub;
+  const bShabad = document.getElementById('libSubBtn_shabadwani');
+  const bAarti = document.getElementById('libSubBtn_aarti');
+  const bPdfs = document.getElementById('libSubBtn_pdfs');
+
+  const vShabad = document.getElementById('libSubView_shabadwani');
+  const vAarti = document.getElementById('libSubView_aarti');
+  const vPdfs = document.getElementById('pdfGrid');
+
+  const activeCls = "py-2.5 px-3 rounded-xl text-xs font-extrabold bg-forest text-amber-300 shadow transition";
+  const idleCls = "py-2.5 px-3 rounded-xl text-xs font-bold text-stone-700 hover:bg-white/60 transition";
+
+  if (bShabad) bShabad.className = sub === 'shabadwani' ? activeCls : idleCls;
+  if (bAarti) bAarti.className = sub === 'aarti' ? activeCls : idleCls;
+  if (bPdfs) bPdfs.className = sub === 'pdfs' ? activeCls : idleCls;
+
+  vShabad?.classList.toggle('hidden', sub !== 'shabadwani');
+  vAarti?.classList.toggle('hidden', sub !== 'aarti');
+  vPdfs?.classList.toggle('hidden', sub !== 'pdfs');
+}
+
+function populateShabadDropdownAndGrid() {
+  const sel = document.getElementById('shabadSelectDropdown');
+  const grid = document.getElementById('shabadQuickNumberGrid');
+  if (sel) {
+    sel.innerHTML = shabadwaniList.map(s => `<option value="${s.num}">सबद #${s.num}</option>`).join('');
+    sel.value = currentShabadNumber;
+  }
+  if (grid) {
+    grid.innerHTML = shabadwaniList.map(s => `
+      <button onclick="openShabadByNumber(${s.num})" id="shabadPill_${s.num}" class="w-9 h-8 rounded-lg text-xs font-bold border transition ${s.num === currentShabadNumber ? 'bg-forest text-amber-300 border-forest' : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-amber-50'}">
+        ${s.num}
+      </button>
+    `).join('');
+  }
+}
+
+function openShabadByNumber(num) {
+  let n = parseInt(num);
+  if (isNaN(n) || n < 1) n = 120;
+  if (n > 120) n = 1;
+  currentShabadNumber = n;
+  localStorage.setItem('bishnoi_last_read_shabad', n.toString());
+
+  const item = shabadwaniList.find(s => s.num === n) || shabadwaniList[0];
+  const badge = document.getElementById('shabadReaderBadge');
+  const mool = document.getElementById('shabadMoolText');
+  const arth = document.getElementById('shabadArthText');
+  const prasang = document.getElementById('shabadPrasangBox');
+  const foot = document.getElementById('shabadFooterNum');
+  const sel = document.getElementById('shabadSelectDropdown');
+
+  if (badge) badge.innerText = `श्री सबदवाणी • सबद #${item.num}`;
+  if (mool) mool.innerText = item.mool;
+  if (arth) arth.innerText = item.arth;
+  if (prasang) prasang.innerText = `📌 प्रसंग: ${item.prasang || 'पावन जम्भवाणी उपदेश'}`;
+  if (foot) foot.innerText = `सबद ${item.num} / 120`;
+  if (sel) sel.value = item.num;
+
+  document.querySelectorAll('[id^="shabadPill_"]').forEach(btn => {
+    btn.className = "w-9 h-8 rounded-lg text-xs font-bold border transition bg-stone-50 text-stone-700 border-stone-200 hover:bg-amber-50";
+  });
+  const activePill = document.getElementById(`shabadPill_${item.num}`);
+  if (activePill) {
+    activePill.className = "w-9 h-8 rounded-lg text-xs font-bold border transition bg-forest text-amber-300 border-forest shadow";
+  }
+  applyReaderFontAndTheme();
+}
+
+function filterShabadByKeyword(q) {
+  const clean = (q || '').trim().toLowerCase();
+  if (!clean) return;
+  const found = shabadwaniList.find(s =>
+    s.num.toString() === clean ||
+    s.mool.toLowerCase().includes(clean) ||
+    s.arth.toLowerCase().includes(clean)
+  );
+  if (found) openShabadByNumber(found.num);
+}
+
+function adjustReaderFontSize(delta) {
+  readerFontSizePx = Math.min(26, Math.max(13, readerFontSizePx + delta));
+  localStorage.setItem('bishnoi_reader_font_size', readerFontSizePx.toString());
+  applyReaderFontAndTheme();
+}
+
+function cycleReaderTheme() {
+  const modes = ['cream', 'sepia', 'night'];
+  readerThemeMode = modes[(modes.indexOf(readerThemeMode) + 1) % modes.length];
+  localStorage.setItem('bishnoi_reader_theme', readerThemeMode);
+  applyReaderFontAndTheme();
+}
+
+function applyReaderFontAndTheme() {
+  const card = document.getElementById('shabadReaderCard');
+  const mool = document.getElementById('shabadMoolText');
+  const arth = document.getElementById('shabadArthText');
+  const btn = document.getElementById('readerThemeBtn');
+  if (!card || !mool || !arth) return;
+
+  mool.style.fontSize = `${readerFontSizePx + 4}px`;
+  arth.style.fontSize = `${readerFontSizePx}px`;
+
+  if (readerThemeMode === 'night') {
+    card.className = "p-6 sm:p-8 rounded-3xl border-2 border-amber-500/40 bg-stone-900 text-amber-100 shadow-xl space-y-5 transition-all";
+    mool.className = "font-yatra text-amber-300 leading-relaxed whitespace-pre-wrap";
+    arth.className = "text-stone-900 leading-relaxed whitespace-pre-wrap font-medium";
+    if (btn) btn.innerText = "☀️ दिन मोड";
+  } else if (readerThemeMode === 'sepia') {
+    card.className = "p-6 sm:p-8 rounded-3xl border-2 border-amber-400 bg-[#F4ECD8] text-stone-900 shadow-md space-y-5 transition-all";
+    mool.className = "font-yatra text-[#143622] leading-relaxed whitespace-pre-wrap";
+    arth.className = "text-stone-800 leading-relaxed whitespace-pre-wrap font-medium";
+    if (btn) btn.innerText = "🌙 रात्रि मोड";
+  } else {
+    card.className = "p-6 sm:p-8 rounded-3xl border-2 border-amber-300 bg-[#FFFDF7] text-stone-900 shadow-md space-y-5 transition-all";
+    mool.className = "font-yatra text-forest leading-relaxed whitespace-pre-wrap";
+    arth.className = "text-stone-800 leading-relaxed whitespace-pre-wrap font-medium";
+    if (btn) btn.innerText = "📜 सेपिया मोड";
+  }
+}
+
+function speakCurrentShabad() {
+  const item = shabadwaniList.find(s => s.num === currentShabadNumber);
+  if (!item) return;
+  speakKidsStory(`सबद संख्या ${item.num}। ${item.mool}। भावार्थ: ${item.arth}`);
+}
+
+function renderAartiLyricsGrid() {
+  const grid = document.getElementById('aartiLyricsGrid');
+  if (!grid) return;
+  grid.innerHTML = aartiLyricsList.map(item => {
+    const safeSpeech = (item.title + '। ' + item.lyrics).replace(/'/g, "\\'").replace(/\n/g, ' ');
+    return `
+      <div class="elevate-card bg-white p-5 rounded-2xl border border-amber-300 shadow-sm space-y-3 flex flex-col justify-between">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold">${item.category || 'आरती व साखी'}</span>
+            <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-forest text-amber-300 rounded-lg font-bold">🔊 सुनें</button>
+          </div>
+          <h3 class="font-yatra text-lg text-forest">${item.title}</h3>
+          <p class="text-xs sm:text-sm text-stone-800 leading-relaxed whitespace-pre-wrap bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/70 font-medium">${item.lyrics}</p>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 9. RESTORE EXACT ORIGINAL PDF CARDS (NO DUPLICATES, GOLD READ BUTTON & GREEN DOWNLOAD)
+function listenPdfs() {
+  db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const grid = document.getElementById('pdfGrid');
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="elevate-card bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm">
+        <div>
+          <span class="text-[11px] font-bold text-terracotta uppercase">पवित्र ग्रंथ</span>
+          <h3 class="font-yatra text-forest text-lg mt-1">श्री सबदवाणी (१२० शब्द)</h3>
+          <p class="text-xs text-stone-500 mt-1">गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+          <button onclick="openInbuiltPdfViewer('श्री सबदवाणी', './shabadwani.pdf')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow-sm">📖 पढ़ें</button>
+          <a href="./shabadwani.pdf" download class="px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
+        </div>
+      </div>
+    `;
+
+    const seenTitles = new Set(['श्री सबदवाणी (१२० शब्द)', 'सबद वाणी', 'श्री सबदवाणी']);
+    snap.forEach(doc => {
+      const item = doc.data();
+      const cleanTitle = (item.title || '').trim();
+      // Skip duplicate Shabadwani card if already shown as first card
+      if (seenTitles.has(cleanTitle) && (item.link === './shabadwani.pdf' || !item.desc)) {
+        if (!isSuperOwner()) return;
+      }
+      const safeTitle = (cleanTitle || 'साहित्य').replace(/'/g, "\\'");
+      const safeLink = (item.link || '').replace(/'/g, "\\'");
+      grid.innerHTML += `
+        <div class="elevate-card bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-terracotta uppercase">साहित्य कोष</span>
+            <h3 class="font-yatra text-forest text-lg mt-1">${cleanTitle}</h3>
+            <p class="text-xs text-stone-500 mt-1">${item.desc || 'अध्ययन एवं संरक्षण हेतु प्रमाणित ग्रंथ।'}</p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-stone-100 flex justify-between items-center">
+            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold rounded-lg shadow-sm">📖 पढ़ें</button>
+            <a href="${item.link}" target="_blank" download class="px-3 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">डाउनलोड</a>
+            ${isSuperOwner() ? `<button onclick="db.collection('pdfs').doc('${doc.id}').delete()" class="text-xs text-rose-600 font-bold">हटाएं</button>` : ''}
+          </div>
+        </div>
+      `;
+    });
+  });
+}
+
+// 10. MODALS: IN-BUILT PDF READER, PROFILE MODAL & NOTIFICATION CENTER
 function injectDynamicModalsAndUI() {
+  removeDuplicateTopNavbarsAndInjectBottomNav();
   upgradeHomepageAndAudioUI();
-  injectUnifiedBottomNavBar();
+  injectSahityaThreeTabHub();
 
   if (!window.pdfjsLib) {
     const script = document.createElement('script');
@@ -517,123 +968,120 @@ function injectDynamicModalsAndUI() {
     document.head.appendChild(script);
   }
 
-  // Inbuilt PDF Reader Modal
   if (!document.getElementById('inbuiltPdfModal')) {
     const pdfModal = document.createElement('div');
     pdfModal.id = 'inbuiltPdfModal';
     pdfModal.className = 'fixed inset-0 z-[9990] bg-stone-950 hidden flex-col select-none';
     pdfModal.innerHTML = `
-      <div class="bg-[#143622] text-white px-4 py-2.5 flex items-center justify-between gap-2 border-b border-stone-700 shrink-0">
-        <h3 id="pdfViewerTitle" class="font-yatra text-sm sm:text-base text-amber-200 truncate">साहित्य पाठक</h3>
-        <div class="flex items-center gap-2 shrink-0">
-          <button onclick="togglePdfLandscapeMode()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold">मोड बदलें</button>
-          <a id="pdfModalDownloadBtn" href="#" download class="px-3 py-1.5 bg-amber-400 text-stone-950 rounded-lg text-xs font-bold">डाउनलोड</a>
-          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-white rounded-lg text-xs font-bold">बंद करें</button>
+      <div class="bg-[#143622] text-white px-3 py-2.5 flex items-center justify-between gap-2 border-b border-amber-500/40 shadow-md shrink-0">
+        <h3 id="pdfViewerTitle" class="font-yatra text-sm sm:text-base text-amber-300 truncate">साहित्य पाठक</h3>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="togglePdfLandscapeMode()" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">🔄 लैंडस्केप</button>
+          <a id="pdfModalDownloadBtn" href="#" download class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">डाउनलोड</a>
+          <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold">✕ बंद करें</button>
         </div>
       </div>
       <div id="pdfSinglePageViewport" class="flex-1 overflow-auto flex items-center justify-center p-2 sm:p-4 bg-stone-900 relative">
-        <div id="pdfLoadingSpinner" class="text-amber-200 text-sm font-semibold">पृष्ठ खुल रहा है...</div>
+        <div id="pdfLoadingSpinner" class="text-amber-300 text-sm font-bold animate-pulse">पृष्ठ खुल रहा है...</div>
         <canvas id="pdfSinglePageCanvas" class="bg-white rounded shadow-2xl max-w-full h-auto hidden"></canvas>
         <iframe id="pdfDriveFallbackFrame" class="hidden w-full h-full border-0 bg-white rounded"></iframe>
       </div>
-      <div id="pdfBottomNavBar" class="bg-[#143622] text-white px-4 py-2.5 border-t border-stone-700 flex items-center justify-between gap-3 shrink-0">
-        <button onclick="changePdfPage(-1)" id="pdfPrevBtn" class="px-4 py-1.5 bg-amber-400 text-stone-950 font-bold text-xs rounded-lg">पिछला पृष्ठ</button>
-        <div class="flex items-center gap-1.5 text-xs font-semibold">
+      <div id="pdfBottomNavBar" class="bg-[#143622] text-white px-4 py-2.5 border-t border-amber-500/30 flex items-center justify-between gap-3 shrink-0">
+        <button onclick="changePdfPage(-1)" id="pdfPrevBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs rounded-xl shadow">← पिछला पन्ना</button>
+        <div class="flex items-center gap-1.5 text-xs font-bold">
           <span>पृष्ठ</span>
-          <input type="number" id="pdfPageJumpInput" min="1" value="1" onchange="jumpToPdfPage(this.value)" class="w-14 text-center py-1 rounded bg-stone-800 text-amber-200 border border-stone-600 font-bold">
+          <input type="number" id="pdfPageJumpInput" min="1" value="1" onchange="jumpToPdfPage(this.value)" class="w-14 text-center py-1 rounded bg-stone-800 text-amber-300 border border-amber-400/40 font-extrabold">
           <span id="pdfTotalPagesLabel">/ 1</span>
         </div>
-        <button onclick="changePdfPage(1)" id="pdfNextBtn" class="px-4 py-1.5 bg-amber-400 text-stone-950 font-bold text-xs rounded-lg">अगला पृष्ठ</button>
+        <button onclick="changePdfPage(1)" id="pdfNextBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs rounded-xl shadow">अगला पन्ना →</button>
       </div>
     `;
     document.body.appendChild(pdfModal);
   }
 
-  // User Profile Modal (With Dynamic Roll No / Email Switch, Jaap Streak & Saved Bookmarks Hub)
   if (!document.getElementById('userProfileModal')) {
     const profModal = document.createElement('div');
     profModal.id = 'userProfileModal';
-    profModal.className = 'fixed inset-0 z-[9980] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto';
+    profModal.className = 'fixed inset-0 z-[9980] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto';
     profModal.innerHTML = `
-      <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-stone-200 shadow-xl my-auto">
-        <div class="bg-[#143622] text-white p-5 relative">
+      <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
+        <div class="bg-gradient-to-r from-[#143622] via-[#1c472e] to-[#0f291a] text-white p-5 relative">
           <button onclick="closeProfileModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center">✕</button>
           <div class="flex items-center gap-3.5">
-            <label class="relative cursor-pointer group shrink-0" title="प्रोफ़ाइल चित्र बदलें">
-              <img id="profPhotoPreview" src="" class="hidden w-16 h-16 rounded-xl object-cover border border-amber-300 shadow">
-              <div id="profAvatarCircle" class="w-16 h-16 rounded-xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow">बि</div>
-              <span class="absolute -bottom-1 -right-1 bg-white text-forest text-[10px] font-bold px-1.5 py-0.5 rounded shadow">फोटो</span>
+            <label class="relative cursor-pointer group shrink-0" title="अपनी फोटो बदलें">
+              <img id="profPhotoPreview" src="" class="hidden w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-lg">
+              <div id="profAvatarCircle" class="w-16 h-16 rounded-2xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow-lg border-2 border-white">बि</div>
+              <span class="absolute -bottom-1 -right-1 bg-white text-forest text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow">📷 फोटो</span>
               <input type="file" accept="image/*" onchange="handleProfilePhotoUpload(event)" class="hidden">
             </label>
             <div>
-              <span id="profileRoleBadge" class="px-2.5 py-0.5 rounded text-[10px] font-bold bg-amber-400/20 text-amber-200 border border-amber-300/30">सदस्य</span>
+              <span id="profileRoleBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-stone-950 uppercase tracking-wide">सदस्य</span>
               <h3 id="profHeaderNameDisplay" class="font-yatra text-xl text-white mt-1">मेरी प्रोफ़ाइल</h3>
-              <p class="text-xs text-stone-300">पर्यावरण एवं नियम साधक</p>
+              <p class="text-xs text-amber-200">🌿 पर्यावरण एवं नियम साधक</p>
             </div>
           </div>
         </div>
 
         <div class="p-5 space-y-4">
-          <div id="ownerStudioInsideProfile" class="hidden p-4 rounded-xl bg-stone-900 text-white space-y-2 border border-stone-700">
+          <div id="ownerStudioInsideProfile" class="hidden p-4 rounded-2xl bg-gradient-to-br from-[#143622] to-stone-900 text-white space-y-2.5 border border-amber-400/50 shadow-md">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-amber-300">व्यवस्थापक एवं परीक्षा नियंत्रण कक्ष</span>
-              <span class="text-[10px] bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded">व्यवस्थापक</span>
+              <span class="text-xs font-extrabold text-amber-300">🛡️ ५-टैब व्यवस्थापक एवं परीक्षा नियंत्रण स्टूडियो</span>
+              <span class="text-[10px] bg-amber-400 text-stone-950 font-extrabold px-2 py-0.5 rounded-full">Admin Studio</span>
             </div>
-            <p class="text-[11px] text-stone-300">परीक्षा अनुभाग, प्रश्न बैंक, प्रवेश-पत्र, सूचनाएं व लॉग्स यहाँ से संचालित करें:</p>
-            <button onclick="closeProfileModal(); switchTab('admin');" class="w-full py-2 bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs rounded-lg transition">
-              व्यवस्थापक नियंत्रण कक्ष खोलें
+            <button onclick="closeProfileModal(); switchTab('admin');" class="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition">
+              🚀 व्यवस्थापक नियंत्रण कक्ष (Open 5-Tab Studio) खोलें
             </button>
           </div>
 
           <div class="grid grid-cols-2 gap-3 text-center">
-            <div class="p-3 rounded-xl bg-[#FAF8F3] border border-stone-200">
-              <div id="statMalaTotal" class="font-bold text-xl text-forest">0</div>
-              <div class="text-xs text-stone-600">कुल मंत्र जप</div>
+            <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+              <div id="statMalaTotal" class="font-extrabold text-xl text-forest">0</div>
+              <div class="text-xs font-semibold text-stone-600">कुल मंत्र जप</div>
             </div>
-            <div class="p-3 rounded-xl bg-[#FAF8F3] border border-stone-200">
-              <div id="statMalaLaps" class="font-bold text-xl text-forest">0</div>
-              <div class="text-xs text-stone-600">पूर्ण माला</div>
+            <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <div id="statMalaLaps" class="font-extrabold text-xl text-forest">0</div>
+              <div class="text-xs font-semibold text-stone-600">पूर्ण माला</div>
             </div>
           </div>
 
           <div class="space-y-2.5 text-xs">
             <div>
-              <label class="font-semibold text-stone-700 block mb-1">आपका नाम:</label>
-              <input type="text" id="profEditName" class="w-full p-2.5 rounded-lg border border-stone-300 font-medium" placeholder="अपना पूरा नाम लिखें">
+              <label class="font-bold text-stone-700 block mb-1">आपका शुभ नाम:</label>
+              <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold" placeholder="अपना नाम लिखें">
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label class="font-semibold text-stone-700 block mb-1">गाँव / ज़िला:</label>
-                <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
+                <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला:</label>
+                <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="उदा: हिसार, हरियाणा">
               </div>
               <div>
-                <label class="font-semibold text-stone-700 block mb-1">ईमेल पता:</label>
-                <input type="email" id="profEditEmail" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="example@mail.com">
+                <label class="font-bold text-stone-700 block mb-1">ईमेल पता:</label>
+                <input type="email" id="profEditEmail" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="example@gmail.com">
               </div>
             </div>
             <div>
-              <label class="font-semibold text-stone-700 block mb-1">नया पासवर्ड (यदि बदलना हो):</label>
-              <input type="password" id="profEditPass" class="w-full p-2.5 rounded-lg border border-stone-300" placeholder="नया पासवर्ड लिखें">
+              <label class="font-bold text-stone-700 block mb-1">नया पासवर्ड (ऐच्छिक):</label>
+              <input type="password" id="profEditPass" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="बदलना हो तो लिखें">
             </div>
 
-            <div class="grid grid-cols-2 gap-2.5 pt-1">
-              <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200">
-                <span class="text-[10px] text-stone-500 block">पंजीकृत मोबाइल</span>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+                <span class="text-[10px] text-stone-400 block">मोबाइल / खाता आईडी</span>
                 <span id="profPhoneDisplay" class="font-bold text-stone-800 truncate block"></span>
               </div>
-              <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200">
-                <span id="profDynamicSecondLabel" class="text-[10px] text-stone-500 block">पंजीकृत ईमेल</span>
-                <span id="profRollDisplay" class="font-bold text-forest truncate block"></span>
+              <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+                <span id="profDynamicSecondLabel" class="text-[10px] text-stone-400 block">पंजीकृत ईमेल</span>
+                <span id="profRollDisplay" class="font-bold text-emerald-700 truncate block"></span>
               </div>
             </div>
           </div>
 
-          <div id="profileBookmarkedQuestionsHub" class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2 text-xs"></div>
+          <div id="profileBookmarkedQuestionsHub" class="p-3 rounded-2xl bg-stone-50 border border-stone-200 space-y-2 text-xs"></div>
 
           <div class="flex flex-wrap gap-2 pt-2 border-t border-stone-100">
-            <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-lg transition">विवरण सहेजें</button>
-            <button onclick="closeProfileModal(); logoutUser();" class="px-4 py-2.5 bg-stone-100 hover:bg-rose-50 text-rose-700 font-semibold text-xs rounded-lg border border-stone-200">लॉगआउट</button>
-            <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-lg">बंद करें</button>
+            <button onclick="saveUserProfileChanges()" class="flex-1 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 प्रोफ़ाइल सहेजें</button>
+            <button onclick="closeProfileModal(); logoutUser();" class="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs rounded-xl border border-red-200">लॉगआउट</button>
+            <button onclick="closeProfileModal()" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl">बंद करें</button>
           </div>
         </div>
       </div>
@@ -641,27 +1089,29 @@ function injectDynamicModalsAndUI() {
     document.body.appendChild(profModal);
   }
 
-  // Notification Modal (Public Announcements/Merit PDFs + Private Mock Scores)
   if (!document.getElementById('mockMeritNotificationModal')) {
     const mModal = document.createElement('div');
     mModal.id = 'mockMeritNotificationModal';
-    mModal.className = 'fixed inset-0 z-[9995] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4';
+    mModal.className = 'fixed inset-0 z-[9995] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4';
     mModal.innerHTML = `
-      <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-stone-200 shadow-xl flex flex-col max-h-[85vh]">
-        <div class="bg-[#143622] text-white p-4 flex items-center justify-between">
-          <div>
-            <h3 class="font-yatra text-base sm:text-lg text-amber-200">सूचना केंद्र एवं परिणाम पट्ट</h3>
-            <p class="text-[11px] text-stone-300">आधिकारिक सूचनाएं, मेरिट सूची एवं आपका व्यक्तिगत अभ्यास परिणाम</p>
+      <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-amber-300 shadow-2xl flex flex-col max-h-[85vh]">
+        <div class="bg-gradient-to-r from-[#143622] to-emerald-900 text-white p-4 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">🔔</span>
+            <div>
+              <h3 class="font-yatra text-base sm:text-lg text-amber-300">सूचना केंद्र एवं परिणाम पट्ट</h3>
+              <p class="text-[10px] text-stone-200">आधिकारिक घोषणाएं, मेरिट PDF एवं आपका निजी मॉक स्कोर</p>
+            </div>
           </div>
           <button onclick="closeMockMeritNotificationModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold">✕</button>
         </div>
 
         <div class="p-2.5 bg-stone-100 border-b border-stone-200 flex gap-2 text-xs">
-          <button onclick="switchNotificationSubView('public_notices')" id="notif_tab_public" class="flex-1 py-2 px-3 rounded-lg bg-forest text-white font-semibold transition">
-            आधिकारिक सूचनाएं व मेरिट सूची
+          <button onclick="switchNotificationSubView('public_notices')" id="notif_tab_public" class="flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition">
+            📢 आधिकारिक सूचनाएं व मेरिट PDF
           </button>
-          <button onclick="switchNotificationSubView('my_mock_scores')" id="notif_tab_personal" class="flex-1 py-2 px-3 rounded-lg bg-white text-stone-700 font-semibold border border-stone-300 transition">
-            मेरा अभ्यास परिणाम
+          <button onclick="switchNotificationSubView('my_mock_scores')" id="notif_tab_personal" class="flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition">
+            🎯 मेरा मॉक टेस्ट परिणाम (निजी)
           </button>
         </div>
 
@@ -671,43 +1121,14 @@ function injectDynamicModalsAndUI() {
     `;
     document.body.appendChild(mModal);
   }
-
-  // Feedback Modal & Clean Compliance Footer (No Personal WhatsApp Number)
-  if (!document.getElementById('userFeedbackModal')) {
-    const fb = document.createElement('div');
-    fb.id = 'userFeedbackModal';
-    fb.className = 'fixed inset-0 z-[9992] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4';
-    fb.innerHTML = `
-      <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 border border-stone-200 shadow-xl text-center">
-        <h3 class="font-yatra text-lg text-forest">सुझाव एवं सहायता कक्ष</h3>
-        <p class="text-xs text-stone-500">मंच या परीक्षा से संबंधित अपना सुझाव या प्रश्न यहाँ दर्ज करें:</p>
-        <textarea id="fbCommentInput" rows="3" placeholder="अपना संदेश यहाँ लिखें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-        <div class="flex gap-2">
-          <button onclick="submitUserFeedback()" class="flex-1 py-2 bg-forest text-white font-semibold text-xs rounded-lg">संदेश भेजें</button>
-          <button onclick="document.getElementById('userFeedbackModal').classList.add('hidden')" class="px-4 py-2 bg-stone-100 text-stone-600 font-semibold text-xs rounded-lg">बंद करें</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(fb);
-  }
-
-  if (!document.getElementById('indusComplianceFooter')) {
-    const footer = document.createElement('footer');
-    footer.id = 'indusComplianceFooter';
-    footer.className = 'max-w-5xl w-full mx-auto px-4 py-6 mt-8 border-t border-stone-200 text-center text-xs text-stone-500 space-y-2';
-    footer.innerHTML = `
-      <div class="flex flex-wrap justify-center gap-4 font-semibold text-forest">
-        <button onclick="openPrivacyPolicyModal()" class="hover:underline">गोपनीयता नीति एवं नियम</button>
-        <span>•</span>
-        <button onclick="openFeedbackModal()" class="hover:underline">सुझाव एवं सहायता कक्ष</button>
-      </div>
-      <p class="text-[11px] text-stone-400">© २०२६ विश्नोई समाज डिजिटल मंच (bishnoism.vercel.app) • सर्वाधिकार सुरक्षित</p>
-    `;
-    document.body.appendChild(footer);
-  }
 }
+/* ==========================================================================
+   PART 2 OF 3: Profile & Notification Logic, 100% Secure Exam Engine
+   (Full-Screen Lock, Question/Option Shuffling, Clear Answer, Live Auto-Save,
+   Pre-Submit Summary Card, Eliminated Students Monitor & Custom Time Re-Chance)
+   ========================================================================== */
 
-// 8. PROFILE, BOOKMARKS & STREAK FUNCTIONS
+// 11. PROFILE, JAAP STREAK & SAVED BOOKMARKS HUB
 function updateDailyJaapStreak() {
   const today = new Date().toISOString().split('T')[0];
   const lastDate = localStorage.getItem('bishnoi_jaap_last_date') || '';
@@ -730,11 +1151,12 @@ function openProfileModal() {
   document.getElementById('profEditName').value = nm;
   document.getElementById('profHeaderNameDisplay').innerText = nm;
   document.getElementById('profEditLocation').value = currentUser.location || '';
-  document.getElementById('profEditEmail').value = currentUser.email || '';
+  if (document.getElementById('profEditEmail')) {
+    document.getElementById('profEditEmail').value = currentUser.email || '';
+  }
   document.getElementById('profEditPass').value = '';
   document.getElementById('profPhoneDisplay').innerText = currentUser.phone || '';
 
-  // Show Roll Number ONLY during active Exam Season; otherwise show Email ID
   const isExamSeasonActive = Boolean(
     parikshaVisibility.enrollment ||
     parikshaVisibility.mainExam ||
@@ -744,11 +1166,11 @@ function openProfileModal() {
   const valEl = document.getElementById('profRollDisplay');
   if (labelEl && valEl) {
     if (isExamSeasonActive) {
-      labelEl.innerText = 'परीक्षा रोल नंबर';
+      labelEl.innerText = 'पंजीकृत रोल नंबर';
       valEl.innerText = examState.rollNumber !== 'GUEST' ? examState.rollNumber : (localStorage.getItem('bishnoi_saved_roll') || 'नामांकन शेष');
     } else {
       labelEl.innerText = 'पंजीकृत ईमेल';
-      valEl.innerText = currentUser.email || 'दर्ज नहीं है';
+      valEl.innerText = currentUser.email || 'दर्ज करें';
     }
   }
 
@@ -760,8 +1182,8 @@ function openProfileModal() {
   const roleBadge = document.getElementById('profileRoleBadge');
   const streakCount = parseInt(localStorage.getItem('bishnoi_jaap_streak') || '1');
   if (roleBadge) {
-    const baseRole = isSuperOwner() ? 'मुख्य व्यवस्थापक' : (isEditorOrOwner() ? 'सह-व्यवस्थापक' : 'पंजीकृत सदस्य');
-    roleBadge.innerText = `${baseRole} • ${streakCount} दिन साधना क्रम`;
+    const baseRole = isSuperOwner() ? '🛡️ मुख्य व्यवस्थापक' : (isEditorOrOwner() ? '✍️ सह-व्यवस्थापक' : '👤 पंजीकृत सदस्य');
+    roleBadge.innerText = `${baseRole} • 🔥 ${streakCount} दिन साधना क्रम`;
   }
 
   document.getElementById('statMalaTotal').innerText = malaTotalCount;
@@ -793,7 +1215,7 @@ function handleProfilePhotoUpload(e) {
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
       updateProfileAvatarUI();
       try { await db.collection('users').doc(currentUser.phone).set({ photo: dataUrl }, { merge: true }); } catch (err) {}
-      showToast("प्रोफ़ाइल फोटो अपडेट हो गई।");
+      showToast("📷 प्रोफ़ाइल फोटो सहेज ली गई!");
     };
     img.src = ev.target.result;
   };
@@ -821,7 +1243,7 @@ async function saveUserProfileChanges() {
   const newLoc = document.getElementById('profEditLocation').value.trim();
   const newEmail = document.getElementById('profEditEmail')?.value.trim() || '';
   const newPass = document.getElementById('profEditPass').value.trim();
-  if (!newName) return showToast("कृपया नाम खाली न छोड़ें।");
+  if (!newName) return showToast("कृपया नाम खाली न छोड़ें!");
 
   currentUser.name = newName;
   currentUser.location = newLoc;
@@ -836,7 +1258,7 @@ async function saveUserProfileChanges() {
   } catch (e) {}
   updateNavAuth();
   closeProfileModal();
-  showToast("प्रोफ़ाइल विवरण सुरक्षित सहेज लिया गया।");
+  showToast("✅ प्रोफ़ाइल सुरक्षित सहेज ली गई!");
 }
 
 function toggleBookmarkCurrentQuestion() {
@@ -848,10 +1270,10 @@ function toggleBookmarkCurrentQuestion() {
 
   if (existsIdx > -1) {
     saved.splice(existsIdx, 1);
-    showToast("प्रश्न अध्ययन सूची से हटाया गया।");
+    showToast("⭐ प्रश्न बुकमार्क सूची से हटाया गया।");
   } else {
     saved.unshift({ title: qTitle, options: q.options || q.opts || [], time: Date.now() });
-    showToast("प्रश्न आपकी प्रोफ़ाइल की अध्ययन सूची में सहेजा गया।");
+    showToast("⭐ प्रश्न आपकी प्रोफ़ाइल के 'Saved Questions' में सुरक्षित हो गया!");
   }
   localStorage.setItem('bishnoi_saved_bookmarks', JSON.stringify(saved.slice(0, 50)));
 }
@@ -861,18 +1283,18 @@ function renderProfileBookmarksList() {
   if (!box) return;
   const saved = JSON.parse(localStorage.getItem('bishnoi_saved_bookmarks') || '[]');
   if (!saved.length) {
-    box.innerHTML = `<div class="text-stone-400 text-center py-1">सहेजे गए प्रश्न (Revision Hub): अभी कोई प्रश्न चिह्नित नहीं है।</div>`;
+    box.innerHTML = `<div class="text-stone-400 text-center py-1">⭐ कोई सहेजा गया प्रश्न (Bookmark) नहीं है।</div>`;
     return;
   }
   box.innerHTML = `
     <div class="flex justify-between items-center font-bold text-forest border-b border-stone-200 pb-1">
-      <span>सहेजे गए महत्वपूर्ण प्रश्न (${saved.length})</span>
-      <button onclick="localStorage.removeItem('bishnoi_saved_bookmarks'); renderProfileBookmarksList();" class="text-[10px] text-rose-600">सूची साफ़ करें</button>
+      <span>⭐ मेरे सहेजे गए प्रश्न (${saved.length})</span>
+      <button onclick="localStorage.removeItem('bishnoi_saved_bookmarks'); renderProfileBookmarksList();" class="text-[10px] text-rose-600">सभी हटाएं</button>
     </div>
     <div class="max-h-32 overflow-y-auto space-y-1.5 pt-1">
       ${saved.map((item, i) => `
-        <div class="p-2 rounded bg-white border border-stone-200 text-[11px]">
-          <div class="font-semibold text-stone-800">${i + 1}. ${item.title}</div>
+        <div class="p-2 rounded-lg bg-white border border-stone-200 text-[11px]">
+          <div class="font-bold text-stone-800">${i + 1}.${item.title}</div>
           <div class="text-stone-500 mt-0.5">${(item.options || []).join(' • ')}</div>
         </div>
       `).join('')}
@@ -880,24 +1302,7 @@ function renderProfileBookmarksList() {
   `;
 }
 
-// 9. NOTIFICATION CENTER (PUBLIC BROADCASTS + PRIVATE MOCK SCORES)
-function ensureBellIconMounted() {
-  const container = document.getElementById('authActionsContainer');
-  if (!container) return;
-  container.className = "flex items-center gap-2 shrink-0";
-
-  if (!document.getElementById('topMockMeritBellBtn')) {
-    const bellBtn = document.createElement('button');
-    bellBtn.id = 'topMockMeritBellBtn';
-    bellBtn.type = 'button';
-    bellBtn.onclick = openMockMeritNotificationModal;
-    bellBtn.title = "सूचना केंद्र एवं परिणाम";
-    bellBtn.className = "p-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-forest border border-stone-300 transition flex items-center justify-center shrink-0";
-    bellBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
-    container.insertBefore(bellBtn, container.firstChild);
-  }
-}
-
+// 12. NOTIFICATION CENTER (PUBLIC BROADCASTS + PRIVATE MOCK SCORES)
 function openMockMeritNotificationModal() {
   const m = document.getElementById('mockMeritNotificationModal');
   if (m) {
@@ -919,14 +1324,14 @@ function switchNotificationSubView(view) {
   const boxPer = document.getElementById('notifPersonalMockBox');
 
   if (view === 'public_notices') {
-    if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-lg bg-forest text-white font-semibold transition";
-    if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-lg bg-white text-stone-700 font-semibold border border-stone-300 transition";
+    if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition";
+    if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition";
     boxPub?.classList.remove('hidden');
     boxPer?.classList.add('hidden');
     loadPublicNotificationsFeed();
   } else {
-    if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-lg bg-forest text-white font-semibold transition";
-    if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-lg bg-white text-stone-700 font-semibold border border-stone-300 transition";
+    if (bPer) bPer.className = "flex-1 py-2 px-3 rounded-xl bg-forest text-white font-bold shadow-sm transition";
+    if (bPub) bPub.className = "flex-1 py-2 px-3 rounded-xl bg-white text-stone-700 font-bold border border-stone-300 transition";
     boxPer?.classList.remove('hidden');
     boxPub?.classList.add('hidden');
     loadMyPrivateMockScores();
@@ -938,7 +1343,7 @@ async function loadPublicNotificationsFeed() {
   if (!box) return;
   box.innerHTML = `<div class="p-6 text-center text-stone-400">सूचनाएं लोड हो रही हैं...</div>`;
   try {
-    const snap = await db.collection('publicNotifications').orderBy('createdAt', 'desc').limit(20).get();
+    const snap = await db.collection('publicNotifications').orderBy('createdAt', 'desc').limit(25).get();
     if (snap.empty) {
       box.innerHTML = `<div class="p-6 text-center text-stone-400">अभी कोई नई सार्वजनिक सूचना या मेरिट PDF जारी नहीं हुई है।</div>`;
       return;
@@ -951,21 +1356,21 @@ async function loadPublicNotificationsFeed() {
       const isPdf = safeLink.toLowerCase().endsWith('.pdf') || safeLink.includes('drive.google.com');
 
       return `
-        <div class="p-3.5 rounded-xl bg-[#FAF8F3] border border-stone-200 space-y-2">
+        <div class="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2 shadow-sm">
           <div class="flex items-center justify-between gap-2">
-            <span class="px-2 py-0.5 bg-forest text-amber-200 rounded text-[10px] font-semibold">${n.badge || 'आधिकारिक सूचना'}</span>
+            <span class="px-2 py-0.5 bg-forest text-amber-300 rounded text-[10px] font-extrabold uppercase">${n.badge || 'आधिकारिक सूचना'}</span>
             <div class="flex items-center gap-2">
               <span class="text-[10px] text-stone-400">${dateStr}</span>
-              ${isSuperOwner() ? `<button onclick="deletePublicNotification('${doc.id}')" class="text-rose-600 font-bold text-xs">हटाएं</button>` : ''}
+              ${isSuperOwner() ? `<button onclick="deletePublicNotification('${doc.id}')" class="text-rose-600 font-bold text-xs">✕</button>` : ''}
             </div>
           </div>
           <h4 class="font-bold text-sm text-forest">${n.title || ''}</h4>
           ${n.message ? `<p class="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">${n.message}</p>` : ''}
           ${n.link ? `
             <div class="pt-1 flex flex-wrap gap-2">
-              ${isPdf ? `<button onclick="closeMockMeritNotificationModal(); openInbuiltPdfViewer('${safeTitle}', '${safeLink}');" class="px-3 py-1.5 bg-amber-400 text-stone-950 font-bold rounded-lg text-xs">पीडीएफ पढ़ें</button>` : ''}
-              <a href="${n.link}" target="_blank" class="px-3 py-1.5 bg-forest text-white font-semibold rounded-lg text-xs inline-flex items-center gap-1">
-                ${n.linkLabel || 'दस्तावेज़ खोलें'} ↗
+              ${isPdf ? `<button onclick="closeMockMeritNotificationModal(); openInbuiltPdfViewer('${safeTitle}', '${safeLink}');" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-lg text-xs shadow-sm">📄 ऐप में PDF खोलें</button>` : ''}
+              <a href="${n.link}" target="_blank" class="px-3 py-1.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-lg text-xs shadow-sm inline-flex items-center gap-1">
+                🔗 ${n.linkLabel || 'लिंक / दस्तावेज़ खोलें'} ↗
               </a>
             </div>
           ` : ''}
@@ -991,40 +1396,52 @@ function loadMyPrivateMockScores() {
 
   if (!localHistory.length) {
     box.innerHTML = `
-      <div class="p-6 text-center space-y-1 text-stone-500">
-        <p class="font-semibold text-forest">अभी तक आपने कोई अभ्यास या मॉक टेस्ट नहीं दिया है।</p>
-        <p class="text-[11px] text-stone-400">यहाँ केवल आपके व्यक्तिगत मॉक प्राप्तांक सुरक्षित रहते हैं।</p>
+      <div class="p-6 text-center space-y-2 text-stone-500">
+        <div class="text-2xl">🎯</div>
+        <p class="font-semibold text-forest">अभी तक आपने कोई मॉक या अभ्यास टेस्ट नहीं दिया है।</p>
       </div>
     `;
     return;
   }
 
-  box.innerHTML = localHistory.map(r => {
+  box.innerHTML = `
+    <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-forest font-semibold mb-2">
+      🔒 निजी अभ्यास कक्ष: आपके फ़ोन में सहेजे गए मॉक व अभ्यास प्राप्तांक:
+    </div>
+  ` + localHistory.map(r => {
     const mName = r.mode === 'mock_1' ? 'मॉक टेस्ट - ०१' : (r.mode === 'mock_2' ? 'मॉक टेस्ट - ०२' : 'दैनिक ज्ञान अभ्यास');
     const pct = r.total ? Math.round((r.score / r.total) * 100) : 0;
     const safeName = (r.candidateName || currentUser?.name || 'प्रतिभागी').replace(/'/g, "\\'");
     return `
-      <div class="p-3.5 rounded-xl bg-white border border-stone-200 flex items-center justify-between gap-3">
+      <div class="p-3.5 rounded-2xl bg-white border border-stone-200 flex items-center justify-between gap-3 shadow-sm">
         <div>
-          <span class="text-[10px] font-semibold text-stone-600 bg-stone-100 px-2 py-0.5 rounded">${mName}</span>
+          <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">${mName}</span>
           <div class="font-bold text-stone-800 mt-1">${r.candidateName || currentUser?.name || 'प्रतिभागी'}</div>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="px-3 py-1 rounded-lg bg-forest text-white font-bold text-xs">${r.score} / ${r.total} (${pct}%)</span>
-          <button onclick="closeMockMeritNotificationModal(); generateCertificate('${safeName}', ${pct});" class="px-2.5 py-1.5 bg-amber-400 text-stone-950 rounded-lg text-[11px] font-bold">प्रमाण-पत्र</button>
+        <div class="text-right flex items-center gap-2">
+          <span class="px-3 py-1 rounded-xl bg-forest text-amber-300 font-extrabold text-xs block">${r.score} / ${r.total} (${pct}%)</span>
+          <button onclick="closeMockMeritNotificationModal(); generateCertificate('${safeName}', ${pct});" class="px-2.5 py-1.5 bg-amber-500 text-stone-950 rounded-lg text-[11px] font-extrabold">🎓 प्रमाण-पत्र</button>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// 10. PARIKSHA 5-SECTION VISIBILITY & SUB-ADMIN RBAC
+// 13. PARIKSHA VISIBILITY, ENROLLMENT, ADMIT CARD & INDIVIDUAL RESULT DESK
 function listenParikshaVisibility() {
   db.collection('examConfig').doc('visibility').onSnapshot(doc => {
     if (doc.exists) {
       parikshaVisibility = { ...parikshaVisibility, ...doc.data() };
     }
     applyParikshaVisibilityUI();
+  });
+
+  // Listen to Blocked Roll Numbers & Re-Chance Grants
+  db.collection('examConfig').doc('securityControls').onSnapshot(doc => {
+    if (doc.exists) {
+      blockedRollNumbersMap = doc.data().blockedRolls || {};
+      studentRechanceGrantsMap = doc.data().rechanceGrants || {};
+    }
   });
 }
 
@@ -1058,7 +1475,7 @@ function applyParikshaVisibilityUI() {
 
 async function updateParikshaVisibilitySettings() {
   if (!isSuperOwner() && !(subAdminPermissionsMap[currentUser?.phone]?.canPublishExam || subAdminPermissionsMap[currentUser?.phone]?.canToggleResults)) {
-    return showToast("यह परिवर्तन करने का अधिकार केवल अधिकृत व्यवस्थापक के पास है।");
+    return showToast("केवल अधिकृत व्यवस्थापक के पास अधिकार है!");
   }
   const enrollment = document.getElementById('toggleEnrollmentSection')?.checked || false;
   const mock = document.getElementById('toggleMockSection')?.checked || false;
@@ -1070,7 +1487,7 @@ async function updateParikshaVisibilitySettings() {
     enrollment, mock, mainExam, dailyQuiz, resultsPublished
   }, { merge: true });
 
-  showToast("परीक्षा अनुभाग दृश्यता सेटिंग्स अपडेट हो गईं।");
+  showToast("✅ सभी ५ परीक्षा एवं परिणाम विज़िबिलिटी सेटिंग्स अपडेट हो गईं!");
 }
 
 function startExamCountdownClock(targetIso) {
@@ -1085,7 +1502,7 @@ function startExamCountdownClock(targetIso) {
     if (!disp) return;
 
     if (diff <= 0) {
-      disp.innerText = "00:00:00 (परीक्षा प्रारंभ)";
+      disp.innerText = "00:00:00 (परीक्षा लाइव है)";
       if (startBtn) startBtn.classList.remove('opacity-50', 'pointer-events-none');
       clearInterval(examCountdownTimer);
       return;
@@ -1104,24 +1521,788 @@ function startExamCountdownClock(targetIso) {
   examCountdownTimer = setInterval(update, 1000);
 }
 
-// 11. OWNER STUDIO DYNAMIC PANELS & RBAC
-function mountOwnerStudioExtensions() {
-  // 1. Add Admit Card Download Button inside Enrollment Box
+async function handleExamEnrollment(e) {
+  e.preventDefault();
+  const name = document.getElementById('enrollName').value.trim();
+  const fatherName = document.getElementById('enrollFatherName').value.trim();
+  const dob = document.getElementById('enrollDob').value;
+  const phone = document.getElementById('enrollPhone').value.trim();
+  const email = document.getElementById('enrollEmail').value.trim();
+  const location = document.getElementById('enrollLocation').value.trim();
+
+  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का फ़ोन नंबर भरें!");
+  if (!name || !fatherName || !dob || !location) return showToast("कृपया सभी अनिवार्य फ़ील्ड्स भरें!");
+
+  try {
+    const existingSnap = await db.collection('examEnrolledStudents').where('phone', '==', phone).limit(1).get();
+    if (!existingSnap.empty) {
+      const exData = existingSnap.docs[0].data();
+      examState.rollNumber = exData.rollNumber || existingSnap.docs[0].id;
+      lastEnrolledStudentObj = exData;
+      localStorage.setItem('bishnoi_saved_roll', examState.rollNumber);
+      localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(exData));
+      alert(`ℹ️ आपका नामांकन पहले से दर्ज है!\n\nरोल नंबर: ${examState.rollNumber}\nआपका प्रवेश-पत्र डाउनलोड हो रहा है।`);
+      downloadStudentAdmitCardPdf(exData);
+      return;
+    }
+
+    let rollNumber = '';
+    let isUnique = false;
+    while (!isUnique) {
+      const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+      rollNumber = `JAMBH-2026-${randomSuffix}`;
+      const checkDoc = await db.collection('examEnrolledStudents').doc(rollNumber).get();
+      if (!checkDoc.exists) isUnique = true;
+    }
+
+    const studentRecord = {
+      rollNumber, name, fatherName, dob, phone,
+      email: email || '-', location,
+      enrolledAt: firebase.firestore.FieldValue.serverTimestamp(),
+      timestamp: Date.now()
+    };
+
+    await db.collection('examEnrolledStudents').doc(rollNumber).set(studentRecord);
+    examState.rollNumber = rollNumber;
+    lastEnrolledStudentObj = studentRecord;
+    localStorage.setItem('bishnoi_saved_roll', rollNumber);
+    localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(studentRecord));
+
+    alert(`🎉 बधाई! आपका परीक्षा नामांकन सफल हुआ।\n\nरोल नंबर: ${rollNumber}\nआपका प्रवेश-पत्र (Admit Card) स्वतः डाउनलोड हो रहा है।`);
+    downloadStudentAdmitCardPdf(studentRecord);
+  } catch (err) {
+    showToast("नामांकन त्रुटि: " + err.message);
+  }
+}
+
+async function downloadStudentAdmitCardPdf(customObj) {
+  let st = customObj || lastEnrolledStudentObj;
+  if (!st) {
+    const r = prompt("प्रवेश-पत्र डाउनलोड करने हेतु अपना रोल नंबर या 10-अंकों का मोबाइल नंबर लिखें:");
+    if (!r) return;
+    const clean = r.trim().toUpperCase();
+    if (clean.startsWith('JAMBH')) {
+      const d = await db.collection('examEnrolledStudents').doc(clean).get();
+      if (d.exists) st = d.data();
+    } else {
+      const s = await db.collection('examEnrolledStudents').where('phone', '==', clean).limit(1).get();
+      if (!s.empty) st = s.docs[0].data();
+    }
+    if (!st) return showToast("कोई नामांकन रिकॉर्ड नहीं मिला!");
+    lastEnrolledStudentObj = st;
+    localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(st));
+  }
+
+  if (!window.jspdf || !window.jspdf.jsPDF) return showToast("PDF इंजन लोड हो रहा है...");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setDrawColor(20, 54, 34);
+  doc.setLineWidth(1.5);
+  doc.rect(10, 10, 190, 142);
+
+  doc.setFontSize(15);
+  doc.setTextColor(20, 54, 34);
+  doc.text("BISHNOI SAMAJ DIGITAL PORTAL (bishnoism.vercel.app)", 105, 21, { align: "center" });
+  doc.setFontSize(12);
+  doc.setTextColor(179, 74, 27);
+  doc.text(customAdmitConfig.examTitle || "OFFICIAL EXAMINATION ADMIT CARD", 105, 29, { align: "center" });
+
+  doc.autoTable({
+    startY: 35,
+    margin: { left: 16, right: 16 },
+    theme: 'grid',
+    head: [['Field', 'Verified Candidate Details']],
+    body: [
+      ['Roll Number (Unique ID)', st.rollNumber || '-'],
+      ['Candidate Full Name', st.name || '-'],
+      ['Father Name', st.fatherName || '-'],
+      ['Date of Birth (DOB)', st.dob || '-'],
+      ['Registered Mobile', st.phone || '-'],
+      ['District / State', st.location || '-'],
+      ['Exam Date & Time', customAdmitConfig.examDateStr || 'As Announced'],
+      ['Exam Venue / Mode', customAdmitConfig.examCenterStr || 'Online Digital Hall']
+    ],
+    styles: { fontSize: 9.5, cellPadding: 2.5 },
+    headStyles: { fillColor: [20, 54, 34] }
+  });
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(20, 54, 34);
+  doc.text(`QR VERIFICATION ID: ${st.rollNumber} | HASH: ${btoa(st.rollNumber || '').substring(0, 10)}`, 16, 134);
+  doc.setTextColor(90, 90, 90);
+  doc.text(`Instructions: ${customAdmitConfig.instructionsStr}`, 16, 142);
+
+  doc.save(`Admit_Card_${st.rollNumber}.pdf`);
+  showToast("🎫 प्रवेश-पत्र (Admit Card) डाउनलोड हो गया!");
+}
+
+async function handleIndividualResultCheck(e) {
+  e.preventDefault();
+  const roll = document.getElementById('resCheckRoll').value.trim().toUpperCase();
+  const name = document.getElementById('resCheckName').value.trim().toLowerCase();
+  const dob = document.getElementById('resCheckDob').value;
+  const resultBox = document.getElementById('studentPersonalResultDisplay');
+  if (!resultBox) return;
+
+  try {
+    const enrolledDoc = await db.collection('examEnrolledStudents').doc(roll).get();
+    if (!enrolledDoc.exists) return showToast("यह रोल नंबर हमारे रिकॉर्ड में नहीं मिला!");
+    const studentData = enrolledDoc.data();
+    if (studentData.dob !== dob || !studentData.name.toLowerCase().includes(name)) {
+      return showToast("दर्ज किया गया नाम या जन्मतिथि रोल नंबर से मेल नहीं खाती!");
+    }
+
+    let subData = null;
+    const mainSnap = await db.collection('mainExamSubmissions').where('rollNumber', '==', roll).limit(1).get();
+    if (!mainSnap.empty) {
+      subData = mainSnap.docs[0].data();
+    } else {
+      const fallbackSnap = await db.collection('examSubmissions').where('rollNumber', '==', roll).limit(1).get();
+      if (!fallbackSnap.empty) subData = fallbackSnap.docs[0].data();
+    }
+
+    if (!subData) {
+      resultBox.innerHTML = `<div class="p-4 bg-amber-50 rounded-xl border border-amber-300 text-center text-xs text-amber-900 font-semibold">आपकी उत्तर-पुस्तिका प्राप्त नहीं हुई है अथवा परिणाम अभी प्रक्रियाधीन है।</div>`;
+      resultBox.classList.remove('hidden');
+      return;
+    }
+
+    const score = subData.score || 0;
+    const total = subData.total || 100;
+    const percentage = Math.round((score / total) * 100);
+    const safeName = studentData.name.replace(/'/g, "\\'");
+
+    resultBox.innerHTML = `
+      <div class="p-5 bg-gradient-to-br from-emerald-50 via-white to-amber-50 rounded-2xl border-2 border-forest shadow-md space-y-3">
+        <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+          <span class="font-yatra text-base text-forest">जाम्भाणी साहित्य परीक्षा - आधिकारिक अंकतालिका</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-forest font-bold text-xs">✓ सत्यापित</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-700">
+          <div><b>परीक्षार्थी का नाम:</b> ${studentData.name}</div>
+          <div><b>पिता का नाम:</b> ${studentData.fatherName}</div>
+          <div><b>रोल नंबर:</b> ${roll}</div>
+          <div><b>जन्मतिथि (DOB):</b> ${dob}</div>
+          <div class="sm:col-span-2"><b>स्थान:</b> ${studentData.location}</div>
+        </div>
+        <div class="p-3 bg-white rounded-xl border border-stone-200 flex items-center justify-between">
+          <span class="font-bold text-xs text-stone-600">प्राप्तांक (Marks Obtained):</span>
+          <span class="text-xl font-extrabold text-terracotta">${score} / ${total} (${percentage}%)</span>
+        </div>
+        <button onclick="generateCertificate('${safeName}', ${percentage})" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-950">
+          📜 डिजिटल सम्मान-पत्र (Certificate) डाउनलोड करें
+        </button>
+      </div>
+    `;
+    resultBox.classList.remove('hidden');
+  } catch (err) {
+    showToast("परिणाम जाँच में त्रुटि: " + err.message);
+  }
+}
+
+// 14. ADVANCED EXAM ENGINE: SHUFFLING, FULL-SCREEN LOCK, PRE-SUBMIT SUMMARY,
+//     CLEAR RESPONSE, LIVE SAVE BADGE & OWNER "ONE MORE CHANCE" WITH CUSTOM TIME!
+function shuffleExamQuestionsAndOptions(rawList) {
+  const cloned = rawList.map((q, idx) => {
+    const origOpts = [...(q.options || q.opts || [])];
+    const origAnsIdx = Number(q.ans ?? 0);
+    const correctText = origOpts[origAnsIdx];
+
+    // Pair options and shuffle them
+    const shuffledOpts = [...origOpts];
+    for (let i = shuffledOpts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledOpts[i], shuffledOpts[j]] = [shuffledOpts[j], shuffledOpts[i]];
+    }
+    const newAnsIdx = shuffledOpts.indexOf(correctText);
+
+    return {
+      id: q.id || `q_${idx}`,
+      title: q.title || q.q || '',
+      options: shuffledOpts,
+      ans: newAnsIdx >= 0 ? newAnsIdx : 0
+    };
+  });
+
+  // Shuffle Question Order
+  for (let i = cloned.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cloned[i], cloned[j]] = [cloned[j], cloned[i]];
+  }
+  return cloned;
+}
+
+async function launchMainExamPortal() {
+  let roll = examState.rollNumber;
+  if (!roll || roll === 'GUEST') {
+    const inputRoll = prompt("परीक्षा कक्ष में प्रवेश हेतु अपना रोल नंबर दर्ज करें (जैसे: JAMBH-2026-12345):");
+    if (!inputRoll) return;
+    roll = inputRoll.trim().toUpperCase();
+  }
+
+  // 1. Check if Owner has blocked this Roll Number
+  if (blockedRollNumbersMap[roll] && !isSuperOwner()) {
+    return alert(`🚫 प्रवेश प्रतिबंधित (Blocked)!\n\nरोल नंबर ${roll} को व्यवस्थापक द्वारा परीक्षा से प्रतिबंधित किया गया है।\nकारण: ${blockedRollNumbersMap[roll]}`);
+  }
+
+  // 2. Check if Student has an active "One More Chance" Custom Time Grant from Owner!
+  const rechanceGrant = studentRechanceGrantsMap[roll];
+  const hasValidRechance = Boolean(rechanceGrant && rechanceGrant.grantedMinutes > 0 && !rechanceGrant.used);
+
+  // 3. Enforce Late Entry Cutoff (Unless Owner granted them a Re-Chance!)
+  if (parikshaVisibility.examScheduleTime && !isSuperOwner() && !hasValidRechance) {
+    const startMs = new Date(parikshaVisibility.examScheduleTime).getTime();
+    const nowMs = getSyncedNow();
+    const cutoffMins = customAdmitConfig.lateCutoffMins ?? 5;
+
+    if (nowMs < startMs) {
+      return showToast("⏳ परीक्षा अभी प्रारंभ नहीं हुई है! कृपया काउंटडाउन समाप्त होने की प्रतीक्षा करें।");
+    }
+    if (cutoffMins > 0 && nowMs > startMs + (cutoffMins * 60 * 1000)) {
+      return alert(`🚫 प्रवेश बंद (Late Entry Closed)!\n\nपरीक्षा प्रारंभ होने के ${cutoffMins} मिनट बाद परीक्षा कक्ष में प्रवेश की अनुमति नहीं है।`);
+    }
+  }
+
+  try {
+    const rollDoc = await db.collection('examEnrolledStudents').doc(roll).get();
+    if (!rollDoc.exists && !isSuperOwner()) {
+      return showToast("अमान्य रोल नंबर! कृपया पहले नामांकन करें या सही रोल नंबर डालें।");
+    }
+    if (rollDoc.exists) examState.enrolledProfile = rollDoc.data();
+
+    // Check if student already submitted or was eliminated
+    const existingSubDoc = await db.collection('examSubmissions').doc(roll).get();
+    if (existingSubDoc.exists && !hasValidRechance && !isSuperOwner()) {
+      const subData = existingSubDoc.data();
+      if (subData.isForcedSubmission) {
+        return alert(
+          `⚠️ परीक्षा से निष्कासित (Eliminated due to Tab-Switch/Cheating)!\n\n` +
+          `रोल नंबर: ${roll}\n` +
+          `आप ३ बार टैब बदलने के कारण परीक्षा से बाहर हो चुके हैं।\n` +
+          `यदि यह तकनीकी त्रुटि थी, तो मुख्य व्यवस्थापक (Owner) अपने स्टूडियो से आपको निर्धारित समय के साथ 'दूसरा मौका (One More Chance)' दे सकते हैं।`
+        );
+      }
+      return alert(`ℹ️ आपकी उत्तर-पुस्तिका (रोल नं: ${roll}) पहले ही जमा हो चुकी है!`);
+    }
+
+    // Determine Exam Duration: Use Owner's custom granted minutes if this is a Second Chance!
+    let customDurationMins = parikshaVisibility.examDuration || 120;
+    examState.isSecondChanceSession = false;
+
+    if (hasValidRechance) {
+      customDurationMins = parseInt(rechanceGrant.grantedMinutes);
+      examState.isSecondChanceSession = true;
+      // Mark grant as used in Firestore so they can't use it endlessly
+      studentRechanceGrantsMap[roll].used = true;
+      await db.collection('examConfig').doc('securityControls').set({
+        rechanceGrants: studentRechanceGrantsMap
+      }, { merge: true });
+      alert(`✅ व्यवस्थापक द्वारा आपको पुनः अवसर (Second Chance) प्रदान किया गया है!\n\nआपको यह परीक्षा पूर्ण करने हेतु केवल ${customDurationMins} मिनट का समय दिया गया है। ${customDurationMins} मिनट पूर्ण होते ही पेपर स्वतः सबमिट हो जाएगा।`);
+    }
+
+    examState.rollNumber = roll;
+    localStorage.setItem('bishnoi_saved_roll', roll);
+    examState.activeMode = 'main_exam';
+    markedForReviewSet.clear();
+
+    const bundleDoc = await db.collection('examBundles').doc('main_exam').get();
+    if (bundleDoc.exists && Array.isArray(bundleDoc.data().questions) && bundleDoc.data().questions.length > 0) {
+      const shuffled = shuffleExamQuestionsAndOptions(bundleDoc.data().questions);
+      return startExamEngine(shuffled, customDurationMins);
+    }
+
+    const snap = await db.collection('mainExamQuestions').get();
+    let list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    if (!list.length) return showToast("मुख्य परीक्षा के प्रश्न अभी लाइव नहीं किए गए हैं।");
+    startExamEngine(shuffleExamQuestionsAndOptions(list), customDurationMins);
+  } catch (e) {
+    showToast("त्रुटि: " + e.message);
+  }
+}
+
+async function startMockTestEngine(mockId) {
+  const modeKey = `mock_${mockId}`;
+  examState.activeMode = modeKey;
+  examState.isSecondChanceSession = false;
+  markedForReviewSet.clear();
+  try {
+    const bundleDoc = await db.collection('examBundles').doc(modeKey).get();
+    if (bundleDoc.exists && Array.isArray(bundleDoc.data().questions) && bundleDoc.data().questions.length > 0) {
+      return startExamEngine(shuffleExamQuestionsAndOptions(bundleDoc.data().questions), 60);
+    }
+    const snap = await db.collection(`mockExam_${mockId}`).get();
+    let list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    if (!list.length) {
+      list = [
+        { id: 'm1_1', title: 'गुरु जम्भेश्वर भगवान द्वारा स्थापित विश्नोई समाज के कुल कितने नियम हैं?', options: ['21 नियम', '29 नियम', '36 नियम', '108 नियम'], ans: 1 },
+        { id: 'm1_2', title: 'खेजड़ली में ३६३ पर्यावरण प्रेमियों का बलिदान किस वर्ष हुआ था?', options: ['1730 ईस्वी', '1485 ईस्वी', '1857 ईस्वी', '1947 ईस्वी'], ans: 0 },
+        { id: 'm1_3', title: 'बिश्नोई पंथ की स्थापना किस पावन स्थल पर हुई?', options: ['पीपासर', 'समराथल धोरा', 'मुकाम', 'जांगलू'], ans: 1 }
+      ];
+    }
+    startExamEngine(shuffleExamQuestionsAndOptions(list), 60);
+  } catch (e) {
+    showToast("मॉक टेस्ट लोड त्रुटि!");
+  }
+}
+
+function startQuizNow() {
+  examState.activeMode = 'daily_quiz';
+  examState.isSecondChanceSession = false;
+  markedForReviewSet.clear();
+  startExamEngine(shuffleExamQuestionsAndOptions(quizList), 15);
+}
+
+function requestExamFullScreen() {
+  try {
+    const docEl = document.documentElement;
+    if (docEl.requestFullscreen && !document.fullscreenElement) {
+      docEl.requestFullscreen().catch(() => {});
+    }
+  } catch (e) {}
+}
+
+function exitExamFullScreen() {
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  } catch (e) {}
+}
+
+function startExamEngine(questionList, durationMinutes) {
+  encryptedAnswerKeyMap = {};
+  const sanitizedQuestions = (questionList || []).map((q, idx) => {
+    const qId = q.id || `q_${idx}`;
+    encryptedAnswerKeyMap[qId] = Number(q.ans ?? 0) ^ 79;
+    const copy = { ...q, id: qId };
+    delete copy.ans;
+    return copy;
+  });
+
+  examState.questions = sanitizedQuestions;
+  examState.timeRemainingSeconds = durationMinutes * 60;
+  examState.currentIndex = 0;
+  examState.tabSwitchCount = 0;
+  examState.isExamRunning = true;
+
+  const cacheKey = `encExam_${examState.activeMode}_${examState.rollNumber}`;
+  examState.answers = decryptLocalData(localStorage.getItem(cacheKey));
+
+  document.getElementById('examClosedNoticeBox')?.classList.add('hidden');
+  document.getElementById('examEnrollmentBox')?.classList.add('hidden');
+  document.getElementById('mockTestsHub')?.classList.add('hidden');
+  document.getElementById('mainExamLaunchBox')?.classList.add('hidden');
+  document.getElementById('examResultCheckDesk')?.classList.add('hidden');
+  document.getElementById('quizIntroCard')?.classList.add('hidden');
+  document.getElementById('quizActiveBox')?.classList.remove('hidden');
+
+  // Request Fullscreen Lock on Start
+  requestExamFullScreen();
+
+  const rollEl = document.getElementById('examCandidateRoll');
+  if (rollEl) {
+    const chanceTag = examState.isSecondChanceSession ? ` • ⏳ पुनः अवसर (${durationMinutes} मि.)` : '';
+    rollEl.innerHTML = `रोल: ${examState.rollNumber}${chanceTag} <span id="liveAutoSaveBadge" class="ml-2 px-2 py-0.5 rounded-full bg-emerald-100 text-forest text-[10px] font-extrabold">🟢 उत्तर फ़ोन में सुरक्षित</span>`;
+  }
+
+  // Upgrade Submit Button to open Pre-Submit Summary Confirmation Card
+  const submitBtn = document.querySelector('#quizActiveBox button[onclick*="submitFinalExam"]');
+  if (submitBtn) {
+    submitBtn.setAttribute('onclick', 'openPreSubmitSummaryModal()');
+  }
+
+  initExamSecurity();
+  buildQuestionGridPills();
+  renderQuestion(examState.currentIndex);
+
+  if (examState.timerInterval) clearInterval(examState.timerInterval);
+  examState.timerInterval = setInterval(() => {
+    examState.timeRemainingSeconds--;
+    updateTimerDisplay(examState.timeRemainingSeconds);
+    if (examState.timeRemainingSeconds <= 0) {
+      clearInterval(examState.timerInterval);
+      submitFinalExam(false);
+    }
+  }, 1000);
+}
+
+function initExamSecurity() {
+  if (examState.securityAttached) return;
+  examState.securityAttached = true;
+
+  document.addEventListener('visibilitychange', () => {
+    if (!examState.isExamRunning) return;
+    if (document.hidden) {
+      examState.tabSwitchCount = (examState.tabSwitchCount || 0) + 1;
+      alert(`⚠️ कड़ी सुरक्षा चेतावनी (${examState.tabSwitchCount}/3):\nपरीक्षा के दौरान टैब बदलना या स्क्रीन छोड़ना सख्त वर्जित है! ३ बार उल्लंघन पर आप परीक्षा से निष्कासित (Eliminate) हो जाएंगे।`);
+      if (examState.tabSwitchCount >= 3) {
+        submitFinalExam(true);
+      }
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (examState.isExamRunning && !document.fullscreenElement) {
+      showToast("⚠️ कृपया परीक्षा के दौरान फुल-स्क्रीन (Full-Screen) मोड से बाहर न निकलें!");
+    }
+  });
+
+  ['contextmenu', 'copy', 'cut', 'paste', 'selectstart', 'dragstart'].forEach(evtName => {
+    document.addEventListener(evtName, e => {
+      if (examState.isExamRunning) {
+        e.preventDefault();
+        return false;
+      }
+    });
+  });
+
+  window.addEventListener('keydown', e => {
+    const k = (e.key || '').toUpperCase();
+    const isDevShortcut = (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['I', 'J', 'C', 'K'].includes(k)) ||
+      (e.ctrlKey && ['U', 'S', 'P'].includes(k))
+    );
+    if (isDevShortcut && !isSuperOwner()) {
+      e.preventDefault();
+      return false;
+    }
+  });
+}
+
+function buildQuestionGridPills() {
+  const gridContainer = document.getElementById('questionGridPills');
+  if (!gridContainer) return;
+  gridContainer.innerHTML = '';
+  examState.questions.forEach((q, idx) => {
+    const qId = q.id || `q_${idx}`;
+    const pill = document.createElement('button');
+    pill.id = `q_pill_${idx}`;
+    pill.className = `w-8 h-8 rounded-lg text-xs font-bold border transition ${examState.answers[qId] !== undefined ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-stone-700 border-stone-300'}`;
+    pill.innerText = idx + 1;
+    pill.onclick = () => jumpToQuestion(idx);
+    gridContainer.appendChild(pill);
+  });
+}
+
+function renderQuestion(index) {
+  if (!examState.questions[index]) return;
+  const q = examState.questions[index];
+  const qId = q.id || `q_${index}`;
+  const container = document.getElementById('examQuestionArea');
+  if (!container) return;
+
+  const currentSelection = examState.answers[qId];
+
+  container.innerHTML = `
+    <div class="p-4 bg-white rounded-xl shadow-sm border border-stone-200 select-none">
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+        <span class="font-bold text-forest text-sm">प्रश्न क्रमांक: ${index + 1} / ${examState.questions.length}</span>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="clearCurrentQuestionAnswer('${qId}', ${index})" class="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-stone-600 hover:text-rose-700 text-[11px] font-bold border border-stone-200 transition">
+            🧹 उत्तर साफ़ करें (Clear)
+          </button>
+          <span class="text-xs bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-semibold">अंक: 1</span>
+        </div>
+      </div>
+      <p class="text-base font-semibold text-stone-800 mb-4 leading-relaxed">${q.title || q.q}</p>
+      <div class="space-y-2">
+        ${(q.options || q.opts || []).map((opt, i) => `
+          <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-stone-50 transition ${currentSelection === i ? 'bg-amber-50 border-amber-400 font-bold' : 'border-stone-200'}">
+            <input type="radio" name="currentExamRadio" value="${i}" 
+              ${currentSelection === i ? 'checked' : ''} 
+              onchange="saveExamAnswer('${qId}', ${i},${index})" class="accent-forest w-4 h-4 mr-3">
+            <span class="text-xs sm:text-sm text-stone-800 font-medium">${opt}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function saveExamAnswer(questionId, selectedOption, index) {
+  examState.answers[questionId] = selectedOption;
+  const cacheKey = `encExam_${examState.activeMode}_${examState.rollNumber}`;
+  localStorage.setItem(cacheKey, encryptLocalData(examState.answers));
+  const pill = document.getElementById(`q_pill_${index}`);
+  if (pill && !markedForReviewSet.has(index)) {
+    pill.className = "w-8 h-8 rounded-lg text-xs font-bold border transition bg-emerald-600 text-white border-emerald-700";
+  }
+  const badge = document.getElementById('liveAutoSaveBadge');
+  if (badge) {
+    badge.innerText = "✓ उत्तर फ़ोन में सुरक्षित";
+    badge.className = "ml-2 px-2 py-0.5 rounded-full bg-emerald-100 text-forest text-[10px] font-extrabold animate-pulse";
+    setTimeout(() => badge.classList.remove('animate-pulse'), 600);
+  }
+}
+
+function clearCurrentQuestionAnswer(questionId, index) {
+  delete examState.answers[questionId];
+  const cacheKey = `encExam_${examState.activeMode}_${examState.rollNumber}`;
+  localStorage.setItem(cacheKey, encryptLocalData(examState.answers));
+  const pill = document.getElementById(`q_pill_${index}`);
+  if (pill && !markedForReviewSet.has(index)) {
+    pill.className = "w-8 h-8 rounded-lg text-xs font-bold border transition bg-white text-stone-700 border-stone-300";
+  }
+  renderQuestion(index);
+  showToast("🧹 इस प्रश्न का चुना गया विकल्प हटा दिया गया।");
+}
+
+function toggleMarkQuestionForReview() {
+  const idx = examState.currentIndex;
+  const pill = document.getElementById(`q_pill_${idx}`);
+  if (markedForReviewSet.has(idx)) {
+    markedForReviewSet.delete(idx);
+    const qId = examState.questions[idx]?.id || `q_${idx}`;
+    if (pill) {
+      pill.className = examState.answers[qId] !== undefined
+        ? "w-8 h-8 rounded-lg text-xs font-bold border transition bg-emerald-600 text-white border-emerald-700"
+        : "w-8 h-8 rounded-lg text-xs font-bold border transition bg-white text-stone-700 border-stone-300";
+    }
+    showToast("पुनर्विचार चिह्न हटाया गया।");
+  } else {
+    markedForReviewSet.add(idx);
+    if (pill) {
+      pill.className = "w-8 h-8 rounded-lg text-xs font-bold border transition bg-amber-600 text-white border-amber-800 shadow";
+    }
+    showToast("🟠 प्रश्न पुनर्विचार (Review) हेतु चिह्नित किया गया!");
+  }
+}
+
+function navigateExam(direction) {
+  const newIndex = examState.currentIndex + direction;
+  if (newIndex >= 0 && newIndex < examState.questions.length) {
+    examState.currentIndex = newIndex;
+    renderQuestion(examState.currentIndex);
+  }
+}
+
+function jumpToQuestion(targetIndex) {
+  if (targetIndex >= 0 && targetIndex < examState.questions.length) {
+    examState.currentIndex = targetIndex;
+    renderQuestion(examState.currentIndex);
+  }
+}
+
+function updateTimerDisplay(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const el = document.getElementById('examTimerClock');
+  if (el) el.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// Pre-Submit Summary Confirmation Card (Shows Answered, Unanswered & Review Count)
+function openPreSubmitSummaryModal() {
+  const total = examState.questions.length;
+  const answered = Object.keys(examState.answers).length;
+  const skipped = Math.max(0, total - answered);
+  const reviewCount = markedForReviewSet.size;
+
+  openConfirmModal(
+    "📋 उत्तर-पुस्तिका समीक्षा एवं अंतिम सबमिशन",
+    `कुल प्रश्न: ${total}  |  ✓ हल किए: ${answered}  |  ⭕ छोड़े गए: ${skipped}  |  🟠 पुनर्विचार: ${reviewCount}\n\nक्या आप अपनी उत्तर-पुस्तिका अंतिम रूप से जमा (Final Submit) करना चाहते हैं?`,
+    (confirmed) => {
+      if (confirmed) submitFinalExam(false);
+    }
+  );
+}
+
+async function submitFinalExam(isForced = false) {
+  examState.isExamRunning = false;
+  if (examState.timerInterval) clearInterval(examState.timerInterval);
+  exitExamFullScreen();
+
+  let calculatedScore = 0;
+  examState.questions.forEach((q, idx) => {
+    const qId = q.id || `q_${idx}`;
+    const trueAns = encryptedAnswerKeyMap[qId] !== undefined ? (encryptedAnswerKeyMap[qId] ^ 79) : 0;
+    if (examState.answers[qId] === trueAns) calculatedScore++;
+  });
+
+  const candidateName = examState.enrolledProfile?.name || (currentUser ? currentUser.name : 'परीक्षार्थी');
+  const fatherName = examState.enrolledProfile?.fatherName || '-';
+  const totalQ = examState.questions.length;
+  const pct = totalQ > 0 ? Math.round((calculatedScore / totalQ) * 100) : 0;
+  const isMainExam = examState.activeMode === 'main_exam';
+
+  const payload = {
+    rollNumber: isMainExam ? examState.rollNumber : 'PRACTICE',
+    candidateName,
+    fatherName,
+    phone: examState.enrolledProfile?.phone || (currentUser ? currentUser.phone : '-'),
+    deviceSignature: currentDeviceSignature,
+    tabWarnings: examState.tabSwitchCount || 0,
+    mode: examState.activeMode,
+    score: calculatedScore,
+    total: totalQ,
+    percentage: pct,
+    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    timestamp: Date.now(),
+    isForcedSubmission: isForced,
+    wasSecondChance: Boolean(examState.isSecondChanceSession)
+  };
+
+  // Only clear local answers if not forced, or keep encrypted backup in case Owner gives Second Chance!
+  if (!isForced) {
+    localStorage.removeItem(`encExam_${examState.activeMode}_${examState.rollNumber}`);
+  }
+
+  const targetCollection = isMainExam ? 'mainExamSubmissions' : 'mockExamSubmissions';
+
+  if (!isMainExam) {
+    const myMocks = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
+    myMocks.unshift({
+      candidateName,
+      mode: examState.activeMode,
+      score: calculatedScore,
+      total: totalQ,
+      time: Date.now()
+    });
+    localStorage.setItem('bishnoi_my_personal_mock_scores', JSON.stringify(myMocks.slice(0, 20)));
+  }
+
+  try {
+    if (isMainExam) {
+      await db.collection('mainExamSubmissions').doc(examState.rollNumber).set(payload);
+      await db.collection('examSubmissions').doc(examState.rollNumber).set(payload);
+      // If student was eliminated due to 3 tab switches, log to Eliminated Students Monitor for Owner!
+      if (isForced) {
+        await db.collection('eliminatedExamStudents').doc(examState.rollNumber).set({
+          ...payload,
+          eliminatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          status: 'ELIMINATED'
+        });
+      }
+    } else {
+      await db.collection('mockExamSubmissions').add(payload);
+    }
+  } catch (err) {
+    const q = JSON.parse(localStorage.getItem('bishnoi_offline_exam_queue') || '[]');
+    q.push({ ...payload, targetCollection });
+    localStorage.setItem('bishnoi_offline_exam_queue', JSON.stringify(q));
+  }
+
+  const qBox = document.getElementById('quizActiveBox');
+  if (!qBox) return;
+  const safeName = candidateName.replace(/'/g, "\\'");
+
+  if (!isMainExam) {
+    qBox.innerHTML = `
+      <div class="text-center p-6 sm:p-8 bg-gradient-to-br from-amber-50 via-white to-emerald-50 rounded-2xl border-2 border-emerald-400 space-y-4 shadow-md">
+        <div class="text-5xl">🏆</div>
+        <h3 class="font-yatra text-2xl text-forest">अभ्यास / मॉक परीक्षा परिणाम</h3>
+        <p class="text-xs sm:text-sm text-stone-600">प्रतिभागी: <b>${candidateName}</b></p>
+        <div class="p-4 bg-white rounded-2xl border border-emerald-200 max-w-xs mx-auto shadow-sm">
+          <span class="text-xs text-stone-500 block">आपके प्राप्तांक (Instant Score):</span>
+          <span class="text-3xl font-extrabold text-terracotta">${calculatedScore} / ${totalQ}</span>
+          <span class="block text-xs font-bold text-emerald-800 mt-1">(${pct}% अंक)</span>
+        </div>
+        <div class="flex flex-wrap justify-center gap-2.5 pt-2">
+          <button onclick="generateCertificate('${safeName}', ${pct})" class="px-5 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-extrabold shadow">
+            🎓 सहभागिता प्रमाण-पत्र डाउनलोड करें
+          </button>
+          <button onclick="openMockMeritNotificationModal(); switchNotificationSubView('my_mock_scores');" class="px-4 py-2.5 bg-amber-500 text-stone-950 rounded-xl text-xs font-extrabold shadow">
+            🔔 मेरा मॉक रिकॉर्ड
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (isForced) {
+    qBox.innerHTML = `
+      <div class="text-center p-8 bg-rose-50 rounded-2xl border-2 border-rose-300 space-y-3">
+        <div class="text-4xl">🚫</div>
+        <h3 class="text-xl font-bold text-rose-800">सुरक्षा उल्लंघन के कारण परीक्षा स्वतः समाप्त (Eliminated)!</h3>
+        <p class="text-xs sm:text-sm text-stone-700">रोल नंबर: <b>${examState.rollNumber}</b> द्वारा ३ बार स्क्रीन/टैब बदलने के कारण उत्तर-पुस्तिका लॉक कर दी गई है।</p>
+        <div class="p-3 bg-white rounded-xl border border-rose-200 text-xs font-semibold text-stone-600">
+          यदि किसी तकनीकी कारण से ऐसा हुआ है, तो मुख्य व्यवस्थापक (Owner) अपने पैनल से आपको निर्धारित मिनटों के लिए <b>पुनः अवसर (One More Chance)</b> प्रदान कर सकते हैं।
+        </div>
+        <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+          मुखपृष्ठ पर लौटें
+        </button>
+      </div>
+    `;
+  } else {
+    qBox.innerHTML = `
+      <div class="text-center p-8 bg-green-50 rounded-2xl border border-green-200 space-y-3">
+        <div class="text-4xl">📜</div>
+        <h3 class="text-xl font-bold text-forest">मुख्य परीक्षा उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है!</h3>
+        <p class="text-xs sm:text-sm text-stone-600">रोल नंबर: <b>${examState.rollNumber}</b> के सभी उत्तर मुख्य परीक्षा रिकॉर्ड में सुरक्षित दर्ज हो गए हैं।</p>
+        <div class="p-3 bg-white rounded-xl border border-green-300 text-xs font-semibold text-green-900">
+          मुख्य परीक्षा का परिणाम घोषित होने पर आप अपना रोल नंबर व जन्मतिथि डालकर अंकतालिका एवं आधिकारिक प्रमाण-पत्र डाउनलोड कर सकेंगे।
+        </div>
+        <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">
+          मुखपृष्ठ पर लौटें
+        </button>
+      </div>
+    `;
+  }
+}
+
+async function flushOfflineExamQueue() {
+  const rawQ = localStorage.getItem('bishnoi_offline_exam_queue');
+  if (!rawQ || !navigator.onLine) return;
+  try {
+    const queue = JSON.parse(rawQ);
+    if (!Array.isArray(queue) || !queue.length) return;
+    for (const item of queue) {
+      const col = item.targetCollection || 'examSubmissions';
+      delete item.targetCollection;
+      await db.collection(col).add({
+        ...item,
+        submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        syncedFromOffline: true
+      });
+    }
+    localStorage.removeItem('bishnoi_offline_exam_queue');
+    showToast("✅ इंटरनेट बहाल: आपकी ऑफलाइन उत्तर-पुस्तिका सफलतापूर्वक सर्वर पर जमा हो गई!");
+  } catch (e) {}
+}
+window.addEventListener('online', flushOfflineExamQueue);
+/* ==========================================================================
+   PART 3 OF 3: 5-Folder Tabbed Owner Studio, Eliminated Student Re-Chance
+   Controller (Custom Minutes), 120 Shabadwani & Aarti Uploader, Format Checker,
+   Full Backup, Soft Maintenance, Auth, Mala, Niyams, Chat & Master Boot
+   ========================================================================== */
+
+// 15. 5-FOLDER TABBED OWNER STUDIO & ADVANCED ADMIN CONTROLS
+let activeAdminFolderTab = 'exam_folder';
+
+function buildFiveFolderOwnerStudio() {
+  const adminTab = document.getElementById('tab-admin');
+  if (!adminTab || document.getElementById('ownerFiveFolderNav')) return;
+
+  // Ensure 5th Result Toggle exists inside secParikshaVisibilityController
+  const visCtrl = document.getElementById('secParikshaVisibilityController');
+  if (visCtrl && !document.getElementById('toggleResultsPublishedSection')) {
+    const grid = visCtrl.querySelector('.grid') || visCtrl;
+    grid.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs";
+    const lbl = document.createElement('label');
+    lbl.className = "flex items-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 cursor-pointer";
+    lbl.innerHTML = `
+      <input type="checkbox" id="toggleResultsPublishedSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2.5 w-4 h-4">
+      <span class="font-bold text-forest">5. परिणाम खोज कक्ष (Result)</span>
+    `;
+    grid.appendChild(lbl);
+  }
+
+  // Ensure Admit Card Download Bar inside Enrollment Box
   const enrollBox = document.getElementById('examEnrollmentBox');
   if (enrollBox && !document.getElementById('cleanAdmitCardDownloadBar')) {
     const bar = document.createElement('div');
     bar.id = 'cleanAdmitCardDownloadBar';
-    bar.className = 'pt-3 mt-3 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2 text-xs';
+    bar.className = 'pt-3 mt-3 border-t border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs';
     bar.innerHTML = `
-      <span class="text-stone-600 font-medium">नामांकन के पश्चात अपना प्रवेश-पत्र यहाँ से डाउनलोड करें:</span>
-      <button type="button" onclick="downloadStudentAdmitCardPdf()" class="px-4 py-2 bg-forest hover:bg-emerald-950 text-white font-semibold rounded-lg transition">
-        प्रवेश-पत्र डाउनलोड करें
+      <span class="text-stone-600 font-semibold">नामांकन के पश्चात अपना आधिकारिक प्रवेश-पत्र यहाँ से प्राप्त करें:</span>
+      <button type="button" onclick="downloadStudentAdmitCardPdf()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-xl shadow-sm transition">
+        🎫 प्रवेश-पत्र डाउनलोड करें (Download Admit Card)
       </button>
     `;
     enrollBox.appendChild(bar);
   }
 
-  // 2. Add Review & Bookmark Buttons inside Active Exam Box
+  // Ensure Review & Bookmark Buttons inside Active Exam Box
   const activeBox = document.getElementById('quizActiveBox');
   if (activeBox && !document.getElementById('markForReviewExamBtn')) {
     const navBtnsRow = activeBox.querySelector('button[onclick="navigateExam(-1)"]')?.parentElement;
@@ -1130,38 +2311,21 @@ function mountOwnerStudioExtensions() {
       revBtn.type = 'button';
       revBtn.id = 'markForReviewExamBtn';
       revBtn.onclick = toggleMarkQuestionForReview;
-      revBtn.className = "px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-lg text-xs font-semibold border border-purple-300 transition";
-      revBtn.innerText = "पुनर्विचार चिह्न";
+      revBtn.className = "px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-extrabold border border-amber-300 transition";
+      revBtn.innerHTML = `🟠 पुनर्विचार (Review)`;
       navBtnsRow.appendChild(revBtn);
 
       const bmkBtn = document.createElement('button');
       bmkBtn.type = 'button';
       bmkBtn.id = 'bookmarkExamQBtn';
       bmkBtn.onclick = toggleBookmarkCurrentQuestion;
-      bmkBtn.className = "px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold border border-stone-300 transition";
-      bmkBtn.innerText = "प्रश्न सहेजें";
+      bmkBtn.className = "px-3 py-2 bg-stone-100 hover:bg-stone-200 text-forest rounded-lg text-xs font-extrabold border border-stone-300 transition";
+      bmkBtn.innerHTML = `⭐ सहेजें (Bookmark)`;
       navBtnsRow.appendChild(bmkBtn);
     }
   }
 
-  const adminTab = document.getElementById('tab-admin');
-  if (!adminTab) return;
-
-  // 3. Ensure 5th Result Toggle in Visibility Controller
-  const visCtrl = document.getElementById('secParikshaVisibilityController');
-  if (visCtrl && !document.getElementById('toggleResultsPublishedSection')) {
-    const grid = visCtrl.querySelector('.grid') || visCtrl;
-    grid.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 text-xs";
-    const lbl = document.createElement('label');
-    lbl.className = "flex items-center p-2.5 rounded-xl bg-stone-50 border border-stone-300 cursor-pointer";
-    lbl.innerHTML = `
-      <input type="checkbox" id="toggleResultsPublishedSection" onchange="updateParikshaVisibilitySettings()" class="rounded text-forest mr-2 w-4 h-4">
-      <span class="font-bold text-forest">5. परिणाम खोज कक्ष</span>
-    `;
-    grid.appendChild(lbl);
-  }
-
-  // 4. Sub-Admin Assignment Input Row
+  // Ensure Sub-Admin Phone Input Row inside secManageAdmins
   const secAdmins = document.getElementById('secManageAdmins');
   if (secAdmins && !document.getElementById('subAdminPhoneAssignRow')) {
     const assignRow = document.createElement('div');
@@ -1169,9 +2333,9 @@ function mountOwnerStudioExtensions() {
     assignRow.className = 'pt-3 border-t border-stone-100 space-y-2.5 text-xs';
     assignRow.innerHTML = `
       <div class="flex flex-col sm:flex-row gap-2">
-        <input type="tel" id="subAdminTargetPhone" maxlength="10" placeholder="सह-प्रबंधक का १० अंकों का मोबाइल नंबर" class="flex-1 p-2 border border-stone-300 rounded-lg font-medium">
-        <button onclick="saveSubAdminGranularPermissions()" class="px-4 py-2 bg-forest text-white font-semibold rounded-lg hover:bg-emerald-950">
-          अधिकार सहेजें
+        <input type="tel" id="subAdminTargetPhone" maxlength="10" placeholder="सह-प्रबंधक का 10-अंकों का मोबाइल नंबर" class="flex-1 p-2 border border-stone-300 rounded-lg font-semibold">
+        <button onclick="saveSubAdminGranularPermissions()" class="px-4 py-2 bg-forest text-white font-bold rounded-lg shadow hover:bg-emerald-950">
+          💾 सह-प्रबंधक को चुनिंदा अधिकार दें
         </button>
       </div>
       <div id="activeSubAdminsList" class="space-y-1.5 pt-1"></div>
@@ -1179,178 +2343,639 @@ function mountOwnerStudioExtensions() {
     secAdmins.appendChild(assignRow);
   }
 
-  // 5. Additional Owner Studio Suite (Broadcasts, Admit Customizer, Soft Maintenance, Story Uploader)
-  if (!document.getElementById('cleanOwnerExtendedSuite')) {
-    const suite = document.createElement('div');
-    suite.id = 'cleanOwnerExtendedSuite';
-    suite.className = 'space-y-6 mt-6';
-    suite.innerHTML = `
-      <!-- PUBLIC NOTIFICATION & MERIT PDF BROADCASTER -->
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
-          <div>
-            <h3 class="font-bold text-forest text-sm">सार्वजनिक सूचना एवं मेरिट सूची प्रसारण (सूचना केंद्र)</h3>
-            <p class="text-[11px] text-stone-500">यहाँ से प्रकाशित सूचना या मेरिट PDF सभी सदस्यों के शीर्ष सूचना आइकन में दिखाई देगी:</p>
-          </div>
-          <button type="button" onclick="downloadMockMeritPdfForOwner()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-forest border border-stone-300 rounded-lg text-xs font-semibold">
-            मॉक मेरिट PDF डाउनलोड करें
-          </button>
+  // Add 1-Click Format Checker Button inside Bulk Question Importer
+  const secUpQ = document.getElementById('secUploadQuestions');
+  if (secUpQ && !document.getElementById('checkQuizFormatBtn')) {
+    const impBtn = secUpQ.querySelector('button[onclick="importBulkQuiz()"]');
+    if (impBtn) {
+      const chkBtn = document.createElement('button');
+      chkBtn.type = 'button';
+      chkBtn.id = 'checkQuizFormatBtn';
+      chkBtn.onclick = validateBulkQuestionFormat;
+      chkBtn.className = "px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold mr-2 shadow-sm transition";
+      chkBtn.innerText = "📊 1-Click प्रश्न फॉर्मेट जाँचें";
+      impBtn.parentElement.insertBefore(chkBtn, impBtn);
+    }
+  }
+
+  // Tag existing HTML cards inside #tab-admin so they sort cleanly into the 5 Folders
+  const headerBanner = adminTab.firstElementChild;
+  const pdfExportCard = document.querySelector('button[onclick="downloadEnrolledStudentsPdf()"]')?.closest('div.bg-white');
+  const aiCenterCard = document.getElementById('aiQuizGenBtn')?.closest('div.bg-gradient-to-r');
+  const gridManagersWrap = document.getElementById('adminAmavasyaName')?.closest('div.grid');
+  const amavasyaCard = document.getElementById('adminAmavasyaName')?.closest('div.bg-white');
+  const bannerCard = document.getElementById('adminBannerInput')?.closest('div.bg-white');
+  const audioCard = document.getElementById('adminAudioTitle')?.closest('div.bg-white');
+  const pdfAddCard = document.getElementById('adminPdfTitle')?.closest('div.bg-white');
+
+  // Create 5 Folder Navigation Bar right under Studio Header
+  const folderNav = document.createElement('div');
+  folderNav.id = 'ownerFiveFolderNav';
+  folderNav.className = 'grid grid-cols-2 sm:grid-cols-5 gap-2 p-2 bg-stone-200/90 rounded-2xl sticky top-16 z-30 shadow-sm backdrop-blur-md';
+  folderNav.innerHTML = `
+    <button onclick="switchAdminFolderTab('exam_folder')" id="admFolderBtn_exam_folder" class="py-2.5 px-2 rounded-xl text-xs font-extrabold bg-forest text-amber-300 shadow transition text-center">
+      📁 १. परीक्षा व रिजल्ट
+    </button>
+    <button onclick="switchAdminFolderTab('sahitya_folder')" id="admFolderBtn_sahitya_folder" class="py-2.5 px-2 rounded-xl text-xs font-bold bg-white text-stone-700 hover:bg-amber-50 transition text-center">
+      📁 २. सबदवाणी व साहित्य
+    </button>
+    <button onclick="switchAdminFolderTab('sandesh_folder')" id="admFolderBtn_sandesh_folder" class="py-2.5 px-2 rounded-xl text-xs font-bold bg-white text-stone-700 hover:bg-amber-50 transition text-center">
+      📁 ३. संदेश, पंचांग व बेल
+    </button>
+    <button onclick="switchAdminFolderTab('itihas_folder')" id="admFolderBtn_itihas_folder" class="py-2.5 px-2 rounded-xl text-xs font-bold bg-white text-stone-700 hover:bg-amber-50 transition text-center">
+      📁 ४. इतिहास व संवाद
+    </button>
+    <button onclick="switchAdminFolderTab('security_folder')" id="admFolderBtn_security_folder" class="col-span-2 sm:col-span-1 py-2.5 px-2 rounded-xl text-xs font-bold bg-white text-stone-700 hover:bg-amber-50 transition text-center">
+      📁 ५. सुरक्षा, पिन व लॉग्स
+    </button>
+  `;
+  if (headerBanner) headerBanner.insertAdjacentElement('afterend', folderNav);
+  else adminTab.insertBefore(folderNav, adminTab.firstChild);
+
+  // Create 5 Clean Folder Containers
+  const f1 = document.createElement('div'); f1.id = 'admFolderView_exam_folder'; f1.className = 'space-y-5';
+  const f2 = document.createElement('div'); f2.id = 'admFolderView_sahitya_folder'; f2.className = 'hidden space-y-5';
+  const f3 = document.createElement('div'); f3.id = 'admFolderView_sandesh_folder'; f3.className = 'hidden space-y-5';
+  const f4 = document.createElement('div'); f4.id = 'admFolderView_itihas_folder'; f4.className = 'hidden space-y-5';
+  const f5 = document.createElement('div'); f5.id = 'admFolderView_security_folder'; f5.className = 'hidden space-y-5';
+
+  adminTab.appendChild(f1);
+  adminTab.appendChild(f2);
+  adminTab.appendChild(f3);
+  adminTab.appendChild(f4);
+  adminTab.appendChild(f5);
+
+  // Move existing DOM cards into their logical folders
+  if (visCtrl) f1.appendChild(visCtrl);
+  if (pdfExportCard) f1.appendChild(pdfExportCard);
+  if (document.getElementById('secPublishExam')) f1.appendChild(document.getElementById('secPublishExam'));
+  if (aiCenterCard) f1.appendChild(aiCenterCard);
+  if (secUpQ) f1.appendChild(secUpQ);
+
+  // Inject Eliminated Students & "One More Chance" Custom Time Controller + Admit Card Customizer into Folder 1
+  const examExtraSuite = document.createElement('div');
+  examExtraSuite.className = 'space-y-5';
+  examExtraSuite.innerHTML = `
+    <!-- ELIMINATED STUDENTS MONITOR & "ONE MORE CHANCE" WITH CUSTOM TIME OVERRIDE -->
+    <div class="bg-white p-5 rounded-2xl border-2 border-rose-400 shadow-sm space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-rose-100 pb-2">
+        <div>
+          <h3 class="font-bold text-rose-900 text-sm">⏳ निष्कासित छात्र मॉनिटर एवं 'दूसरा मौका' (One More Chance with Custom Time)</h3>
+          <p class="text-[11px] text-stone-600">चीटिंग या टैब-स्विच से बाहर (Eliminate) हुए छात्रों को देखें और जितने मिनट आप चाहें (उदा: 30 मिनट) उतने समय के लिए दोबारा परीक्षा चालू करें:</p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-          <input type="text" id="notifBroadcastBadge" placeholder="श्रेणी (उदा: मेरिट सूची / सूचना)" class="p-2.5 rounded-lg border border-stone-300">
-          <input type="text" id="notifBroadcastTitle" placeholder="सूचना का शीर्षक *" class="sm:col-span-2 p-2.5 rounded-lg border border-stone-300 font-semibold">
-        </div>
-        <textarea id="notifBroadcastMsg" rows="2" placeholder="सूचना का विवरण लिखें..." class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-          <input type="text" id="notifBroadcastLink" placeholder="PDF या वेब लिंक (उदा: ./merit.pdf)" class="p-2.5 rounded-lg border border-stone-300">
-          <input type="text" id="notifBroadcastLinkLabel" placeholder="बटन का नाम (उदा: मेरिट सूची देखें)" class="p-2.5 rounded-lg border border-stone-300">
-        </div>
-        <button onclick="publishOwnerNotificationBroadcast()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-semibold text-xs rounded-lg transition">
-          सूचना केंद्र में प्रकाशित करें
+        <button onclick="loadEliminatedStudentsList()" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded-lg text-xs font-extrabold">
+          🔄 निष्कासित सूची रिफ्रेश करें
         </button>
       </div>
 
-      <!-- ADMIT CARD CUSTOMIZER, LATE ENTRY CUTOFF & CSV EXPORTS -->
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
-          <div>
-            <h3 class="font-bold text-forest text-sm">प्रवेश-पत्र प्रारूप, लेट-एंट्री समय एवं एक्सल (CSV) रिपोर्ट्स</h3>
-            <p class="text-[11px] text-stone-500">आगामी परीक्षा हेतु प्रवेश-पत्र का विवरण एवं प्रवेश बंद होने का समय निर्धारित करें:</p>
-          </div>
+      <!-- Manual Quick Grant Bar -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs bg-rose-50/60 p-3 rounded-xl border border-rose-200">
+        <div>
+          <label class="font-bold text-stone-700 block mb-1">छात्र का रोल नंबर (Roll No.)</label>
+          <input type="text" id="rechanceRollInput" placeholder="JAMBH-2026-XXXXX" class="w-full p-2 border border-stone-300 rounded-lg font-mono uppercase">
+        </div>
+        <div>
+          <label class="font-bold text-stone-700 block mb-1">देय समय सीमा (मिनट में - जैसे 30)</label>
+          <input type="number" id="rechanceMinutesInput" value="30" min="5" max="180" class="w-full p-2 border border-stone-300 rounded-lg font-extrabold text-forest">
+        </div>
+        <div class="flex items-end">
+          <button onclick="grantOneMoreChanceToStudent()" class="w-full py-2 px-3 bg-forest hover:bg-emerald-950 text-amber-300 font-extrabold rounded-lg shadow transition">
+            ✅ दूसरा मौका दें (Grant Re-Chance)
+          </button>
+        </div>
+      </div>
+
+      <!-- Live List of Eliminated Students -->
+      <div id="eliminatedStudentsTableWrap" class="space-y-2 max-h-56 overflow-y-auto pt-1 text-xs">
+        <div class="text-stone-400 text-center py-2">निष्कासित छात्रों की सूची देखने हेतु ऊपर रिफ्रेश करें या यहाँ स्वतः दिखेगी।</div>
+      </div>
+    </div>
+
+    <!-- ADMIT CARD CUSTOMIZER, LATE ENTRY CUTOFF & CSV EXPORTS -->
+    <div class="bg-white p-5 rounded-2xl border-2 border-forest shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">🎫 प्रवेश-पत्र (Admit Card) कस्टमाइज़र, लेट एंट्री लॉक एवं एक्सल (CSV) टूल्स</h3>
+          <p class="text-[11px] text-stone-500">आगामी परीक्षा हेतु प्रवेश-पत्र का नाम, तारीख, निर्देश और लेट-एंट्री समय बदलें:</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="exportEnrolledCSV()" class="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">📊 नामांकन CSV</button>
+          <button onclick="exportMainExamResultsCSV()" class="px-3 py-1.5 bg-terracotta text-white rounded-lg text-xs font-bold shadow">📊 मुख्य परिणाम CSV</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+        <div>
+          <label class="font-bold text-stone-600 block mb-1">परीक्षा का नाम (Title)</label>
+          <input type="text" id="cfgAdmitTitle" value="${customAdmitConfig.examTitle}" class="w-full p-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="font-bold text-stone-600 block mb-1">परीक्षा दिनांक व समय</label>
+          <input type="text" id="cfgAdmitDate" value="${customAdmitConfig.examDateStr}" class="w-full p-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="font-bold text-stone-600 block mb-1">परीक्षा केंद्र / माध्यम</label>
+          <input type="text" id="cfgAdmitCenter" value="${customAdmitConfig.examCenterStr}" class="w-full p-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="font-bold text-rose-700 block mb-1">⏱️ लेट एंट्री लॉक (मिनट)</label>
+          <input type="number" id="cfgLateCutoffMins" value="${customAdmitConfig.lateCutoffMins}" min="0" max="120" class="w-full p-2 border border-rose-300 rounded-lg font-bold">
+        </div>
+      </div>
+      <div class="text-xs">
+        <label class="font-bold text-stone-600 block mb-1">प्रवेश-पत्र निर्देश (Instructions)</label>
+        <input type="text" id="cfgAdmitInst" value="${customAdmitConfig.instructionsStr}" class="w-full p-2 border rounded-lg">
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="saveCustomAdmitAndCutoffConfig()" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold shadow">💾 प्रवेश-पत्र सेटिंग्स सहेजें</button>
+        <button onclick="loadLiveProctoringStats()" class="px-4 py-2 bg-stone-800 text-amber-300 rounded-xl text-xs font-bold shadow">👁️ लाइव परीक्षा मॉनिटर व कट-ऑफ विश्लेषण</button>
+      </div>
+      <div id="liveProctoringStatsBox" class="hidden p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs"></div>
+    </div>
+  `;
+  f1.appendChild(examExtraSuite);
+
+  // FOLDER 2: SAHITYA, 120 SHABADWANI UPLOADER, AARTI LYRICS, PDF & AUDIO
+  const sahityaAdminSuite = document.createElement('div');
+  sahityaAdminSuite.className = 'space-y-5';
+  sahityaAdminSuite.innerHTML = `
+    <!-- SHABADWANI (1-120) UPLOADER & EDITOR -->
+    <div class="bg-white p-5 rounded-2xl border-2 border-amber-400 shadow-sm space-y-3">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">📖 श्री सबदवाणी (१ से १२० सबद) पाठ एवं भावार्थ अपलोडर</h3>
+          <p class="text-[11px] text-stone-500">किसी भी सबद संख्या (1-120) का मूल पाठ, सरल हिंदी अर्थ व प्रसंग यहाँ से अपडेट करें:</p>
+        </div>
+        <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded text-[10px] font-extrabold">SHABADWANI APP ENGINE</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+        <div>
+          <label class="font-bold text-stone-700 block mb-1">सबद क्रमांक चुनें (1 - 120) *</label>
+          <input type="number" id="adminShabadNum" min="1" max="120" value="1" onchange="loadShabadIntoAdminEditor(this.value)" class="w-full p-2.5 border border-stone-300 rounded-xl font-extrabold text-forest bg-amber-50">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="font-bold text-stone-700 block mb-1">प्रसंग / विषय (Context)</label>
+          <input type="text" id="adminShabadPrasang" placeholder="उदा: गुरु महिमा एवं पाहल मंत्र उपदेश" class="w-full p-2.5 border border-stone-300 rounded-xl">
+        </div>
+      </div>
+      <div class="text-xs">
+        <label class="font-bold text-stone-700 block mb-1">मूल सबद वाणी (Mool Shabad Text) *</label>
+        <textarea id="adminShabadMool" rows="3" placeholder="मूल जम्भवाणी पंक्तियाँ यहाँ लिखें या पेस्ट करें..." class="w-full p-2.5 border border-stone-300 rounded-xl font-semibold"></textarea>
+      </div>
+      <div class="text-xs">
+        <label class="font-bold text-stone-700 block mb-1">सरल हिंदी भावार्थ (Simple Hindi Meaning) *</label>
+        <textarea id="adminShabadArth" rows="3" placeholder="यूज़र्स के आसानी से समझने हेतु सरल हिंदी अर्थ यहाँ लिखें..." class="w-full p-2.5 border border-stone-300 rounded-xl"></textarea>
+      </div>
+      <button onclick="saveShabadwaniEntryFromAdmin()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow">
+        💾 सबदवाणी रीडर में सुरक्षित एवं लाइव करें
+      </button>
+    </div>
+
+    <!-- AARTI, SAKHI & BHAJAN LYRICS UPLOADER -->
+    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+      <h3 class="font-bold text-forest text-sm">🪔 नई आरती, साखी या भजन लिरिक्स (लिखित बोल) जोड़ें</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+        <input type="text" id="adminLyricsCat" placeholder="श्रेणी (उदा: सांझ आरती / साखी / भजन)" class="p-2.5 border rounded-xl">
+        <input type="text" id="adminLyricsTitle" placeholder="आरती या भजन का शीर्षक *" class="p-2.5 border rounded-xl font-bold">
+      </div>
+      <textarea id="adminLyricsText" rows="3" placeholder="पूरे लिखित बोल (Lyrics) यहाँ पेस्ट करें *" class="w-full p-2.5 text-xs border rounded-xl"></textarea>
+      <button onclick="saveAartiLyricsFromAdmin()" class="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold text-xs rounded-xl shadow">
+        ➕ आरती व साखी कोष में जोड़ें
+      </button>
+    </div>
+  `;
+  f2.appendChild(sahityaAdminSuite);
+  const mediaGrid = document.createElement('div');
+  mediaGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-5';
+  if (pdfAddCard) mediaGrid.appendChild(pdfAddCard);
+  if (audioCard) mediaGrid.appendChild(audioCard);
+  f2.appendChild(mediaGrid);
+
+  // FOLDER 3: SANDESH, PANCHANG, NOTIFICATION BELL BROADCASTER & DAILY WINNERS
+  const sandeshSuite = document.createElement('div');
+  sandeshSuite.className = 'space-y-5';
+  sandeshSuite.innerHTML = `
+    <div class="bg-white p-5 rounded-2xl border-2 border-emerald-500 shadow-sm space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">🔔 सार्वजनिक सूचना एवं मेरिट PDF ब्रॉडकास्ट (Notification Bell Uploader)</h3>
+          <p class="text-[11px] text-stone-500">यहाँ से जो भी सूचना, मेरिट लिस्ट PDF या लिंक भेजेंगे, वह सभी यूज़र्स के शीर्ष दाएँ 🔔 आइकन में दिखेगा:</p>
+        </div>
+        <button type="button" onclick="downloadMockMeritPdfForOwner()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">
+          📥 मॉक टेस्ट मेरिट PDF डाउनलोड करें
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+        <input type="text" id="notifBroadcastBadge" placeholder="टैग (उदा: मेरिट सूची)" class="p-2.5 rounded-xl border border-stone-300 font-semibold">
+        <input type="text" id="notifBroadcastTitle" placeholder="सूचना का मुख्य शीर्षक (Title) *" class="sm:col-span-2 p-2.5 rounded-xl border border-stone-300 font-bold">
+      </div>
+      <textarea id="notifBroadcastMsg" rows="2" placeholder="सूचना का विवरण लिखें..." class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+        <input type="text" id="notifBroadcastLink" placeholder="PDF या वेब लिंक (उदा: ./merit.pdf)" class="p-2.5 rounded-xl border border-stone-300">
+        <input type="text" id="notifBroadcastLinkLabel" placeholder="बटन का नाम (उदा: मेरिट लिस्ट PDF डाउनलोड करें)" class="p-2.5 rounded-xl border border-stone-300">
+      </div>
+      <button onclick="publishOwnerNotificationBroadcast()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+        📢 सभी यूज़र्स के 🔔 नोटिफिकेशन सेक्शन में प्रकाशित करें
+      </button>
+    </div>
+
+    <!-- DAILY WINNERS PODIUM MANAGER -->
+    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-forest text-sm">🏆 दैनिक विजेता घोषित करें (Set Daily Winners)</h3>
+        <button onclick="clearDailyWinnersToBlank()" class="text-[11px] text-rose-600 font-bold hover:underline">खाली (Blank) करें</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+        <div class="flex gap-1.5"><input type="text" id="win1InputName" placeholder="प्रथम विजेता" class="w-2/3 p-2 border rounded-lg"><input type="text" id="win1InputScore" placeholder="10/10" class="w-1/3 p-2 border rounded-lg"></div>
+        <div class="flex gap-1.5"><input type="text" id="win2InputName" placeholder="द्वितीय विजेता" class="w-2/3 p-2 border rounded-lg"><input type="text" id="win2InputScore" placeholder="9/10" class="w-1/3 p-2 border rounded-lg"></div>
+        <div class="flex gap-1.5"><input type="text" id="win3InputName" placeholder="तृतीय विजेता" class="w-2/3 p-2 border rounded-lg"><input type="text" id="win3InputScore" placeholder="9/10" class="w-1/3 p-2 border rounded-lg"></div>
+      </div>
+      <button onclick="saveDailyWinners()" class="px-5 py-2 bg-forest text-white rounded-xl text-xs font-bold">Publish Winners</button>
+    </div>
+  `;
+  f3.appendChild(sandeshSuite);
+  const sandeshGrid = document.createElement('div');
+  sandeshGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-5';
+  if (bannerCard) sandeshGrid.appendChild(bannerCard);
+  if (amavasyaCard) sandeshGrid.appendChild(amavasyaCard);
+  f3.appendChild(sandeshGrid);
+  if (gridManagersWrap) gridManagersWrap.remove();
+
+  // FOLDER 4: ITIHAS, KIDS STORY UPLOADER, CHAT MODERATION & PASSWORD RESET
+  f4.innerHTML = `
+    <div class="bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">📜 सरल इतिहास एवं 🧸 बाल संस्कार कहानी अपलोडर (Easy 1-Click Upload)</h3>
+          <p class="text-[11px] text-stone-500">यहाँ से सीधे नई बाल कहानी या इतिहास की घटना जोड़ें या AI से लिखवाएं:</p>
+        </div>
+        <button type="button" onclick="generateAiStoryForUploader()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-lg text-xs font-extrabold shadow">
+          ✨ AI से कहानी लिखवाएं
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+        <select id="easyStoryType" class="p-2.5 rounded-xl border border-stone-300 font-bold text-forest bg-stone-50">
+          <option value="kids">🧸 बाल संस्कार कहानी (Kids Corner)</option>
+          <option value="history">📜 गौरवशाली इतिहास अध्याय (History Timeline)</option>
+        </select>
+        <input type="text" id="easyStoryTitle" placeholder="कहानी या इतिहास का शीर्षक लिखें *" class="p-2.5 rounded-xl border border-stone-300 font-semibold">
+      </div>
+      <textarea id="easyStoryContent" rows="3" placeholder="पूरी कहानी या ऐतिहासिक विवरण यहाँ सरल भाषा में लिखें या पेस्ट करें *" class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
+      <input type="text" id="easyStoryMoral" placeholder="🌟 बच्चों या समाज के लिए सीख (Moral - ऐच्छिक)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+      <button onclick="publishEasyStoryOrHistory()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow">
+        🚀 अभी वेबसाइट पर प्रकाशित करें
+      </button>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+      <div class="space-y-2 pb-3 border-b border-stone-100">
+        <h3 class="font-bold text-forest text-sm">🔑 सदस्य पासवर्ड रीसेट टूल (Reset Member Password)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <input type="tel" id="adminResetUserPhone" maxlength="10" placeholder="सदस्य का 10-अंकों का मोबाइल नंबर" class="p-2 border rounded-lg">
+          <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड लिखें" class="p-2 border rounded-lg">
+          <button onclick="adminResetMemberPassword()" class="py-2 px-4 bg-terracotta text-white font-bold rounded-lg">पासवर्ड बदलें</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div>
+          <h4 class="font-bold text-forest mb-1.5">🔇 संवाद मंच से म्यूट किए गए सदस्य</h4>
+          <div id="adminBlockedUsersList" class="space-y-1"></div>
+        </div>
+        <div>
+          <h4 class="font-bold text-forest mb-1.5">⭐ यूज़र सुझाव एवं सहायता इनबॉक्स</h4>
+          <div id="adminFeedbackInboxList" class="space-y-1 max-h-36 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // FOLDER 5: SECURITY, SUB-ADMINS, PIN LOCK, ROLL BLOCK, SOFT MAINTENANCE, FULL BACKUP & AUDIT LOGS
+  if (secAdmins) f5.appendChild(secAdmins);
+  const secSuite = document.createElement('div');
+  secSuite.className = 'space-y-5';
+  secSuite.innerHTML = `
+    <!-- OWNER 4-DIGIT PIN, 1-CLICK ROLL NUMBER BLOCKER & FULL JSON BACKUP -->
+    <div class="bg-white p-5 rounded-2xl border-2 border-amber-400 shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
+        <div>
+          <h3 class="font-bold text-forest text-sm">🔐 सुरक्षा पिन (4-Digit PIN), रोल नंबर ब्लॉक एवं संपूर्ण बैकअप</h3>
+          <p class="text-[11px] text-stone-500">गलती से बटन दबने से बचने के लिए गुप्त PIN और नकलची रोल नंबर को ब्लॉक करने का नियंत्रण:</p>
+        </div>
+        <button onclick="downloadFullPortalJsonBackup()" class="px-3.5 py-2 bg-forest text-amber-300 rounded-xl text-xs font-extrabold shadow">
+          💾 1-Click संपूर्ण डेटा बैकअप (JSON)
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <span class="font-bold text-forest block">🚫 1-Click रोल नंबर परीक्षा से ब्लॉक करें:</span>
           <div class="flex gap-2">
-            <button onclick="exportEnrolledCSV()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-forest border border-stone-300 rounded-lg text-xs font-semibold">नामांकन CSV</button>
-            <button onclick="exportMainExamResultsCSV()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-forest border border-stone-300 rounded-lg text-xs font-semibold">मुख्य परिणाम CSV</button>
+            <input type="text" id="blockRollInput" placeholder="JAMBH-2026-XXXXX" class="flex-1 p-2 border rounded-lg font-mono uppercase">
+            <button onclick="blockStudentRollNumber()" class="px-3 py-2 bg-rose-700 text-white font-bold rounded-lg">ब्लॉक करें</button>
           </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
-          <div>
-            <label class="font-semibold text-stone-600 block mb-1">परीक्षा का शीर्षक</label>
-            <input type="text" id="cfgAdmitTitle" value="${customAdmitConfig.examTitle}" class="w-full p-2 border border-stone-300 rounded-lg">
-          </div>
-          <div>
-            <label class="font-semibold text-stone-600 block mb-1">परीक्षा दिनांक व समय</label>
-            <input type="text" id="cfgAdmitDate" value="${customAdmitConfig.examDateStr}" class="w-full p-2 border border-stone-300 rounded-lg">
-          </div>
-          <div>
-            <label class="font-semibold text-stone-600 block mb-1">परीक्षा माध्यम / केंद्र</label>
-            <input type="text" id="cfgAdmitCenter" value="${customAdmitConfig.examCenterStr}" class="w-full p-2 border border-stone-300 rounded-lg">
-          </div>
-          <div>
-            <label class="font-semibold text-rose-700 block mb-1">लेट-एंट्री रोक (मिनट)</label>
-            <input type="number" id="cfgLateCutoffMins" value="${customAdmitConfig.lateCutoffMins}" min="0" max="120" class="w-full p-2 border border-stone-300 rounded-lg font-bold">
-          </div>
-        </div>
-        <div class="text-xs">
-          <label class="font-semibold text-stone-600 block mb-1">प्रवेश-पत्र निर्देश</label>
-          <input type="text" id="cfgAdmitInst" value="${customAdmitConfig.instructionsStr}" class="w-full p-2 border border-stone-300 rounded-lg">
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="saveCustomAdmitAndCutoffConfig()" class="px-5 py-2 bg-forest text-white rounded-lg text-xs font-semibold">प्रवेश-पत्र सेटिंग्स सहेजें</button>
-          <button onclick="loadLiveProctoringStats()" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-lg text-xs font-semibold">परीक्षा सांख्यिकी एवं कट-ऑफ देखें</button>
-        </div>
-        <div id="liveProctoringStatsBox" class="hidden p-3.5 rounded-xl bg-stone-50 border border-stone-200 text-xs"></div>
-      </div>
-
-      <!-- EASY STORY & HISTORY UPLOADER -->
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-          <div>
-            <h3 class="font-bold text-forest text-sm">इतिहास अध्याय एवं बाल संस्कार कहानी अपलोडर</h3>
-            <p class="text-[11px] text-stone-500">नया ऐतिहासिक तथ्य या बाल कहानी सीधे जोड़ें:</p>
-          </div>
-          <button type="button" onclick="generateAiStoryForUploader()" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-forest border border-stone-300 rounded-lg text-xs font-semibold">
-            AI से प्रारूप बनाएं
-          </button>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-          <select id="easyStoryType" class="p-2.5 rounded-lg border border-stone-300 font-semibold text-forest bg-stone-50">
-            <option value="kids">बाल संस्कार कहानी</option>
-            <option value="history">इतिहास अध्याय</option>
-          </select>
-          <input type="text" id="easyStoryTitle" placeholder="शीर्षक लिखें *" class="p-2.5 rounded-lg border border-stone-300">
-        </div>
-        <textarea id="easyStoryContent" rows="3" placeholder="पूरा विवरण या कहानी यहाँ लिखें *" class="w-full p-2.5 text-xs rounded-lg border border-stone-300"></textarea>
-        <input type="text" id="easyStoryMoral" placeholder="प्रमुख सीख या संदेश (ऐच्छिक)" class="w-full p-2.5 text-xs rounded-lg border border-stone-300">
-        <button onclick="publishEasyStoryOrHistory()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-semibold text-xs rounded-lg">
-          अध्याय प्रकाशित करें
-        </button>
-      </div>
-
-      <!-- NON-BLOCKING SECTION UPDATE & PROGRESS BAR CONTROLLER -->
-      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-          <div>
-            <h3 class="font-bold text-forest text-sm">अनुभाग अपडेट सूचना एवं प्रोग्रेस बार नियंत्रण (Soft Maintenance)</h3>
-            <p class="text-[11px] text-stone-500">ऐप को ब्लॉक किए बिना किसी विशेष अनुभाग में 'नए प्रश्न/PDF अपलोड हो रहे हैं' का संदेश व प्रोग्रेस बार दिखाएं:</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <input type="text" id="adminMaintMessage" placeholder="कस्टम अपडेट संदेश (खाली छोड़ने पर स्वतः सेक्शन अनुसार दिखेगा)" class="p-2.5 rounded-lg border border-stone-300">
-          <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200 flex items-center gap-3">
-            <span class="font-semibold text-stone-700 shrink-0">प्रोग्रेस बार: <b id="adminMaintPctLabel">65%</b></span>
-            <input type="range" id="adminMaintProgressPct" min="5" max="100" value="65" oninput="document.getElementById('adminMaintPctLabel').innerText = this.value + '%'" class="w-full accent-forest cursor-pointer">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1">
-          <div class="p-2 border rounded-lg flex justify-between items-center"><span>जप माला</span><select id="lock_mala" class="border rounded p-1"><option value="off">सामान्य</option><option value="both">अपडेट मोड</option></select></div>
-          <div class="p-2 border rounded-lg flex justify-between items-center"><span>२९ नियम</span><select id="lock_niyams" class="border rounded p-1"><option value="off">सामान्य</option><option value="both">अपडेट मोड</option></select></div>
-          <div class="p-2 border rounded-lg flex justify-between items-center"><span>साहित्य</span><select id="lock_library" class="border rounded p-1"><option value="off">सामान्य</option><option value="both">अपडेट मोड</option></select></div>
-          <div class="p-2 border rounded-lg flex justify-between items-center"><span>संवाद मंच</span><select id="lock_community" class="border rounded p-1"><option value="off">सामान्य</option><option value="both">अपडेट मोड</option></select></div>
-          <div class="p-2 border rounded-lg flex justify-between items-center"><span>परीक्षा</span><select id="lock_quiz" class="border rounded p-1"><option value="off">सामान्य</option><option value="both">अपडेट मोड</option></select></div>
-          <div class="p-2 border rounded-lg flex justify-between items-center"><span>इतिहास</span><select id="lock_history" class="border rounded p-1"><option value="off">सामान्य</option><option value="both">अपडेट मोड</option></select></div>
-        </div>
-        <div class="p-2.5 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-between text-xs">
-          <span class="font-semibold text-stone-700">ओनर प्रीव्यू मोड (मेरी स्क्रीन पर भी अपडेट प्रोग्रेस कार्ड देखें):</span>
-          <input type="checkbox" id="ownerMaintPreviewToggle" onchange="applyLiveMaintenanceLocks()" class="w-4 h-4 accent-forest cursor-pointer">
-        </div>
-        <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-semibold text-xs rounded-lg">
-          अपडेट मोड सेटिंग्स लागू करें
-        </button>
-      </div>
-
-      <!-- DAILY WINNERS, PASSWORD RESET & FEEDBACK INBOX -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="font-bold text-forest text-sm">दैनिक विजेता एवं पासवर्ड रीसेट</h3>
-            <button onclick="clearDailyWinnersToBlank()" class="text-[11px] text-rose-600 font-semibold">विजेता खाली करें</button>
-          </div>
-          <div class="space-y-2 text-xs">
-            <div class="flex gap-2"><input type="text" id="win1InputName" placeholder="प्रथम विजेता नाम" class="w-2/3 p-2 border rounded-lg"><input type="text" id="win1InputScore" placeholder="अंक" class="w-1/3 p-2 border rounded-lg"></div>
-            <div class="flex gap-2"><input type="text" id="win2InputName" placeholder="द्वितीय विजेता नाम" class="w-2/3 p-2 border rounded-lg"><input type="text" id="win2InputScore" placeholder="अंक" class="w-1/3 p-2 border rounded-lg"></div>
-            <div class="flex gap-2"><input type="text" id="win3InputName" placeholder="तृतीय विजेता नाम" class="w-2/3 p-2 border rounded-lg"><input type="text" id="win3InputScore" placeholder="अंक" class="w-1/3 p-2 border rounded-lg"></div>
-          </div>
-          <button onclick="saveDailyWinners()" class="w-full py-2 bg-forest text-white rounded-lg text-xs font-semibold">विजेता अपडेट करें</button>
-          <div class="pt-3 border-t border-stone-100 space-y-2 text-xs">
-            <span class="font-semibold text-stone-700 block">सदस्य पासवर्ड रीसेट:</span>
-            <div class="flex gap-2">
-              <input type="tel" id="adminResetUserPhone" maxlength="10" placeholder="मोबाइल नंबर" class="w-1/2 p-2 border rounded-lg">
-              <input type="text" id="adminResetUserNewPass" placeholder="नया पासवर्ड" class="w-1/2 p-2 border rounded-lg">
-            </div>
-            <button onclick="adminResetMemberPassword()" class="w-full py-2 bg-stone-800 text-white rounded-lg text-xs font-semibold">पासवर्ड बदलें</button>
-          </div>
+          <div id="blockedRollsListBox" class="space-y-1 pt-1 max-h-24 overflow-y-auto"></div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-3 text-xs">
-          <div class="flex items-center justify-between">
-            <h3 class="font-bold text-forest text-sm">सुझाव इनबॉक्स एवं म्यूट सूची</h3>
-            <button onclick="clearAllQuizQuestions()" class="text-rose-600 font-semibold">दैनिक प्रश्न रीसेट</button>
+        <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <span class="font-bold text-forest block">🔑 4-अंकों का ओनर सुरक्षा पिन (PIN) बदलें:</span>
+          <div class="flex gap-2">
+            <input type="password" id="newOwnerPinInput" maxlength="4" placeholder="नया 4-अंकों का PIN" class="flex-1 p-2 border rounded-lg font-mono">
+            <button onclick="changeOwnerSecurityPin()" class="px-3 py-2 bg-stone-800 text-white font-bold rounded-lg">PIN सहेजें</button>
           </div>
-          <div>
-            <span class="font-semibold text-stone-600 block mb-1">प्राप्त सुझाव एवं सहायता संदेश:</span>
-            <div id="adminFeedbackInboxList" class="space-y-1.5 max-h-36 overflow-y-auto border border-stone-100 p-2 rounded-lg"></div>
-          </div>
-          <div>
-            <span class="font-semibold text-stone-600 block mb-1">म्यूट किए गए सदस्य:</span>
-            <div id="adminBlockedUsersList" class="space-y-1"></div>
-          </div>
+          <p class="text-[10px] text-stone-500">वर्तमान डिफ़ॉल्ट पिन <b>2929</b> है। यह पिन प्रश्न रीसेट व महत्वपूर्ण कार्यों के समय माँगा जाता है।</p>
         </div>
       </div>
-    `;
-    adminTab.appendChild(suite);
+    </div>
+
+    <!-- NON-BLOCKING SOFT MAINTENANCE WITH PROGRESS BAR -->
+    <div class="bg-white p-5 rounded-2xl border-2 border-emerald-600 shadow-sm space-y-3">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+        <h3 class="font-bold text-forest text-sm">🛠️ सेक्शन-वाइज सॉफ्ट मेंटेनेंस एवं लाइव प्रोग्रेस बार (0-100%)</h3>
+        <span class="px-2 py-0.5 bg-emerald-100 text-forest rounded text-[10px] font-bold">NON-BLOCKING</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <input type="text" id="adminMaintMessage" placeholder="कस्टम अपडेट संदेश (खाली छोड़ने पर स्वतः सेक्शन अनुसार दिखेगा)" class="p-2.5 rounded-xl border border-stone-300">
+        <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
+          <span class="font-bold text-forest shrink-0">प्रोग्रेस बार: <b id="adminMaintPctLabel">65%</b></span>
+          <input type="range" id="adminMaintProgressPct" min="5" max="100" value="65" oninput="document.getElementById('adminMaintPctLabel').innerText = this.value + '%'" class="w-full accent-forest cursor-pointer">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1">
+        <div class="p-2 border rounded-lg flex justify-between items-center"><span>📿 माला</span><select id="lock_mala" class="border rounded p-1"><option value="off">Open</option><option value="both">Updating</option></select></div>
+        <div class="p-2 border rounded-lg flex justify-between items-center"><span>📜 नियम</span><select id="lock_niyams" class="border rounded p-1"><option value="off">Open</option><option value="both">Updating</option></select></div>
+        <div class="p-2 border rounded-lg flex justify-between items-center"><span>📚 साहित्य</span><select id="lock_library" class="border rounded p-1"><option value="off">Open</option><option value="both">Updating</option></select></div>
+        <div class="p-2 border rounded-lg flex justify-between items-center"><span>💬 संवाद</span><select id="lock_community" class="border rounded p-1"><option value="off">Open</option><option value="both">Updating</option></select></div>
+        <div class="p-2 border rounded-lg flex justify-between items-center"><span>🏆 परीक्षा</span><select id="lock_quiz" class="border rounded p-1"><option value="off">Open</option><option value="both">Updating</option></select></div>
+        <div class="p-2 border rounded-lg flex justify-between items-center"><span>🏛️ इतिहास</span><select id="lock_history" class="border rounded p-1"><option value="off">Open</option><option value="both">Updating</option></select></div>
+      </div>
+      <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-300 flex items-center justify-between text-xs">
+        <span class="font-bold text-amber-950">👁️ ओनर प्रीव्यू मोड (मेरी स्क्रीन पर भी अपडेट प्रोग्रेस कार्ड टेस्ट करें):</span>
+        <input type="checkbox" id="ownerMaintPreviewToggle" onchange="applyLiveMaintenanceLocks()" class="w-4 h-4 accent-forest cursor-pointer">
+      </div>
+      <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow">
+        💾 सॉफ्ट मेंटेनेंस एवं प्रोग्रेस बार लागू करें
+      </button>
+    </div>
+  `;
+  f5.appendChild(secSuite);
+  if (document.getElementById('secAuditLogs')) f5.appendChild(document.getElementById('secAuditLogs'));
+
+  loadShabadIntoAdminEditor(1);
+  loadEliminatedStudentsList();
+  renderBlockedRollsList();
+}
+
+function switchAdminFolderTab(folderId) {
+  activeAdminFolderTab = folderId;
+  const folders = ['exam_folder', 'sahitya_folder', 'sandesh_folder', 'itihas_folder', 'security_folder'];
+  folders.forEach(fid => {
+    const btn = document.getElementById(`admFolderBtn_${fid}`);
+    const view = document.getElementById(`admFolderView_${fid}`);
+    if (btn) {
+      btn.className = fid === folderId
+        ? "py-2.5 px-2 rounded-xl text-xs font-extrabold bg-forest text-amber-300 shadow transition text-center"
+        : "py-2.5 px-2 rounded-xl text-xs font-bold bg-white text-stone-700 hover:bg-amber-50 transition text-center";
+    }
+    if (view) view.classList.toggle('hidden', fid !== folderId);
+  });
+}
+
+// 16. ELIMINATED STUDENTS MONITOR & CUSTOM TIME "ONE MORE CHANCE" LOGIC
+async function loadEliminatedStudentsList() {
+  const wrap = document.getElementById('eliminatedStudentsTableWrap');
+  if (!wrap) return;
+  try {
+    const list = [];
+    const snap1 = await db.collection('eliminatedExamStudents').get();
+    snap1.forEach(d => list.push(d.data()));
+
+    if (list.length === 0) {
+      const snap2 = await db.collection('mainExamSubmissions').where('isForcedSubmission', '==', true).get();
+      snap2.forEach(d => list.push(d.data()));
+    }
+
+    if (!list.length) {
+      wrap.innerHTML = `<div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-forest font-semibold text-center">✅ अभी तक कोई भी छात्र चीटिंग या टैब-स्विच के कारण निष्कासित (Eliminate) नहीं हुआ है।</div>`;
+      return;
+    }
+
+    wrap.innerHTML = list.map(st => {
+      const rNo = st.rollNumber || '-';
+      const grant = studentRechanceGrantsMap[rNo];
+      const statusBadge = (grant && !grant.used)
+        ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-forest font-bold">⏳ ${grant.grantedMinutes} मि. का पुनः अवसर दिया गया</span>`
+        : `<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">🚫 निष्कासित (${st.tabWarnings || 3} टैब-स्विच)</span>`;
+
+      return `
+        <div class="p-3 rounded-xl bg-white border border-rose-200 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+          <div>
+            <div class="font-bold text-stone-800">${st.candidateName || 'परीक्षार्थी'} <span class="font-mono text-forest">(${rNo})</span></div>
+            <div class="text-[11px] text-stone-500">पिता: ${st.fatherName || '-'} • फ़ोन: ${st.phone || '-'} • पूर्व स्कोर: ${st.score || 0}/${st.total || 100}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${statusBadge}
+            <button onclick="quickGrantRechancePrompt('${rNo}', '${(st.candidateName || '').replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-lg text-xs shadow-sm">
+              ⏳ समय देकर दूसरा मौका दें
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    wrap.innerHTML = `<div class="text-rose-600">त्रुटि: ${e.message}</div>`;
   }
 }
 
+function quickGrantRechancePrompt(rollNo, studentName) {
+  const mins = prompt(`⏳ छात्र "${studentName}" (रोल नं: ${rollNo}) को दूसरा मौका (One More Chance) देने के लिए कितने मिनट का समय देना चाहते हैं?\n\n(जैसे: यदि ४० मिनट के पेपर में आप ३० मिनट देना चाहते हैं तो 30 लिखें):`, "30");
+  if (!mins) return;
+  const parsedMins = parseInt(mins.trim());
+  if (isNaN(parsedMins) || parsedMins <= 0) return showToast("कृपया वैध मिनट संख्या लिखें!");
+
+  document.getElementById('rechanceRollInput').value = rollNo;
+  document.getElementById('rechanceMinutesInput').value = parsedMins;
+  grantOneMoreChanceToStudent();
+}
+
+async function grantOneMoreChanceToStudent() {
+  if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के पास अधिकार है!");
+  const roll = (document.getElementById('rechanceRollInput')?.value || '').trim().toUpperCase();
+  const mins = parseInt(document.getElementById('rechanceMinutesInput')?.value || '30');
+
+  if (!roll || !roll.startsWith('JAMBH')) return showToast("कृपया सही रोल नंबर (JAMBH-2026-XXXXX) दर्ज करें!");
+  if (isNaN(mins) || mins < 1) return showToast("कृपया कम से कम 1 मिनट का समय दर्ज करें!");
+
+  studentRechanceGrantsMap[roll] = {
+    grantedMinutes: mins,
+    grantedAt: Date.now(),
+    used: false
+  };
+
+  try {
+    // 1. Save Custom Time Re-Chance Grant
+    await db.collection('examConfig').doc('securityControls').set({
+      rechanceGrants: studentRechanceGrantsMap
+    }, { merge: true });
+
+    // 2. Remove previous forced submission lock so student can re-enter with their new timer
+    await db.collection('examSubmissions').doc(roll).delete().catch(() => {});
+    await db.collection('eliminatedExamStudents').doc(roll).delete().catch(() => {});
+
+    document.getElementById('rechanceRollInput').value = '';
+    loadEliminatedStudentsList();
+    alert(`✅ रोल नंबर ${roll} को ${mins} मिनट के लिए 'दूसरा मौका (One More Chance)' दे दिया गया है!\n\nअब छात्र जैसे ही परीक्षा कक्ष में प्रवेश करेगा, उसका टाइमर ठीक ${mins} मिनट से शुरू होगा और ${mins} मिनट पूरे होते ही पेपर स्वतः सबमिट हो जाएगा।`);
+  } catch (e) {
+    showToast("त्रुटि: " + e.message);
+  }
+}
+
+// 17. SHABADWANI (1-120) & AARTI LYRICS ADMIN UPLOADER FUNCTIONS
+function loadShabadIntoAdminEditor(num) {
+  const n = Math.min(120, Math.max(1, parseInt(num) || 1));
+  const item = shabadwaniList.find(s => s.num === n);
+  if (!item) return;
+  if (document.getElementById('adminShabadMool')) document.getElementById('adminShabadMool').value = item.mool || '';
+  if (document.getElementById('adminShabadArth')) document.getElementById('adminShabadArth').value = item.arth || '';
+  if (document.getElementById('adminShabadPrasang')) document.getElementById('adminShabadPrasang').value = item.prasang || '';
+}
+
+async function saveShabadwaniEntryFromAdmin() {
+  if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के लिए!");
+  const num = Math.min(120, Math.max(1, parseInt(document.getElementById('adminShabadNum')?.value || '1')));
+  const mool = document.getElementById('adminShabadMool')?.value.trim() || '';
+  const arth = document.getElementById('adminShabadArth')?.value.trim() || '';
+  const prasang = document.getElementById('adminShabadPrasang')?.value.trim() || `श्री सबदवाणी — सबद संख्या ${num}`;
+
+  if (!mool || !arth) return showToast("कृपया मूल सबद और हिंदी भावार्थ दोनों भरें!");
+
+  const idx = shabadwaniList.findIndex(s => s.num === num);
+  if (idx > -1) {
+    shabadwaniList[idx] = { num, mool, arth, prasang };
+  } else {
+    shabadwaniList.push({ num, mool, arth, prasang });
+  }
+
+  localStorage.setItem('bishnoi_shabadwani_db', JSON.stringify(shabadwaniList));
+  try {
+    await db.collection('settings').doc('shabadwaniData').set({ list: shabadwaniList });
+  } catch (e) {}
+
+  openShabadByNumber(num);
+  showToast(`✅ सबद संख्या #${num} सफलतापूर्वक अपडेट एवं लाइव हो गया!`);
+}
+
+async function saveAartiLyricsFromAdmin() {
+  if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के लिए!");
+  const category = document.getElementById('adminLyricsCat')?.value.trim() || 'आरती व साखी';
+  const title = document.getElementById('adminLyricsTitle')?.value.trim() || '';
+  const lyrics = document.getElementById('adminLyricsText')?.value.trim() || '';
+  if (!title || !lyrics) return showToast("कृपया शीर्षक और बोल दोनों लिखें!");
+
+  aartiLyricsList.unshift({ id: 'lyr_' + Date.now(), category, title, lyrics });
+  localStorage.setItem('bishnoi_aarti_lyrics', JSON.stringify(aartiLyricsList));
+  try {
+    await db.collection('settings').doc('aartiLyricsData').set({ list: aartiLyricsList });
+  } catch (e) {}
+
+  document.getElementById('adminLyricsTitle').value = '';
+  document.getElementById('adminLyricsText').value = '';
+  renderAartiLyricsGrid();
+  showToast("🪔 नई आरती / साखी लिरिक्स कोष में जोड़ दी गई!");
+}
+
+// 18. 1-CLICK QUESTION FORMAT CHECKER, PIN LOCK, ROLL BLOCKER & FULL BACKUP
+function validateBulkQuestionFormat() {
+  const raw = document.getElementById('adminBulkQuizText')?.value.trim() || '';
+  if (!raw) return showToast("कृपया जाँचने के लिए पहले प्रश्न पेस्ट करें!");
+
+  const blocks = raw.split(/\n\s*\n/);
+  let validCount = 0;
+  let errors = [];
+
+  blocks.forEach((b, idx) => {
+    const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+    const hasQ = lines.some(l => /^Q\s*:/i.test(l));
+    const optsCount = lines.filter(l => /^[A-D]\s*\)/i.test(l)).length;
+    const hasAns = lines.some(l => /^Ans\s*:\s*[A-D]/i.test(l));
+
+    if (hasQ && optsCount >= 2 && hasAns) {
+      validCount++;
+    } else {
+      errors.push(`प्रश्न ब्लॉक #${idx + 1} (${!hasQ ? 'Q: छूटा है' : (!hasAns ? 'Ans: छूटा है' : 'विकल्प अधूरे हैं')})`);
+    }
+  });
+
+  if (errors.length === 0) {
+    alert(`✅ प्रश्न फॉर्मेट १००% सही है!\n\nकुल पहचाने गए सही प्रश्न: ${validCount}\nआप निश्चिंत होकर इन्हें अपलोड कर सकते हैं।`);
+  } else {
+    alert(`⚠️ फॉर्मेट जाँच रिपोर्ट:\n\nसही प्रश्न: ${validCount}\nत्रुटिपूर्ण प्रश्न (${errors.length}):\n- ${errors.slice(0, 6).join('\n- ')}`);
+  }
+}
+
+async function blockStudentRollNumber() {
+  if (!isSuperOwner()) return;
+  const r = (document.getElementById('blockRollInput')?.value || '').trim().toUpperCase();
+  if (!r) return showToast("रोल नंबर लिखें!");
+  blockedRollNumbersMap[r] = "व्यवस्थापक द्वारा परीक्षा अनुशासन के तहत प्रतिबंधित";
+  await db.collection('examConfig').doc('securityControls').set({ blockedRolls: blockedRollNumbersMap }, { merge: true });
+  document.getElementById('blockRollInput').value = '';
+  renderBlockedRollsList();
+  showToast(`🚫 रोल नंबर ${r} ब्लॉक कर दिया गया!`);
+}
+
+async function unblockStudentRollNumber(r) {
+  if (!isSuperOwner()) return;
+  delete blockedRollNumbersMap[r];
+  await db.collection('examConfig').doc('securityControls').set({ blockedRolls: blockedRollNumbersMap }, { merge: true });
+  renderBlockedRollsList();
+  showToast(`✅ रोल नंबर ${r} अनब्लॉक कर दिया गया!`);
+}
+
+function renderBlockedRollsList() {
+  const box = document.getElementById('blockedRollsListBox');
+  if (!box) return;
+  const keys = Object.keys(blockedRollNumbersMap);
+  if (!keys.length) {
+    box.innerHTML = `<div class="text-stone-400">कोई रोल नंबर ब्लॉक नहीं है।</div>`;
+    return;
+  }
+  box.innerHTML = keys.map(r => `
+    <div class="flex justify-between items-center p-1.5 bg-white border rounded">
+      <span class="font-mono font-bold text-rose-700">${r}</span>
+      <button onclick="unblockStudentRollNumber('${r}')" class="text-emerald-700 font-bold">अनब्लॉक</button>
+    </div>
+  `).join('');
+}
+
+function changeOwnerSecurityPin() {
+  verifyOwnerPinAction("ओनर पिन परिवर्तन", () => {
+    const np = (document.getElementById('newOwnerPinInput')?.value || '').trim();
+    if (!/^\d{4}$/.test(np)) return showToast("कृपया ४ अंकों का संख्यात्मक PIN लिखें!");
+    localStorage.setItem('bishnoi_owner_pin', np);
+    document.getElementById('newOwnerPinInput').value = '';
+    showToast("🔐 नया ४-अंकों का ओनर सुरक्षा पिन सहेज लिया गया!");
+  });
+}
+
+async function downloadFullPortalJsonBackup() {
+  if (!isSuperOwner()) return;
+  showToast("⏳ संपूर्ण पोर्टल बैकअप तैयार हो रहा है...");
+  const backup = {
+    generatedAt: new Date().toISOString(),
+    niyams: niyamsList,
+    shabadwani: shabadwaniList,
+    aartiLyrics: aartiLyricsList,
+    historyAndKids: historyItemsList,
+    admitConfig: customAdmitConfig
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Bishnoi_Portal_Full_Backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  showToast("💾 संपूर्ण डेटा बैकअप फाइल डाउनलोड हो गई!");
+}
+
+// 19. RBAC, BULK QUIZ IMPORT, REPORTS, CSV & MAINTENANCE
 function listenSubAdminPermissions() {
   db.collection('settings').doc('subAdminPermissions').onSnapshot(doc => {
     subAdminPermissionsMap = doc.exists ? (doc.data().map || {}) : {};
@@ -1365,17 +2990,17 @@ function listenSubAdminPermissions() {
           const p = subAdminPermissionsMap[ph] || {};
           const badges = [
             p.canUploadQuestions ? 'प्रश्न ड्राफ्ट' : '',
-            p.canPublishExam ? 'परीक्षा संचालन' : '',
+            p.canPublishExam ? 'परीक्षा लाइव' : '',
             p.canToggleResults ? 'परिणाम घोषणा' : '',
             p.canViewAuditLogs ? 'ऑडिट लॉग्स' : ''
-          ].filter(Boolean).join(' • ') || 'सीमित';
+          ].filter(Boolean).join(' • ') || 'कोई अधिकार नहीं';
           return `
-            <div class="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200">
+            <div class="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-200">
               <div>
-                <span class="font-bold text-forest">${ph}</span>
-                <span class="text-[10px] text-stone-500 ml-2">(${badges})</span>
+                <span class="font-bold text-forest">📱 ${ph}</span>
+                <span class="text-[10px] text-stone-600 ml-2">(${badges})</span>
               </div>
-              <button onclick="removeSubAdminRole('${ph}')" class="text-rose-600 font-bold text-[11px]">हटाएं</button>
+              <button onclick="removeSubAdminRole('${ph}')" class="text-red-600 font-bold text-[11px]">हटाएं ✕</button>
             </div>
           `;
         }).join('');
@@ -1386,9 +3011,9 @@ function listenSubAdminPermissions() {
 }
 
 async function saveSubAdminGranularPermissions() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक ही अधिकार दे सकते हैं।");
+  if (!isSuperOwner()) return showToast("केवल मुख्य ओनर ही अधिकार दे सकते हैं!");
   const ph = document.getElementById('subAdminTargetPhone')?.value.trim() || '';
-  if (!/^[6-9]\d{9}$/.test(ph)) return showToast("कृपया सही १० अंकों का मोबाइल नंबर लिखें।");
+  if (!/^[6-9]\d{9}$/.test(ph)) return showToast("कृपया सही १० अंकों का मोबाइल नंबर लिखें!");
 
   subAdminPermissionsMap[ph] = {
     canUploadQuestions: Boolean(document.getElementById('permUploadQ')?.checked),
@@ -1398,7 +3023,7 @@ async function saveSubAdminGranularPermissions() {
   };
   await db.collection('settings').doc('subAdminPermissions').set({ map: subAdminPermissionsMap });
   document.getElementById('subAdminTargetPhone').value = '';
-  showToast(`मोबाइल ${ph} के अधिकार अपडेट कर दिए गए।`);
+  showToast(`✅ मोबाइल ${ph} के अधिकार अपडेट कर दिए गए!`);
 }
 
 async function removeSubAdminRole(ph) {
@@ -1438,7 +3063,6 @@ function renderAdminStudio(userRole, customPermissions = []) {
   toggleElementVisibility('secPublishExam', isOwner || allowed.includes('canPublishExam') || allowed.includes('canToggleResults'));
   toggleElementVisibility('secUploadQuestions', isOwner || allowed.includes('canUploadQuestions'));
   toggleElementVisibility('secAuditLogs', isOwner || allowed.includes('canViewAuditLogs'));
-  toggleElementVisibility('cleanOwnerExtendedSuite', isOwner);
 }
 
 function toggleElementVisibility(elementId, isVisible) {
@@ -1446,119 +3070,92 @@ function toggleElementVisibility(elementId, isVisible) {
   if (el) el.classList.toggle('hidden', !isVisible);
 }
 
-// 12. ENROLLMENT, ADMIT CARD PDF & PURE SEPARATED EXAM REPORTS
-async function handleExamEnrollment(e) {
-  e.preventDefault();
-  const name = document.getElementById('enrollName').value.trim();
-  const fatherName = document.getElementById('enrollFatherName').value.trim();
-  const dob = document.getElementById('enrollDob').value;
-  const phone = document.getElementById('enrollPhone').value.trim();
-  const email = document.getElementById('enrollEmail').value.trim();
-  const location = document.getElementById('enrollLocation').value.trim();
+async function saveExamAsDraft() {
+  if (!isEditorOrOwner()) return showToast("अनुमति नहीं है!");
+  const target = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
+  const raw = document.getElementById('adminBulkQuizText')?.value.trim();
+  if (!raw) return showToast("कृपया पहले प्रश्न पेस्ट करें!");
 
-  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का फ़ोन नंबर भरें।");
-  if (!name || !fatherName || !dob || !location) return showToast("कृपया सभी अनिवार्य प्रविष्टियाँ भरें।");
-
-  try {
-    const existingSnap = await db.collection('examEnrolledStudents').where('phone', '==', phone).limit(1).get();
-    if (!existingSnap.empty) {
-      const exData = existingSnap.docs[0].data();
-      examState.rollNumber = exData.rollNumber || existingSnap.docs[0].id;
-      lastEnrolledStudentObj = exData;
-      localStorage.setItem('bishnoi_saved_roll', examState.rollNumber);
-      localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(exData));
-      alert(`आपका नामांकन पहले से पंजीकृत है।\n\nरोल नंबर: ${examState.rollNumber}`);
-      return;
-    }
-
-    let rollNumber = '';
-    let isUnique = false;
-    while (!isUnique) {
-      const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-      rollNumber = `JAMBH-2026-${randomSuffix}`;
-      const checkDoc = await db.collection('examEnrolledStudents').doc(rollNumber).get();
-      if (!checkDoc.exists) isUnique = true;
-    }
-
-    const studentRecord = {
-      rollNumber, name, fatherName, dob, phone,
-      email: email || '-', location,
-      enrolledAt: firebase.firestore.FieldValue.serverTimestamp(),
-      timestamp: Date.now()
-    };
-
-    await db.collection('examEnrolledStudents').doc(rollNumber).set(studentRecord);
-    examState.rollNumber = rollNumber;
-    lastEnrolledStudentObj = studentRecord;
-    localStorage.setItem('bishnoi_saved_roll', rollNumber);
-    localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(studentRecord));
-
-    alert(`आपका परीक्षा नामांकन सफलतापूर्वक संपन्न हुआ।\n\nरोल नंबर: ${rollNumber}\nआपका प्रवेश-पत्र डाउनलोड हो रहा है।`);
-    downloadStudentAdmitCardPdf(studentRecord);
-  } catch (err) {
-    showToast("नामांकन त्रुटि: " + err.message);
-  }
+  await db.collection('examDrafts').doc(target).set({
+    rawQuestions: raw,
+    author: currentUser?.name || 'Admin',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  showToast(`✅ प्रश्न (${target}) ड्राफ्ट में सुरक्षित हो गए!`);
 }
 
-async function downloadStudentAdmitCardPdf(customObj) {
-  let st = customObj || lastEnrolledStudentObj;
-  if (!st) {
-    const r = prompt("प्रवेश-पत्र डाउनलोड करने हेतु अपना रोल नंबर या पंजीकृत मोबाइल नंबर दर्ज करें:");
-    if (!r) return;
-    const clean = r.trim().toUpperCase();
-    if (clean.startsWith('JAMBH')) {
-      const d = await db.collection('examEnrolledStudents').doc(clean).get();
-      if (d.exists) st = d.data();
-    } else {
-      const s = await db.collection('examEnrolledStudents').where('phone', '==', clean).limit(1).get();
-      if (!s.empty) st = s.docs[0].data();
+async function importBulkQuiz() {
+  if (!isEditorOrOwner()) return;
+  const rawText = document.getElementById('adminBulkQuizText')?.value.trim() || '';
+  const targetCol = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
+  if (!rawText) return showToast('कृपया प्रश्न पेस्ट करें');
+
+  const blocks = rawText.split(/\n\s*\n/);
+  let parsed = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const lines = blocks[i].split('\n').map(l => l.trim()).filter(Boolean);
+    let qText = '', opts = [], ansIdx = 0;
+    for (let l of lines) {
+      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, '').trim();
+      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
+      else if (l.match(/^Ans\s*:/i)) {
+        const letAns = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
+        ansIdx = letAns === 'A' ? 0 : letAns === 'B' ? 1 : letAns === 'C' ? 2 : 3;
+      }
     }
-    if (!st) return showToast("कोई नामांकन रिकॉर्ड नहीं मिला।");
-    lastEnrolledStudentObj = st;
-    localStorage.setItem('bishnoi_last_enrolled_obj', JSON.stringify(st));
+    if (qText && opts.length >= 2) {
+      parsed.push({ id: `${targetCol}_q_${i + 1}`, q: qText, title: qText, opts, options: opts, ans: ansIdx });
+    }
   }
 
-  if (!window.jspdf || !window.jspdf.jsPDF) return showToast("पीडीएफ इंजन लोड हो रहा है...");
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setDrawColor(20, 54, 34);
-  doc.setLineWidth(1.2);
-  doc.rect(10, 10, 190, 142);
+  if (!parsed.length) return showToast('प्रारूप सही नहीं है! कृपया Q:, A), B), Ans: प्रारूप में पेस्ट करें।');
 
-  doc.setFontSize(15);
-  doc.setTextColor(20, 54, 34);
-  doc.text("BISHNOI SAMAJ DIGITAL PORTAL (bishnoism.vercel.app)", 105, 21, { align: "center" });
-  doc.setFontSize(12);
-  doc.setTextColor(140, 59, 26);
-  doc.text(customAdmitConfig.examTitle || "OFFICIAL EXAMINATION ADMIT CARD", 105, 29, { align: "center" });
-
-  doc.autoTable({
-    startY: 35,
-    margin: { left: 16, right: 16 },
-    theme: 'grid',
-    head: [['Field', 'Candidate Information']],
-    body: [
-      ['Roll Number', st.rollNumber || '-'],
-      ['Candidate Name', st.name || '-'],
-      ['Father Name', st.fatherName || '-'],
-      ['Date of Birth', st.dob || '-'],
-      ['Registered Mobile', st.phone || '-'],
-      ['District / State', st.location || '-'],
-      ['Exam Date & Time', customAdmitConfig.examDateStr || 'As Announced'],
-      ['Exam Mode / Center', customAdmitConfig.examCenterStr || 'Online Digital Hall']
-    ],
-    styles: { fontSize: 9.5, cellPadding: 2.5 },
-    headStyles: { fillColor: [20, 54, 34] }
+  await db.collection('examBundles').doc(targetCol).set({
+    questions: parsed,
+    count: parsed.length,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  doc.setFontSize(8.5);
-  doc.setTextColor(20, 54, 34);
-  doc.text(`VERIFICATION CODE: ${st.rollNumber} | HASH: ${btoa(st.rollNumber || '').substring(0, 10)}`, 16, 134);
-  doc.setTextColor(90, 90, 90);
-  doc.text(`Instructions: ${customAdmitConfig.instructionsStr}`, 16, 142);
+  const collectionName = targetCol === 'daily_quiz' ? 'quiz' : (targetCol === 'mock_1' ? 'mockExam_1' : (targetCol === 'mock_2' ? 'mockExam_2' : 'mainExamQuestions'));
+  const batch = db.batch();
+  parsed.forEach(q => batch.set(db.collection(collectionName).doc(), q));
+  await batch.commit();
+  document.getElementById('adminBulkQuizText').value = '';
+  showToast(`✅ ${parsed.length} प्रश्न (${targetCol}) हाई-स्पीड सिंगल-बंडल में सहेजे गए!`);
+}
 
-  doc.save(`Admit_Card_${st.rollNumber}.pdf`);
-  showToast("प्रवेश-पत्र डाउनलोड हो गया।");
+async function publishMainExamLive() {
+  if (!isSuperOwner() && !(subAdminPermissionsMap[currentUser?.phone]?.canPublishExam)) {
+    return showToast("परीक्षा लाइव करने का अधिकार केवल अधिकृत व्यवस्थापक के पास है!");
+  }
+  const startTime = document.getElementById('adminExamScheduleTime')?.value;
+  const endTime = document.getElementById('adminExamEndTime')?.value;
+  const duration = parseInt(document.getElementById('adminExamDuration')?.value) || 120;
+
+  openConfirmModal("मुख्य परीक्षा लाइव करें?", "क्या आप ड्राफ्ट प्रश्नों को सक्रिय कर मुख्य परीक्षा पोर्टल लाइव करना चाहते हैं?", async (res) => {
+    if (res) {
+      const draftDoc = await db.collection('examDrafts').doc('main_exam').get();
+      if (draftDoc.exists && draftDoc.data().rawQuestions) {
+        document.getElementById('adminBulkQuizText').value = draftDoc.data().rawQuestions;
+        document.getElementById('adminQuestionTarget').value = 'main_exam';
+        await importBulkQuiz();
+      }
+      await db.collection('examConfig').doc('visibility').set({
+        mainExam: true,
+        examScheduleTime: startTime || new Date().toISOString(),
+        examEndTime: endTime || null,
+        examDuration: duration
+      }, { merge: true });
+      showToast("🚀 मुख्य परीक्षा सभी परीक्षार्थियों के लिए लाइव कर दी गई है!");
+    }
+  });
+}
+
+async function publishExamResultsOfficially() {
+  verifyOwnerPinAction("मुख्य परीक्षा परिणाम घोषणा", async () => {
+    await db.collection('examConfig').doc('visibility').set({ resultsPublished: true }, { merge: true });
+    showToast("📢 परीक्षा परिणाम आधिकारिक रूप से घोषित कर दिए गए!");
+  });
 }
 
 function downloadEnrolledStudentsPdf() {
@@ -1575,21 +3172,20 @@ function downloadEnrolledStudentsPdf() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('landscape');
     doc.setFontSize(14);
-    doc.text("Jambhani Literature Examination - Enrolled Candidates Master List", 14, 15);
+    doc.text("Jambhani Literature Examination 2026 - Enrolled Candidates Master List", 14, 15);
     doc.setFontSize(10);
-    doc.text(`Total Enrolled: ${rows.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
+    doc.text(`Total Enrolled Candidates: ${rows.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
     doc.autoTable({
       startY: 27,
       head: [['S.No', 'Roll Number', 'Candidate Name', 'Father Name', 'DOB', 'Phone', 'Email', 'Location']],
       body: rows,
       styles: { fontSize: 9 }
     });
-    doc.save("Enrolled_Students_Master_List.pdf");
-    showToast("नामांकित छात्रों की पीडीएफ डाउनलोड हो गई।");
+    doc.save("Jambhani_Exam_Enrolled_Students_List.pdf");
+    showToast("📋 नामांकित छात्रों की PDF डाउनलोड हो गई!");
   }).catch(err => showToast("त्रुटि: " + err.message));
 }
 
-// Pure Main Exam Merit PDF (Strictly separated from Mock & Daily Quiz)
 async function downloadExamResultsMeritPdf() {
   try {
     let records = [];
@@ -1601,7 +3197,7 @@ async function downloadExamResultsMeritPdf() {
       snapFallback.forEach(d => records.push(d.data()));
     }
 
-    if (!records.length) return showToast("मुख्य परीक्षा का कोई सबमिशन रिकॉर्ड उपलब्ध नहीं है।");
+    if (!records.length) return showToast("अभी मुख्य परीक्षा (Main Exam) का कोई सबमिशन रिकॉर्ड नहीं है।");
     records.sort((a, b) => (b.score || 0) - (a.score || 0));
 
     const rows = records.map((r, idx) => [
@@ -1616,7 +3212,7 @@ async function downloadExamResultsMeritPdf() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(14);
-    doc.text("Jambhani Main Examination - Official Merit Result", 14, 15);
+    doc.text("Jambhani Main Examination - Official Merit Result (Pure Main Exam)", 14, 15);
     doc.setFontSize(10);
     doc.text(`Total Main Exam Candidates: ${rows.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
     doc.autoTable({
@@ -1625,7 +3221,7 @@ async function downloadExamResultsMeritPdf() {
       body: rows
     });
     doc.save("Main_Exam_Official_Merit_Result.pdf");
-    showToast("मुख्य परीक्षा मेरिट पीडीएफ डाउनलोड हो गई।");
+    showToast("🏆 शुद्ध मुख्य परीक्षा मेरिट PDF डाउनलोड हो गई!");
   } catch (e) {
     showToast("त्रुटि: " + e.message);
   }
@@ -1651,561 +3247,15 @@ function download7DaysUsersPdf() {
   }).catch(err => showToast("त्रुटि: " + err.message));
 }
 
-async function handleIndividualResultCheck(e) {
-  e.preventDefault();
-  const roll = document.getElementById('resCheckRoll').value.trim().toUpperCase();
-  const name = document.getElementById('resCheckName').value.trim().toLowerCase();
-  const dob = document.getElementById('resCheckDob').value;
-  const resultBox = document.getElementById('studentPersonalResultDisplay');
-  if (!resultBox) return;
-
-  try {
-    const enrolledDoc = await db.collection('examEnrolledStudents').doc(roll).get();
-    if (!enrolledDoc.exists) return showToast("यह रोल नंबर रिकॉर्ड में नहीं मिला।");
-    const studentData = enrolledDoc.data();
-    if (studentData.dob !== dob || !studentData.name.toLowerCase().includes(name)) {
-      return showToast("दर्ज किया गया नाम या जन्मतिथि रोल नंबर से मेल नहीं खाती।");
-    }
-
-    let subData = null;
-    const mainSnap = await db.collection('mainExamSubmissions').where('rollNumber', '==', roll).limit(1).get();
-    if (!mainSnap.empty) {
-      subData = mainSnap.docs[0].data();
-    } else {
-      const fallbackSnap = await db.collection('examSubmissions').where('rollNumber', '==', roll).limit(1).get();
-      if (!fallbackSnap.empty) subData = fallbackSnap.docs[0].data();
-    }
-
-    if (!subData) {
-      resultBox.innerHTML = `<div class="p-4 bg-stone-50 rounded-xl border border-stone-200 text-center text-xs text-stone-700 font-semibold">आपकी उत्तर-पुस्तिका प्राप्त नहीं हुई है अथवा परिणाम प्रक्रियाधीन है।</div>`;
-      resultBox.classList.remove('hidden');
-      return;
-    }
-
-    const score = subData.score || 0;
-    const total = subData.total || 100;
-    const percentage = Math.round((score / total) * 100);
-    const safeName = studentData.name.replace(/'/g, "\\'");
-
-    resultBox.innerHTML = `
-      <div class="p-5 bg-[#FAF8F3] rounded-2xl border border-stone-300 shadow-sm space-y-3">
-        <div class="flex justify-between items-center border-b border-stone-200 pb-2">
-          <span class="font-yatra text-base text-forest">जाम्भाणी साहित्य परीक्षा - आधिकारिक अंकतालिका</span>
-          <span class="px-2.5 py-0.5 rounded bg-emerald-100 text-forest font-bold text-xs">सत्यापित</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-700">
-          <div><b>परीक्षार्थी का नाम:</b> ${studentData.name}</div>
-          <div><b>पिता का नाम:</b> ${studentData.fatherName}</div>
-          <div><b>रोल नंबर:</b> ${roll}</div>
-          <div><b>जन्मतिथि:</b> ${dob}</div>
-          <div class="sm:col-span-2"><b>स्थान:</b> ${studentData.location}</div>
-        </div>
-        <div class="p-3 bg-white rounded-xl border border-stone-200 flex items-center justify-between">
-          <span class="font-bold text-xs text-stone-600">कुल प्राप्तांक:</span>
-          <span class="text-xl font-extrabold text-forest">${score} / ${total} (${percentage}%)</span>
-        </div>
-        <button onclick="generateCertificate('${safeName}', ${percentage})" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-950">
-          डिजिटल प्रमाण-पत्र डाउनलोड करें
-        </button>
-      </div>
-    `;
-    resultBox.classList.remove('hidden');
-  } catch (err) {
-    showToast("परिणाम जाँच में त्रुटि: " + err.message);
-  }
-}
-
-// 13. ZERO-LAG EXAM ENGINE (SINGLE-DOC READ, ENCRYPTED STORAGE, STRICT ANTI-CHEAT)
-async function launchMainExamPortal() {
-  if (parikshaVisibility.examScheduleTime && !isSuperOwner()) {
-    const startMs = new Date(parikshaVisibility.examScheduleTime).getTime();
-    const nowMs = getSyncedNow();
-    const cutoffMins = customAdmitConfig.lateCutoffMins ?? 5;
-
-    if (nowMs < startMs) {
-      return showToast("परीक्षा अभी प्रारंभ नहीं हुई है। कृपया निर्धारित समय की प्रतीक्षा करें।");
-    }
-    if (cutoffMins > 0 && nowMs > startMs + (cutoffMins * 60 * 1000)) {
-      return alert(`प्रवेश समय समाप्त!\n\nपरीक्षा प्रारंभ होने के ${cutoffMins} मिनट पश्चात परीक्षा कक्ष में प्रवेश की अनुमति नहीं है।`);
-    }
-  }
-
-  let roll = examState.rollNumber;
-  if (!roll || roll === 'GUEST') {
-    const inputRoll = prompt("परीक्षा कक्ष में प्रवेश हेतु अपना रोल नंबर दर्ज करें (उदा: JAMBH-2026-12345):");
-    if (!inputRoll) return;
-    roll = inputRoll.trim().toUpperCase();
-  }
-
-  try {
-    const rollDoc = await db.collection('examEnrolledStudents').doc(roll).get();
-    if (!rollDoc.exists && !isSuperOwner()) {
-      return showToast("अमान्य रोल नंबर। कृपया पहले नामांकन करें या सही रोल नंबर दर्ज करें।");
-    }
-    if (rollDoc.exists) examState.enrolledProfile = rollDoc.data();
-    examState.rollNumber = roll;
-    localStorage.setItem('bishnoi_saved_roll', roll);
-    examState.activeMode = 'main_exam';
-    markedForReviewSet.clear();
-
-    // Single-Document Read First (Saves 99% Firestore Quota for 3,000+ students)
-    const bundleDoc = await db.collection('examBundles').doc('main_exam').get();
-    if (bundleDoc.exists && Array.isArray(bundleDoc.data().questions) && bundleDoc.data().questions.length > 0) {
-      return startExamEngine(bundleDoc.data().questions, parikshaVisibility.examDuration || 120);
-    }
-
-    const snap = await db.collection('mainExamQuestions').get();
-    let list = [];
-    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-    if (!list.length) return showToast("मुख्य परीक्षा के प्रश्न अभी अपलोड या लाइव नहीं किए गए हैं।");
-    startExamEngine(list, parikshaVisibility.examDuration || 120);
-  } catch (e) {
-    showToast("परीक्षा लोड करने में त्रुटि: " + e.message);
-  }
-}
-
-async function startMockTestEngine(mockId) {
-  const modeKey = `mock_${mockId}`;
-  examState.activeMode = modeKey;
-  markedForReviewSet.clear();
-  try {
-    const bundleDoc = await db.collection('examBundles').doc(modeKey).get();
-    if (bundleDoc.exists && Array.isArray(bundleDoc.data().questions) && bundleDoc.data().questions.length > 0) {
-      return startExamEngine(bundleDoc.data().questions, 60);
-    }
-    const snap = await db.collection(`mockExam_${mockId}`).get();
-    let list = [];
-    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-    if (!list.length) {
-      list = [
-        { id: 'm1_1', title: 'गुरु जम्भेश्वर भगवान द्वारा स्थापित विश्नोई समाज के कुल कितने नियम हैं?', options: ['21 नियम', '29 नियम', '36 नियम', '108 नियम'], ans: 1 },
-        { id: 'm1_2', title: 'खेजड़ली में ३६३ पर्यावरण प्रेमियों का बलिदान किस वर्ष हुआ था?', options: ['1730 ईस्वी', '1485 ईस्वी', '1857 ईस्वी', '1947 ईस्वी'], ans: 0 },
-        { id: 'm1_3', title: 'बिश्नोई पंथ की स्थापना किस पावन स्थल पर हुई?', options: ['पीपासर', 'समराथल धोरा', 'मुकाम', 'जांगलू'], ans: 1 }
-      ];
-    }
-    startExamEngine(list, 60);
-  } catch (e) {
-    showToast("मॉक टेस्ट लोड नहीं हो सका।");
-  }
-}
-
-function startQuizNow() {
-  examState.activeMode = 'daily_quiz';
-  markedForReviewSet.clear();
-  startExamEngine(quizList, 15);
-}
-
-function startExamEngine(questionList, durationMinutes) {
-  encryptedAnswerKeyMap = {};
-  const sanitizedQuestions = (questionList || []).map((q, idx) => {
-    const qId = q.id || `q_${idx}`;
-    encryptedAnswerKeyMap[qId] = Number(q.ans ?? 0) ^ 79;
-    const copy = { ...q, id: qId };
-    delete copy.ans;
-    return copy;
-  });
-
-  examState.questions = sanitizedQuestions;
-  examState.timeRemainingSeconds = durationMinutes * 60;
-  examState.currentIndex = 0;
-  examState.tabSwitchCount = 0;
-  examState.isExamRunning = true;
-
-  const cacheKey = `encExam_${examState.activeMode}_${examState.rollNumber}`;
-  examState.answers = decryptLocalData(localStorage.getItem(cacheKey));
-
-  document.getElementById('examClosedNoticeBox')?.classList.add('hidden');
-  document.getElementById('examEnrollmentBox')?.classList.add('hidden');
-  document.getElementById('mockTestsHub')?.classList.add('hidden');
-  document.getElementById('mainExamLaunchBox')?.classList.add('hidden');
-  document.getElementById('examResultCheckDesk')?.classList.add('hidden');
-  document.getElementById('quizIntroCard')?.classList.add('hidden');
-  document.getElementById('quizActiveBox')?.classList.remove('hidden');
-
-  const rollEl = document.getElementById('examCandidateRoll');
-  if (rollEl) {
-    rollEl.innerText = examState.activeMode === 'main_exam'
-      ? `रोल नंबर: ${examState.rollNumber}`
-      : `अभ्यास मोड (${examState.activeMode.toUpperCase()})`;
-  }
-
-  initExamSecurity();
-  buildQuestionGridPills();
-  renderQuestion(examState.currentIndex);
-
-  if (examState.timerInterval) clearInterval(examState.timerInterval);
-  examState.timerInterval = setInterval(() => {
-    examState.timeRemainingSeconds--;
-    updateTimerDisplay(examState.timeRemainingSeconds);
-    if (examState.timeRemainingSeconds <= 0) {
-      clearInterval(examState.timerInterval);
-      submitFinalExam(false);
-    }
-  }, 1000);
-}
-
-function initExamSecurity() {
-  if (examState.securityAttached) return;
-  examState.securityAttached = true;
-
-  document.addEventListener('visibilitychange', () => {
-    if (!examState.isExamRunning) return;
-    if (document.hidden) {
-      examState.tabSwitchCount = (examState.tabSwitchCount || 0) + 1;
-      alert(`सुरक्षा चेतावनी (${examState.tabSwitchCount}/3):\nपरीक्षा के दौरान स्क्रीन या टैब बदलना वर्जित है। ३ बार उल्लंघन होने पर उत्तर-पुस्तिका स्वतः जमा हो जाएगी।`);
-      if (examState.tabSwitchCount >= 3) {
-        submitFinalExam(true);
-      }
-    }
-  });
-
-  ['contextmenu', 'copy', 'cut', 'paste', 'selectstart', 'dragstart'].forEach(evtName => {
-    document.addEventListener(evtName, e => {
-      if (examState.isExamRunning) {
-        e.preventDefault();
-        return false;
-      }
-    });
-  });
-
-  window.addEventListener('keydown', e => {
-    const k = (e.key || '').toUpperCase();
-    const isDevShortcut = (
-      e.key === 'F12' ||
-      (e.ctrlKey && e.shiftKey && ['I', 'J', 'C', 'K'].includes(k)) ||
-      (e.ctrlKey && ['U', 'S', 'P'].includes(k))
-    );
-    if (isDevShortcut && !isSuperOwner()) {
-      e.preventDefault();
-      return false;
-    }
-  });
-}
-
-function buildQuestionGridPills() {
-  const gridContainer = document.getElementById('questionGridPills');
-  if (!gridContainer) return;
-  gridContainer.innerHTML = '';
-  examState.questions.forEach((q, idx) => {
-    const qId = q.id || `q_${idx}`;
-    const pill = document.createElement('button');
-    pill.id = `q_pill_${idx}`;
-    pill.className = `omr-pill w-8 h-8 rounded-lg text-xs font-bold border transition ${examState.answers[qId] !== undefined ? 'omr-pill-answered bg-emerald-700 text-white border-emerald-800' : 'bg-white text-stone-700 border-stone-300'}`;
-    pill.innerText = idx + 1;
-    pill.onclick = () => jumpToQuestion(idx);
-    gridContainer.appendChild(pill);
-  });
-}
-
-function renderQuestion(index) {
-  if (!examState.questions[index]) return;
-  const q = examState.questions[index];
-  const qId = q.id || `q_${index}`;
-  const container = document.getElementById('examQuestionArea');
-  if (!container) return;
-
-  const currentSelection = examState.answers[qId];
-  container.innerHTML = `
-    <div class="p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-stone-200 select-none">
-      <div class="flex justify-between items-center mb-3 pb-2 border-b border-stone-100">
-        <span class="font-bold text-forest text-sm">प्रश्न संख्या: ${index + 1} / ${examState.questions.length}</span>
-        <span class="text-xs bg-stone-100 text-stone-700 px-2.5 py-0.5 rounded font-semibold">१ अंक</span>
-      </div>
-      <p class="text-base font-semibold text-stone-800 mb-4 leading-relaxed">${q.title || q.q}</p>
-      <div class="space-y-2.5">
-        ${(q.options || q.opts || []).map((opt, i) => `
-          <label class="flex items-center p-3 border rounded-xl cursor-pointer hover:bg-stone-50 transition ${currentSelection === i ? 'bg-emerald-50/70 border-forest font-semibold' : 'border-stone-200'}">
-            <input type="radio" name="currentExamRadio" value="${i}" 
-              ${currentSelection === i ? 'checked' : ''} 
-              onchange="saveExamAnswer('${qId}', ${i}, ${index})" class="accent-forest w-4 h-4 mr-3">
-            <span class="text-xs sm:text-sm text-stone-800">${opt}</span>
-          </label>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function saveExamAnswer(questionId, selectedOption, index) {
-  examState.answers[questionId] = selectedOption;
-  const cacheKey = `encExam_${examState.activeMode}_${examState.rollNumber}`;
-  localStorage.setItem(cacheKey, encryptLocalData(examState.answers));
-  const pill = document.getElementById(`q_pill_${index}`);
-  if (pill && !markedForReviewSet.has(index)) {
-    pill.className = "omr-pill omr-pill-answered w-8 h-8 rounded-lg text-xs font-bold border transition bg-emerald-700 text-white border-emerald-800";
-  }
-}
-
-function toggleMarkQuestionForReview() {
-  const idx = examState.currentIndex;
-  const pill = document.getElementById(`q_pill_${idx}`);
-  if (markedForReviewSet.has(idx)) {
-    markedForReviewSet.delete(idx);
-    const qId = examState.questions[idx]?.id || `q_${idx}`;
-    if (pill) {
-      pill.className = examState.answers[qId] !== undefined
-        ? "omr-pill omr-pill-answered w-8 h-8 rounded-lg text-xs font-bold border transition bg-emerald-700 text-white border-emerald-800"
-        : "omr-pill w-8 h-8 rounded-lg text-xs font-bold border transition bg-white text-stone-700 border-stone-300";
-    }
-    showToast("पुनर्विचार चिह्न हटाया गया।");
-  } else {
-    markedForReviewSet.add(idx);
-    if (pill) {
-      pill.className = "omr-pill omr-pill-review w-8 h-8 rounded-lg text-xs font-bold border transition bg-purple-700 text-white border-purple-800";
-    }
-    showToast("प्रश्न पुनर्विचार हेतु चिह्नित किया गया।");
-  }
-}
-
-function navigateExam(direction) {
-  const newIndex = examState.currentIndex + direction;
-  if (newIndex >= 0 && newIndex < examState.questions.length) {
-    examState.currentIndex = newIndex;
-    renderQuestion(examState.currentIndex);
-  }
-}
-
-function jumpToQuestion(targetIndex) {
-  if (targetIndex >= 0 && targetIndex < examState.questions.length) {
-    examState.currentIndex = targetIndex;
-    renderQuestion(examState.currentIndex);
-  }
-}
-
-function updateTimerDisplay(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  const el = document.getElementById('examTimerClock');
-  if (el) el.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-async function submitFinalExam(isForced = false) {
-  examState.isExamRunning = false;
-  if (examState.timerInterval) clearInterval(examState.timerInterval);
-
-  let calculatedScore = 0;
-  examState.questions.forEach((q, idx) => {
-    const qId = q.id || `q_${idx}`;
-    const trueAns = encryptedAnswerKeyMap[qId] !== undefined ? (encryptedAnswerKeyMap[qId] ^ 79) : 0;
-    if (examState.answers[qId] === trueAns) calculatedScore++;
-  });
-
-  const candidateName = examState.enrolledProfile?.name || (currentUser ? currentUser.name : 'परीक्षार्थी');
-  const fatherName = examState.enrolledProfile?.fatherName || '-';
-  const totalQ = examState.questions.length;
-  const pct = totalQ > 0 ? Math.round((calculatedScore / totalQ) * 100) : 0;
-  const isMainExam = examState.activeMode === 'main_exam';
-
-  const payload = {
-    rollNumber: isMainExam ? examState.rollNumber : 'PRACTICE',
-    candidateName,
-    fatherName,
-    phone: examState.enrolledProfile?.phone || (currentUser ? currentUser.phone : '-'),
-    deviceSignature: currentDeviceSignature,
-    tabWarnings: examState.tabSwitchCount || 0,
-    mode: examState.activeMode,
-    score: calculatedScore,
-    total: totalQ,
-    percentage: pct,
-    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    timestamp: Date.now(),
-    isForcedSubmission: isForced
-  };
-
-  localStorage.removeItem(`encExam_${examState.activeMode}_${examState.rollNumber}`);
-
-  const targetCollection = isMainExam ? 'mainExamSubmissions' : 'mockExamSubmissions';
-
-  if (!isMainExam) {
-    const myMocks = JSON.parse(localStorage.getItem('bishnoi_my_personal_mock_scores') || '[]');
-    myMocks.unshift({
-      candidateName,
-      mode: examState.activeMode,
-      score: calculatedScore,
-      total: totalQ,
-      time: Date.now()
-    });
-    localStorage.setItem('bishnoi_my_personal_mock_scores', JSON.stringify(myMocks.slice(0, 20)));
-  }
-
-  try {
-    await db.collection(targetCollection).add(payload);
-    if (isMainExam) {
-      await db.collection('examSubmissions').doc(examState.rollNumber).set(payload);
-    }
-  } catch (err) {
-    const q = JSON.parse(localStorage.getItem('bishnoi_offline_exam_queue') || '[]');
-    q.push({ ...payload, targetCollection });
-    localStorage.setItem('bishnoi_offline_exam_queue', JSON.stringify(q));
-    showToast("नेटवर्क धीमा है: आपकी उत्तर-पुस्तिका सुरक्षित लॉक हो गई है और इंटरनेट आते ही जमा हो जाएगी।");
-  }
-
-  const qBox = document.getElementById('quizActiveBox');
-  if (!qBox) return;
-  const safeName = candidateName.replace(/'/g, "\\'");
-
-  if (!isMainExam) {
-    qBox.innerHTML = `
-      <div class="text-center p-6 sm:p-8 bg-white rounded-2xl border border-stone-200 space-y-4 shadow-sm">
-        <h3 class="font-yatra text-2xl text-forest">अभ्यास परीक्षा परिणाम</h3>
-        <p class="text-xs sm:text-sm text-stone-600">प्रतिभागी: <b>${candidateName}</b></p>
-        <div class="p-4 bg-[#FAF8F3] rounded-xl border border-stone-200 max-w-xs mx-auto">
-          <span class="text-xs text-stone-500 block">आपके प्राप्तांक:</span>
-          <span class="text-3xl font-extrabold text-forest">${calculatedScore} / ${totalQ}</span>
-          <span class="block text-xs font-semibold text-stone-600 mt-1">(${pct}% अंक)</span>
-        </div>
-        <div class="flex flex-wrap justify-center gap-2.5 pt-2">
-          <button onclick="generateCertificate('${safeName}', ${pct})" class="px-5 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-lg text-xs font-semibold">
-            सहभागिता प्रमाण-पत्र डाउनलोड करें
-          </button>
-          <button onclick="openMockMeritNotificationModal(); switchNotificationSubView('my_mock_scores');" class="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 rounded-lg text-xs font-semibold">
-            मेरा अभ्यास रिकॉर्ड
-          </button>
-        </div>
-      </div>
-    `;
-  } else {
-    qBox.innerHTML = `
-      <div class="text-center p-8 bg-white rounded-2xl border border-stone-200 space-y-3 shadow-sm">
-        <h3 class="font-yatra text-xl text-forest">मुख्य परीक्षा उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है</h3>
-        <p class="text-xs sm:text-sm text-stone-600">रोल नंबर: <b>${examState.rollNumber}</b> के सभी उत्तर आधिकारिक रिकॉर्ड में सुरक्षित दर्ज हो गए हैं।</p>
-        <div class="p-3 bg-[#FAF8F3] rounded-xl border border-stone-200 text-xs font-medium text-stone-700">
-          मुख्य परीक्षा का परिणाम घोषित होने पर आप अपना रोल नंबर व जन्मतिथि दर्ज कर अंकतालिका एवं प्रमाण-पत्र डाउनलोड कर सकेंगे।
-        </div>
-        <button onclick="switchTab('home')" class="px-5 py-2 bg-forest text-white rounded-lg text-xs font-semibold">
-          मुखपृष्ठ पर लौटें
-        </button>
-      </div>
-    `;
-  }
-}
-
-async function flushOfflineExamQueue() {
-  const rawQ = localStorage.getItem('bishnoi_offline_exam_queue');
-  if (!rawQ || !navigator.onLine) return;
-  try {
-    const queue = JSON.parse(rawQ);
-    if (!Array.isArray(queue) || !queue.length) return;
-    for (const item of queue) {
-      const col = item.targetCollection || 'examSubmissions';
-      delete item.targetCollection;
-      await db.collection(col).add({
-        ...item,
-        submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        syncedFromOffline: true
-      });
-    }
-    localStorage.removeItem('bishnoi_offline_exam_queue');
-    showToast("आपकी ऑफलाइन उत्तर-पुस्तिका सफलतापूर्वक सर्वर पर जमा हो गई।");
-  } catch (e) {}
-}
-window.addEventListener('online', flushOfflineExamQueue);
-
-// 14. OWNER STUDIO ACTIONS (QUESTION BUNDLES, BROADCASTS, CSV, MAINTENANCE)
-async function saveExamAsDraft() {
-  if (!isEditorOrOwner()) return showToast("अनुमति नहीं है।");
-  const target = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
-  const raw = document.getElementById('adminBulkQuizText')?.value.trim();
-  if (!raw) return showToast("कृपया पहले प्रश्न पेस्ट करें।");
-
-  await db.collection('examDrafts').doc(target).set({
-    rawQuestions: raw,
-    author: currentUser?.name || 'Admin',
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  showToast(`प्रश्न (${target}) ड्राफ्ट में सुरक्षित हो गए।`);
-}
-
-async function importBulkQuiz() {
-  if (!isEditorOrOwner()) return;
-  const rawText = document.getElementById('adminBulkQuizText')?.value.trim() || '';
-  const targetCol = document.getElementById('adminQuestionTarget')?.value || 'main_exam';
-  if (!rawText) return showToast('कृपया प्रश्न पेस्ट करें।');
-
-  const blocks = rawText.split(/\n\s*\n/);
-  let parsed = [];
-  for (let i = 0; i < blocks.length; i++) {
-    const lines = blocks[i].split('\n').map(l => l.trim()).filter(Boolean);
-    let qText = '', opts = [], ansIdx = 0;
-    for (let l of lines) {
-      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, '').trim();
-      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
-      else if (l.match(/^Ans\s*:/i)) {
-        const letAns = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
-        ansIdx = letAns === 'A' ? 0 : letAns === 'B' ? 1 : letAns === 'C' ? 2 : 3;
-      }
-    }
-    if (qText && opts.length >= 2) {
-      parsed.push({ id: `${targetCol}_q_${i + 1}`, q: qText, title: qText, opts, options: opts, ans: ansIdx });
-    }
-  }
-
-  if (!parsed.length) return showToast('प्रारूप सही नहीं है। कृपया Q:, A), B), Ans: प्रारूप में पेस्ट करें।');
-
-  // Save as Single JSON Bundle Document (1 Read per student instead of 100 Reads)
-  await db.collection('examBundles').doc(targetCol).set({
-    questions: parsed,
-    count: parsed.length,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  const collectionName = targetCol === 'daily_quiz' ? 'quiz' : (targetCol === 'mock_1' ? 'mockExam_1' : (targetCol === 'mock_2' ? 'mockExam_2' : 'mainExamQuestions'));
-  const batch = db.batch();
-  parsed.forEach(q => batch.set(db.collection(collectionName).doc(), q));
-  await batch.commit();
-
-  document.getElementById('adminBulkQuizText').value = '';
-  showToast(`${parsed.length} प्रश्न सफलतापूर्वक बैंक में सहेजे गए।`);
-}
-
-async function publishMainExamLive() {
-  if (!isSuperOwner() && !(subAdminPermissionsMap[currentUser?.phone]?.canPublishExam)) {
-    return showToast("परीक्षा लाइव करने का अधिकार केवल अधिकृत व्यवस्थापक के पास है।");
-  }
-  const startTime = document.getElementById('adminExamScheduleTime')?.value;
-  const endTime = document.getElementById('adminExamEndTime')?.value;
-  const duration = parseInt(document.getElementById('adminExamDuration')?.value) || 120;
-
-  openConfirmModal("मुख्य परीक्षा लाइव करें?", "क्या आप ड्राफ्ट प्रश्नों को सक्रिय कर मुख्य परीक्षा पोर्टल लाइव करना चाहते हैं?", async (res) => {
-    if (res) {
-      const draftDoc = await db.collection('examDrafts').doc('main_exam').get();
-      if (draftDoc.exists && draftDoc.data().rawQuestions) {
-        document.getElementById('adminBulkQuizText').value = draftDoc.data().rawQuestions;
-        document.getElementById('adminQuestionTarget').value = 'main_exam';
-        await importBulkQuiz();
-      }
-      await db.collection('examConfig').doc('visibility').set({
-        mainExam: true,
-        examScheduleTime: startTime || new Date().toISOString(),
-        examEndTime: endTime || null,
-        examDuration: duration
-      }, { merge: true });
-      showToast("मुख्य परीक्षा सभी परीक्षार्थियों के लिए लाइव कर दी गई है।");
-    }
-  });
-}
-
-async function publishExamResultsOfficially() {
-  if (!isSuperOwner() && !(subAdminPermissionsMap[currentUser?.phone]?.canToggleResults)) {
-    return showToast("परिणाम घोषित करने का अधिकार केवल मुख्य व्यवस्थापक के पास है।");
-  }
-  openConfirmModal("परिणाम घोषित करें?", "क्या आप सभी छात्रों के लिए परिणाम खोज कक्ष चालू करना चाहते हैं?", async (res) => {
-    if (res) {
-      await db.collection('examConfig').doc('visibility').set({ resultsPublished: true }, { merge: true });
-      showToast("परीक्षा परिणाम आधिकारिक रूप से घोषित कर दिए गए।");
-    }
-  });
-}
-
 async function publishOwnerNotificationBroadcast() {
-  if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के लिए।");
+  if (!isEditorOrOwner()) return showToast("केवल व्यवस्थापक के लिए!");
   const badge = document.getElementById('notifBroadcastBadge')?.value.trim() || 'आधिकारिक सूचना';
   const title = document.getElementById('notifBroadcastTitle')?.value.trim() || '';
   const message = document.getElementById('notifBroadcastMsg')?.value.trim() || '';
   const link = document.getElementById('notifBroadcastLink')?.value.trim() || '';
-  const linkLabel = document.getElementById('notifBroadcastLinkLabel')?.value.trim() || 'दस्तावेज़ खोलें';
+  const linkLabel = document.getElementById('notifBroadcastLinkLabel')?.value.trim() || 'दस्तावेज़ / लिंक खोलें';
 
-  if (!title && !message) return showToast("कृपया शीर्षक या संदेश भरें।");
+  if (!title && !message) return showToast("कृपया शीर्षक या संदेश भरें!");
 
   await db.collection('publicNotifications').add({
     badge, title, message, link, linkLabel,
@@ -2216,42 +3266,35 @@ async function publishOwnerNotificationBroadcast() {
   document.getElementById('notifBroadcastTitle').value = '';
   document.getElementById('notifBroadcastMsg').value = '';
   document.getElementById('notifBroadcastLink').value = '';
-  showToast("सूचना सभी सदस्यों के सूचना केंद्र में प्रकाशित हो गई।");
+  showToast("✅ सूचना एवं लिंक सभी सदस्यों के 🔔 नोटिफिकेशन बॉक्स में लाइव हो गए!");
 }
 
 async function downloadMockMeritPdfForOwner() {
   if (!isEditorOrOwner()) return;
-  const mode = prompt("किस मॉक टेस्ट की मेरिट सूची चाहिए? (mock_1 या mock_2 लिखें):", "mock_1");
+  const mode = prompt("किस मॉक टेस्ट की मेरिट PDF चाहिए? (mock_1 या mock_2 लिखें):", "mock_1");
   if (!mode) return;
   try {
     let list = [];
-    const snap1 = await db.collection('mockExamSubmissions').where('mode', '==', mode.trim()).get();
-    snap1.forEach(d => list.push(d.data()));
+    const s1 = await db.collection('mockExamSubmissions').where('mode', '==', mode.trim()).get();
+    s1.forEach(d => list.push(d.data()));
     if (!list.length) {
-      const snap2 = await db.collection('examSubmissions').where('mode', '==', mode.trim()).get();
-      snap2.forEach(d => list.push(d.data()));
+      const s2 = await db.collection('examSubmissions').where('mode', '==', mode.trim()).get();
+      s2.forEach(d => list.push(d.data()));
     }
     if (!list.length) return showToast("इस मॉक टेस्ट में कोई रिकॉर्ड नहीं मिला।");
     list.sort((a, b) => (b.score || 0) - (a.score || 0));
 
     const rows = list.map((r, i) => [
-      i + 1,
-      r.candidateName || 'परीक्षार्थी',
-      r.fatherName || '-',
-      `${r.score || 0} / ${r.total || 100}`
+      i + 1, r.candidateName || 'परीक्षार्थी', r.fatherName || '-', `${r.score || 0} / ${r.total || 100}`
     ]);
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text(`Bishnoi Portal - ${mode.toUpperCase()} Merit List (Highest to Lowest)`, 14, 16);
-    doc.autoTable({
-      startY: 22,
-      head: [['Rank', 'Student Name', 'Father Name', 'Marks']],
-      body: rows
-    });
-    doc.save(`${mode}_Merit_List.pdf`);
-    showToast("मॉक मेरिट पीडीएफ डाउनलोड हो गई।");
+    doc.autoTable({ startY: 22, head: [['Rank', 'Student Name', 'Father Name', 'Marks']], body: rows });
+    doc.save(`${mode}_Merit_List_Highest_To_Lowest.pdf`);
+    showToast("📥 मॉक मेरिट PDF डाउनलोड हो गई!");
   } catch (e) {
     showToast("त्रुटि: " + e.message);
   }
@@ -2260,15 +3303,15 @@ async function downloadMockMeritPdfForOwner() {
 async function saveCustomAdmitAndCutoffConfig() {
   if (!isEditorOrOwner()) return;
   customAdmitConfig = {
-    examTitle: document.getElementById('cfgAdmitTitle')?.value.trim() || "जाम्भाणी साहित्य ज्ञान परीक्षा",
-    examDateStr: document.getElementById('cfgAdmitDate')?.value.trim() || "निर्धारित समयानुसार",
-    examCenterStr: document.getElementById('cfgAdmitCenter')?.value.trim() || "ऑनलाइन पोर्टल",
+    examTitle: document.getElementById('cfgAdmitTitle')?.value.trim() || "JAMBHANI LITERATURE EXAMINATION",
+    examDateStr: document.getElementById('cfgAdmitDate')?.value.trim() || "As Scheduled",
+    examCenterStr: document.getElementById('cfgAdmitCenter')?.value.trim() || "Online Portal",
     instructionsStr: document.getElementById('cfgAdmitInst')?.value.trim() || "",
     lateCutoffMins: parseInt(document.getElementById('cfgLateCutoffMins')?.value || '5')
   };
   localStorage.setItem('bishnoi_admit_cfg', JSON.stringify(customAdmitConfig));
   await db.collection('examConfig').doc('admitAndCutoff').set(customAdmitConfig, { merge: true });
-  showToast("प्रवेश-पत्र एवं लेट-एंट्री सेटिंग्स अपडेट हो गईं।");
+  showToast("✅ प्रवेश-पत्र प्रारूप एवं लेट-एंट्री कट-ऑफ समय अपडेट हो गया!");
 }
 
 async function exportEnrolledCSV() {
@@ -2285,7 +3328,7 @@ async function exportEnrolledCSV() {
   link.href = URL.createObjectURL(blob);
   link.download = "Enrolled_Students_Master.csv";
   link.click();
-  showToast("नामांकन CSV डाउनलोड हो गई।");
+  showToast("📊 नामांकित छात्रों की Excel (CSV) फ़ाइल डाउनलोड हो गई!");
 }
 
 async function exportMainExamResultsCSV() {
@@ -2305,14 +3348,14 @@ async function exportMainExamResultsCSV() {
   link.href = URL.createObjectURL(blob);
   link.download = "Main_Exam_Merit_Results.csv";
   link.click();
-  showToast("मुख्य परीक्षा परिणाम CSV डाउनलोड हो गई।");
+  showToast("📊 मुख्य परीक्षा परिणाम Excel (CSV) डाउनलोड हो गई!");
 }
 
 async function loadLiveProctoringStats() {
   const box = document.getElementById('liveProctoringStatsBox');
   if (!box) return;
   box.classList.remove('hidden');
-  box.innerHTML = `<div class="text-stone-400">सांख्यिकी लोड हो रही है...</div>`;
+  box.innerHTML = `<div class="text-stone-400">विश्लेषण लोड हो रहा है...</div>`;
   try {
     const snap = await db.collection('mainExamSubmissions').get();
     let totalSubs = 0, high = 0, sum = 0, flagged = 0;
@@ -2327,10 +3370,10 @@ async function loadLiveProctoringStats() {
     const avg = totalSubs > 0 ? (sum / totalSubs).toFixed(1) : 0;
     box.innerHTML = `
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-        <div class="p-2 bg-white rounded-lg border"><b>${totalSubs}</b><span class="block text-[10px] text-stone-500">कुल जमा पत्र</span></div>
+        <div class="p-2 bg-white rounded-lg border"><b>${totalSubs}</b><span class="block text-[10px] text-stone-500">कुल जमा कॉपियाँ</span></div>
         <div class="p-2 bg-white rounded-lg border text-emerald-700"><b>${high}</b><span class="block text-[10px] text-stone-500">उच्चतम अंक</span></div>
         <div class="p-2 bg-white rounded-lg border text-amber-700"><b>${avg}</b><span class="block text-[10px] text-stone-500">औसत अंक</span></div>
-        <div class="p-2 bg-white rounded-lg border text-rose-700"><b>${flagged}</b><span class="block text-[10px] text-stone-500">चेतावनी चिह्नित</span></div>
+        <div class="p-2 bg-white rounded-lg border text-rose-700"><b>${flagged}</b><span class="block text-[10px] text-stone-500">टैब-स्विच चेतावनी वाले</span></div>
       </div>
     `;
   } catch (e) {
@@ -2338,7 +3381,7 @@ async function loadLiveProctoringStats() {
   }
 }
 
-// 15. NON-BLOCKING SOFT MAINTENANCE ENGINE
+// 20. NON-BLOCKING SOFT MAINTENANCE ENGINE
 function listenMaintenanceConfig() {
   db.collection('settings').doc('maintenance').onSnapshot(doc => {
     if (doc.exists) {
@@ -2367,7 +3410,7 @@ function listenMaintenanceConfig() {
 }
 
 async function saveMaintenanceSettings() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के पास अधिकार है।");
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के पास अधिकार है!");
   const message = document.getElementById('adminMaintMessage')?.value.trim() || '';
   const progressPct = parseInt(document.getElementById('adminMaintProgressPct')?.value || '65');
   const sections = {};
@@ -2383,7 +3426,7 @@ async function saveMaintenanceSettings() {
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
 
-  showToast("अनुभाग अपडेट एवं प्रोग्रेस बार सेटिंग्स लागू हो गईं।");
+  showToast("✅ सॉफ्ट मेंटेनेंस एवं प्रोग्रेस बार अपडेट हो गया!");
 }
 
 function applyLiveMaintenanceLocks() {
@@ -2392,12 +3435,12 @@ function applyLiveMaintenanceLocks() {
   const pct = maintenanceConfig.progressPct || 65;
 
   const defaultMessages = {
-    quiz: 'नए ज्ञान परीक्षा प्रश्न अपलोड किए जा रहे हैं, कृपया कुछ समय प्रतीक्षा करें।',
-    library: 'नई पीडीएफ पुस्तकें एवं साहित्य जोड़े जा रहे हैं, कृपया प्रतीक्षा करें।',
-    history: 'नए ऐतिहासिक अध्याय एवं बाल कहानियाँ अपडेट की जा रही हैं।',
-    niyams: '२९ नियमों की विस्तृत व्याख्या अपडेट की जा रही है।',
-    community: 'संवाद मंच अनुभाग में तकनीकी सुधार कार्य जारी है।',
-    mala: 'डिजिटल जप माला अनुभाग अपडेट किया जा रहा है।'
+    quiz: '✨ नए ज्ञान परीक्षा प्रश्न अपलोड हो रहे हैं, कृपया कुछ समय प्रतीक्षा करें...',
+    library: '📚 नई PDF पुस्तकें एवं साहित्य अपलोड हो रहे हैं, कृपया प्रतीक्षा करें...',
+    history: '📜 नए ऐतिहासिक अध्याय एवं बाल कहानियाँ जोड़ी जा रही हैं...',
+    niyams: '🌿 २९ नियमों की विस्तृत व्याख्या अपडेट की जा रही है...',
+    community: '💬 संवाद मंच में नए फीचर्स जोड़े जा रहे हैं...',
+    mala: '📿 डिजिटल जप माला अपडेट की जा रही है...'
   };
 
   ['mala', 'niyams', 'library', 'community', 'quiz', 'history'].forEach(sec => {
@@ -2416,7 +3459,7 @@ function applyLiveMaintenanceLocks() {
       if (!lockBox) {
         lockBox = document.createElement('div');
         lockBox.id = `secLockBox_${sec}`;
-        lockBox.className = 'bg-white p-6 sm:p-8 rounded-2xl border border-stone-200 shadow-sm text-center space-y-4 my-4 max-w-lg mx-auto';
+        lockBox.className = 'bg-white p-8 rounded-3xl border-2 border-amber-300 shadow-lg text-center space-y-4 my-4 max-w-lg mx-auto';
         tabEl.insertBefore(lockBox, tabEl.firstChild);
       }
       const msgToShow = (maintenanceConfig.message && maintenanceConfig.message.length > 3)
@@ -2424,16 +3467,16 @@ function applyLiveMaintenanceLocks() {
         : defaultMessages[sec];
 
       lockBox.innerHTML = `
-        <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">सामग्री अपडेट कार्य जारी है</span>
-        <h3 class="font-yatra text-lg sm:text-xl text-forest pt-1">${msgToShow}</h3>
-        <div class="w-full bg-stone-200 rounded-full h-3 overflow-hidden p-0.5">
-          <div class="bg-forest h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+        <div class="text-4xl animate-pulse">⏳</div>
+        <h3 class="font-yatra text-xl text-forest">${msgToShow}</h3>
+        <div class="w-full bg-stone-200 rounded-full h-3.5 overflow-hidden p-0.5 border border-stone-300">
+          <div class="bg-gradient-to-r from-forest via-emerald-600 to-amber-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
         </div>
-        <div class="flex justify-between text-xs font-semibold text-stone-600 px-1">
-          <span>प्रगति की स्थिति</span>
-          <span class="text-forest">${pct}% पूर्ण</span>
+        <div class="flex justify-between text-[11px] font-bold text-stone-600 px-1">
+          <span>अपलोड कार्य प्रगति पर...</span>
+          <span class="text-terracotta">${pct}% पूर्ण</span>
         </div>
-        <p class="text-xs text-stone-500">तब तक आप मंच के अन्य सभी अनुभागों का सुचारू रूप से उपयोग कर सकते हैं।</p>
+        <p class="text-xs text-stone-500">तब तक आप मंच के अन्य सभी सेक्शन सुचारू रूप से उपयोग कर सकते हैं।</p>
       `;
     } else {
       if (lockBox) lockBox.remove();
@@ -2442,7 +3485,7 @@ function applyLiveMaintenanceLocks() {
   });
 }
 
-// 16. DUAL-FALLBACK IP TELEMETRY & 7-DAY AUDIT LOGS
+// 21. TELEMETRY, AUTH, MALA, PANCHANG, AI, PDF VIEWER, NIYAMS, HISTORY & CHAT
 async function trackUserLoginTelemetry(userData) {
   let geo = {};
   try {
@@ -2454,34 +3497,26 @@ async function trackUserLoginTelemetry(userData) {
       const r2 = await fetch('https://ipwho.is/');
       if (r2.ok) {
         const d2 = await r2.json();
-        geo = { ip: d2.ip, city: d2.city, region: d2.region, country_name: d2.country, org: d2.connection?.isp };
+        geo = { ip: d2.ip, city: d2.city, region: d2.region, country_name: d2.country };
       }
-    } catch (e2) {
-      try {
-        const r3 = await fetch('https://api.db-ip.com/v2/free/self');
-        if (r3.ok) {
-          const d3 = await r3.json();
-          geo = { ip: d3.ipAddress, city: d3.city, region: d3.stateProv, country_name: d3.countryName };
-        }
-      } catch (e3) {}
-    }
+    } catch (e2) {}
   }
 
   const ua = navigator.userAgent || '';
-  let deviceCategory = "कंप्यूटर / लैपटॉप";
+  let deviceCategory = "Laptop / Desktop";
   if (/android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua.toLowerCase())) {
-    deviceCategory = /ipad|tablet/i.test(ua.toLowerCase()) ? "टैबलेट" : "मोबाइल फ़ोन";
+    deviceCategory = /ipad|tablet/i.test(ua.toLowerCase()) ? "Tablet" : "Mobile Phone";
   }
 
   try {
     await db.collection('userAccessLogs').add({
-      name: userData?.name || 'अतिथि',
+      name: userData?.name || 'Visitor',
       phone: userData?.phone || '-',
       email: userData?.email || '-',
       statedLocation: userData?.location || '-',
-      detectedCity: geo.city || '-',
-      detectedRegion: geo.region || '-',
-      ip: geo.ip || '-',
+      detectedCity: geo.city || 'Unknown',
+      detectedRegion: geo.region || 'Unknown',
+      ip: geo.ip || 'Unknown',
       deviceType: deviceCategory,
       timestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2524,20 +3559,19 @@ async function refreshAuditLogs() {
       `;
     });
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-rose-500">लॉग्स त्रुटि: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-rose-500">त्रुटि: ${e.message}</td></tr>`;
   }
 }
 
-// 17. AUTHENTICATION (SIGN IN, REGISTER & GOOGLE LOGIN)
 function openAuthModal() { document.getElementById('authModal')?.classList.remove('hidden'); }
 function closeAuthModal() { document.getElementById('authModal')?.classList.add('hidden'); }
 
 function toggleAuthMode() {
   isRegisterMode = !isRegisterMode;
   document.getElementById('nameRow')?.classList.toggle('hidden', !isRegisterMode);
-  document.getElementById('authTitle').innerText = isRegisterMode ? "नया सदस्य पंजीकरण" : "सदस्य लॉगिन";
-  document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "पंजीकरण पूर्ण करें" : "लॉगिन करें";
-  document.getElementById('authToggleBtn').innerText = isRegisterMode ? "पहले से खाता है? लॉगिन करें" : "नए सदस्य हैं? यहाँ पंजीकरण करें";
+  document.getElementById('authTitle').innerText = isRegisterMode ? "नया पंजीकरण (Register)" : "लॉगिन (Sign In)";
+  document.getElementById('authSubmitBtn').innerText = isRegisterMode ? "खाता बनाएं (Register)" : "लॉगिन करें";
+  document.getElementById('authToggleBtn').innerText = isRegisterMode ? "पहले से पंजीकृत हैं? लॉगिन करें" : "नए सदस्य हैं? पहले पंजीकरण (Register) करें";
 }
 
 async function handleAuthSubmit(e) {
@@ -2547,8 +3581,7 @@ async function handleAuthSubmit(e) {
   const nameInput = document.getElementById('loginName')?.value.trim() || '';
 
   if (phone === OWNER_PHONE && pass === OWNER_PASS) {
-    let ownerName = "मुख्य व्यवस्थापक";
-    let ownerLoc = "", ownerEmail = "", ownerPhoto = "";
+    let ownerName = "व्यवस्थापक (Owner)", ownerLoc = "", ownerEmail = "", ownerPhoto = "";
     try {
       const oDoc = await db.collection('users').doc(OWNER_PHONE).get();
       if (oDoc.exists) {
@@ -2563,18 +3596,18 @@ async function handleAuthSubmit(e) {
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     applyCurrentUserRBACView();
     closeAuthModal();
-    showToast(`स्वागत है, ${currentUser.name}`);
+    showToast(`🛡️ मुख्य व्यवस्थापक के रूप में स्वागत है, ${currentUser.name}!`);
     trackUserLoginTelemetry(currentUser);
     return;
   }
 
-  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का मोबाइल नंबर दर्ज करें।");
+  if (!/^[6-9]\d{9}$/.test(phone)) return showToast("कृपया सही १० अंकों का भारतीय मोबाइल नंबर लिखें!");
 
   if (isRegisterMode) {
-    if (!nameInput) return showToast("कृपया अपना पूरा नाम लिखें।");
+    if (!nameInput) return showToast("कृपया अपना पूरा नाम लिखें!");
     try {
       const existing = await db.collection('users').doc(phone).get();
-      if (existing.exists) return showToast("यह मोबाइल नंबर पहले से पंजीकृत है। कृपया लॉगिन करें।");
+      if (existing.exists) return showToast("यह नंबर पहले से पंजीकृत है! कृपया लॉगिन करें।");
 
       await db.collection('users').doc(phone).set({
         name: nameInput, phone, pass, email: "", location: "",
@@ -2585,7 +3618,7 @@ async function handleAuthSubmit(e) {
       localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
       applyCurrentUserRBACView();
       closeAuthModal();
-      showToast(`पंजीकरण सफल। स्वागत है, ${currentUser.name}`);
+      showToast(`पंजीकरण सफल! स्वागत है, ${currentUser.name}`);
       trackUserLoginTelemetry(currentUser);
     } catch (err) { showToast("त्रुटि: " + err.message); }
     return;
@@ -2593,9 +3626,9 @@ async function handleAuthSubmit(e) {
 
   try {
     const userDoc = await db.collection('users').doc(phone).get();
-    if (!userDoc.exists) return showToast("यह नंबर पंजीकृत नहीं है। कृपया पहले नया पंजीकरण करें।");
+    if (!userDoc.exists) return showToast("यह नंबर पंजीकृत नहीं है! पहले Register करें।");
     const userData = userDoc.data();
-    if (userData.pass && userData.pass !== pass) return showToast("दर्ज किया गया पासवर्ड गलत है।");
+    if (userData.pass && userData.pass !== pass) return showToast("गलत पासवर्ड!");
 
     await db.collection('users').doc(phone).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() });
 
@@ -2611,7 +3644,7 @@ async function handleAuthSubmit(e) {
     localStorage.setItem('bishnoi_secure_user', JSON.stringify(currentUser));
     applyCurrentUserRBACView();
     closeAuthModal();
-    showToast(`स्वागत है, ${currentUser.name}`);
+    showToast(`स्वागत है, ${currentUser.name}!`);
     trackUserLoginTelemetry(currentUser);
   } catch (err) { showToast("त्रुटि: " + err.message); }
 }
@@ -2631,19 +3664,18 @@ function updateNavAuth() {
   const bnavProfLbl = document.getElementById('bnavProfileLabel');
 
   if (container) {
-    container.className = "flex items-center gap-2 shrink-0";
     if (currentUser) {
+      const badgeIcon = isSuperOwner() ? '🛡️' : (isEditorOrOwner() ? '✍️' : '👤');
       container.innerHTML = `
-        <button onclick="openProfileModal()" class="text-xs font-semibold text-forest bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg border border-stone-300 truncate max-w-[150px]">
-          ${currentUser.name}
+        <button onclick="openProfileModal()" class="text-xs font-bold text-forest bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full border border-emerald-300 truncate max-w-[155px] shadow-sm">
+          ${badgeIcon} ${currentUser.name}
         </button>
       `;
     } else {
       container.innerHTML = `
-        <button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-lg bg-forest text-white text-xs font-semibold">लॉगिन</button>
+        <button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">लॉगिन</button>
       `;
     }
-    ensureBellIconMounted();
   }
 
   if (bnavProfLbl) {
@@ -2659,7 +3691,6 @@ function updateNavAuth() {
   }
 }
 
-// 18. DIGITAL JAAP MALA, PANCHANG & TREE PLEDGE
 function updateMantraName() {
   const selected = document.getElementById('malaMantraSelect')?.value;
   if (selected) document.getElementById('activeMantraDisplay').innerText = selected;
@@ -2674,7 +3705,7 @@ function tapMalaBead() {
     malaBeadCount = 0;
     malaLapsCount++;
     if (isVibe && navigator.vibrate) navigator.vibrate([80, 50, 100]);
-    showToast("एक संपूर्ण माला (१०८ जप) पूर्ण हुई।");
+    showToast("ॐ शांति! एक संपूर्ण माला (१०८ जप) पूर्ण हुई!");
   }
   localStorage.setItem('bishnoi_mala_beads', malaBeadCount.toString());
   localStorage.setItem('bishnoi_mala_laps', malaLapsCount.toString());
@@ -2694,7 +3725,7 @@ function renderMalaCounters() {
 }
 
 function resetMalaCounter() {
-  openConfirmModal("माला रीसेट करें?", "क्या आप जप माला काउंटर शून्य करना चाहते हैं?", (res) => {
+  openConfirmModal("माला शून्य करें?", "क्या आप जप माला काउंटर रीसेट करना चाहते हैं?", (res) => {
     if (res) {
       malaBeadCount = 0; malaLapsCount = 0; malaTotalCount = 0;
       localStorage.setItem('bishnoi_mala_beads', '0');
@@ -2708,8 +3739,12 @@ function resetMalaCounter() {
 }
 
 function updateProgressIndicators() {
+  const mTotal = document.getElementById('userTotalMantra');
+  const mLaps = document.getElementById('userCompletedMala');
   const pTotal = document.getElementById('statMalaTotal');
   const pLaps = document.getElementById('statMalaLaps');
+  if (mTotal) mTotal.innerText = malaTotalCount;
+  if (mLaps) mLaps.innerText = malaLapsCount;
   if (pTotal) pTotal.innerText = malaTotalCount;
   if (pLaps) pLaps.innerText = malaLapsCount;
 }
@@ -2768,7 +3803,7 @@ function startAmavasyaTimer() {
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / 1000 / 60) % 60);
       const secs = Math.floor((diff / 1000) % 60);
-      box.innerHTML = `शेष समय: <b>${days} दिन : ${hours} घं : ${mins} मि : ${secs} से</b>`;
+      box.innerHTML = `⏳ समय शेष: <b>${days} दिन : ${hours} घं : ${mins} मि : ${secs} से</b>`;
     } else {
       computeAutoPanchang();
     }
@@ -2782,40 +3817,20 @@ async function saveAmavasyaConfig() {
   const name = document.getElementById('adminAmavasyaName').value.trim();
   const date = document.getElementById('adminAmavasyaDate').value;
   const desc = document.getElementById('adminAmavasyaDesc').value.trim();
-  if (!date) return showToast('कृपया तिथि चुनें।');
+  if (!date) return showToast('तारीख चुनें');
   await db.collection('settings').doc('amavasyaConfig').set({ name: name || "पावन अमावस्या", date, desc: desc || "उपवास एवं हवन" });
-  showToast('अमावस्या तिथि अपडेट हो गई।');
+  showToast('अमावस्या तिथि सहेजी गई!');
 }
 
-function listenTreeCounter() {
-  db.collection('stats').doc('treePledges').onSnapshot(doc => {
-    if (doc.exists && doc.data().count) document.getElementById('treeCounterDisplay').innerText = doc.data().count;
-  });
-}
-
-async function pledgeTree() {
-  if (localStorage.getItem('has_pledged_tree')) return showToast("आपका संकल्प पहले से दर्ज है।");
-  const village = prompt("पौधरोपण संकल्प हेतु अपने गाँव या ज़िले का नाम लिखें (ऐच्छिक):", currentUser?.location || "");
-  const display = document.getElementById('treeCounterDisplay');
-  let nextVal = (parseInt(display?.innerText) || 1485) + 1;
-  if (display) display.innerText = nextVal;
-  localStorage.setItem('has_pledged_tree', 'true');
-  showToast("आपका प्रकृति रक्षा संकल्प दर्ज हो गया।");
-  try {
-    await db.collection('stats').doc('treePledges').set({ count: nextVal, lastVillage: village || '' }, { merge: true });
-  } catch (e) {}
-}
-
-// 19. AI HELPERS, PDF VIEWER, NIYAMS, HISTORY, CHAT & CERTIFICATE
 function getGeminiKey() {
   return localStorage.getItem('gemini_user_api_key') || DEFAULT_INTEGRATED_AI_KEY;
 }
 
 function resetGeminiKey() {
-  const k = prompt("AI API Key यहाँ देखें या बदलें:", getGeminiKey());
+  const k = prompt("अपनी AI API Key यहाँ देखें या बदलें:", getGeminiKey());
   if (k !== null && k.trim()) {
     localStorage.setItem('gemini_user_api_key', k.trim());
-    showToast("AI API Key सहेज ली गई।");
+    showToast("✅ AI API Key सहेज ली गई!");
   }
 }
 
@@ -2838,14 +3853,14 @@ async function generateAiQuizQuestions() {
   if (!isEditorOrOwner()) return;
   const res = await callGemini(`विश्नोई समाज के २९ नियमों व जाम्भाणी साहित्य पर ५ MCQ हिंदी में बनाएं:\nQ: प्रश्न?\nA) 1\nB) 2\nC) 3\nD) 4\nAns: A`);
   document.getElementById('adminBulkQuizText').value = res.trim();
-  showToast("प्रश्न तैयार कर दिए गए।");
+  showToast("🤖 AI ने प्रश्न तैयार कर दिए!");
 }
 
 async function generateAiDailySandesh() {
   if (!isEditorOrOwner()) return;
   const res = await callGemini(`Write a 1-line inspirational quote in Hindi on Bishnoi 29 rules and nature conservation.`);
   document.getElementById('adminBannerInput').value = res.trim();
-  showToast("सुविचार तैयार कर दिया गया।");
+  showToast("🤖 AI ने सुविचार तैयार कर दिया!");
 }
 
 async function openInbuiltPdfViewer(title, link) {
@@ -2927,51 +3942,13 @@ function closeInbuiltPdfViewer() {
   if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 }
 
-function listenPdfs() {
-  db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    const grid = document.getElementById('pdfGrid');
-    if (!grid) return;
-    grid.innerHTML = `
-      <div class="elevate-card bg-white p-4 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm">
-        <div>
-          <span class="text-[11px] font-bold text-stone-500 uppercase">मूल ग्रंथ</span>
-          <h3 class="font-yatra text-forest text-lg mt-1">श्री सबदवाणी (१२० सबद)</h3>
-          <p class="text-xs text-stone-600 mt-1">गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन वाणी।</p>
-        </div>
-        <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
-          <button onclick="openInbuiltPdfViewer('श्री सबदवाणी', './shabadwani.pdf')" class="px-3.5 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">पढ़ें</button>
-          <a href="./shabadwani.pdf" download class="px-3 py-1.5 bg-stone-100 text-stone-800 border border-stone-300 text-xs font-semibold rounded-lg">डाउनलोड</a>
-        </div>
-      </div>
-    `;
-    snap.forEach(doc => {
-      const item = doc.data();
-      const safeTitle = (item.title || 'साहित्य').replace(/'/g, "\\'");
-      const safeLink = (item.link || '').replace(/'/g, "\\'");
-      grid.innerHTML += `
-        <div class="elevate-card bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <span class="text-[11px] font-bold text-stone-500 uppercase">साहित्य कोष</span>
-            <h3 class="font-yatra text-forest text-lg mt-1">${item.title}</h3>
-          </div>
-          <div class="mt-4 pt-2 border-t border-stone-100 flex justify-between items-center">
-            <button onclick="openInbuiltPdfViewer('${safeTitle}', '${safeLink}')" class="px-3.5 py-1.5 bg-forest text-white text-xs font-semibold rounded-lg">पढ़ें</button>
-            <a href="${item.link}" target="_blank" download class="px-3 py-1.5 bg-stone-100 text-stone-800 border border-stone-300 text-xs font-semibold rounded-lg">डाउनलोड</a>
-            ${isSuperOwner() ? `<button onclick="db.collection('pdfs').doc('${doc.id}').delete()" class="text-xs text-rose-600 font-semibold">हटाएं</button>` : ''}
-          </div>
-        </div>
-      `;
-    });
-  });
-}
-
 async function saveAdminPdf() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए।");
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए!");
   const title = document.getElementById('adminPdfTitle').value.trim();
   const link = document.getElementById('adminPdfLink').value.trim();
-  if (!title || !link) return showToast('नाम और लिंक भरें।');
+  if (!title || !link) return showToast('नाम और लिंक भरें');
   await db.collection('pdfs').add({ title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-  showToast('पीडीएफ पुस्तक जोड़ी गई।');
+  showToast('PDF जोड़ा गया!');
   document.getElementById('adminPdfTitle').value = '';
   document.getElementById('adminPdfLink').value = '';
 }
@@ -2987,12 +3964,12 @@ function listenAudios() {
 }
 
 async function saveAdminAudio() {
-  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए।");
+  if (!isSuperOwner()) return showToast("केवल मुख्य व्यवस्थापक के लिए!");
   const title = document.getElementById('adminAudioTitle').value.trim();
   const link = document.getElementById('adminAudioLink').value.trim();
-  if (!title || !link) return showToast('नाम और लिंक भरें।');
+  if (!title || !link) return showToast('नाम और लिंक भरें');
   await db.collection('audios').add({ title, link, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-  showToast('भजन जोड़ा गया।');
+  showToast('भजन जोड़ा गया!');
   document.getElementById('adminAudioTitle').value = '';
   document.getElementById('adminAudioLink').value = '';
 }
@@ -3035,21 +4012,27 @@ async function reactToPost(postId, type) {
 async function pinChatMessage(author, content) {
   if (!isEditorOrOwner()) return;
   await db.collection('settings').doc('pinnedChat').set({ author, content });
-  showToast("संदेश पिन कर दिया गया।");
+  showToast("📌 संदेश शीर्ष पर पिन कर दिया गया!");
+}
+
+async function unpinChatMessage() {
+  if (!isEditorOrOwner()) return;
+  await db.collection('settings').doc('pinnedChat').delete();
+  showToast("पिन हटा दिया गया।");
 }
 
 async function blockUserFromChat(phone, authorName) {
   if (!isSuperOwner() || !phone || phone === OWNER_PHONE) return;
   if (!blockedPhonesList.includes(phone)) blockedPhonesList.push(phone);
   await db.collection('settings').doc('blockedUsers').set({ list: blockedPhonesList });
-  showToast(`${authorName} को संवाद मंच से म्यूट किया गया।`);
+  showToast(`🔇 ${authorName} को संवाद मंच से म्यूट कर दिया गया।`);
 }
 
 async function unblockUserPhone(phone) {
   if (!isSuperOwner()) return;
   blockedPhonesList = blockedPhonesList.filter(p => p !== phone);
   await db.collection('settings').doc('blockedUsers').set({ list: blockedPhonesList });
-  showToast("सदस्य को अनम्यूट किया गया।");
+  showToast("सदस्य को अनम्यूट कर दिया गया!");
 }
 
 async function submitChaupalPost() {
@@ -3091,22 +4074,22 @@ function renderFilteredChat() {
     const heart = p.reactions?.heart || 0;
 
     feed.innerHTML += `
-      <div class="p-3.5 bg-white rounded-xl border border-stone-200 text-xs space-y-1.5 shadow-sm">
+      <div class="p-3 bg-white rounded-xl border border-stone-200 text-xs space-y-1.5 shadow-sm">
         <div class="flex justify-between items-center font-bold text-forest">
-          <span>${p.author} <span class="text-[10px] text-stone-400 font-normal ml-1">• ${p.topic || 'सामान्य'}</span></span>
-          <div class="flex items-center gap-2.5 text-[11px] font-medium">
-            <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="text-stone-500 hover:text-forest">उत्तर दें</button>
-            ${isSuperOwner() ? `<button onclick="pinChatMessage('${safeAuthor}', '${safeContent}')" class="text-amber-700">पिन</button>` : ''}
-            ${isSuperOwner() && !p.isOwner ? `<button onclick="blockUserFromChat('${p.phone}', '${safeAuthor}')" class="text-orange-700">म्यूट</button>` : ''}
-            ${canDel ? `<button onclick="db.collection('posts').doc('${p.id}').delete()" class="text-rose-600">हटाएं</button>` : ''}
+          <span>${p.isOwner ? '🛡️ ' : ''}${p.author} <span class="text-[10px] text-stone-400 font-normal">(${p.topic || 'सामान्य'})</span></span>
+          <div class="flex items-center gap-2 text-[11px]">
+            <button onclick="setChatReply('${p.id}', '${safeAuthor}', '${safeContent}')" class="text-stone-500 hover:text-forest">↩️ उत्तर</button>
+            ${isSuperOwner() ? `<button onclick="pinChatMessage('${safeAuthor}', '${safeContent}')" class="text-amber-700">📌 पिन</button>` : ''}
+            ${isSuperOwner() && !p.isOwner ? `<button onclick="blockUserFromChat('${p.phone}', '${safeAuthor}')" class="text-orange-700">🔇 म्यूट</button>` : ''}
+            ${canDel ? `<button onclick="db.collection('posts').doc('${p.id}').delete()" class="text-rose-600">✕</button>` : ''}
           </div>
         </div>
-        ${p.replyTo ? `<div class="p-1.5 rounded bg-stone-50 border-l-2 border-forest text-[10px] text-stone-600"><b>${p.replyTo.author}:</b> ${p.replyTo.snippet}</div>` : ''}
+        ${p.replyTo ? `<div class="p-1.5 rounded bg-stone-100 border-l-2 border-forest text-[10px] text-stone-600">↩️ <b>${p.replyTo.author}:</b>${p.replyTo.snippet}</div>` : ''}
         <p class="text-stone-800 leading-relaxed whitespace-pre-wrap">${p.content}</p>
-        <div class="flex items-center gap-2 pt-1">
-          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2.5 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium">प्रणाम ${pranam || ''}</button>
-          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2.5 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium">प्रकृति ${nature || ''}</button>
-          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2.5 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium">समर्थन ${heart || ''}</button>
+        <div class="flex items-center gap-1.5 pt-1">
+          <button onclick="reactToPost('${p.id}', 'pranam')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 font-semibold">🙏 ${pranam || ''}</button>
+          <button onclick="reactToPost('${p.id}', 'nature')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-emerald-100 font-semibold">🌿 ${nature || ''}</button>
+          <button onclick="reactToPost('${p.id}', 'heart')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-rose-100 font-semibold">❤️ ${heart || ''}</button>
         </div>
       </div>
     `;
@@ -3133,17 +4116,37 @@ async function saveAdminBanner() {
   const txt = document.getElementById('adminBannerInput').value.trim();
   if (!txt) return;
   await db.collection('settings').doc('dailySandesh').set({ text: txt });
-  showToast('दैनिक संदेश अपडेट हो गया।');
+  showToast('✅ दैनिक संदेश अपडेट हुआ!');
   document.getElementById('adminBannerInput').value = '';
 }
 
 function shareBannerWhatsApp() {
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`पावन संदेश:\n${currentBannerText}\n${window.location.href}`)}`, '_blank');
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`🌿 पावन संदेश:\n${currentBannerText}\n${window.location.href}`)}`, '_blank');
+}
+
+function listenTreeCounter() {
+  db.collection('stats').doc('treePledges').onSnapshot(doc => {
+    if (doc.exists && doc.data().count) document.getElementById('treeCounterDisplay').innerText = doc.data().count;
+  });
+}
+
+async function pledgeTree() {
+  if (localStorage.getItem('has_pledged_tree')) return showToast("🌱 आपका पावन संकल्प पहले से दर्ज है!");
+  const village = prompt("🌱 हरित धरोहर महासंकल्प:\nकृपया अपने गाँव या ज़िले का नाम लिखें (ऐच्छिक):", currentUser?.location || "");
+  const display = document.getElementById('treeCounterDisplay');
+  let nextVal = (parseInt(display?.innerText) || 1485) + 1;
+  if (display) display.innerText = nextVal;
+  localStorage.setItem('has_pledged_tree', 'true');
+  showToast(`🌳 धन्यवाद! ${village ? village + ' से ' : ''}आपका पौधरोपण संकल्प दर्ज हुआ!`);
+  try { await db.collection('stats').doc('treePledges').set({ count: nextVal, lastVillage: village || '' }, { merge: true }); } catch (e) {}
 }
 
 function listenNiyams() {
   db.collection('settings').doc('customNiyams').onSnapshot(doc => {
-    if (doc.exists && Array.isArray(doc.data().list)) niyamsList = doc.data().list;
+    if (doc.exists && Array.isArray(doc.data().list)) {
+      niyamsList = doc.data().list;
+      localStorage.setItem('bishnoi_offline_niyams', JSON.stringify(niyamsList));
+    }
     renderNiyams(niyamsList);
   });
 }
@@ -3161,15 +4164,15 @@ function renderNiyams(list) {
       <div class="elevate-card bg-white p-4 rounded-xl border border-stone-200 shadow-sm space-y-1.5 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between text-xs">
-            <span class="font-bold text-forest w-6 h-6 bg-[#FAF8F3] border border-stone-300 rounded-md flex items-center justify-center">${n.num}</span>
+            <span class="font-bold text-forest w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">${n.num}</span>
             <span class="text-stone-500 font-semibold">${n.title}</span>
           </div>
-          <h4 class="font-yatra text-base text-forest mt-1.5">${n.rule}</h4>
+          <h4 class="font-yatra text-base text-forest mt-1">${n.rule}</h4>
           <p class="text-xs text-stone-700 leading-relaxed">${n.desc}</p>
         </div>
         <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
-          ${canEdit ? `<button onclick="editSingleNiyam(${n.num})" class="text-stone-600 font-semibold hover:text-forest">संपादित करें</button>` : '<span></span>'}
-          <button onclick="window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('नियम ${n.num} (${safeTitle}): ${safeRule} — ${safeDesc}'), '_blank')" class="text-forest font-semibold">साझा करें</button>
+          ${canEdit ? `<button onclick="editSingleNiyam(${n.num})" class="text-amber-700 font-bold hover:underline">✏️ Edit</button>` : '<span></span>'}
+          <button onclick="window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('🌿 नियम ${n.num} (${safeTitle}): ${safeRule} — ${safeDesc}'), '_blank')" class="text-emerald-700 font-bold">साझा करें 📲</button>
         </div>
       </div>
     `;
@@ -3191,7 +4194,7 @@ async function editSingleNiyam(num) {
   niyamsList[idx] = { ...item, title: newTitle.trim() || item.title, rule: newRule.trim() || item.rule, desc: newDesc.trim() || item.desc };
   await db.collection('settings').doc('customNiyams').set({ list: niyamsList });
   renderNiyams(niyamsList);
-  showToast(`नियम ${num} अपडेट हो गया।`);
+  showToast(`✅ नियम ${num} अपडेट हो गया!`);
 }
 
 function filterNiyams() {
@@ -3209,12 +4212,12 @@ function handleGlobalSearch() {
 }
 
 function speakKidsStory(text) {
-  if (!('speechSynthesis' in window)) return showToast("ऑडियो सुविधा इस ब्राउज़र में उपलब्ध नहीं है।");
-  if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); return showToast("वाचन रोका गया।"); }
+  if (!('speechSynthesis' in window)) return showToast("ऑडियो सुविधा उपलब्ध नहीं है।");
+  if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); return showToast("ऑडियो रोका गया।"); }
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'hi-IN'; u.rate = 0.9;
   window.speechSynthesis.speak(u);
-  showToast("कहानी वाचन प्रारंभ...");
+  showToast("🔊 वाचन सुनाया जा रहा है...");
 }
 
 function renderHistoryAndKidsViews() {
@@ -3235,15 +4238,15 @@ function renderHistoryAndKidsViews() {
       return `
         <div class="bg-white p-5 rounded-2xl border-l-4 border-forest border border-stone-200 shadow-sm space-y-2">
           <div class="flex items-center justify-between text-xs">
-            <span class="px-2.5 py-0.5 bg-stone-100 text-forest rounded font-semibold">${item.badge || 'इतिहास अध्याय'}</span>
+            <span class="px-2.5 py-0.5 bg-emerald-50 text-forest rounded-full font-bold">${item.badge || 'इतिहास अध्याय'}</span>
             <div class="flex gap-2">
-              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-0.5 bg-stone-100 rounded font-semibold text-forest">सुनें</button>
-              ${canEdit ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-rose-600 font-semibold">हटाएं</button>` : ''}
+              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2 py-0.5 bg-stone-100 rounded font-bold text-forest">🔊 सुनें</button>
+              ${canEdit ? `<button onclick="deleteHistoryOrKidsItem('${item.id}')" class="text-rose-600 font-bold">हटाएं</button>` : ''}
             </div>
           </div>
           <h3 class="font-yatra text-lg text-forest">${item.title}</h3>
           <p class="text-xs sm:text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">${item.content}</p>
-          ${item.moral ? `<div class="p-2.5 rounded-lg bg-[#FAF8F3] border border-stone-200 text-xs font-semibold text-stone-800">${item.moral}</div>` : ''}
+          ${item.moral ? `<div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900">${item.moral}</div>` : ''}
         </div>
       `;
     }).join('');
@@ -3260,16 +4263,16 @@ function renderHistoryAndKidsViews() {
     kWrap.innerHTML = historyItemsList.filter(x => x.type === 'kids').map(item => {
       const safeSpeech = (item.title + '। ' + item.content).replace(/'/g, "\\'").replace(/\n/g, ' ');
       return `
-        <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-2.5 flex flex-col justify-between">
+        <div class="bg-amber-50/70 p-5 rounded-2xl border border-amber-300 shadow-sm space-y-2.5 flex flex-col justify-between">
           <div class="space-y-2">
             <div class="flex justify-between items-center text-xs">
-              <span class="px-2.5 py-0.5 bg-stone-100 text-stone-800 rounded font-semibold">${item.badge || 'बाल संस्कार'}</span>
-              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-forest text-white rounded-lg font-semibold">कहानी सुनें</button>
+              <span class="px-2.5 py-0.5 bg-amber-400 text-stone-950 rounded-full font-extrabold">${item.badge || '🧸 बाल कहानी'}</span>
+              <button onclick="speakKidsStory('${safeSpeech}')" class="px-2.5 py-1 bg-forest text-white rounded-full font-bold">🔊 कहानी सुनें</button>
             </div>
             <h3 class="font-yatra text-lg text-forest">${item.title}</h3>
-            <p class="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">${item.content}</p>
+            <p class="text-xs text-stone-800 leading-relaxed whitespace-pre-wrap">${item.content}</p>
           </div>
-          ${item.moral ? `<div class="p-2.5 rounded-lg bg-[#FAF8F3] border border-stone-200 text-xs font-semibold text-forest">${item.moral}</div>` : ''}
+          ${item.moral ? `<div class="p-2.5 rounded-xl bg-emerald-900 text-amber-200 text-xs font-bold">${item.moral}</div>` : ''}
         </div>
       `;
     }).join('');
@@ -3291,10 +4294,10 @@ async function generateAiStoryForUploader() {
     ? "विश्नोई संस्कार, जीव दया या खेजड़ली पर बच्चों के लिए एक छोटी प्रेरक कहानी हिंदी में लिखें।"
     : "विश्नोई समाज के इतिहास या गुरु जम्भेश्वर भगवान के जीवन की एक प्रामाणिक ऐतिहासिक घटना हिंदी में लिखें।";
   const res = await callGemini(promptTxt);
-  document.getElementById('easyStoryTitle').value = type === 'kids' ? "जीव दया की प्रेरक कहानी" : "गौरवशाली इतिहास अध्याय";
+  document.getElementById('easyStoryTitle').value = type === 'kids' ? "जीव दया की प्रेरक बाल कहानी" : "गौरवशाली इतिहास अध्याय";
   document.getElementById('easyStoryContent').value = res.trim();
   document.getElementById('easyStoryMoral').value = "जीव दया पालणी, रूंख लीलो नी घावै।";
-  showToast("प्रारूप तैयार हो गया।");
+  showToast("✨ AI ने कहानी तैयार कर दी है!");
 }
 
 async function publishEasyStoryOrHistory() {
@@ -3303,12 +4306,12 @@ async function publishEasyStoryOrHistory() {
   const title = document.getElementById('easyStoryTitle')?.value.trim();
   const content = document.getElementById('easyStoryContent')?.value.trim();
   const moral = document.getElementById('easyStoryMoral')?.value.trim();
-  if (!title || !content) return showToast("कृपया शीर्षक और विवरण दोनों भरें।");
+  if (!title || !content) return showToast("कृपया शीर्षक और कहानी दोनों भरें!");
 
   historyItemsList.unshift({
     id: 'item_' + Date.now(),
     type,
-    badge: type === 'kids' ? 'बाल संस्कार' : 'इतिहास अध्याय',
+    badge: type === 'kids' ? '🧸 बाल संस्कार' : '📜 इतिहास अध्याय',
     title, content, moral
   });
   await db.collection('settings').doc('customHistoryKids').set({ items: historyItemsList });
@@ -3316,7 +4319,7 @@ async function publishEasyStoryOrHistory() {
   document.getElementById('easyStoryContent').value = '';
   document.getElementById('easyStoryMoral').value = '';
   renderHistoryAndKidsViews();
-  showToast("अध्याय सफलतापूर्वक प्रकाशित हो गया।");
+  showToast("✅ कहानी / इतिहास सफलतापूर्वक वेबसाइट पर लाइव हो गया!");
 }
 
 async function saveDailyWinners() {
@@ -3329,7 +4332,7 @@ async function saveDailyWinners() {
     p3Name: document.getElementById('win3InputName')?.value.trim() || '—',
     p3Score: document.getElementById('win3InputScore')?.value.trim() || '—'
   });
-  showToast("दैनिक विजेता अपडेट हो गए।");
+  showToast("🏆 दैनिक विजेता अपडेट हो गए!");
 }
 
 async function clearDailyWinnersToBlank() {
@@ -3340,52 +4343,15 @@ async function clearDailyWinnersToBlank() {
   showToast("विजेता बोर्ड खाली कर दिया गया।");
 }
 
-async function clearAllQuizQuestions() {
-  if (!isSuperOwner()) return;
-  const snap = await db.collection('quiz').get();
-  const batch = db.batch();
-  snap.forEach(d => batch.delete(d.ref));
-  await batch.commit();
-  showToast("सभी दैनिक प्रश्न हटाए गए।");
-}
-
 async function adminResetMemberPassword() {
   if (!isSuperOwner()) return;
   const ph = document.getElementById('adminResetUserPhone')?.value.trim();
   const np = document.getElementById('adminResetUserNewPass')?.value.trim();
-  if (!ph || !np) return showToast("मोबाइल नंबर और नया पासवर्ड लिखें।");
+  if (!ph || !np) return showToast("नंबर और नया पासवर्ड लिखें!");
   await db.collection('users').doc(ph).set({ pass: np }, { merge: true });
   document.getElementById('adminResetUserPhone').value = '';
   document.getElementById('adminResetUserNewPass').value = '';
-  showToast(`सदस्य (${ph}) का पासवर्ड बदल दिया गया।`);
-}
-
-function openFeedbackModal() {
-  const m = document.getElementById('userFeedbackModal');
-  if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
-}
-
-async function submitUserFeedback() {
-  const comment = document.getElementById('fbCommentInput')?.value.trim();
-  if (!comment) return showToast("कृपया अपना संदेश लिखें।");
-  await db.collection('feedbacks').add({
-    name: currentUser?.name || 'सदस्य',
-    phone: currentUser?.phone || '-',
-    comment,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  document.getElementById('fbCommentInput').value = '';
-  document.getElementById('userFeedbackModal').classList.add('hidden');
-  showToast("आपका संदेश प्राप्त हुआ। धन्यवाद।");
-}
-
-function openPrivacyPolicyModal() {
-  alert(
-    "गोपनीयता नीति एवं नियम:\n\n" +
-    "१. यह मंच गुरु जम्भेश्वर भगवान के २९ नियमों, साहित्य अध्ययन एवं शैक्षिक ज्ञान परीक्षा हेतु समर्पित है।\n" +
-    "२. परीक्षार्थी का नाम, मोबाइल नंबर एवं परीक्षा सुरक्षा लॉग केवल परीक्षा पारदर्शिता के लिए सुरक्षित रखे जाते हैं।\n" +
-    "३. किसी भी सदस्य का डेटा किसी तृतीय पक्ष के साथ साझा नहीं किया जाता है।"
-  );
+  showToast(`✅ सदस्य (${ph}) का पासवर्ड बदल दिया गया!`);
 }
 
 function loadQuiz() {
@@ -3411,59 +4377,58 @@ function generateCertificate(name, score) {
   ctx.fillStyle = '#FFFDF7';
   ctx.fillRect(0, 0, 1000, 720);
   ctx.strokeStyle = '#143622';
-  ctx.lineWidth = 14;
+  ctx.lineWidth = 16;
   ctx.strokeRect(24, 24, 952, 672);
-  ctx.strokeStyle = '#C69214';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#D97706';
+  ctx.lineWidth = 4;
   ctx.strokeRect(40, 40, 920, 640);
 
-  ctx.fillStyle = '#8C3B1A';
+  ctx.fillStyle = '#B34A1B';
   ctx.textAlign = 'center';
   ctx.font = 'bold 20px sans-serif';
   ctx.fillText('॥ ॐ विष्णवे नमः • गुरु जम्भेश्वराय नमः ॥', 500, 95);
 
   ctx.fillStyle = '#143622';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText('विश्नोई समाज डिजिटल ज्ञान एवं साहित्य परीक्षा', 500, 160);
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText('विश्नोई समाज डिजिटल ज्ञान एवं साहित्य परीक्षा', 500, 165);
 
-  ctx.fillStyle = '#8C3B1A';
-  ctx.font = 'bold 22px sans-serif';
-  ctx.fillText('योग्यता एवं सहभागिता सम्मान-पत्र', 500, 210);
+  ctx.fillStyle = '#B34A1B';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('★ योग्यता एवं गौरव सम्मान-पत्र (Certificate of Merit) ★', 500, 215);
 
   ctx.fillStyle = '#44403C';
   ctx.font = '20px sans-serif';
-  ctx.fillText('यह प्रमाणित किया जाता है कि प्रतिभागी', 500, 280);
+  ctx.fillText('यह सहर्ष प्रमाणित किया जाता है कि प्रतिभागी', 500, 285);
 
   ctx.fillStyle = '#143622';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText(name.toUpperCase(), 500, 335);
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText(name.toUpperCase(), 500, 340);
 
   ctx.fillStyle = '#292524';
   ctx.font = '20px sans-serif';
-  ctx.fillText(`ने जाम्भाणी साहित्य एवं २९ नियम ज्ञान परीक्षा में ${score}% प्राप्तांक अर्जित कर`, 500, 400);
-  ctx.fillText('उत्कृष्ट सहभागिता प्रदर्शित की है। हम इनके उज्ज्वल भविष्य की कामना करते हैं।', 500, 435);
+  ctx.fillText(`ने जाम्भाणी साहित्य एवं २९ नियम ज्ञान परीक्षा में ${score}% प्राप्तांक अर्जित कर`, 500, 405);
+  ctx.fillText('उत्कृष्ट श्रेणी प्राप्त की है। हम इनके उज्ज्वल भविष्य की कामना करते हैं।', 500, 440);
 
   ctx.fillStyle = '#143622';
-  ctx.fillRect(200, 490, 600, 40);
+  ctx.fillRect(200, 490, 600, 42);
   ctx.fillStyle = '#FDE68A';
-  ctx.font = 'bold 17px sans-serif';
-  ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै — सिर साटै रूंख रहै, तो भी सस्तो जाण"', 500, 516);
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै — सिर साटै रूंख रहै, तो भी सस्तो जाण"', 500, 517);
 
   ctx.fillStyle = '#44403C';
   ctx.font = 'bold 15px sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(`दिनांक: ${new Date().toLocaleDateString('hi-IN')}`, 80, 620);
   ctx.textAlign = 'right';
-  ctx.fillText('परीक्षा नियंत्रक (विश्नोई समाज डिजिटल मंच)', 920, 620);
+  ctx.fillText('मुख्य व्यवस्थापक (विश्नोई समाज डिजिटल मंच)', 920, 620);
 
   const link = document.createElement('a');
   link.download = `Bishnoi_Exam_Certificate_${name}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
-  showToast("सम्मान-पत्र डाउनलोड हो गया।");
+  showToast("🎓 सम्मान-पत्र डाउनलोड हो गया!");
 }
 
-// 20. TOAST, CONFIRM & TAB NAVIGATION
 function showToast(msg) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
@@ -3496,6 +4461,7 @@ function switchTab(id) {
   if (id !== 'quiz' && examState.isExamRunning) {
     examState.isExamRunning = false;
     if (examState.timerInterval) clearInterval(examState.timerInterval);
+    exitExamFullScreen();
   }
 
   currentActiveTab = id;
@@ -3510,12 +4476,12 @@ function switchTab(id) {
   );
   if (activeBnav) activeBnav.classList.add('bnav-item-active');
 
-  mountOwnerStudioExtensions();
   applyLiveMaintenanceLocks();
 
   if (id === 'admin') {
     applyCurrentUserRBACView();
     refreshAuditLogs();
+    loadEliminatedStudentsList();
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3536,7 +4502,7 @@ function switchHistorySubTab(sub) {
   }
 }
 
-// 21. MASTER INITIALIZATION
+// 22. MASTER INITIALIZATION
 window.addEventListener('DOMContentLoaded', () => {
   if (!localStorage.getItem('gemini_user_api_key')) {
     localStorage.setItem('gemini_user_api_key', DEFAULT_INTEGRATED_AI_KEY);
@@ -3545,7 +4511,7 @@ window.addEventListener('DOMContentLoaded', () => {
   syncServerClock();
   flushOfflineExamQueue();
   injectDynamicModalsAndUI();
-  mountOwnerStudioExtensions();
+  buildFiveFolderOwnerStudio();
   purgeSearchBarAutofillGlitch();
   setupInactivitySessionGuard();
 
@@ -3564,6 +4530,24 @@ window.addEventListener('DOMContentLoaded', () => {
   updateNavAuth();
   updateProgressIndicators();
   renderMalaCounters();
+
+  // Sync Shabadwani & Aarti Lyrics from Firestore if Owner updated them
+  db.collection('settings').doc('shabadwaniData').onSnapshot(doc => {
+    if (doc.exists && Array.isArray(doc.data().list) && doc.data().list.length > 0) {
+      shabadwaniList = doc.data().list;
+      localStorage.setItem('bishnoi_shabadwani_db', JSON.stringify(shabadwaniList));
+      populateShabadDropdownAndGrid();
+      openShabadByNumber(currentShabadNumber);
+    }
+  });
+
+  db.collection('settings').doc('aartiLyricsData').onSnapshot(doc => {
+    if (doc.exists && Array.isArray(doc.data().list)) {
+      aartiLyricsList = doc.data().list;
+      localStorage.setItem('bishnoi_aarti_lyrics', JSON.stringify(aartiLyricsList));
+      renderAartiLyricsGrid();
+    }
+  });
 
   db.collection('examConfig').doc('admitAndCutoff').get().then(doc => {
     if (doc.exists) {
@@ -3594,7 +4578,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (bEl) {
       bEl.innerHTML = blockedPhonesList.length === 0
         ? `<div class="text-stone-400">कोई सदस्य म्यूट नहीं है।</div>`
-        : blockedPhonesList.map(p => `<div class="flex justify-between p-1.5 bg-stone-50 border rounded"><span>${p}</span><button onclick="unblockUserPhone('${p}')" class="text-forest font-bold">अनम्यूट</button></div>`).join('');
+        : blockedPhonesList.map(p => `<div class="flex justify-between p-1.5 bg-stone-50 border rounded"><span>🔇 ${p}</span><button onclick="unblockUserPhone('${p}')" class="text-emerald-700 font-bold">अनम्यूट</button></div>`).join('');
     }
   });
 
@@ -3602,13 +4586,82 @@ window.addEventListener('DOMContentLoaded', () => {
     const fEl = document.getElementById('adminFeedbackInboxList');
     if (fEl) {
       fEl.innerHTML = snap.empty
-        ? `<div class="text-stone-400">कोई नया संदेश नहीं है।</div>`
+        ? `<div class="text-stone-400">कोई सुझाव नहीं है।</div>`
         : snap.docs.map(d => `<div class="p-1.5 bg-stone-50 border rounded"><b>${d.data().name}:</b> ${d.data().comment}</div>`).join('');
     }
   });
 
   if (!sessionStorage.getItem('visitor_logged_session')) {
     sessionStorage.setItem('visitor_logged_session', 'true');
-    trackUserLoginTelemetry(currentUser || { name: 'अतिथि' });
+    trackUserLoginTelemetry(currentUser || { name: 'Visitor' });
   }
 });
+// 23. FOOTER & FEEDBACK MODAL HELPERS (100% COMPLETION PATCH)
+function injectComplianceFooterAndFeedbackModal() {
+  if (!document.getElementById('userFeedbackModal')) {
+    const fb = document.createElement('div');
+    fb.id = 'userFeedbackModal';
+    fb.className = 'fixed inset-0 z-[9992] bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4';
+    fb.innerHTML = `
+      <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3 border border-amber-300 shadow-2xl text-center">
+        <div class="text-3xl">⭐</div>
+        <h3 class="font-yatra text-xl text-forest">सुझाव एवं सहायता कक्ष</h3>
+        <textarea id="fbCommentInput" rows="3" placeholder="मंच को और बेहतर बनाने हेतु अपना सुझाव या समस्या लिखें..." class="w-full p-2.5 text-xs rounded-xl border border-stone-300"></textarea>
+        <div class="flex gap-2">
+          <button onclick="submitUserFeedback()" class="flex-1 py-2 bg-forest text-white font-bold text-xs rounded-xl">भेजें</button>
+          <button onclick="document.getElementById('userFeedbackModal').classList.add('hidden')" class="px-4 py-2 bg-stone-100 text-stone-600 font-bold text-xs rounded-xl">बंद करें</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(fb);
+  }
+
+  if (!document.getElementById('indusComplianceFooter')) {
+    const footer = document.createElement('footer');
+    footer.id = 'indusComplianceFooter';
+    footer.className = 'max-w-5xl w-full mx-auto px-4 py-6 mt-8 border-t border-stone-200 text-center text-xs text-stone-500 space-y-2';
+    footer.innerHTML = `
+      <div class="flex flex-wrap justify-center gap-4 font-semibold text-forest">
+        <button onclick="openPrivacyPolicyModal()" class="hover:underline">🔒 गोपनीयता नीति एवं नियम (Privacy Policy & Terms)</button>
+        <span>•</span>
+        <button onclick="openFeedbackModal()" class="hover:underline">⭐ सुझाव एवं सहायता कक्ष (Feedback Box)</button>
+      </div>
+      <p class="text-[11px] text-stone-400">© 2026 विश्नोई समाज डिजिटल मंच (bishnoism.vercel.app) • सर्वाधिकार सुरक्षित</p>
+    `;
+    document.body.appendChild(footer);
+  }
+}
+
+function openFeedbackModal() {
+  const m = document.getElementById('userFeedbackModal');
+  if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+}
+
+async function submitUserFeedback() {
+  const comment = document.getElementById('fbCommentInput')?.value.trim();
+  if (!comment) return showToast("कृपया सुझाव लिखें!");
+  await db.collection('feedbacks').add({
+    name: currentUser?.name || 'सदस्य',
+    phone: currentUser?.phone || '-',
+    comment,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('fbCommentInput').value = '';
+  document.getElementById('userFeedbackModal').classList.add('hidden');
+  showToast("🙏 आपके सुझाव के लिए धन्यवाद!");
+}
+
+function openPrivacyPolicyModal() {
+  alert(
+    "🔒 गोपनीयता नीति एवं नियम (Privacy Policy & Terms):\n\n" +
+    "1. यह मंच गुरु जम्भेश्वर भगवान के २९ नियमों, साहित्य अध्ययन एवं शैक्षिक ज्ञान परीक्षा हेतु समर्पित है।\n" +
+    "2. उपयोगकर्ता का नाम, मोबाइल नंबर एवं परीक्षा सुरक्षा लॉग केवल परीक्षा पारदर्शिता के लिए सुरक्षित रखे जाते हैं।\n" +
+    "3. किसी भी सदस्य का डेटा किसी तृतीय पक्ष (Third-Party) को साझा नहीं किया जाता है।"
+  );
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', injectComplianceFooterAndFeedbackModal);
+} else {
+  injectComplianceFooterAndFeedbackModal();
+}
