@@ -3221,8 +3221,8 @@ openDetailedManualEvaluationViewer = function() {
                         const secRule = weights[q.section || "A"] || { plus: 2, minus: 0.5 };
                         return `
                             <div class="p-3 rounded-xl border flex flex-wrap justify-between items-center gap-2 text-xs ${isRight ? 'bg-green-50/70 border-green-200' : 'bg-red-50/70 border-red-200'}">
-                                <div class="flex-1">
-                                    <div class="font-extrabold text-gray-900">प्र. ${i + 1} (खंड ${q.section \vert{}\vert{} 'A'}):${q.q}</div>
+                              <div class="flex-1">
+                                    <div class="font-extrabold text-gray-900">प्र. ${i + 1} (खंड ${q.section || 'A'}): ${q.q}</div>
                                     <div class="mt-1 text-gray-700">छात्र का उत्तर: <strong>${ansIdx !== undefined ? q.options[ansIdx] : 'छोड़ा गया'}</strong> | सही: <strong class="text-emerald-900">${q.options[q.ans]}</strong></div>
                                 </div>
                                 <div class="flex items-center gap-1.5">
