@@ -1114,3 +1114,28 @@
   });
 
 })();
+// --------------------------------------------------------------------------
+  // 27. MASTER INITIALIZATION BOOTSTRAP
+  // --------------------------------------------------------------------------
+  document.addEventListener("DOMContentLoaded", () => {
+    renderNiyamsList();
+    computeAutoPanchangAndAmavasya();
+    initKaraokePlayer();
+    initAuthUI();
+    initMalaState();
+    initBookmarksView();
+    verifyPrivacyConsentStatus();
+    listenRealtimeSettings();
+    restoreAccidentalExamRefreshState();
+    initDistrictTelemetry();
+    setupInactivityGuard();
+    loadChaupalPosts();
+
+    if (typeof renderShabadCards === "function") {
+      renderShabadCards(SHABADWANI_CATALOG);
+    }
+  });
+
+})(); // <-- This closes the (() => { opened at the very top of the file!
+
+/* ==================== END OF script.js ==================== */
