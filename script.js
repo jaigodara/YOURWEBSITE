@@ -430,3 +430,5 @@
     detail
   };
 }
+  // Close and execute the main script wrapper.
+})();
