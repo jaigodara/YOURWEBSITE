@@ -394,4 +394,40 @@
   }
   function goQuestion(index){if(index<0||index>=state.exam.questions.length)return;state.exam.index=index;saveExamDraft();renderExamArena();}
   window.selectOption = function(index){const q=state.exam.questions[state.exam.index];if(q){state.exam.answers[q.id]=Number(index);saveExamDraft();renderExamArena();}};
-  function scoreExam(e) {let correct=0,wrong=0,unanswered=0,marks=0;const detail=e.questions.map(q=>{const a=e.answers[q.id];let status='unanswered',earned=0;if(a===undefined||a===null){unanswered++;}else if(Number(a)===q.answerIndex&&q.answerIndex>=0){correct++;status='correct';earned=q.marks;}else{wrong++;status='wrong';earned=-q.negativeMarks;}marks+=earned;return {questionId:q.id,status,selectedIndex:a??null,correctIndex:q.answerIndex,earned};});return {correct,wrong,unanswered,score:Math.round(marks*100)/100,total:e.questions.reduce((s,q)=>s+q.marks,0),detail};}
+  function scoreExam(e) {
+  let correct=0,wrong=0,unanswered=0,marks=0;
+  const detail=e.questions.map(q=>{
+    const a=e.answers[q.id];
+    let status='unanswered',earned=0;
+
+    if(a===undefined||a===null){
+      unanswered++;
+    } else if(Number(a)===q.answerIndex&&q.answerIndex>=0){
+      correct++;
+      status='correct';
+      earned=q.marks;
+    } else {
+      wrong++;
+      status='wrong';
+      earned=-q.negativeMarks;
+    }
+
+    marks+=earned;
+    return {
+      questionId:q.id,
+      status,
+      selectedIndex:a??null,
+      correctIndex:q.answerIndex,
+      earned
+    };
+  });
+
+  return {
+    correct,
+    wrong,
+    unanswered,
+    score:Math.round(marks*100)/100,
+    total:e.questions.reduce((s,q)=>s+q.marks,0),
+    detail
+  };
+}
