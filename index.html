@@ -8,7 +8,7 @@
   <title>विश्नोई समाज आधिकारिक डिजिटल मंच एवं राष्ट्रीय परीक्षा पोर्टल</title>
   <meta name="description" content="गुरु जम्भेश्वर भगवान के २९ नियम, सबदवाणी, जप माला, राष्ट्रीय परीक्षा इंजन एवं समाज संवाद मंच।">
 
-  <!-- INLINE TREE EMBLEM FAVICON (Prevents /favicon.ico 404) -->
+  <!-- INLINE TREE EMBLEM FAVICON -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌳</text></svg>">
 
   <!-- Tailwind CSS CDN -->
@@ -19,11 +19,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Yatra+One&display=swap" rel="stylesheet">
 
-  <!-- Production Client Libraries: SheetJS, jsPDF, AutoTable, QRCode.js -->
+  <!-- Production Client Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <!-- Firebase v10 Compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -102,7 +103,7 @@
           <span id="notifBadgeDot" class="hidden absolute top-1 right-1 w-2 h-2 bg-rose-600 rounded-full"></span>
         </button>
         <div id="authActionsContainer">
-          <button onclick="promptUserLogin()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">लॉगिन</button>
+          <button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">लॉगिन</button>
         </div>
       </div>
     </div>
@@ -166,10 +167,24 @@
             <div>
               <div id="homeMalaBeadDisp" class="text-3xl font-extrabold font-mono text-forest">0</div>
               <div class="text-[11px] text-stone-500">मनके स्पर्श करें (Tap to Count)</div>
+              <div class="text-[10px] text-stone-400 mt-1">शेष: <span id="homeMalaRemainingDisp" class="font-bold">108</span> मनके</div>
             </div>
-            <button onclick="tapHomeMalaBead()" class="px-6 py-4 rounded-2xl bg-gradient-to-tr from-forest to-emerald-800 text-amber-300 font-extrabold text-sm shadow-md active:scale-95 transition">
-              मनका फेरें 📿
-            </button>
+            <div class="flex flex-col items-center gap-2">
+              <button onclick="tapHomeMalaBead()" class="px-6 py-4 rounded-2xl bg-gradient-to-tr from-forest to-emerald-800 text-amber-300 font-extrabold text-sm shadow-md active:scale-95 transition">
+                मनका फेरें 📿
+              </button>
+              <div class="flex items-center gap-2 text-[10px]">
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="malaHapticToggle" checked class="w-3.5 h-3.5 accent-forest">
+                  <span>कंपन (Haptic)</span>
+                </label>
+                <button onclick="resetMalaCounterWithConfirm()" class="text-rose-600 hover:underline">रीसेट</button>
+              </div>
+            </div>
+          </div>
+          <!-- PROGRESS BAR -->
+          <div class="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+            <div id="homeMalaProgressBar" class="bg-amber-500 h-full w-0 transition-all duration-200"></div>
           </div>
         </div>
 
@@ -217,9 +232,20 @@
           </div>
           <audio id="karaokeAudioPlayer" src="./bhajan1.mp3" preload="metadata"></audio>
           <div class="flex items-center gap-2">
+            <button onclick="seekKaraokeBy(-10)" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold">⏪ -10s</button>
             <button onclick="toggleKaraokePlayback()" id="karaokePlayBtn" class="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs shadow-lg transition">
               ▶ प्ले करें
             </button>
+            <button onclick="seekKaraokeBy(10)" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold">+10s ⏩</button>
+          </div>
+        </div>
+
+        <!-- PROGRESS & SPEED CONTROLS -->
+        <div class="space-y-1">
+          <input type="range" id="karaokeSeekBar" min="0" max="100" value="0" oninput="handleKaraokeSeek(this.value)" class="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-400">
+          <div class="flex justify-between text-[10px] text-stone-300 font-mono">
+            <span id="karaokeTimerDisp">00:00 / 00:00</span>
+            <button onclick="cycleAudioPlaybackSpeed()" id="audioSpeedBtn" class="px-2 py-0.5 rounded bg-white/10 text-amber-300 font-bold">1.0x</button>
           </div>
         </div>
 
@@ -227,7 +253,7 @@
         <div class="bg-black/35 rounded-2xl p-4 border border-white/10">
           <div class="text-[10px] text-amber-200 font-bold mb-2 flex items-center justify-between">
             <span>कराओके बोल (Real-time Synced Lyrics):</span>
-            <span id="karaokeTimerDisp" class="font-mono">00:00 / 00:00</span>
+            <span class="text-stone-400">स्वरानुसार स्वतः स्क्रॉल</span>
           </div>
           <div id="karaokeLyricsBox" class="max-h-40 overflow-y-auto space-y-2.5 text-center text-xs sm:text-sm font-medium text-stone-300 scroll-smooth px-2"></div>
         </div>
@@ -237,7 +263,7 @@
       <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-3">
           <div>
-            <h3 class="font-yatra text-lg text-forest">श्री सबदवाणी एवं प्रमाणित साहित्य (PDFs)</h3>
+            <h3 class="font-yatra text-lg text-forest">श्री सबदवाणी एवं प्रमाणित साहित्य (१२० सबद)</h3>
             <p class="text-xs text-stone-500">गुरु मुख से उच्चारित पावन १२० सबद एवं अध्ययन ग्रंथ</p>
           </div>
           <div class="flex items-center gap-2">
@@ -355,7 +381,7 @@
 
       <!-- 5. ACTIVE EXAM RUNTIME ARENA -->
       <div id="quizActiveBox" class="hidden bg-white p-4 sm:p-6 rounded-3xl border-2 border-forest shadow-xl space-y-4">
-        <!-- Top Status Bar -->
+        <!-- TOP STATUS BAR -->
         <div class="flex items-center justify-between border-b border-stone-200 pb-3 gap-2">
           <div>
             <span id="examCandidateRoll" class="text-xs font-extrabold text-forest block">रोल: JAMBH-2026</span>
@@ -367,20 +393,30 @@
           </div>
         </div>
 
-        <!-- OMR Navigation Palette -->
+        <!-- OMR NAVIGATION PALETTE -->
         <div>
-          <span class="text-[11px] font-extrabold text-stone-600 block mb-1.5">ओएमआर प्रश्न पैलेट (OMR Jump Grid):</span>
+          <div class="flex justify-between items-center mb-1.5 text-[11px] font-extrabold text-stone-600">
+            <span>ओएमआर प्रश्न पैलेट (OMR Jump Grid):</span>
+            <div class="flex gap-2 text-[10px]">
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span> हल किया</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span> समीक्षा</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-white border inline-block"></span> शेष</span>
+            </div>
+          </div>
           <div id="questionGridPills" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-stone-50 rounded-2xl border border-stone-200"></div>
         </div>
 
-        <!-- Question View Area -->
+        <!-- QUESTION VIEW AREA -->
         <div id="examQuestionArea" class="py-2"></div>
 
-        <!-- Controls -->
+        <!-- CONTROLS -->
         <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-stone-200">
           <div class="flex items-center gap-2">
             <button onclick="navigateActiveExam(-1)" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs rounded-xl">← पिछला</button>
             <button onclick="navigateActiveExam(1)" class="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs rounded-xl">अगला →</button>
+            <button onclick="toggleMarkCurrentForReview()" id="examReviewBtn" class="px-3.5 py-2 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs rounded-xl border border-purple-300">
+              🟣 समीक्षा हेतु रखें
+            </button>
           </div>
           <button onclick="confirmFinalExamSubmission()" class="px-6 py-2.5 bg-forest hover:bg-emerald-950 text-white font-extrabold text-xs rounded-xl shadow-lg">
             ✓ परीक्षा समाप्त करें (Submit)
@@ -408,7 +444,7 @@
         </form>
         <div id="studentPersonalResultDisplay" class="hidden mt-3"></div>
 
-        <!-- AI SAHAYAK POSITIONED STRICTLY AT THE VERY BOTTOM OF RESULT DESK -->
+        <!-- AI SAHAYAK (POSITIONED STRICTLY AT VERY BOTTOM OF RESULT DESK) -->
         <div id="aiSahayakResultBottomBox" class="mt-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-900 to-forest text-white space-y-2 border border-amber-400/30">
           <div class="flex items-center gap-2">
             <span class="text-lg">🤖</span>
@@ -509,7 +545,7 @@
         </div>
       </div>
 
-      <!-- OWNER STUDIO (Visible only for Owner) -->
+      <!-- OWNER STUDIO (VISIBLE ONLY FOR OWNER) -->
       <div id="ownerStudioSection" class="hidden bg-white rounded-3xl p-5 sm:p-6 border-2 border-amber-400 shadow-xl space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
           <div>
@@ -632,6 +668,42 @@
     </div>
   </nav>
 
+  <!-- AUTHENTICATION MODAL (LOGIN / REGISTER) -->
+  <div id="authModal" class="fixed inset-0 z-[99980] bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-stone-200 relative">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg font-bold">✕</button>
+      <div class="text-center space-y-1">
+        <h3 id="authModalTitle" class="font-yatra text-xl text-forest">साधक लॉगिन</h3>
+        <p class="text-xs text-stone-500">अपने ईमेल एवं पासवर्ड द्वारा सुरक्षित प्रवेश करें</p>
+      </div>
+      <form onsubmit="handleAuthSubmit(event)" class="space-y-3 text-xs">
+        <div id="registerNameRow" class="hidden">
+          <label class="font-bold text-stone-700 block mb-1">पूरा नाम *</label>
+          <input type="text" id="authNameInput" placeholder="अपना नाम" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold">
+        </div>
+        <div>
+          <label class="font-bold text-stone-700 block mb-1">ईमेल पता *</label>
+          <input type="email" id="authEmailInput" required placeholder="name@domain.com" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold">
+        </div>
+        <div>
+          <label class="font-bold text-stone-700 block mb-1">पासवर्ड *</label>
+          <input type="password" id="authPasswordInput" required placeholder="••••••••" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold">
+        </div>
+        <button type="submit" id="authSubmitBtn" class="w-full py-2.5 bg-forest text-white font-extrabold rounded-xl shadow-md transition">
+          लॉगिन करें
+        </button>
+      </form>
+      <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px]">
+        <button onclick="toggleAuthMode()" id="authToggleModeBtn" class="text-terracotta font-bold hover:underline">
+          खाता नहीं है? नया पंजीकरण करें
+        </button>
+        <button onclick="handlePasswordReset()" class="text-stone-500 hover:underline">
+          पासवर्ड भूल गए?
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ONE-TIME MANDATORY USER PRIVACY CONSENT MODAL -->
   <div id="privacyConsentModal" class="fixed inset-0 z-[99990] bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border-2 border-forest">
@@ -649,7 +721,7 @@
     </div>
   </div>
 
-  <!-- HIDDEN ASSET HOOKS FOR QR & PROCTORING STREAMS -->
+  <!-- HIDDEN ASSET HOOKS FOR QR & CANVAS PROCESSING -->
   <div class="hidden">
     <video id="proctorWebcamVideo" autoplay playsinline width="320" height="240"></video>
     <canvas id="proctorSnapshotCanvas" width="320" height="240"></canvas>
@@ -657,7 +729,7 @@
     <div id="admitQrTempContainer"></div>
   </div>
 
-  <!-- VERIFIED PRODUCTION CONTROLLER SCRIPT REFERENCE -->
+  <!-- SCRIPT ENGINE REFERENCE -->
   <script src="script.js"></script>
 </body>
 </html>
