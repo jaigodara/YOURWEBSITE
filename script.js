@@ -1,6 +1,6 @@
 /* ============================================================================
  * BISHNOISM DIGITAL PLATFORM — script.js
- * ERROR-FREE, FLAT SCOPE PRODUCTION CODE
+ * Complete Production Master Controller
  * ========================================================================== */
 
 "use strict";
@@ -96,6 +96,8 @@ let malaState = {
 
 let karaokeSpeeds = [1.0, 1.25, 1.5];
 let currentSpeedIndex = 0;
+let readNiyamsSet = new Set(JSON.parse(localStorage.getItem('bishnoi_read_niyams') || '[]'));
+let bestQuizPct = parseInt(localStorage.getItem('bishnoi_best_quiz_pct') || '0');
 
 // --------------------------------------------------------------------------
 // 2. STATIC DATA ARCHIVES
@@ -192,6 +194,7 @@ function switchPortalTab(targetTab) {
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+const switchTab = switchPortalTab;
 
 function openNotificationModal() {
   alert("🔔 सूचना केंद्र: आगामी अखिल भारतीय जम्भवाणी ज्ञान परीक्षा हेतु आधिकारिक विवरण पटल सक्रिय है।");
@@ -229,7 +232,7 @@ function initAuthUI() {
         }
       }
 
-      authCont.innerHTML = `<button onclick="switchPortalTab('profile')" class="text-xs font-extrabold text-forest bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl border border-amber-300">👤 ${escapeHtml(currentUser.name)}</button>`;
+      authCont.innerHTML = `<button type="button" onclick="switchPortalTab('profile')" class="text-xs font-extrabold text-forest bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl border border-amber-300">👤 ${escapeHtml(currentUser.name)}</button>`;
       if (byId("profNameDisplay")) byId("profNameDisplay").innerText = currentUser.name;
       if (byId("profPhoneDisplay")) byId("profPhoneDisplay").innerText = currentUser.phone || currentUser.email;
 
@@ -246,7 +249,7 @@ function initAuthUI() {
       currentUser = null;
       isCurrentUserOwner = false;
       localStorage.removeItem("bishnoi_secure_user");
-      authCont.innerHTML = `<button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">लॉगिन</button>`;
+      authCont.innerHTML = `<button type="button" onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">लॉगिन</button>`;
       byId("ownerStudioSection")?.classList.add("hidden");
     }
   });
@@ -544,7 +547,7 @@ function renderShabadCards(items) {
   grid.innerHTML = items.map(s => `
     <div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex flex-col justify-between space-y-2">
       <div><span class="text-[10px] font-extrabold text-terracotta uppercase">सबद संख्या ${s.num}</span><h4 class="font-yatra text-base text-forest mt-0.5">${escapeHtml(s.title)}</h4><p class="text-xs text-stone-600 mt-1">${escapeHtml(s.desc)}</p></div>
-      <button onclick="openShabadModal('${s.id}')" class="w-full py-1.5 bg-forest text-white font-bold text-xs rounded-xl">अमृत वाणी पढ़ें</button>
+      <button type="button" onclick="openShabadModal('${s.id}')" class="w-full py-1.5 bg-forest text-white font-bold text-xs rounded-xl">अमृत वाणी पढ़ें</button>
     </div>
   `).join("");
 }
@@ -566,10 +569,10 @@ function openShabadModal(shabadId) {
   }
   modal.innerHTML = `
     <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 border-2 border-forest shadow-2xl relative">
-      <button onclick="document.getElementById('shabadReaderModal').remove()" class="absolute top-4 right-4 text-stone-400 font-bold">✕</button>
+      <button type="button" onclick="document.getElementById('shabadReaderModal').remove()" class="absolute top-4 right-4 text-stone-400 font-bold">✕</button>
       <div class="border-b border-stone-100 pb-2"><span class="text-[10px] font-bold text-terracotta uppercase">सबद संख्या ${shabad.num}</span><h3 class="font-yatra text-xl text-forest mt-0.5">${escapeHtml(shabad.title)}</h3></div>
       <div class="p-4 bg-amber-50/60 rounded-2xl border border-amber-200 text-xs sm:text-sm text-stone-800 font-medium whitespace-pre-wrap">${escapeHtml(shabad.desc)}<p class="mt-3 text-[11px] text-stone-500 italic">नोट: पूर्ण अधिकृत पाठ अध्ययन हेतु प्रमाणित ग्रंथ संदर्भ देखें।</p></div>
-      <button onclick="document.getElementById('shabadReaderModal').remove()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-xl">बंद करें</button>
+      <button type="button" onclick="document.getElementById('shabadReaderModal').remove()" class="w-full py-2.5 bg-forest text-white font-bold text-xs rounded-xl">बंद करें</button>
     </div>
   `;
 }
