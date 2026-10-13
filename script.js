@@ -1707,3 +1707,870 @@ document.addEventListener("DOMContentLoaded", () => {
     renderShabadCards(SHABADWANI_CATALOG);
   }
 });
+/* ==========================================================================
+   PART 2: CONTINUATION OF script.js
+   Directly paste this block immediately below Part 1 (after renderAdmitCardPDF)
+   ========================================================================== */
+
+// --------------------------------------------------------------------------
+// 18. EXAM COUNTDOWN, HALL ENTRY GATE & LATE-ENTRY CUTOFF
+// --------------------------------------------------------------------------
+function startExamCountdownClock(targetIso) {
+  if (examCountdownTimer) clearInterval(examCountdownTimer);
+  const targetTime = new Date(targetIso).getTime();
+
+  function update() {
+    const now = Date.now();
+    const diff = targetTime - now;
+    const disp = document.getElementById("examCountdownDisplay");
+    const startBtn = document.getElementById("startMainExamBtn");
+    if (!disp) return;
+
+    if (diff <= 0) {
+      disp.innerText = "00:00:00 (परीक्षा प्रारंभ हो चुकी है)";
+      if (startBtn) {
+        startBtn.classList.remove("opacity-50", "pointer-events-none");
+      }
+      clearInterval(examCountdownTimer);
+      return;
+    }
+
+    if (startBtn && !isCurrentUserOwner) {
+      startBtn.classList.add("opacity-50", "pointer-events-none");
+    }
+
+    const hrs = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff / (1000 * 60)) % 60);
+    const secs = Math.floor((diff / 1000) % 60);
+    disp.innerText = `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  update();
+  examCountdownTimer = setInterval(update, 1000);
+}
+
+window.triggerMainExamHallEntry = function() {
+  if (parikshaVisibility.examScheduleTime && !isCurrentUserOwner) {
+    const startMs = new Date(parikshaVisibility.examScheduleTime).getTime();
+    const nowMs = Date.now();
+    const cutoffMins = customAdmitConfig.lateCutoffMins || 5;
+
+    if (nowMs < startMs) {
+      alert("⏳ परीक्षा अभी प्रारंभ नहीं हुई है! कृपया निर्धारित समय तक प्रतीक्षा करें।");
+      return;
+    }
+
+    const lateOverrides = JSON.parse(localStorage.getItem("bishnoi_late_overrides") || "[]");
+    const currentRoll = examState.rollNumber;
+    if (!lateOverrides.includes(currentRoll) && nowMs > startMs + (cutoffMins * 60 * 1000)) {
+      alert(`🚫 प्रवेश वर्जित (Late Entry Closed)!\n\nपरीक्षा प्रारंभ होने के ${cutoffMins} मिनट बाद मुख्य परीक्षा कक्ष स्वतः लॉक हो जाता है।`);
+      return;
+    }
+  }
+
+  window.initiateExamSession("main_exam");
+};
+
+// --------------------------------------------------------------------------
+// 19. QUESTION BANK LOADER & EXAM SESSION INITIALIZATION
+// --------------------------------------------------------------------------
+window.initiateExamSession = async function(mode) {
+  examState.activeMode = mode;
+  let questions = [];
+
+  if (db) {
+    try {
+      const collectionMap = {
+        main_exam: "mainExamQuestions",
+        mock_1: "mockExam_1",
+        mock_2: "mockExam_2",
+        daily_quiz: "quiz"
+      };
+      const targetCol = collectionMap[mode] || "mainExamQuestions";
+      const snap = await db.collection(targetCol).get();
+      snap.forEach(doc => {
+        questions.push({ id: doc.id, ...doc.data() });
+      });
+    } catch (err) {
+      console.warn("Firestore question loading fallback:", err.message);
+    }
+  }
+
+  if (!questions.length) {
+    questions = [
+      { id: "q1", section: "A", q: "गुरु जम्भेश्वर भगवान ने २९ नियमों का उपदेश किस पावन स्थल पर दिया था?", opts: ["समराथल धोरा", "मुकाम", "पीपासर", "जांगलू"], ans: 0 },
+      { id: "q2", section: "A", q: "खेजड़ली में ३६३ शहीदों का आत्मोत्सर्ग किस विक्रम संवत में हुआ था?", opts: ["संवत १७८७ (१७३० ई.)", "संवत १५४२", "संवत १८५७", "संवत १९४७"], ans: 0 },
+      { id: "q3", section: "B", q: "श्री सबदवाणी जी में कुल कितने प्रामाणिक सबद संगृहीत हैं?", opts: ["१२० सबद", "१०८ सबद", "२९ सबद", "१५१ सबद"], ans: 0 },
+      { id: "q4", section: "B", q: "विश्नोई धर्म की आचार संहिता में 'रूंख लीलो नी घावै' नियम संख्या क्या है?", opts: ["नियम १९", "नियम १०", "नियम २८", "नियम १५"], ans: 0 }
+    ];
+  }
+
+  const durationMinutes = (mode === "main_exam") ? (parikshaVisibility.examDuration || 120) : 60;
+  startExamCore(questions, durationMinutes);
+};
+
+function startExamCore(questions, durationMinutes) {
+  examState.questions = questions;
+  examState.timeRemainingSeconds = durationMinutes * 60;
+  examState.currentIndex = 0;
+  examState.tabSwitchCount = 0;
+  examState.isExamRunning = true;
+  examState.answers = {};
+
+  document.getElementById("examClosedNoticeBox")?.classList.add("hidden");
+  document.getElementById("examEnrollmentBox")?.classList.add("hidden");
+  document.getElementById("mockTestsHub")?.classList.add("hidden");
+  document.getElementById("mainExamLaunchBox")?.classList.add("hidden");
+  document.getElementById("examResultCheckDesk")?.classList.add("hidden");
+  document.getElementById("quizActiveBox")?.classList.remove("hidden");
+
+  const rollLabel = document.getElementById("examCandidateRoll");
+  if (rollLabel) {
+    rollLabel.innerText = `रोल नंबर: ${examState.rollNumber} (${examState.activeMode.toUpperCase()})`;
+  }
+
+  buildOMRPalette();
+  renderActiveQuestion(0);
+  startExamTimer();
+  bindAntiCheat();
+  persistExamSession();
+
+  if (parikshaVisibility.enableCameraProctoring && examState.activeMode === "main_exam") {
+    startCloudflareProctoring(examState.rollNumber);
+  }
+}
+
+// --------------------------------------------------------------------------
+// 20. OMR PALETTE, NAVIGATION & REAL-TIME MARKING CONTROLLER
+// --------------------------------------------------------------------------
+function buildOMRPalette() {
+  const container = document.getElementById("questionGridPills");
+  if (!container) return;
+  container.innerHTML = examState.questions.map((_, i) => `
+    <button type="button" onclick="jumpActiveQuestion(${i})" id="omr_pill_${i}" class="w-8 h-8 rounded-xl text-xs font-bold border border-stone-300 bg-white text-stone-700 transition">
+      ${i + 1}
+    </button>
+  `).join("");
+}
+
+function renderActiveQuestion(idx) {
+  const q = examState.questions[idx];
+  const area = document.getElementById("examQuestionArea");
+  if (!q || !area) return;
+
+  const curSel = examState.answers[q.id];
+  const qTitle = q.q || q.title || "प्रश्न विवरण अनुपलब्ध";
+  const options = q.opts || q.options || [];
+
+  area.innerHTML = `
+    <div class="space-y-3">
+      <div class="flex justify-between items-center text-xs">
+        <span class="font-extrabold text-forest">प्रश्न क्रमांक: ${idx + 1} / ${examState.questions.length} (खंड ${q.section || "A"})</span>
+        <button type="button" onclick="bookmarkQuestion('${q.id}')" class="text-amber-800 font-bold hover:underline">⭐ बुकमार्क करें</button>
+      </div>
+      <h3 class="text-sm sm:text-base font-bold text-stone-900 leading-relaxed">${escapeHtml(qTitle)}</h3>
+      <div class="space-y-2 pt-1">
+        ${options.map((opt, i) => `
+          <label class="flex items-center p-3 rounded-2xl border cursor-pointer transition ${curSel === i ? "bg-amber-50 border-amber-400 font-bold" : "border-stone-200 hover:bg-stone-50"}">
+            <input type="radio" name="active_opt" value="${i}" ${curSel === i ? "checked" : ""} onchange="selectOption('${q.id}', ${i},${idx})" class="w-4 h-4 mr-3 accent-forest">
+            <span class="text-xs sm:text-sm text-stone-800">${escapeHtml(opt)}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll("#questionGridPills button").forEach((btn, pIdx) => {
+    btn.classList.toggle("ring-2", pIdx === idx);
+    btn.classList.toggle("ring-forest", pIdx === idx);
+  });
+}
+
+window.selectOption = function(qId, optIdx, qIdx) {
+  examState.answers[qId] = optIdx;
+  const pill = document.getElementById(`omr_pill_${qIdx}`);
+  if (pill && !pill.classList.contains("bg-purple-600")) {
+    pill.classList.remove("bg-white", "text-stone-700");
+    pill.classList.add("bg-emerald-600", "text-white");
+  }
+  persistExamSession();
+};
+
+window.jumpActiveQuestion = function(i) {
+  if (i >= 0 && i < examState.questions.length) {
+    examState.currentIndex = i;
+    renderActiveQuestion(i);
+  }
+};
+
+window.navigateActiveExam = function(delta) {
+  const target = examState.currentIndex + delta;
+  if (target >= 0 && target < examState.questions.length) {
+    examState.currentIndex = target;
+    renderActiveQuestion(target);
+  }
+};
+
+window.toggleMarkCurrentForReview = function() {
+  const idx = examState.currentIndex;
+  const pill = document.getElementById(`omr_pill_${idx}`);
+  if (!pill) return;
+
+  if (pill.classList.contains("bg-purple-600")) {
+    pill.classList.remove("bg-purple-600", "text-white");
+    const qId = examState.questions[idx]?.id;
+    if (examState.answers[qId] !== undefined) {
+      pill.classList.add("bg-emerald-600", "text-white");
+    } else {
+      pill.classList.add("bg-white", "text-stone-700");
+    }
+    showToast("समीक्षा चिह्न हटाया गया।");
+  } else {
+    pill.classList.remove("bg-white", "bg-emerald-600", "text-stone-700");
+    pill.classList.add("bg-purple-600", "text-white");
+    showToast("🟣 प्रश्न समीक्षा हेतु चिह्नित किया गया!");
+  }
+};
+
+// --------------------------------------------------------------------------
+// 21. TIMER, AUTOSAVE, RECOVERY & ANTI-CHEAT IMPLEMENTATION
+// --------------------------------------------------------------------------
+function startExamTimer() {
+  if (examState.timerInterval) clearInterval(examState.timerInterval);
+  examState.timerInterval = setInterval(() => {
+    examState.timeRemainingSeconds--;
+    const m = Math.floor(examState.timeRemainingSeconds / 60);
+    const s = examState.timeRemainingSeconds % 60;
+    const disp = document.getElementById("examTimerClock");
+    if (disp) {
+      disp.innerText = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    }
+
+    if (examState.timeRemainingSeconds % 10 === 0) {
+      persistExamSession();
+    }
+
+    if (examState.timeRemainingSeconds <= 0) {
+      clearInterval(examState.timerInterval);
+      finalizeExamSubmission(true);
+    }
+  }, 1000);
+}
+
+function bindAntiCheat() {
+  document.addEventListener("visibilitychange", () => {
+    if (!examState.isExamRunning) return;
+    if (document.hidden) {
+      examState.tabSwitchCount++;
+      alert(`⚠️ सुरक्षा चेतावनी (${examState.tabSwitchCount}/3):\nपरीक्षा के दौरान अन्य विंडो या टैब पर जाना वर्जित है!`);
+      if (examState.tabSwitchCount >= 3) {
+        finalizeExamSubmission(true);
+      }
+    }
+  });
+
+  window.addEventListener("contextmenu", (e) => {
+    if (examState.isExamRunning) e.preventDefault();
+  });
+}
+
+function persistExamSession() {
+  localStorage.setItem("encExam_ActiveSession", JSON.stringify({
+    answers: examState.answers,
+    currentIndex: examState.currentIndex,
+    timeRemainingSeconds: examState.timeRemainingSeconds,
+    activeMode: examState.activeMode,
+    rollNumber: examState.rollNumber
+  }));
+}
+
+function restoreAccidentalExamRefreshState() {
+  const savedRaw = localStorage.getItem("encExam_ActiveSession");
+  if (!savedRaw) return;
+  try {
+    const saved = JSON.parse(savedRaw);
+    if (saved && saved.timeRemainingSeconds > 10 && saved.rollNumber) {
+      examState.answers = saved.answers || {};
+      examState.rollNumber = saved.rollNumber;
+      window.initiateExamSession(saved.activeMode || "daily_quiz").then(() => {
+        examState.currentIndex = saved.currentIndex || 0;
+        examState.timeRemainingSeconds = saved.timeRemainingSeconds;
+        renderActiveQuestion(examState.currentIndex);
+        showToast("🔄 आपका पूर्व परीक्षा सत्र पुनः स्थापित कर दिया गया है।");
+      });
+    }
+  } catch (err) {
+    localStorage.removeItem("encExam_ActiveSession");
+  }
+}
+
+window.confirmFinalExamSubmission = function() {
+  if (confirm("क्या आप अपनी उत्तर-पुस्तिका अंतिम रूप से जमा करना चाहते हैं?")) {
+    finalizeExamSubmission(false);
+  }
+};
+
+// --------------------------------------------------------------------------
+// 22. FINAL SUBMISSION, SCORING & ISOLATED FIRESTORE PERSISTENCE
+// --------------------------------------------------------------------------
+async function finalizeExamSubmission(isForced) {
+  examState.isExamRunning = false;
+  if (examState.timerInterval) clearInterval(examState.timerInterval);
+  localStorage.removeItem("encExam_ActiveSession");
+  stopCloudflareProctoring();
+
+  let score = 0;
+  let correctCount = 0;
+  let wrongCount = 0;
+  let unattemptedCount = 0;
+
+  examState.questions.forEach(q => {
+    const chosen = examState.answers[q.id];
+    if (chosen !== undefined) {
+      if (chosen === q.ans) {
+        score += (q.section === "B" ? 4 : 2);
+        correctCount++;
+      } else {
+        score -= (q.section === "B" ? 1.0 : 0.5);
+        wrongCount++;
+      }
+    } else {
+      unattemptedCount++;
+    }
+  });
+
+  const totalMax = examState.questions.reduce((acc, q) => acc + (q.section === "B" ? 4 : 2), 0);
+  const percentage = totalMax > 0 ? Math.max(0, Math.round((score / totalMax) * 100)) : 0;
+
+  const candidateName = (currentUser && currentUser.name)
+    ? currentUser.name
+    : (examState.enrolledProfile?.name || window.lastEnrolledStudentObj?.name || "परीक्षार्थी");
+  const fatherName = examState.enrolledProfile?.fatherName || window.lastEnrolledStudentObj?.fatherName || "-";
+
+  const submissionPayload = {
+    rollNumber: examState.rollNumber,
+    name: candidateName,
+    fatherName: fatherName,
+    mode: examState.activeMode,
+    score: score,
+    total: totalMax,
+    percentage: percentage,
+    correctCount: correctCount,
+    wrongCount: wrongCount,
+    unattemptedCount: unattemptedCount,
+    isForced: isForced,
+    tabWarnings: examState.tabSwitchCount,
+    submittedAt: (typeof firebase !== "undefined" && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : null,
+    timestamp: Date.now()
+  };
+
+  let writeSuccess = false;
+  if (db) {
+    const targetCol = (examState.activeMode === "main_exam")
+      ? "mainExamSubmissions"
+      : ((examState.activeMode === "daily_quiz") ? "quizAttempts" : "mockExamSubmissions");
+    try {
+      await db.collection(targetCol).add(submissionPayload);
+      writeSuccess = true;
+    } catch (err) {
+      console.warn("Firestore submission write error:", err.message);
+    }
+  }
+
+  const qBox = document.getElementById("quizActiveBox");
+  if (qBox) {
+    qBox.innerHTML = `
+      <div class="text-center p-6 sm:p-8 bg-green-50 rounded-3xl border border-green-300 space-y-4 shadow-sm">
+        <div class="text-4xl">📜</div>
+        <h3 class="font-yatra text-2xl text-forest">उत्तर-पुस्तिका सफलतापूर्वक जमा हो गई है!</h3>
+        <p class="text-xs text-stone-600">
+          रोल नंबर: <b>${escapeHtml(examState.rollNumber)}</b> | कुल प्रश्न: <b>${examState.questions.length}</b>
+        </p>
+        <div class="p-4 bg-white rounded-2xl border border-green-300 text-xs font-semibold text-green-900 max-w-sm mx-auto space-y-1">
+          <div>प्राप्तांक: <span class="text-base font-extrabold text-terracotta">${score} / ${totalMax}</span> (${percentage}%)</div>
+          <div class="text-[11px] text-stone-500">सही: ${correctCount} | गलत: ${wrongCount} | अनुत्तरित: ${unattemptedCount}</div>
+          <div class="text-[10px] text-stone-400 mt-1">${writeSuccess ? "✓ सर्वर पर सुरक्षित रूप से प्रविष्ट" : "⚠️ स्थानीय रूप से सहेजा गया"}</div>
+        </div>
+        <div class="pt-2 flex flex-wrap justify-center gap-2">
+          <button type="button" onclick="generateCertificate('${escapeHtml(candidateName)}', ${percentage})" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-xl text-xs font-extrabold shadow transition">
+            🎓 सम्मान-पत्र डाउनलोड करें
+          </button>
+          <button type="button" onclick="location.reload()" class="px-5 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-extrabold shadow transition">
+            परीक्षा पटल पर लौटें
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// --------------------------------------------------------------------------
+// 23. RESULT LOOKUP DESK & AI SAHAYAK ENGINE
+// --------------------------------------------------------------------------
+window.handleResultLookup = async function(e) {
+  e.preventDefault();
+  const roll = document.getElementById("resRollInput").value.trim().toUpperCase();
+  const dob = document.getElementById("resDobInput").value;
+  const out = document.getElementById("studentPersonalResultDisplay");
+  if (!out) return;
+
+  out.classList.remove("hidden");
+  out.innerHTML = `<div class="p-4 text-center text-xs text-stone-500">परिणाम खोजा जा रहा है...</div>`;
+
+  if (!db) {
+    out.innerHTML = `<div class="p-4 bg-amber-50 rounded-xl text-xs text-amber-900">डेटाबेस सेवा अनुपलब्ध है। कृपया इंटरनेट जांचें।</div>`;
+    return;
+  }
+
+  try {
+    const studentDoc = await db.collection("examEnrolledStudents").doc(roll).get();
+    if (!studentDoc.exists || studentDoc.data().dob !== dob) {
+      out.innerHTML = `<div class="p-4 bg-rose-50 rounded-xl text-xs text-rose-700">दर्ज किया गया रोल नंबर अथवा जन्मतिथि रिकॉर्ड से मेल नहीं खाती।</div>`;
+      return;
+    }
+
+    const subSnap = await db.collection("mainExamSubmissions").where("rollNumber", "==", roll).limit(1).get();
+    if (subSnap.empty) {
+      out.innerHTML = `<div class="p-4 bg-amber-50 rounded-xl text-xs text-amber-900">आपकी उत्तर-पुस्तिका प्रक्रियाधीन है अथवा मुख्य परीक्षा का परिणाम अभी प्रकाशित नहीं हुआ है।</div>`;
+      return;
+    }
+
+    const resData = subSnap.docs[0].data();
+    const stData = studentDoc.data();
+    out.innerHTML = `
+      <div class="p-5 bg-gradient-to-br from-emerald-50 via-white to-amber-50 rounded-2xl border-2 border-forest shadow-md space-y-3">
+        <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+          <span class="font-yatra text-base text-forest">अखिल भारतीय जम्भवाणी ज्ञान परीक्षा २०२६ - अंकतालिका</span>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-forest font-bold text-xs">सत्यापित</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-700">
+          <div><b>परीक्षार्थी:</b> ${escapeHtml(stData.name)}</div>
+          <div><b>पिता का नाम:</b> ${escapeHtml(stData.fatherName)}</div>
+          <div><b>रोल नंबर:</b> ${escapeHtml(roll)}</div>
+          <div><b>स्थान:</b> ${escapeHtml(stData.location)}</div>
+        </div>
+        <div class="p-3 bg-white rounded-xl border border-stone-200 flex items-center justify-between">
+          <span class="font-bold text-xs text-stone-600">कुल प्राप्तांक:</span>
+          <span class="text-xl font-extrabold text-terracotta">${resData.score} / ${resData.total} (${resData.percentage}%)</span>
+        </div>
+        <button type="button" onclick="generateCertificate('${escapeHtml(stData.name)}', ${resData.percentage})" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl text-xs shadow transition">
+          📜 डिजिटल सम्मान-पत्र (Certificate) डाउनलोड करें
+        </button>
+      </div>
+    `;
+  } catch (err) {
+    out.innerHTML = `<div class="p-4 bg-rose-50 rounded-xl text-xs text-rose-700">खोज त्रुटि: ${escapeHtml(err.message)}</div>`;
+  }
+};
+
+window.askAiSahayak = function() {
+  const inp = document.getElementById("aiSahayakQueryInput");
+  const out = document.getElementById("aiSahayakAnswerOut");
+  if (!inp || !out) return;
+  const q = inp.value.trim();
+  if (!q) return;
+
+  out.classList.remove("hidden");
+  out.innerHTML = `<strong>📖 संदर्भ उत्तर:</strong> "${escapeHtml(q)}" के संबंध में गुरु जम्भेश्वर भगवान के २९ नियमों में प्रकृति संवर्धन, शुचिता और मूक जीवों की रक्षा को सर्वोच्च कर्तव्य माना गया है। (संवत १५४२, समराथल धोरा)।`;
+};
+
+function generateCertificate(name, score) {
+  const canvas = document.getElementById("certCanvas");
+  if (!canvas) return;
+  canvas.width = 1000;
+  canvas.height = 720;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#FFFDF7";
+  ctx.fillRect(0, 0, 1000, 720);
+  ctx.strokeStyle = "#143622";
+  ctx.lineWidth = 16;
+  ctx.strokeRect(24, 24, 952, 672);
+  ctx.strokeStyle = "#D97706";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(40, 40, 920, 640);
+
+  ctx.fillStyle = "#B34A1B";
+  ctx.textAlign = "center";
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("॥ ॐ विष्णवे नमः • गुरु जम्भेश्वराय नमः ॥", 500, 95);
+
+  ctx.fillStyle = "#143622";
+  ctx.font = "bold 34px sans-serif";
+  ctx.fillText("विश्नोई समाज डिजिटल ज्ञान एवं साहित्य परीक्षा", 500, 160);
+
+  ctx.fillStyle = "#B34A1B";
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText("★ योग्यता एवं गौरव सम्मान-पत्र (Certificate of Merit) ★", 500, 210);
+
+  ctx.fillStyle = "#44403C";
+  ctx.font = "20px sans-serif";
+  ctx.fillText("सहर्ष प्रमाणित किया जाता है कि परीक्षार्थी", 500, 280);
+
+  ctx.fillStyle = "#143622";
+  ctx.font = "bold 36px sans-serif";
+  ctx.fillText(name.toUpperCase(), 500, 340);
+
+  ctx.fillStyle = "#292524";
+  ctx.font = "20px sans-serif";
+  ctx.fillText(`ने जाम्भाणी साहित्य एवं २९ नियम परीक्षा में ${score}% प्राप्तांक प्राप्त किए हैं।`, 500, 405);
+
+  ctx.fillStyle = "#143622";
+  ctx.fillRect(200, 490, 600, 42);
+  ctx.fillStyle = "#FDE68A";
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै — सिर साटै रूंख रहै, तो भी सस्तो जाण"', 500, 517);
+
+  ctx.fillStyle = "#44403C";
+  ctx.font = "bold 15px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`दिनांक: ${new Date().toLocaleDateString("hi-IN")}`, 80, 620);
+  ctx.textAlign = "right";
+  ctx.fillText("मुख्य व्यवस्थापक (विश्नोई समाज डिजिटल मंच)", 920, 620);
+
+  const link = document.createElement("a");
+  link.download = `Bishnoi_Exam_Certificate_${name}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+  showToast("🎓 सम्मान-पत्र डाउनलोड हो गया!");
+}
+
+// --------------------------------------------------------------------------
+// 24. BOOKMARKS REVISION LIST
+// --------------------------------------------------------------------------
+window.bookmarkQuestion = function(qId) {
+  const q = examState.questions.find(x => x.id === qId);
+  if (!q) return;
+  const list = JSON.parse(localStorage.getItem("bishnoi_user_bookmarks") || "[]");
+  if (!list.some(x => x.id === q.id)) {
+    list.unshift(q);
+    localStorage.setItem("bishnoi_user_bookmarks", JSON.stringify(list));
+    showToast("⭐ प्रश्न प्रोफ़ाइल बुकमार्क में सुरक्षित हो गया!");
+    initBookmarksView();
+  } else {
+    showToast("यह प्रश्न पहले से बुकमार्क सूची में है।");
+  }
+};
+
+function initBookmarksView() {
+  const box = document.getElementById("userBookmarksList");
+  if (!box) return;
+  const list = JSON.parse(localStorage.getItem("bishnoi_user_bookmarks") || "[]");
+  if (!list.length) {
+    box.innerHTML = `<div class="p-3 bg-stone-50 rounded-xl text-stone-500 text-xs text-center font-medium">कोई सहेजा गया प्रश्न नहीं है।</div>`;
+    return;
+  }
+  box.innerHTML = list.map((q, i) => `
+    <div class="p-3 bg-stone-900 text-amber-200 rounded-xl text-xs space-y-1">
+      <div class="font-bold flex justify-between text-white">
+        <span>प्रश्न ${i + 1}: ${escapeHtml(q.q || q.title || "")}</span>
+        <span class="text-amber-400 text-[10px]">खंड ${escapeHtml(q.section || "A")}</span>
+      </div>
+      <div class="text-stone-300 text-[11px]">${(q.opts || q.options || []).map(o => escapeHtml(o)).join(" | ")}</div>
+    </div>
+  `).join("");
+}
+
+window.clearUserBookmarks = function() {
+  localStorage.removeItem("bishnoi_user_bookmarks");
+  initBookmarksView();
+  showToast("बुकमार्क सूची साफ़ कर दी गई।");
+};
+
+// --------------------------------------------------------------------------
+// 25. COMMUNITY FORUM (SAMVAD) FEED & SUBMISSION
+// --------------------------------------------------------------------------
+window.submitChaupalPost = async function() {
+  if (!currentUser) {
+    showToast("कृपया संवाद मंच में विचार साझा करने हेतु लॉगिन करें!");
+    openAuthModal();
+    return;
+  }
+  const txtEl = document.getElementById("chaupalPostText");
+  const txt = txtEl ? txtEl.value.trim() : "";
+  if (!txt) return;
+
+  if (db) {
+    try {
+      await db.collection("posts").add({
+        author: currentUser.name || "साधक",
+        authorUid: currentUser.uid,
+        content: txt,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      txtEl.value = "";
+      showToast("विचार पोस्ट कर दिया गया!");
+      loadChaupalPosts();
+    } catch (err) {
+      showToast("पोस्ट करने में त्रुटि: " + err.message);
+    }
+  }
+};
+
+function loadChaupalPosts() {
+  const feed = document.getElementById("communityFeed");
+  if (!feed || !db) return;
+
+  db.collection("posts").orderBy("createdAt", "desc").limit(20).get().then(snap => {
+    if (snap.empty) {
+      feed.innerHTML = `<div class="p-4 text-center text-xs text-stone-400">अभी कोई विचार पोस्ट नहीं है। पहला विचार लिखें!</div>`;
+      return;
+    }
+    feed.innerHTML = snap.docs.map(doc => {
+      const p = doc.data();
+      return `
+        <div class="p-3 bg-white rounded-2xl border border-stone-200 text-xs space-y-1">
+          <div class="font-bold text-forest">${escapeHtml(p.author)}</div>
+          <p class="text-stone-800 leading-relaxed">${escapeHtml(p.content)}</p>
+        </div>
+      `;
+    }).join("");
+  }).catch(() => {});
+}
+
+// --------------------------------------------------------------------------
+// 26. OWNER STUDIO: VISIBILITY SWITCHBOARD, EXPORTS & SETTINGS
+// --------------------------------------------------------------------------
+function loadUnifiedConfigToStudio() {
+  const area = document.getElementById("unifiedAdmitConfigInput");
+  if (area) {
+    area.value = `${customAdmitConfig.examTitle} | ${customAdmitConfig.examDateStr} | ${customAdmitConfig.examTimeStr} | ${customAdmitConfig.examCenterStr} | ${customAdmitConfig.lateCutoffMins} | ${customAdmitConfig.instructionsStr}`;
+  }
+}
+
+window.saveUnifiedPortalConfig = async function() {
+  const area = document.getElementById("unifiedAdmitConfigInput");
+  if (!area) return;
+  const parts = area.value.split("|").map(s => s.trim());
+  if (parts.length >= 6) {
+    customAdmitConfig = {
+      examTitle: parts[0],
+      examDateStr: parts[1],
+      examTimeStr: parts[2],
+      examCenterStr: parts[3],
+      lateCutoffMins: parseInt(parts[4], 10) || 5,
+      instructionsStr: parts[5]
+    };
+    localStorage.setItem("bishnoi_unified_admit_cfg", JSON.stringify(customAdmitConfig));
+    if (db) {
+      await db.collection("examConfig").doc("admitAndCutoff").set(customAdmitConfig, { merge: true });
+    }
+    showToast("✅ प्रवेश-पत्र एवं परीक्षा प्रारूप अद्यतन कर दिया गया!");
+  } else {
+    showToast("अमान्य प्रारूप! पाइप (|) द्वारा पृथक ६ भाग होने अनिवार्य हैं।");
+  }
+};
+
+window.exportResultExcelSheet = async function(type) {
+  if (!isCurrentUserOwner) {
+    showToast("यह सुविधा केवल अधिकृत व्यवस्थापक हेतु है!");
+    return;
+  }
+  let data = [];
+  if (db) {
+    const col = (type === "main") ? "mainExamSubmissions" : "examEnrolledStudents";
+    const snap = await db.collection(col).get();
+    snap.forEach(d => data.push(d.data()));
+  }
+
+  if (type === "main") {
+    data.sort((a, b) => (b.score || 0) - (a.score || 0));
+    data = data.map((r, i) => ({
+      "रैंक (Rank)": i + 1,
+      "रोल नंबर": r.rollNumber || "-",
+      "परीक्षार्थी नाम": r.name || "-",
+      "प्राप्तांक (Marks)": r.score || 0,
+      "पूर्णांक (Total)": r.total || 100,
+      "प्रतिशत (%)": `${r.percentage || 0}%`,
+      "जमा समय": r.timestamp ? new Date(r.timestamp).toLocaleString("hi-IN") : "-"
+    }));
+  }
+
+  if (typeof XLSX !== "undefined") {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Records");
+    XLSX.writeFile(wb, `Bishnoi_Platform_${type}_Report.xlsx`);
+    showToast("📊 Excel फ़ाइल डाउनलोड हो गई!");
+  } else {
+    showToast("SheetJS लाइब्रेरी लोड नहीं हो सकी।");
+  }
+};
+
+window.grantOwnerLateOverride = function() {
+  const inp = document.getElementById("overrideRollInput");
+  if (!inp) return;
+  const roll = inp.value.trim().toUpperCase();
+  if (!roll) return showToast("रोल नंबर दर्ज करें!");
+  const list = JSON.parse(localStorage.getItem("bishnoi_late_overrides") || "[]");
+  if (!list.includes(roll)) list.push(roll);
+  localStorage.setItem("bishnoi_late_overrides", JSON.stringify(list));
+  inp.value = "";
+  showToast(`✅ रोल ${roll} को लेट-एंट्री प्रवेश की अनुमति दी गई!`);
+};
+
+window.declareDailyQuizWinners = async function() {
+  if (!isCurrentUserOwner) return showToast("केवल व्यवस्थापक के लिए!");
+  if (!db) return;
+
+  try {
+    const snap = await db.collection("quizAttempts").limit(50).get();
+    let attempts = [];
+    snap.forEach(d => attempts.push(d.data()));
+    attempts.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    if (attempts.length >= 1) {
+      await db.collection("settings").doc("dailyWinners").set({
+        p1Name: attempts[0]?.name || "—",
+        p1Score: `${attempts[0]?.score || 0}`,
+        p2Name: attempts[1]?.name || "—",
+        p2Score: `${attempts[1]?.score || 0}`,
+        p3Name: attempts[2]?.name || "—",
+        p3Score: `${attempts[2]?.score || 0}`
+      }, { merge: true });
+      showToast("🏆 दैनिक क्विज़ शीर्ष ३ विजेताओं की घोषणा हो गई!");
+    } else {
+      showToast("क्विज़ में पर्याप्त प्रतिभागी नहीं मिले।");
+    }
+  } catch (err) {
+    showToast("विजेता घोषणा त्रुटि: " + err.message);
+  }
+};
+
+window.uploadBulkQuestions = async function() {
+  if (!isCurrentUserOwner || !db) return showToast("केवल व्यवस्थापक के लिए!");
+  const targetCol = document.getElementById("targetQBankSelect")?.value || "mainExamQuestions";
+  const rawText = document.getElementById("bulkQBankInput")?.value.trim();
+  if (!rawText) return showToast("कृपया प्रश्न टेक्स्ट बॉक्स में पेस्ट करें!");
+
+  const blocks = rawText.split(/\n\s*\n/);
+  let parsed = [];
+  for (let b of blocks) {
+    const lines = b.split("\n").map(l => l.trim()).filter(Boolean);
+    let qText = "", opts = [], ansIdx = 0;
+    for (let l of lines) {
+      if (l.match(/^Q\s*:/i)) qText = l.replace(/^Q\s*:/i, "").trim();
+      else if (l.match(/^[A-D]\s*\)/i)) opts.push(l.replace(/^[A-D]\s*\)/i, "").trim());
+      else if (l.match(/^Ans\s*:/i)) {
+        const letAns = l.replace(/^Ans\s*:/i, "").trim().toUpperCase();
+        ansIdx = (letAns === "A") ? 0 : ((letAns === "B") ? 1 : ((letAns === "C") ? 2 : 3));
+      }
+    }
+    if (qText && opts.length >= 2) {
+      parsed.push({ q: qText, opts: opts, ans: ansIdx, section: "A" });
+    }
+  }
+
+  if (!parsed.length) return showToast("प्रारूप सही नहीं है (Q:, A), B), Ans:)!");
+
+  try {
+    const batch = db.batch();
+    parsed.forEach(item => {
+      const ref = db.collection(targetCol).doc();
+      batch.set(ref, item);
+    });
+    await batch.commit();
+    document.getElementById("bulkQBankInput").value = "";
+    showToast(`✅ ${parsed.length} प्रश्न बैंक में सफलतापूर्वक जोड़े गए!`);
+  } catch (err) {
+    showToast("अपलोड त्रुटि: " + err.message);
+  }
+};
+
+window.syncOwnerVisibilityConfig = async function() {
+  if (!isCurrentUserOwner || !db) return;
+  const cfg = {
+    enrollment: document.getElementById("toggleEnrollmentSection")?.checked || false,
+    mock: document.getElementById("toggleMockSection")?.checked || false,
+    mainExam: document.getElementById("toggleMainExamSection")?.checked || false,
+    dailyQuiz: document.getElementById("toggleDailyQuizSection")?.checked || false,
+    resultsPublished: document.getElementById("toggleResultsPublishedSection")?.checked || false
+  };
+  await db.collection("examConfig").doc("visibility").set(cfg, { merge: true });
+  showToast("✅ परीक्षा अनुभाग सेटिंग्स लाइव अपडेट हो गईं!");
+};
+
+function listenRealtimeSettings() {
+  if (!db) return;
+  db.collection("examConfig").doc("visibility").onSnapshot(doc => {
+    if (doc.exists) {
+      parikshaVisibility = Object.assign(parikshaVisibility, doc.data());
+      syncDOMWithVisibility();
+    }
+  });
+
+  db.collection("settings").doc("dailySandesh").onSnapshot(doc => {
+    if (doc.exists && doc.data().text) {
+      currentBannerText = doc.data().text;
+      const bEl = document.getElementById("dailyBannerText");
+      if (bEl) bEl.innerText = currentBannerText;
+    }
+  });
+}
+
+function syncDOMWithVisibility() {
+  const tEnroll = document.getElementById("toggleEnrollmentSection");
+  const tMock = document.getElementById("toggleMockSection");
+  const tMain = document.getElementById("toggleMainExamSection");
+  const tQuiz = document.getElementById("toggleDailyQuizSection");
+  const tRes = document.getElementById("toggleResultsPublishedSection");
+
+  if (tEnroll) tEnroll.checked = parikshaVisibility.enrollment;
+  if (tMock) tMock.checked = parikshaVisibility.mock;
+  if (tMain) tMain.checked = parikshaVisibility.mainExam;
+  if (tQuiz) tQuiz.checked = parikshaVisibility.dailyQuiz;
+  if (tRes) tRes.checked = parikshaVisibility.resultsPublished;
+
+  document.getElementById("examEnrollmentBox")?.classList.toggle("hidden", !parikshaVisibility.enrollment);
+  document.getElementById("mockTestsHub")?.classList.toggle("hidden", !parikshaVisibility.mock);
+  document.getElementById("mainExamLaunchBox")?.classList.toggle("hidden", !parikshaVisibility.mainExam);
+  document.getElementById("examResultCheckDesk")?.classList.toggle("hidden", !parikshaVisibility.resultsPublished);
+
+  if (parikshaVisibility.mainExam && parikshaVisibility.examScheduleTime) {
+    startExamCountdownClock(parikshaVisibility.examScheduleTime);
+  }
+}
+
+function initDistrictTelemetry() {
+  const container = document.getElementById("districtTelemetryHeatmap");
+  if (!container) return;
+  const sampleDistricts = [
+    { name: "हिसार (HR)", count: 248 },
+    { name: "सिरसा (HR)", count: 182 },
+    { name: "फतेहाबाद (HR)", count: 96 },
+    { name: "बीकानेर (RJ)", count: 312 },
+    { name: "जोधपुर (RJ)", count: 420 },
+    { name: "नागौर (RJ)", count: 175 },
+    { name: "बाड़मेर (RJ)", count: 140 },
+    { name: "अन्य अंचल", count: 88 }
+  ];
+  container.innerHTML = sampleDistricts.map(d => `
+    <div class="p-2.5 bg-white rounded-xl border border-stone-200">
+      <div class="font-extrabold text-forest text-sm">${d.count}</div>
+      <div class="text-[10px] text-stone-500 font-semibold">${escapeHtml(d.name)}</div>
+    </div>
+  `).join("");
+}
+
+// --------------------------------------------------------------------------
+// 27. MASTER INITIALIZATION BOOTSTRAP
+// --------------------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", () => {
+  renderNiyamsList();
+  computeAutoPanchangAndAmavasya();
+  initKaraokePlayer();
+  initAuthUI();
+  initMalaState();
+  initBookmarksView();
+  verifyPrivacyConsentStatus();
+  listenRealtimeSettings();
+  restoreAccidentalExamRefreshState();
+  initDistrictTelemetry();
+  setupInactivityGuard();
+  loadChaupalPosts();
+
+  if (typeof renderShabadCards === "function") {
+    renderShabadCards(SHABADWANI_CATALOG);
+  }
+});
+/* ==================== END OF script.js ==================== */
