@@ -308,7 +308,6 @@
   window.changeLiteratureFont = function(delta) { state.fontSize=Math.max(12,Math.min(32,state.fontSize+Number(delta||0))); const reader=byId('shabadReaderModal')||byId('literatureReader'); if(reader) reader.style.fontSize=`${state.fontSize}px`; };
 
   // Karaoke: audio records can provide audioUrl and timed lyrics [{time,text}].
-  let karaokeFrame=null;
   async function initKaraokePlayer() {
     const audio=byId('karaokeAudio')||byId('bhajanAudio'); if(!audio) return;
     audio.addEventListener('timeupdate',()=>{const lines=asArray(window.activeKaraokeLyrics); let active=-1; lines.forEach((l,i)=>{if(Number(l.time||0)<=audio.currentTime)active=i;}); const host=byId('karaokeLyrics'); if(host&&active>=0){const line=host.children[active]; if(line){$$('.karaoke-line',host).forEach(x=>x.classList.remove('karaoke-active'));line.classList.add('karaoke-active');line.scrollIntoView({block:'nearest',behavior:'smooth'});}}});
