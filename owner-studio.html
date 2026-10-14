@@ -972,18 +972,18 @@ Ans: B"></textarea>
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
       if (!raw) return showToast('कृपया प्रश्न पेस्ट करें!');
-      const blocks = raw.split(new RegExp('(?=^\\\\s*Q\\\\s*:)', 'im')).map(x => x.trim()).filter(Boolean);
+      const blocks = raw.split(new RegExp('(?=^\\s*Q\\s*:)', 'im')).map(x => x.trim()).filter(Boolean);
       const parsed = [];
       const errors = [];
       blocks.forEach((block, index) => {
-        const lines = block.split(new RegExp('\\\\r?\\\\n')).map(x => x.trim()).filter(Boolean);
+        const lines = block.split(new RegExp('\\r?\\n')).map(x => x.trim()).filter(Boolean);
         let q = '';
         const opts = [];
         let ansLetter = '';
         for (const line of lines) {
-          if (new RegExp('^Q\\\\s*:', 'i').test(line)) q = line.replace(new RegExp('^Q\\\\s*:', 'i'), '').trim();
-          else if (new RegExp('^[A-D]\\\\s*[).:-]', 'i').test(line)) opts.push(line.replace(new RegExp('^[A-D]\\\\s*[).:-]\\\\s*', 'i'), '').trim());
-          else if (new RegExp('^(?:Ans|Answer|उत्तर)\\\\s*:', 'i').test(line)) ansLetter = line.replace(new RegExp('^(?:Ans|Answer|उत्तर)\\\\s*:', 'i'), '').trim().toUpperCase();
+          if (new RegExp('^Q\\s*:', 'i').test(line)) q = line.replace(new RegExp('^Q\\s*:', 'i'), '').trim();
+          else if (new RegExp('^[A-D]\\s*[).:-]', 'i').test(line)) opts.push(line.replace(new RegExp('^[A-D]\\s*[).:-]\\s*', 'i'), '').trim());
+          else if (new RegExp('^(?:Ans|Answer|उत्तर)\\s*:', 'i').test(line)) ansLetter = line.replace(new RegExp('^(?:Ans|Answer|उत्तर)\\s*:', 'i'), '').trim().toUpperCase();
         }
         if (!q || opts.length !== 4 || !['A','B','C','D'].includes(ansLetter) || opts.some(option => !option)) {
           errors.push('प्रश्न ' + (index + 1) + ': प्रश्न, चार भरे हुए विकल्प और Ans: A/B/C/D आवश्यक हैं।');
