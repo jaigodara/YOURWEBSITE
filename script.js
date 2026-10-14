@@ -45,6 +45,7 @@
       button.classList.toggle('bnav-active', active);
       button.setAttribute('aria-current', active ? 'page' : 'false');
     });
+    try { sessionStorage.setItem('bishnoi_active_tab_v1', key); } catch (_) {}
     if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
     return true;
   };
@@ -1716,10 +1717,12 @@ function renderExamVisibility() {
 
     try {
       const snapshot = await collection(collectionName).get();
-      const questions = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const questions = snapshot.docs
+        .filter(doc => {
+          const data = doc.data() || {};
+          return data.published !== false && data.status !== 'draft';
+        })
+        .map(doc => ({ id: doc.id, ...doc.data() }));
 
       // Give each attempt its own randomized question order. Do not mutate the
       // Firestore order, so different devices/attempts need not see the same series.
@@ -1982,6 +1985,12 @@ function renderExamVisibility() {
       initPublicNotifications();
       loadShabadRepository();
     }
+
+    // Restore the last section on refresh rather than always returning home.
+    try {
+      const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
+      if (savedTab) window.switchTab(savedTab);
+    } catch (_) {}
 
     // The navigation function is now exposed globally.
     window.BishnoiPortal = window.BishnoiPortal || {};
