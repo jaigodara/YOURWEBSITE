@@ -1548,9 +1548,70 @@ function renderExamVisibility() {
     return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
   }
 
+  function ensureExamWorkspace(mode) {
+    const tab = byId('tab-quiz');
+    if (!tab) throw new Error('परीक्षा स्क्रीन नहीं मिली (tab-quiz).');
+
+    let workspace = byId('portalExamWorkspace');
+    if (!workspace) {
+      workspace = document.createElement('section');
+      workspace.id = 'portalExamWorkspace';
+      workspace.className = 'hidden rounded-3xl border border-emerald-200 bg-white p-4 sm:p-6 shadow-lg space-y-4';
+      workspace.hidden = true;
+      workspace.setAttribute('role', 'region');
+      workspace.setAttribute('aria-label', 'परीक्षा प्रश्न-पत्र');
+      workspace.innerHTML = `
+        <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
+          <div class="min-w-0">
+            <p class="text-[10px] uppercase tracking-widest font-extrabold text-emerald-800">EXAM IN PROGRESS</p>
+            <h2 id="portalExamTitle" class="font-yatra text-xl sm:text-2xl text-forest">परीक्षा</h2>
+            <p id="examQuestionNumber" class="mt-1 text-xs font-semibold text-stone-500" aria-live="polite">प्रश्न 0/0</p>
+          </div>
+          <div class="shrink-0 rounded-xl bg-forest px-3 py-2 text-center text-white">
+            <span class="block text-[9px] uppercase tracking-wide text-emerald-100">शेष समय</span>
+            <strong id="examTimer" class="font-mono text-lg">--:--</strong>
+          </div>
+        </div>
+        <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
+        <p id="examResult" class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-900" role="status" aria-live="polite"></p>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="previousQuestionBtn" type="button" class="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700">← पिछला प्रश्न</button>
+          <button id="nextQuestionBtn" type="button" class="rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white">अगला प्रश्न →</button>
+        </div>
+        <button id="submitExamBtn" type="button" class="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-stone-950">उत्तर जमा करें</button>
+        <button id="exitExamWorkspace" type="button" class="hidden w-full rounded-xl border border-stone-300 px-4 py-3 text-sm font-bold text-stone-700">परीक्षा सूची पर वापस जाएँ</button>
+      `;
+
+      const anchor = byId('enrollmentSection') || byId('dailyQuizSection') || tab.firstElementChild;
+      if (anchor) tab.insertBefore(workspace, anchor);
+      else tab.appendChild(workspace);
+
+      byId('previousQuestionBtn').addEventListener('click', () => window.previousExamQuestion());
+      byId('nextQuestionBtn').addEventListener('click', () => window.nextExamQuestion());
+      byId('submitExamBtn').addEventListener('click', () => window.submitPortalExam(false));
+      byId('exitExamWorkspace').addEventListener('click', () => {
+        setVisible('portalExamWorkspace', false);
+        renderExamVisibility();
+        switchTab('quiz');
+      });
+    }
+
+    const labels = {
+      quiz: 'दैनिक ज्ञान परीक्षा',
+      mock1: 'मॉक परीक्षा 1',
+      mock2: 'मॉक परीक्षा 2',
+      main: 'मुख्य परीक्षा'
+    };
+    setText('portalExamTitle', labels[mode] || 'परीक्षा');
+    setText('examResult', '');
+    setVisible('exitExamWorkspace', false);
+    return workspace;
+  }
+
   function renderExamQuestion() {
     const exam = state.exam;
     const question = exam.questions[exam.index];
+    const workspace = ensureExamWorkspace(exam.mode);
     const host = byId('examQuestion');
 
     if (!host || !question) return;
@@ -1559,30 +1620,41 @@ function renderExamVisibility() {
       ? question.options
       : Array.isArray(question.opts)
         ? question.opts
-        : [question.optionA, question.optionB, question.optionC, question.optionD].filter(Boolean);
+        : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '');
+
+    const answerKey = question.id || exam.index;
+    const selectedAnswer = exam.answers[answerKey];
 
     host.innerHTML = `
-      <p>Question ${exam.index + 1} of ${exam.questions.length}</p>
-      <h3>${escapeHtml(question.question || question.text || question.q || 'Question')}</h3>
-      <div class="exam-options">
-        ${options.map((option, index) => `
-          <label>
-            <input type="radio" name="examAnswer"
-              value="${index}"
-              ${String(exam.answers[question.id || exam.index]) === String(index) ? 'checked' : ''}>
-            ${escapeHtml(option)}
-          </label>
-        `).join('')}
-      </div>
+      <article class="space-y-4">
+        <h3 class="text-base sm:text-lg font-bold leading-relaxed text-stone-900">${exam.index + 1}. ${escapeHtml(question.question || question.text || question.q || question.title || 'प्रश्न')}</h3>
+        ${options.length ? `
+          <div class="space-y-2">
+            ${options.map((option, index) => `
+              <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 hover:border-emerald-500 hover:bg-emerald-50">
+                <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''}>
+                <span>${escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || JSON.stringify(option)) : option)}</span>
+              </label>
+            `).join('')}
+          </div>
+        ` : '<p class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">इस प्रश्न में विकल्प नहीं मिले। Owner Studio में प्रश्न के options की जाँच करें।</p>'}
+      </article>
     `;
 
     host.querySelectorAll('input[name="examAnswer"]').forEach(input => {
       input.addEventListener('change', () => {
-        exam.answers[question.id || exam.index] = Number(input.value);
+        exam.answers[answerKey] = Number(input.value);
       });
     });
 
-    setText('examQuestionNumber', `${exam.index + 1}/${exam.questions.length}`);
+    setText('examQuestionNumber', `प्रश्न ${exam.index + 1}/${exam.questions.length}`);
+    const previous = byId('previousQuestionBtn');
+    const next = byId('nextQuestionBtn');
+    if (previous) previous.disabled = exam.index <= 0;
+    if (next) next.disabled = exam.index >= exam.questions.length - 1;
+    if (previous) previous.classList.toggle('opacity-40', previous.disabled);
+    if (next) next.classList.toggle('opacity-40', next.disabled);
+    if (workspace) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   window.startPortalExam = async function (mode = 'quiz') {
