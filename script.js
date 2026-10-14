@@ -440,6 +440,10 @@
     // remains the single source of truth for the active Firebase session.
     state.auth.onAuthStateChanged(async user => {
       clearSubscriptions();
+      if (state.presenceHeartbeat) {
+        clearInterval(state.presenceHeartbeat);
+        state.presenceHeartbeat = null;
+      }
       state.user = user;
       state.profile = null;
       state.resultsIdentityVerified = false;
@@ -462,6 +466,29 @@
       startLiveListeners();
 
       if (user) {
+        // Best-effort login presence for the Owner Studio. Firestore rules must
+        // allow each authenticated user to update only their own users/{uid} document.
+        try {
+          const presenceRef = state.db.collection('users').doc(user.uid);
+          await presenceRef.set({
+            uid: user.uid,
+            email: user.email || null,
+            displayName: user.displayName || null,
+            presenceStatus: 'online',
+            lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastSeenAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          if (state.presenceHeartbeat) clearInterval(state.presenceHeartbeat);
+          state.presenceHeartbeat = window.setInterval(() => {
+            if (!state.user || state.user.uid !== user.uid) return;
+            presenceRef.set({
+              presenceStatus: 'online',
+              lastSeenAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).catch(error => console.debug('Presence heartbeat unavailable:', error.code || error.message));
+          }, 60000);
+        } catch (presenceError) {
+          console.debug('Login presence could not be recorded; check users/{uid} Firestore rules:', presenceError.code || presenceError.message);
+        }
         try {
           await loadUserProfile(user);
           restoreActiveExamForUser();
