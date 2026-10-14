@@ -1611,16 +1611,21 @@ Ans: B"></textarea>
       const mock2StartAtMs = readStartTime('ownerMock2StartAt');
       const mainStartAtMs = readStartTime('ownerMainStartAt');
       const asTimestamp = ms => ms ? firebase.firestore.Timestamp.fromMillis(ms) : null;
+      const asEndTimestamp = ms => ms ? firebase.firestore.Timestamp.fromMillis(ms + duration * 60 * 1000) : null;
       const config = {
         quizStartAtMs,
         mock1StartAtMs,
         mock2StartAtMs,
         mainStartAtMs,
-        // Timestamp copies let Firestore Rules enforce the official start time.
+        // Timestamp copies let Firestore Rules enforce official start and end times.
         quizStartAt: asTimestamp(quizStartAtMs),
         mock1StartAt: asTimestamp(mock1StartAtMs),
         mock2StartAt: asTimestamp(mock2StartAtMs),
         mainStartAt: asTimestamp(mainStartAtMs),
+        quizEndAt: asEndTimestamp(quizStartAtMs),
+        mock1EndAt: asEndTimestamp(mock1StartAtMs),
+        mock2EndAt: asEndTimestamp(mock2StartAtMs),
+        mainEndAt: asEndTimestamp(mainStartAtMs),
         dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
         // The master toggle controls the whole mock section; individual toggles
         // decide which cards are visible when the master toggle is enabled.
