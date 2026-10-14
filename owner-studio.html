@@ -336,16 +336,60 @@ Ans: B"></textarea>
         </div>
       </div>
 
-      <!-- EXAM SUBMISSIONS & SNAPSHOTS VIEWER -->
+
+      <!-- EXAM AVAILABILITY / VISIBILITY CONTROLS -->
       <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="font-yatra text-base text-forest">📋 परीक्षा सबमिशन एवं सत्यापन समीक्षा</h3>
-          <button onclick="loadExamSubmissions()" class="px-3 py-1 bg-stone-100 text-stone-700 rounded-lg text-xs font-bold">↻ रिफ्रेश सबमिशन</button>
+        <h3 class="font-yatra text-base text-forest">🎛️ परीक्षा अनुभाग नियंत्रण</h3>
+        <p class="text-xs text-stone-500">ये विकल्प मुख्य वेबसाइट के examConfig/current दस्तावेज़ में सहेजे जाते हैं। किसी सेक्शन को छिपाने से उसका डेटा मिटता नहीं है।</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuiz" type="checkbox" class="accent-forest"> दैनिक क्विज़ दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock" type="checkbox" class="accent-forest"> मॉक परीक्षा 1/2 दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMainExam" type="checkbox" class="accent-forest"> मुख्य परीक्षा दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowEnrollment" type="checkbox" class="accent-forest"> विद्यार्थी पंजीकरण दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowResults" type="checkbox" class="accent-forest"> परिणाम डेस्क दिखाएँ</label>
         </div>
-        <div id="examSubmissionsList" class="space-y-2 text-xs max-h-56 overflow-y-auto custom-scroll">
-          <div class="text-stone-400">रिकॉर्ड लोड करने के लिए रिफ्रेश करें।</div>
+        <label class="block text-xs font-bold text-stone-700">परीक्षा की डिफ़ॉल्ट अवधि (मिनट)
+          <input id="ownerExamDuration" type="number" min="1" max="360" value="120" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300">
+        </label>
+        <button onclick="saveExamVisibilitySettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 परीक्षा सेटिंग्स सहेजें</button>
+      </div>
+
+      <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
+        <p class="text-xs text-stone-500">सबमिशन चुनें, उत्तर देखें और आवश्यक होने पर मैन्युअल अंक/टिप्पणी सहेजें। यह UI उन्हीं रिकॉर्डों को पढ़ेगा जिनकी Firestore rules अनुमति देती हैं।</p>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+          <select id="reviewSubmissionCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+            <option value="mainExamSubmissions">मुख्य परीक्षा — mainExamSubmissions</option>
+            <option value="mockExamSubmissions">मॉक परीक्षा 1/2 — mockExamSubmissions</option>
+            <option value="quizAttempts" selected>दैनिक क्विज़ — quizAttempts</option>
+          </select>
+          <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+          <button onclick="loadExamSubmissions()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">↻ रिकॉर्ड लाएँ</button>
+        </div>
+        <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
+          <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
         </div>
       </div>
+
+      <!-- STUDENT / ADMIT-CARD CONFIRMATION -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">🎟️ विद्यार्थी / प्रवेश-पत्र पुष्टि</h3>
+        <p class="text-xs text-stone-500">अपने वास्तविक registration collection का चयन करें। डिफ़ॉल्ट नाम केवल प्रस्तावित है; यदि आपके डेटाबेस में दूसरा नाम है, तो उसी collection को चुनें।</p>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+          <select id="registrationCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+            <option value="examRegistrations">examRegistrations</option>
+            <option value="studentRegistrations">studentRegistrations</option>
+            <option value="registrations">registrations</option>
+          </select>
+          <input id="registrationSearch" type="search" placeholder="नाम / रोल नंबर / UID खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+          <button onclick="loadRegistrationReviews()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">रिकॉर्ड लाएँ</button>
+        </div>
+        <div id="registrationReviewList" class="space-y-2 max-h-72 overflow-y-auto custom-scroll">
+          <div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लाने के लिए collection चुनें।</div>
+        </div>
+      </div>
+
 
     </div>
 
@@ -506,6 +550,7 @@ Ans: B"></textarea>
           listenTrustedEditors();
           listenProctoringConfig();
           loadExistingSettings();
+          loadExamVisibilitySettings();
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
           window.location.href = "index.html";
@@ -875,33 +920,240 @@ Ans: B"></textarea>
       }
     }
 
+    function escapeStudioText(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+
+    function timestampMillis(value) {
+      if (!value) return 0;
+      if (typeof value.toMillis === 'function') return value.toMillis();
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    }
+
+    async function loadExamVisibilitySettings() {
+      try {
+        const snap = await db.collection('examConfig').doc('current').get();
+        const data = snap.exists ? snap.data() : {};
+        const pairs = [
+          ['ownerShowDailyQuiz', data.dailyQuizVisible !== false],
+          ['ownerShowMock', data.mockVisible !== false],
+          ['ownerShowMainExam', data.mainExamVisible !== false],
+          ['ownerShowEnrollment', data.enrollmentVisible !== false],
+          ['ownerShowResults', data.resultsVisible !== false]
+        ];
+        pairs.forEach(([id, value]) => {
+          const el = document.getElementById(id);
+          if (el) el.checked = value;
+        });
+        const duration = document.getElementById('ownerExamDuration');
+        if (duration) duration.value = Math.min(360, Math.max(1, Number(data.durationMinutes) || 120));
+      } catch (e) {
+        showToast('परीक्षा सेटिंग्स पढ़ने में त्रुटि: ' + e.message);
+      }
+    }
+
+    async function saveExamVisibilitySettings() {
+      const duration = Number(document.getElementById('ownerExamDuration')?.value || 120);
+      if (!Number.isFinite(duration) || duration < 1 || duration > 360) {
+        showToast('परीक्षा अवधि 1 से 360 मिनट के बीच रखें।');
+        return;
+      }
+      const config = {
+        dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
+        mockVisible: !!document.getElementById('ownerShowMock')?.checked,
+        mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
+        enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
+        resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
+        durationMinutes: duration,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.currentUser?.uid || null
+      };
+      try {
+        await db.collection('examConfig').doc('current').set(config, { merge: true });
+        showToast('परीक्षा की दृश्यता और अवधि सहेज दी गई।');
+      } catch (e) {
+        showToast('सेटिंग्स सहेज नहीं सकीं: ' + e.message);
+      }
+    }
+
     async function loadExamSubmissions() {
       const list = document.getElementById('examSubmissionsList');
       if (!list) return;
-      list.innerHTML = `<div class="text-stone-400">सबमिशन लोड हो रहे हैं...</div>`;
+      const collectionName = document.getElementById('reviewSubmissionCollection')?.value || 'quizAttempts';
+      const queryText = (document.getElementById('reviewSubmissionSearch')?.value || '').trim().toLowerCase();
+      list.innerHTML = '<div class="text-stone-400 text-xs">सबमिशन लोड हो रहे हैं...</div>';
 
       try {
-        const snap = await db.collection('quizAttempts').orderBy('submittedAt', 'desc').limit(20).get();
-        if (snap.empty) {
-          list.innerHTML = `<div class="text-stone-400">कोई सबमिशन नहीं मिला।</div>`;
+        const snap = await db.collection(collectionName).limit(100).get();
+        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        rows.sort((a, b) => timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt));
+        const filtered = rows.filter(d => {
+          const text = [d.name, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
+          return !queryText || text.includes(queryText);
+        });
+        list.innerHTML = '';
+        if (!filtered.length) {
+          list.innerHTML = '<div class="text-stone-400 text-xs p-3">इस खोज में कोई रिकॉर्ड नहीं मिला। Collection का नाम और Firestore permissions जाँचें।</div>';
           return;
         }
 
-        list.innerHTML = '';
-        snap.forEach(doc => {
-          const d = doc.data();
-          list.innerHTML += `
-            <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
-              <div>
-                <span class="font-bold text-forest">${d.name || 'प्रतिभागी'}</span>
-                <span class="text-[11px] text-stone-500 block">स्कोर: ${d.score}/${d.total} (${d.percentage}%)</span>
-              </div>
-              <span class="text-[10px] text-stone-400 font-mono">सत्यापित</span>
-            </div>
-          `;
+        filtered.forEach(d => {
+          const card = document.createElement('article');
+          card.className = 'p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2';
+          const name = document.createElement('div');
+          name.className = 'font-bold text-forest text-sm';
+          name.textContent = d.name || d.fullName || d.email || d.uid || 'प्रतिभागी';
+          const meta = document.createElement('div');
+          meta.className = 'text-[11px] text-stone-600';
+          meta.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोड: ' + (d.mode || collectionName) +
+            ' · स्वचालित अंक: ' + (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
+            ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
+          const details = document.createElement('details');
+          details.className = 'text-xs';
+          const summary = document.createElement('summary');
+          summary.className = 'cursor-pointer font-semibold text-terracotta';
+          summary.textContent = 'उत्तर / सबमिशन विवरण देखें';
+          const pre = document.createElement('pre');
+          pre.className = 'mt-2 whitespace-pre-wrap break-words bg-white border rounded-lg p-2 max-h-40 overflow-auto';
+          const safeDetails = {
+            uid: d.uid || null, rollNumber: d.rollNumber || null,
+            attempted: d.attempted ?? null, correct: d.correct ?? null,
+            answers: d.answers || null, answerDetails: d.answerDetails || null,
+            manualScore: d.manualScore ?? null, manualFeedback: d.manualFeedback || null
+          };
+          pre.textContent = JSON.stringify(safeDetails, null, 2);
+          details.append(summary, pre);
+
+          const scoreLabel = document.createElement('label');
+          scoreLabel.className = 'block text-xs font-bold text-stone-700';
+          scoreLabel.textContent = 'सत्यापित अंक';
+          const scoreInput = document.createElement('input');
+          scoreInput.type = 'number';
+          scoreInput.min = '0';
+          scoreInput.max = String(Math.max(0, Number(d.total ?? d.totalQuestions ?? 100)));
+          scoreInput.step = '0.25';
+          scoreInput.value = d.manualScore ?? d.score ?? 0;
+          scoreInput.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
+          scoreLabel.appendChild(scoreInput);
+
+          const feedback = document.createElement('textarea');
+          feedback.rows = 2;
+          feedback.maxLength = 1000;
+          feedback.placeholder = 'जाँच टिप्पणी / संशोधन का कारण (वैकल्पिक)';
+          feedback.value = d.manualFeedback || '';
+          feedback.className = 'w-full p-2 rounded-lg border border-stone-300 text-xs';
+
+          const save = document.createElement('button');
+          save.type = 'button';
+          save.className = 'w-full py-2 bg-forest hover:bg-emerald-950 text-white rounded-lg text-xs font-bold';
+          save.textContent = '✓ मैन्युअल जाँच सहेजें';
+          save.addEventListener('click', async () => {
+            const value = Number(scoreInput.value);
+            const total = Number(d.total ?? d.totalQuestions ?? 100);
+            if (!Number.isFinite(value) || value < 0 || value > total) {
+              showToast('अंक 0 और कुल अंकों के बीच होने चाहिए।');
+              return;
+            }
+            save.disabled = true;
+            try {
+              await db.collection(collectionName).doc(d.id).set({
+                manualScore: value,
+                manualFeedback: feedback.value.trim(),
+                manualReviewStatus: 'checked',
+                manualReviewedBy: auth.currentUser?.uid || null,
+                manualReviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+              meta.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोड: ' + (d.mode || collectionName) +
+                ' · स्वचालित अंक: ' + (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
+                ' · स्थिति: जाँच पूरी · मैन्युअल अंक: ' + value;
+              showToast('मैन्युअल जाँच सहेज दी गई।');
+            } catch (e) {
+              showToast('जाँच सहेज नहीं सकी: ' + e.message);
+            } finally {
+              save.disabled = false;
+            }
+          });
+          card.append(name, meta, details, scoreLabel, feedback, save);
+          list.appendChild(card);
         });
       } catch (e) {
-        list.innerHTML = `<div class="text-red-600">त्रुटि: ${e.message}</div>`;
+        list.innerHTML = '';
+        const error = document.createElement('div');
+        error.className = 'text-red-700 text-xs p-3 bg-red-50 rounded-xl border border-red-200';
+        error.textContent = 'सबमिशन लोड नहीं हो सके: ' + e.message + ' — collection का नाम और Firestore rules जाँचें।';
+        list.appendChild(error);
+      }
+    }
+
+    async function loadRegistrationReviews() {
+      const list = document.getElementById('registrationReviewList');
+      if (!list) return;
+      const collectionName = document.getElementById('registrationCollection')?.value || 'examRegistrations';
+      const queryText = (document.getElementById('registrationSearch')?.value || '').trim().toLowerCase();
+      list.innerHTML = '<div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लोड हो रहे हैं...</div>';
+      try {
+        const snap = await db.collection(collectionName).limit(100).get();
+        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(d => {
+          const haystack = [d.name, d.fullName, d.rollNumber, d.uid, d.email, d.phone, d.mobile].join(' ').toLowerCase();
+          return !queryText || haystack.includes(queryText);
+        });
+        list.innerHTML = '';
+        if (!rows.length) {
+          list.innerHTML = '<div class="text-stone-400 text-xs p-3">रिकॉर्ड नहीं मिला। सही registration collection चुनें और Firestore permissions जाँचें।</div>';
+          return;
+        }
+        rows.forEach(d => {
+          const card = document.createElement('article');
+          card.className = 'p-3 rounded-xl bg-stone-50 border border-stone-200 flex flex-col sm:flex-row sm:items-center gap-2';
+          const info = document.createElement('div');
+          info.className = 'flex-1 min-w-0';
+          const title = document.createElement('div');
+          title.className = 'font-bold text-forest text-xs';
+          title.textContent = d.fullName || d.name || d.rollNumber || d.uid || 'विद्यार्थी';
+          const sub = document.createElement('div');
+          sub.className = 'text-[11px] text-stone-500 break-words';
+          sub.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · वर्तमान स्थिति: ' + (d.verificationStatus || 'pending');
+          info.append(title, sub);
+          const status = document.createElement('select');
+          status.className = 'p-2 rounded-lg border border-stone-300 text-xs';
+          [['pending','लंबित'],['confirmed','पुष्टि की गई'],['rejected','अस्वीकृत']].forEach(([value,label]) => {
+            const option = document.createElement('option');
+            option.value = value; option.textContent = label;
+            status.appendChild(option);
+          });
+          status.value = ['pending','confirmed','rejected'].includes(d.verificationStatus) ? d.verificationStatus : 'pending';
+          const save = document.createElement('button');
+          save.type = 'button';
+          save.className = 'px-3 py-2 bg-forest text-white rounded-lg text-xs font-bold';
+          save.textContent = 'स्थिति सहेजें';
+          save.addEventListener('click', async () => {
+            save.disabled = true;
+            try {
+              await db.collection(collectionName).doc(d.id).set({
+                verificationStatus: status.value,
+                verifiedBy: auth.currentUser?.uid || null,
+                verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+              sub.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · वर्तमान स्थिति: ' + status.value;
+              showToast('विद्यार्थी / प्रवेश-पत्र स्थिति सहेज दी गई।');
+            } catch (e) {
+              showToast('स्थिति सहेज नहीं सके: ' + e.message);
+            } finally {
+              save.disabled = false;
+            }
+          });
+          card.append(info, status, save);
+          list.appendChild(card);
+        });
+      } catch (e) {
+        list.innerHTML = '';
+        const error = document.createElement('div');
+        error.className = 'text-red-700 text-xs p-3 bg-red-50 rounded-xl border border-red-200';
+        error.textContent = 'पंजीकरण रिकॉर्ड लोड नहीं हो सके: ' + e.message + ' — वास्तविक collection नाम और Firestore rules जाँचें।';
+        list.appendChild(error);
       }
     }
 
