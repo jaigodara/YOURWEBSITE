@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@source "../index.html";
+@source "../owner-studio.html";
+@source "../script.js";
+
+@theme {
+  --color-forest: #143622;
+  --color-terracotta: #B34A1B;
+  --color-leaf: #2D6A4F;
+  --color-sand: #FAF6EE;
+  --color-ink: #231B15;
+  --font-yatra: "Yatra One", cursive;
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+}

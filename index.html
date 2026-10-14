@@ -6,8 +6,8 @@
   <title>विश्नोई समाज डिजिटल मंच | Bishnoi Digital Platform</title>
   <meta name="description" content="गुरु जम्भेश्वर भगवान के २९ नियम, शब्दवाणी, दैनिक ज्ञान परीक्षा, डिजिटल जपमाला एवं संवाद मंच।">
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS is compiled at build time for production. -->
+  <link rel="stylesheet" href="/tailwind.generated.css">
   
   <!-- Google Fonts: Yatra One (Devanagari) & Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,24 +22,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            forest: '#143622',
-            terracotta: '#B34A1B',
-            leaf: '#2D6A4F',
-            sand: '#FAF6EE'
-          },
-          fontFamily: {
-            yatra: ['Yatra One', 'cursive'],
-            sans: ['Plus Jakarta Sans', 'sans-serif']
-          }
-        }
-      }
-    };
-  </script>
+  
 
   <style>
     body { background-color: #FAF6EE !important; padding-bottom: 90px !important; }
@@ -112,7 +95,7 @@
           <span>🛡️ ओनर स्टूडियो</span>
         </a>
         <div id="authActionsContainer">
-          <button onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
+          <button id="authLoginButton" type="button" onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
             लॉगिन करें
           </button>
         </div>
