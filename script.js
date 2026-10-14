@@ -125,7 +125,10 @@
     fontSize: 16,
     quizQuestions: [],
     initialized: false,
-    publicNotificationsUnsubscribe: null
+    publicNotificationsUnsubscribe: null,
+    personalNotificationsUnsubscribe: null,
+    notifications: [],
+    personalNotifications: []
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -428,6 +431,8 @@
       clearSubscriptions();
       state.user = user;
       state.profile = null;
+      initPersonalNotificationsForUser();
+      renderNotificationCenter();
       state.myResults = [];
       renderMyResults();
       state.isOwner = false;
@@ -817,51 +822,168 @@
     popup.document.close();
   }
 
-  function initPublicNotifications() {
-    const host = byId('publicNotificationsList');
+  function notificationTime(item) {
+    return timestampMillis(item?.createdAt) || Number(item?.createdAtMs) || 0;
+  }
+
+  function renderNotificationCards(host, items) {
+    if (!host) return;
+    host.replaceChildren();
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'rounded-xl bg-white p-4 text-xs text-stone-500';
+      empty.textContent = 'अभी कोई नई सूचना नहीं है।';
+      host.appendChild(empty);
+      return;
+    }
+    items.forEach(item => {
+      const card = document.createElement('article');
+      card.className = 'rounded-xl border border-amber-200 bg-white p-3 space-y-2';
+      const title = document.createElement('h3');
+      title.className = 'font-bold text-forest text-sm';
+      title.textContent = item.title || 'नई सूचना';
+      const body = document.createElement('p');
+      body.className = 'text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
+      body.textContent = item.message || '';
+      card.append(title, body);
+      if (item.fileUrl && item.fileType?.startsWith('image/')) {
+        const image = document.createElement('img');
+        image.src = item.fileUrl;
+        image.alt = item.fileName || item.title || 'सूचना फोटो';
+        image.loading = 'lazy';
+        image.className = 'max-h-64 w-full rounded-lg border border-stone-200 object-contain bg-stone-50';
+        card.appendChild(image);
+      }
+      if (item.fileUrl) {
+        const link = document.createElement('a');
+        link.href = item.fileUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'inline-flex rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white';
+        link.textContent = item.fileType === 'application/pdf' ? '📄 PDF खोलें / डाउनलोड करें' : item.fileName ? '📎 संलग्न फ़ाइल खोलें' : '📎 फ़ाइल खोलें';
+        card.appendChild(link);
+      }
+      if (item.createdAt && typeof item.createdAt.toDate === 'function') {
+        const time = document.createElement('p');
+        time.className = 'text-[10px] text-stone-400';
+        time.textContent = item.createdAt.toDate().toLocaleString('hi-IN');
+        card.appendChild(time);
+      }
+      host.appendChild(card);
+    });
+  }
+
+  function renderNotificationCenter() {
+    const bell = byId('notificationBellButton');
     const section = byId('publicNotificationsSection');
-    if (!host || !section || !state.db || state.publicNotificationsUnsubscribe) return;
+    const popup = byId('notificationPopup');
+    const list = byId('publicNotificationsList');
+    const popupList = byId('notificationPopupList');
+    if (!state.user) {
+      setVisible('notificationBellButton', false);
+      setVisible('publicNotificationsSection', false);
+      setVisible('notificationPopup', false);
+      if (list) list.replaceChildren();
+      if (popupList) popupList.replaceChildren();
+      return;
+    }
+
+    setVisible('notificationBellButton', true);
+    const globalItems = (state.notifications || [])
+      .filter(item => item.active === true && (item.audience === 'all' || !item.audience))
+      .map(item => ({ ...item, _key: 'global:' + item.id }));
+    const personalItems = (state.personalNotifications || [])
+      .filter(item => item.active !== false)
+      .map(item => ({ ...item, _key: 'private:' + item.id }));
+    const items = [...personalItems, ...globalItems].sort((a, b) => notificationTime(b) - notificationTime(a));
+    const count = items.length;
+    const badge = byId('notificationUnreadCount');
+    if (badge) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      setVisible('notificationUnreadCount', count > 0);
+    }
+    if (bell) bell.classList.toggle('animate-bounce', count > 0);
+    renderNotificationCards(list, items.slice(0, 30));
+    renderNotificationCards(popupList, items.slice(0, 5));
+
+    // Remember which notifications have already triggered a popup on this
+    // browser, separated by account. New notifications trigger a fresh popup.
+    let seen = [];
+    const seenKey = 'bishnoi_seen_notifications_v1_' + state.user.uid;
+    try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
+    if (!Array.isArray(seen)) seen = [];
+    const unseen = items.filter(item => !seen.includes(item._key));
+    if (unseen.length && popup && popup.classList.contains('hidden')) {
+      setVisible('notificationPopup', true);
+      const nextSeen = [...new Set([...seen, ...items.map(item => item._key)])].slice(-500);
+      try { localStorage.setItem(seenKey, JSON.stringify(nextSeen)); } catch (_) {}
+      if (bell) {
+        bell.classList.add('animate-bounce');
+        window.setTimeout(() => bell.classList.remove('animate-bounce'), 2600);
+      }
+    }
+  }
+
+  window.toggleNotificationPanel = function (forceOpen) {
+    if (!state.user) {
+      window.BishnoiAuth?.openAuthModal?.();
+      return;
+    }
+    const section = byId('publicNotificationsSection');
+    if (!section) return;
+    const shouldOpen = typeof forceOpen === 'boolean'
+      ? forceOpen
+      : section.hidden || section.classList.contains('hidden');
+    setVisible('publicNotificationsSection', shouldOpen);
+  };
+
+  window.dismissNotificationPopup = function () {
+    setVisible('notificationPopup', false);
+  };
+
+  function initPersonalNotificationsForUser() {
+    if (state.personalNotificationsUnsubscribe) {
+      state.personalNotificationsUnsubscribe();
+      state.personalNotificationsUnsubscribe = null;
+    }
+    state.personalNotifications = [];
+    if (!state.user || !state.db) {
+      renderNotificationCenter();
+      return;
+    }
+    const uid = state.user.uid;
+    state.personalNotificationsUnsubscribe = state.db
+      .collection('userNotifications').doc(uid).collection('items')
+      .orderBy('createdAt', 'desc').limit(30)
+      .onSnapshot(snapshot => {
+        if (state.user?.uid !== uid) return;
+        state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
+        renderNotificationCenter();
+      }, error => {
+        console.warn('Private notifications could not load. Check userNotifications Firestore rules:', error);
+        state.personalNotifications = [];
+        renderNotificationCenter();
+      });
+  }
+
+  function initPublicNotifications() {
+    if (!state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
       .orderBy('createdAt', 'desc')
-      .limit(20)
+      .limit(30)
       .onSnapshot(snapshot => {
-        host.replaceChildren();
-        const activeDocs = snapshot.docs.filter(doc => (doc.data() || {}).active === true).slice(0, 5);
-        if (!activeDocs.length) {
-          section.hidden = true;
-          section.classList.add('hidden');
-          return;
-        }
-        section.hidden = false;
-        section.classList.remove('hidden');
-        activeDocs.forEach(doc => {
-          const item = doc.data() || {};
-          const card = document.createElement('article');
-          card.className = 'rounded-xl border border-amber-200 bg-white p-3';
-          const title = document.createElement('h3');
-          title.className = 'font-bold text-forest text-sm';
-          title.textContent = item.title || 'नई सूचना';
-          const body = document.createElement('p');
-          body.className = 'mt-1 text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
-          body.textContent = item.message || '';
-          card.append(title, body);
-          if (item.createdAt && typeof item.createdAt.toDate === 'function') {
-            const time = document.createElement('p');
-            time.className = 'mt-2 text-[10px] text-stone-400';
-            time.textContent = item.createdAt.toDate().toLocaleString('hi-IN');
-            card.appendChild(time);
-          }
-          host.appendChild(card);
-        });
+        state.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'global' }));
+        renderNotificationCenter();
       }, error => {
-        console.warn('Public notifications could not load:', error);
-        // Keep the rest of the website usable when notification rules are not deployed yet.
-        section.hidden = true;
-        section.classList.add('hidden');
+        console.warn('Notifications could not load:', error);
+        state.notifications = [];
+        renderNotificationCenter();
       });
     state.unsubscribers.push(() => {
       if (state.publicNotificationsUnsubscribe) state.publicNotificationsUnsubscribe();
       state.publicNotificationsUnsubscribe = null;
+      if (state.personalNotificationsUnsubscribe) state.personalNotificationsUnsubscribe();
+      state.personalNotificationsUnsubscribe = null;
     });
   }
 
