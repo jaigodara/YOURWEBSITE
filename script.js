@@ -237,7 +237,7 @@
     sahitya: 'tab-library',
     community: 'tab-community',
     quiz: 'tab-quiz',
-    pariksha: 'tab-pariksha',
+    pariksha: 'tab-quiz',
     history: 'tab-history',
     admin: 'tab-admin',
     profile: 'tab-profile'
