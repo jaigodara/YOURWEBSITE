@@ -852,38 +852,50 @@ Ans: B"></textarea>
 
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
-      if (!raw) return showToast("कृपया प्रश्न पेस्ट करें!");
+      if (!raw) return showToast('कृपया प्रश्न पेस्ट करें!');
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+      if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
 
-      const blocks = raw.split(/\n\s*\n/);
-      const batch = db.batch();
-      let count = 0;
-
-      for (let b of blocks) {
-        const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
-        let q = '', opts = [], ans = 0;
-        for (let l of lines) {
-          if (/^Q\s*:/i.test(l)) q = l.replace(/^Q\s*:/i, '').trim();
-          else if (/^[A-D]\s*\)/i.test(l)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
-          else if (/^Ans\s*:/i.test(l)) {
-            const char = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
-            ans = char === 'A' ? 0 : char === 'B' ? 1 : char === 'C' ? 2 : 3;
-          }
+      const blocks = raw.split(/(?=^\s*Q\s*:)/im).map(x => x.trim()).filter(Boolean);
+      const parsed = [];
+      const errors = [];
+      blocks.forEach((block, index) => {
+        const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+        let q = '';
+        const opts = [];
+        let ansLetter = '';
+        for (const line of lines) {
+          if (/^Q\s*:/i.test(line)) q = line.replace(/^Q\s*:/i, '').trim();
+          else if (/^[A-D]\s*[).:-]/i.test(line)) opts.push(line.replace(/^[A-D]\s*[).:-]\s*/i, '').trim());
+          else if (/^(?:Ans|Answer|उत्तर)\s*:/i.test(line)) ansLetter = line.replace(/^(?:Ans|Answer|उत्तर)\s*:/i, '').trim().toUpperCase();
         }
-        if (q && opts.length >= 2) {
-          const ref = db.collection('quiz').doc();
-          batch.set(ref, { q, opts, ans, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-          count++;
+        if (!q || opts.length !== 4 || !['A','B','C','D'].includes(ansLetter)) {
+          errors.push('प्रश्न ' + (index + 1) + ': प्रश्न, चार विकल्प (A-D) और Ans: A/B/C/D आवश्यक हैं।');
+          return;
         }
-      }
-
-      if (count === 0) return showToast("प्रारूप अमान्य है! कृपया प्रारूप जाँचें।");
+        parsed.push({ q, opts, ans: ['A','B','C','D'].indexOf(ansLetter) });
+      });
+      if (!parsed.length) return showToast(errors[0] || 'प्रारूप अमान्य है।');
+      if (parsed.length > 450) return showToast('एक बार में अधिकतम 450 प्रश्न जोड़ें।');
+      if (errors.length) return showToast(errors.length + ' प्रश्नों का प्रारूप गलत है। पहले उन्हें ठीक करें; कोई प्रश्न सेव नहीं किया गया। ' + errors[0]);
 
       try {
+        const batch = db.batch();
+        parsed.forEach(question => {
+          const ref = db.collection(target).doc();
+          batch.set(ref, {
+            ...question,
+            examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: auth.currentUser?.uid || null
+          });
+        });
         await batch.commit();
         document.getElementById('bulkQuizInput').value = '';
-        showToast(`✅ ${count} प्रश्न क्विज़ बैंक में जोड़े गए!`);
+        showToast('' + parsed.length + ' प्रश्न ' + target + ' में जोड़े गए।');
       } catch (err) {
-        showToast("इम्पोर्ट त्रुटि: " + err.message);
+        showToast('इम्पोर्ट त्रुटि: ' + err.message);
       }
     }
 
