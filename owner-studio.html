@@ -618,6 +618,14 @@ Ans: B"></textarea>
     const SUPER_OWNER_UID = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
     const RECOVERED_OWNER_UID = "rdP0ZXzSP9fGzmJshEVvbOfb31g2";
     let currentAdminUser = null;
+    function isPrimaryOwner() {
+      return !!currentAdminUser && (
+        currentAdminUser.role === 'owner' ||
+        currentAdminUser.uid === SUPER_OWNER_UID ||
+        currentAdminUser.uid === RECOVERED_OWNER_UID
+      );
+    }
+
     let draftItemsList = [];
     let editorsPhoneList = [];
 
@@ -1067,6 +1075,7 @@ Ans: B"></textarea>
     }
 
     async function saveBulkQuestionDrafts() {
+      if (!isPrimaryOwner()) return showToast('प्रश्न बैंक में बदलाव केवल Owner कर सकता है।');
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
       const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
       if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
@@ -1155,6 +1164,7 @@ Ans: B"></textarea>
     }
 
     async function publishQuestionDoc(target, id, publish) {
+      if (!isPrimaryOwner()) return showToast('प्रश्न प्रकाशित करने का अधिकार केवल Owner को है।');
       try {
         const questionRef = db.collection(target).doc(id);
         const questionSnap = await questionRef.get();
@@ -1418,6 +1428,7 @@ Ans: B"></textarea>
     }
 
     async function saveAdmitCardSettings() {
+      if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र विवरण बदलने का अधिकार केवल Owner को है।');
       try {
         const snap = await db.collection('examConfig').doc('current').get();
         const released = snap.exists && snap.data()?.admitCardReleased === true;
@@ -1430,6 +1441,7 @@ Ans: B"></textarea>
     }
 
     async function releaseAdmitCards() {
+      if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ करने का अधिकार केवल Owner को है।');
       if (!confirm('क्या आप सभी पुष्टि किए हुए विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? उन्हें निजी सूचना भेजी जाएगी।')) return;
       const status = document.getElementById('ownerAdmitReleaseStatus');
       try {
@@ -1468,6 +1480,7 @@ Ans: B"></textarea>
     }
 
     async function revokeAdmitCardRelease() {
+      if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ रोकने का अधिकार केवल Owner को है।');
       if (!confirm('क्या आप विद्यार्थी लॉगिन में प्रवेश-पत्र दिखना रोकना चाहते हैं?')) return;
       try {
         await db.collection('examConfig').doc('current').set({
@@ -1483,6 +1496,7 @@ Ans: B"></textarea>
     }
 
     async function saveExamVisibilitySettings() {
+      if (!isPrimaryOwner()) return showToast('परीक्षा शेड्यूल बदलने का अधिकार केवल Owner को है।');
       const duration = Number(document.getElementById('ownerExamDuration')?.value || 120);
       if (!Number.isFinite(duration) || duration < 1 || duration > 360) {
         showToast('परीक्षा अवधि 1 से 360 मिनट के बीच रखें।');
@@ -1570,6 +1584,7 @@ Ans: B"></textarea>
     let examReviewQuestionLookup = {};
 
     async function saveCurrentExamReview(showMessage = true) {
+      if (!isPrimaryOwner()) return showToast('मैन्युअल परिणाम प्रकाशित करने का अधिकार केवल Owner को है।');
       const d = examReviewQueue[examReviewIndex];
       if (!d) return false;
       const scoreInput = document.getElementById('currentReviewScore');
@@ -2232,6 +2247,7 @@ Ans: B"></textarea>
     }
 
     async function addTrustedEditor() {
+      if (!isPrimaryOwner()) return showToast('Trusted Editor नियुक्त करने का अधिकार केवल Owner को है।');
       const uid = document.getElementById('newEditorUidInput')?.value.trim();
       if (!uid || uid.length < 20 || /\s/.test(uid)) return showToast('सही Firebase Authentication UID दर्ज करें।');
       if (uid === auth.currentUser?.uid) return showToast('अपने UID को editor के रूप में दोबारा जोड़ने की आवश्यकता नहीं है।');
@@ -2249,6 +2265,7 @@ Ans: B"></textarea>
     }
 
     async function removeTrustedEditor(uid) {
+      if (!isPrimaryOwner()) return showToast('Trusted Editor हटाने का अधिकार केवल Owner को है।');
       if (!confirm('इस UID का editor role हटाएँ?')) return;
       try {
         await db.collection('roles').doc(uid).delete();
@@ -2363,8 +2380,8 @@ Ans: B"></textarea>
       const recipientUid = (recipientInput?.value || '').trim();
       const file = attachmentInput?.files?.[0] || null;
 
-      if (!currentAdminUser || !['owner','editor'].includes(currentAdminUser.role)) {
-        if (status) status.textContent = 'केवल अधिकृत owner/editor सूचना प्रकाशित कर सकते हैं।';
+      if (!isPrimaryOwner()) {
+        if (status) status.textContent = 'केवल Owner सूचना प्रकाशित कर सकता है।';
         return;
       }
       if (!title || (!message && !file)) {
