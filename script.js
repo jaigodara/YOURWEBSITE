@@ -1283,11 +1283,13 @@
 
     const options = Array.isArray(question.options)
       ? question.options
-      : [question.optionA, question.optionB, question.optionC, question.optionD].filter(Boolean);
+      : Array.isArray(question.opts)
+        ? question.opts
+        : [question.optionA, question.optionB, question.optionC, question.optionD].filter(Boolean);
 
     host.innerHTML = `
       <p>Question ${exam.index + 1} of ${exam.questions.length}</p>
-      <h3>${escapeHtml(question.question || question.text || 'Question')}</h3>
+      <h3>${escapeHtml(question.question || question.text || question.q || 'Question')}</h3>
       <div class="exam-options">
         ${options.map((option, index) => `
           <label>
@@ -1448,7 +1450,7 @@
       if (answer !== undefined && answer !== null) {
         attempted++;
 
-        const correctAnswer = question.correctAnswer ?? question.answerIndex;
+        const correctAnswer = question.correctAnswer ?? question.answerIndex ?? question.ans;
 
         if (String(answer) === String(correctAnswer)) correct++;
       }
