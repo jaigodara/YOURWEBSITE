@@ -1943,12 +1943,12 @@ function renderExamVisibility() {
     // The main examination is restricted to students whose enrollment has been
     // confirmed by the owner. Client checks improve UX; Firestore rules/backend
     // must enforce the same eligibility for production-grade security.
-    if (mode === 'main') {
+    if (['quiz', 'mock1', 'mock2', 'main'].includes(mode)) {
       try {
         const enrollmentSnap = await collection('examEnrolledStudents').doc(state.user.uid).get();
         const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
         if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
-          notify('मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
+          notify('क्विज़/मॉक/मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
           switchTab('quiz');
           const enrollmentSection = byId('enrollmentSection');
           if (enrollmentSection) enrollmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1980,7 +1980,11 @@ function renderExamVisibility() {
     }
 
     const scheduledStart = getExamStartAt(mode);
-    if (scheduledStart && Date.now() < scheduledStart) {
+    if (!scheduledStart) {
+      notify('इस परीक्षा का आधिकारिक शुरू होने का समय Owner Studio में सेट नहीं है।', 'error');
+      return;
+    }
+    if (Date.now() < scheduledStart) {
       const startText = new Date(scheduledStart).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' });
       notify(`यह परीक्षा ${startText} पर शुरू होगी। काउंटडाउन पूरा होने तक प्रवेश बंद है।`, 'error');
       switchTab('quiz');
