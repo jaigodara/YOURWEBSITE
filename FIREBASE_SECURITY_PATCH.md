@@ -24,6 +24,31 @@ Keep the existing signedIn() and owner() helpers. This helper intentionally excl
         request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1));
     }
 
+    function editorHasPermission(permission) {
+      let rolePath = /databases/$(database)/documents/roles/$(request.auth.uid);
+      return signedIn() &&
+        exists(rolePath) &&
+        get(rolePath).data.role == 'editor' &&
+        ('permissions' in get(rolePath).data) &&
+        get(rolePath).data.permissions.get(permission, false) == true;
+    }
+
+    function canReviewExam() {
+      return examOwner() || editorHasPermission('examReview');
+    }
+
+    function canEditQuizDrafts() {
+      return editorHasPermission('quizDrafts');
+    }
+
+    function canSendNotifications() {
+      return examOwner() || editorHasPermission('notifications');
+    }
+
+    function canManageMedia() {
+      return examOwner() || editorHasPermission('media');
+    }
+
 Owner Studio now writes Timestamp fields named quizStartAt, mock1StartAt, mock2StartAt, and mainStartAt. The matching numeric *StartAtMs fields are retained for the browser countdown.
 
 ## 2. Replace existing question-bank match blocks
@@ -31,9 +56,13 @@ Owner Studio now writes Timestamp fields named quizStartAt, mock1StartAt, mock2S
 Replace the existing broad public-read rules for these collections. Do not leave any matching public-read rule in place.
 
     match /quiz/{questionId} {
-      allow read: if examOwner() ||
+      allow read: if examOwner() || canEditQuizDrafts() ||
         (resource.data.published == true && examStarted('quizStartAt'));
-      allow create, update, delete: if examOwner();
+      allow create: if examOwner() ||
+        (canEditQuizDrafts() && request.resource.data.published == false && request.resource.data.status == 'draft');
+      allow update: if examOwner() ||
+        (canEditQuizDrafts() && request.resource.data.published == false && request.resource.data.status == 'draft');
+      allow delete: if examOwner();
     }
 
     match /mockExam_1/{questionId} {
@@ -55,7 +84,8 @@ Replace the existing broad public-read rules for these collections. Do not leave
     }
 
     match /examAnswerKeys/{examCollection}/items/{questionId} {
-      allow read, write: if examOwner();
+      allow read: if examOwner() || canReviewExam();
+      allow write: if examOwner();
     }
 
 High-stakes main/mock answer keys are stored in examAnswerKeys, not in student-readable question documents. Owner Studio migrates a legacy key out of the question document when you publish it. Review and republish old questions before scheduling the exam.
@@ -67,7 +97,7 @@ Add this match block inside the existing Firestore service block:
     match /userNotifications/{uid}/items/{notificationId} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow create: if (
-        examOwner() && request.resource.data.recipientUid == uid
+        canSendNotifications() && request.resource.data.recipientUid == uid
       ) || (
         signedIn() &&
         request.auth.uid == uid &&
@@ -130,11 +160,11 @@ In Firebase Console → Storage → Rules, merge the following path rules into y
             );
         }
         match /notificationUploads/broadcast/{ownerUid}/{fileName} {
-          allow write: if examOwner() && request.auth.uid == ownerUid && validAttachment();
+          allow write: if canSendNotifications() && request.auth.uid == ownerUid && validAttachment();
           allow read: if signedIn();
         }
         match /notificationUploads/private/{recipientUid}/{ownerUid}/{fileName} {
-          allow write: if examOwner() && request.auth.uid == ownerUid && validAttachment();
+          allow write: if canSendNotifications() && request.auth.uid == ownerUid && validAttachment();
           allow read: if signedIn() &&
             (request.auth.uid == recipientUid || examOwner());
         }
@@ -165,9 +195,9 @@ Replace the existing create rules for the three submission collections with the 
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.mode == 'quiz' &&
         examStarted('quizStartAt');
-      allow read: if examOwner() ||
+      allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if examOwner();
+      allow update, delete: if canReviewExam();
     }
 
     match /mockExamSubmissions/{attemptId} {
@@ -177,9 +207,9 @@ Replace the existing create rules for the three submission collections with the 
           (request.resource.data.mode == 'mock1' && examStarted('mock1StartAt')) ||
           (request.resource.data.mode == 'mock2' && examStarted('mock2StartAt'))
         );
-      allow read: if examOwner() ||
+      allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if examOwner();
+      allow update, delete: if canReviewExam();
     }
 
     match /mainExamSubmissions/{attemptId} {
@@ -187,9 +217,9 @@ Replace the existing create rules for the three submission collections with the 
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.mode == 'main' &&
         examStarted('mainStartAt');
-      allow read: if examOwner() ||
+      allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if examOwner();
+      allow update, delete: if canReviewExam();
     }
 
 These examples must replace the corresponding existing collection rules rather than be added beside permissive rules. The code still needs backend-side duplicate-attempt enforcement if each student may submit only once.
@@ -224,3 +254,16 @@ Add this match block to let students create/update only their own session metada
     }
 
 Owner Studio changes a session to active and adds reentryGrantedAt/reentryGrantedBy when granting access. Students cannot write those grant fields. The live monitor reads the latest 100 sessions; use the refresh control to load new requests.
+
+## 9. Configurable trusted-editor permissions
+
+Owner Studio now saves selected permissions in roles/{uid}.permissions. Use the helpers in section 1 in the existing rules instead of giving every editor the full owner() role:
+
+- For media/PDF/audio collections, replace editor-wide owner() write access with examOwner() or canManageMedia().
+- The quiz collection rules above allow an editor with quizDrafts permission to read questions and create/update only unpublished Draft documents. Editors cannot publish or delete questions.
+- For exam answer keys, canReviewExam() can read keys for manual checking, but only examOwner() may write answer keys.
+- For main/mock/quiz submission collections, canReviewExam() may read/update reviews; students must still only read their own submissions.
+- The notification collection and broadcast Storage path use canSendNotifications(). Personal notifications remain readable only by the recipient UID.
+- Main exam schedule, student enrollment management, admit-card release, role management, and live-session allow/deny remain Owner-only.
+
+Do not leave a broad existing editor rule such as allow write: if owner() on these sensitive collections. Firestore combines overlapping allows with OR logic, so the old broad rule must be replaced, not supplemented.
