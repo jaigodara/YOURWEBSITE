@@ -1457,9 +1457,16 @@ Ans: B"></textarea>
                 verifiedBy: auth.currentUser?.uid || null,
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
-              // If this is a user account, carry its assigned serial roll number
-              // into prior submissions so the reviewer can sort the answer sheets.
-              if (collectionName === 'users' && d.id) {
+              // Carry the assigned roll number from either a user record or the
+              // website's exam-enrollment record into the user profile and prior submissions.
+              if (['users', 'examEnrolledStudents'].includes(collectionName) && d.id) {
+                if (collectionName === 'examEnrolledStudents') {
+                  try {
+                    await db.collection('users').doc(d.uid || d.id).set({ rollNumber }, { merge: true });
+                  } catch (profileSyncError) {
+                    console.warn('Could not sync roll number to user profile', profileSyncError);
+                  }
+                }
                 for (const submissionCollection of ['quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions']) {
                   try {
                     const attempts = await db.collection(submissionCollection).where('uid', '==', d.id).get();
