@@ -1724,7 +1724,14 @@ function renderExamVisibility() {
         beforeUnload: null
       };
 
-      switchTab(mode === 'quiz' ? 'quiz' : 'pariksha');
+      ensureExamWorkspace(mode);
+      setVisible('portalExamWorkspace', true);
+      ['enrollmentSection', 'myResultsPanel', 'dailyQuizSection', 'mockHub', 'mainExamSection']
+        .forEach(id => setVisible(id, false));
+      setVisible('previousQuestionBtn', true);
+      setVisible('nextQuestionBtn', true);
+      setVisible('submitExamBtn', true);
+      switchTab('pariksha');
       renderExamQuestion();
 
       state.exam.timer = setInterval(() => {
@@ -1831,6 +1838,11 @@ function renderExamVisibility() {
       setText('examResult', `Exam ended. Score calculated locally: ${correct}/${exam.questions.length}. Saving failed.`);
       notify('Exam ended, but the result could not be saved.', 'error');
     }
+
+    setVisible('previousQuestionBtn', false);
+    setVisible('nextQuestionBtn', false);
+    setVisible('submitExamBtn', false);
+    setVisible('exitExamWorkspace', true);
   };
 
   // Quiz aliases for existing HTML controls.
