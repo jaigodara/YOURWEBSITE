@@ -346,6 +346,19 @@ Ans: B"></textarea>
 
       <!-- MANUAL EXAM REVIEW FIRST: visible immediately when opening the exam pane -->
       <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-yatra text-base text-forest">🛡️ लाइव परीक्षा निगरानी / पुनः प्रवेश</h3>
+            <p class="mt-1 text-xs text-stone-500">तीन बार टैब बदलने पर प्रयास अस्थायी रूप से लॉक होगा; उत्तर सुरक्षित रहेंगे और समय पूरा होने से पहले स्वतः जमा नहीं होगा। Owner यहाँ से उसी प्रयास में पुनः प्रवेश दे सकता है।</p>
+          </div>
+          <button type="button" onclick="loadExamSessionQueue()" class="shrink-0 rounded-xl bg-forest px-3 py-2 text-xs font-bold text-white">↻ रिफ्रेश</button>
+        </div>
+        <div id="examSessionQueue" class="space-y-2">
+          <p class="text-xs text-stone-500">लाइव परीक्षा सत्र लोड हो रहे हैं…</p>
+        </div>
+      </div>
+
       <div id="manualExamReviewSection" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
         <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
@@ -663,6 +676,7 @@ Ans: B"></textarea>
           loadMaintenanceSettings();
           loadExamVisibilitySettings();
           loadAdmitCardSettings();
+          loadExamSessionQueue();
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
           window.location.href = "index.html";
@@ -1789,6 +1803,88 @@ Ans: B"></textarea>
       card.append(scoreLabel, decisionLabel, feedback, controls);
       list.append(top, card);
     }
+
+    async function setExamSessionDecision(sessionId, status) {
+      const isOwner = currentAdminUser?.role === 'owner' || currentAdminUser?.uid === SUPER_OWNER_UID || currentAdminUser?.uid === RECOVERED_OWNER_UID;
+      if (!isOwner) return showToast('केवल Owner परीक्षा में पुनः प्रवेश नियंत्रित कर सकता है।');
+      try {
+        const update = {
+          status,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.currentUser?.uid || null
+        };
+        if (status === 'active') {
+          update.reentryGrantedAt = firebase.firestore.FieldValue.serverTimestamp();
+          update.reentryGrantedBy = auth.currentUser?.uid || null;
+        } else if (status === 'denied') {
+          update.deniedAt = firebase.firestore.FieldValue.serverTimestamp();
+          update.deniedBy = auth.currentUser?.uid || null;
+        }
+        await db.collection('examSessions').doc(sessionId).set(update, { merge: true });
+        showToast(status === 'active' ? 'पुनः प्रवेश की अनुमति भेज दी गई।' : 'पुनः प्रवेश अस्वीकार कर दिया गया।');
+        await loadExamSessionQueue();
+      } catch (error) {
+        showToast('सत्र स्थिति नहीं बदली: ' + error.message + ' — examSessions rules जाँचें।');
+      }
+    }
+
+    async function loadExamSessionQueue() {
+      const host = document.getElementById('examSessionQueue');
+      if (!host) return;
+      host.replaceChildren();
+      try {
+        const snap = await db.collection('examSessions').orderBy('updatedAt', 'desc').limit(100).get();
+        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(row => ['active', 'kicked', 'denied'].includes(row.status));
+        if (!rows.length) {
+          const empty = document.createElement('p');
+          empty.className = 'rounded-xl bg-stone-50 p-3 text-xs text-stone-500';
+          empty.textContent = 'अभी कोई सक्रिय या लॉक किया गया परीक्षा सत्र नहीं है।';
+          host.appendChild(empty);
+          return;
+        }
+        rows.forEach(row => {
+          const card = document.createElement('article');
+          card.className = 'rounded-xl border p-3 space-y-2 ' + (row.status === 'kicked' ? 'border-red-300 bg-red-50' : 'border-stone-200 bg-stone-50');
+          const title = document.createElement('strong');
+          title.className = 'block text-xs text-forest';
+          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (row.mode || 'exam');
+          const detail = document.createElement('p');
+          detail.className = 'text-[11px] text-stone-600 break-all';
+          detail.textContent = 'UID: ' + (row.uid || '—') + ' · स्थिति: ' + row.status +
+            ' · प्रश्न: ' + (row.currentQuestion || '—') + '/' + (row.totalQuestions || '—') +
+            ' · टैब बदलाव: ' + (row.tabSwitches || 0) +
+            ' · समय समाप्ति: ' + (row.endAtMs ? new Date(row.endAtMs).toLocaleTimeString('hi-IN') : '—');
+          card.append(title, detail);
+          const actions = document.createElement('div');
+          actions.className = 'flex flex-wrap gap-2';
+          if (row.status !== 'active') {
+            const allow = document.createElement('button');
+            allow.type = 'button';
+            allow.className = 'rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white';
+            allow.textContent = '✓ पुनः प्रवेश दें';
+            allow.addEventListener('click', () => setExamSessionDecision(row.id, 'active'));
+            actions.appendChild(allow);
+          }
+          if (row.status !== 'denied') {
+            const deny = document.createElement('button');
+            deny.type = 'button';
+            deny.className = 'rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-bold text-red-700';
+            deny.textContent = 'प्रवेश अस्वीकार करें';
+            deny.addEventListener('click', () => setExamSessionDecision(row.id, 'denied'));
+            actions.appendChild(deny);
+          }
+          card.appendChild(actions);
+          host.appendChild(card);
+        });
+      } catch (error) {
+        const message = document.createElement('p');
+        message.className = 'rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700';
+        message.textContent = 'लाइव सत्र नहीं पढ़े जा सके: ' + error.message + ' — examSessions rules जाँचें।';
+        host.appendChild(message);
+      }
+    }
+    window.loadExamSessionQueue = loadExamSessionQueue;
 
     async function loadExamSubmissions() {
       const list = document.getElementById('examSubmissionsList');
