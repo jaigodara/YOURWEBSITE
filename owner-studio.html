@@ -1524,8 +1524,40 @@ Ans: B"></textarea>
         updatedBy: auth.currentUser?.uid || null
       };
       try {
-        await db.collection('examConfig').doc('current').set(config, { merge: true });
-        showToast('परीक्षा की दृश्यता, अवधि और शुरू होने के समय सहेज दिए गए।');
+        const configRef = db.collection('examConfig').doc('current');
+        const previousSnap = await configRef.get();
+        const previous = previousSnap.exists ? previousSnap.data() || {} : {};
+        await configRef.set(config, { merge: true });
+
+        const scheduledText = ms => ms ? new Date(ms).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय Owner Studio में निर्धारित किया जाएगा';
+        const notices = [];
+        if (config.enrollmentVisible && previous.enrollmentVisible !== true) {
+          notices.push(['मुख्य परीक्षा पंजीकरण शुरू', 'मुख्य परीक्षा के लिए विद्यार्थी पंजीकरण शुरू हो गया है। लॉगिन करके परीक्षा अनुभाग में अपना पंजीकरण भेजें।']);
+        }
+        if (config.dailyQuizVisible && (previous.dailyQuizVisible !== true || previous.quizStartAtMs !== config.quizStartAtMs)) {
+          notices.push(['दैनिक ज्ञान क्विज़ की सूचना', 'दैनिक ज्ञान क्विज़ की निर्धारित शुरुआत: ' + scheduledText(config.quizStartAtMs) + '। पंजीकरण की पुष्टि और निर्धारित समय के बाद प्रवेश करें।']);
+        }
+        if (config.mock1Visible && (previous.mock1Visible !== true || previous.mock1StartAtMs !== config.mock1StartAtMs)) {
+          notices.push(['मॉक परीक्षा 1 की सूचना', 'मॉक परीक्षा 1 की निर्धारित शुरुआत: ' + scheduledText(config.mock1StartAtMs) + '।']);
+        }
+        if (config.mock2Visible && (previous.mock2Visible !== true || previous.mock2StartAtMs !== config.mock2StartAtMs)) {
+          notices.push(['मॉक परीक्षा 2 की सूचना', 'मॉक परीक्षा 2 की निर्धारित शुरुआत: ' + scheduledText(config.mock2StartAtMs) + '।']);
+        }
+        if (config.mainExamVisible && (previous.mainExamVisible !== true || previous.mainStartAtMs !== config.mainStartAtMs)) {
+          notices.push(['मुख्य परीक्षा की सूचना', 'मुख्य परीक्षा की निर्धारित शुरुआत: ' + scheduledText(config.mainStartAtMs) + '। प्रवेश के लिए पंजीकरण की Owner द्वारा पुष्टि आवश्यक है।']);
+        }
+        for (const [title, message] of notices) {
+          try {
+            await db.collection('notifications').add({
+              title, message, active: true, audience: 'all', type: 'exam-announcement',
+              createdBy: auth.currentUser?.uid || null,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } catch (notificationError) {
+            console.warn('Exam settings saved but automatic notification failed:', notificationError);
+          }
+        }
+        showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (notices.length ? notices.length + ' स्वचालित सूचना भेजी गईं।' : 'कोई नई सूचना आवश्यक नहीं थी।'));
       } catch (e) {
         showToast('सेटिंग्स सहेज नहीं सकीं: ' + e.message);
       }
