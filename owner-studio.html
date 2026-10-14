@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="hi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>प्रबंधक कक्ष (Owner Studio) | विश्नोई समाज डिजिटल मंच</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Yatra One & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Yatra+One&display=swap" rel="stylesheet">
+
+  <!-- Firebase v10 Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <!-- jsPDF, AutoTable & SheetJS for PDF / Excel Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            forest: '#143622',
+            terracotta: '#B34A1B',
+            leaf: '#2D6A4F',
+            sand: '#FAF6EE'
+          },
+          fontFamily: {
+            yatra: ['Yatra One', 'cursive'],
+            sans: ['Plus Jakarta Sans', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { background-color: #FAF6EE !important; }
+    .admin-subtab-active {
+      background-color: #143622 !important;
+      color: #ffffff !important;
+      border-color: #143622 !important;
+    }
+    .custom-scroll::-webkit-scrollbar { width: 5px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #143622; border-radius: 4px; }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col antialiased text-[#231B15]">
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastNotification" class="fixed top-4 right-4 z-[9999] transform -translate-y-20 opacity-0 transition-all duration-300 pointer-events-none max-w-sm w-full">
+    <div class="bg-forest text-amber-200 border border-amber-600/40 px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between text-xs sm:text-sm font-medium">
+      <span id="toastMsg">सूचना</span>
+      <span class="ml-2 text-amber-400 font-bold">✓</span>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATION & ACCESS VERIFICATION LOCK SCREEN -->
+  <div id="adminAuthLock" class="fixed inset-0 bg-stone-950/85 z-[9990] flex items-center justify-center p-4">
+    <div class="bg-white p-6 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl border border-stone-200">
+      <div class="w-14 h-14 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-sm">
+        🛡️
+      </div>
+      <div>
+        <h3 class="font-yatra text-xl text-forest">सुरक्षा एवं अधिकार सत्यापन</h3>
+        <p class="text-xs text-stone-500 mt-1">व्यवस्थापक (Owner / Editor) क्रेडेंशियल्स की जाँच की जा रही है...</p>
+      </div>
+      <div class="inline-block w-6 h-6 border-2 border-forest border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  </div>
+
+  <!-- STUDIO TOP NAVIGATION BAR -->
+  <header class="bg-forest text-amber-200 px-4 py-3.5 shadow-md flex items-center justify-between sticky top-0 z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 font-bold flex items-center justify-center text-xl shadow">
+        🛡️
+      </div>
+      <div>
+        <h1 class="font-yatra text-base sm:text-lg text-white leading-tight">व्यवस्थापक एवं संपादक नियंत्रण कक्ष</h1>
+        <p class="text-[10px] text-amber-300">विश्नोई समाज डिजिटल मंच — सर्वर-सत्यापित ओनर स्टूडियो</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="index.html" class="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
+        <span>← मुख्य वेबसाइट</span>
+      </a>
+      <button onclick="handleStudioLogout()" class="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl shadow transition">
+        लॉगआउट
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN ADMIN DASHBOARD CONTENT -->
+  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6 space-y-6">
+
+    <!-- OVERVIEW TELEMETRY & 4 ONE-TAP ACTION SHORTCUTS -->
+    <div class="bg-gradient-to-r from-[#143622] via-[#1b432c] to-stone-900 text-white p-5 sm:p-6 rounded-3xl shadow-xl space-y-4 border border-amber-400/40">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span class="text-[10px] uppercase tracking-wider text-amber-300 font-extrabold block">🛡️ ONE-TAP SUPER STUDIO</span>
+          <h2 class="font-yatra text-xl sm:text-2xl text-white">त्वरित प्रबंधन केंद्र (One-Tap Control Hub)</h2>
+        </div>
+        <button onclick="refreshStudioAnalytics()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-amber-200 transition">
+          ↻ आँकड़े रिफ्रेश करें
+        </button>
+      </div>
+
+      <!-- 4 BIG ONE-TAP SHORTCUT BUTTONS -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <button onclick="switchStudioPane('pane_overview'); document.getElementById('adminBannerInput')?.focus();" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-2xl block">📢</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">नया सुविचार</span>
+          <span class="text-[10px] opacity-75">होम बैनर 1-Click में</span>
+        </button>
+
+        <button onclick="switchStudioPane('pane_quiz'); document.getElementById('bulkQuizInput')?.focus();" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-2xl block">🏆</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">क्विज़ प्रश्न</span>
+          <span class="text-[10px] opacity-75">बल्क प्रश्न बैंक जोड़ें</span>
+        </button>
+
+        <button onclick="switchStudioPane('pane_media'); document.getElementById('adminPdfTitle')?.focus();" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-2xl block">📚</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">PDF व भजन</span>
+          <span class="text-[10px] opacity-75">साहित्य एवं ऑडियो</span>
+        </button>
+
+        <button onclick="switchStudioPane('pane_exam');" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+          <span class="text-2xl block">📷</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">परीक्षा व कैमरा</span>
+          <span class="text-[10px] opacity-75">फोटो प्रोक्टरिंग ऑन/ऑफ</span>
+        </button>
+      </div>
+
+      <!-- LIVE METRICS BAR -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center text-xs">
+        <div class="bg-black/30 p-2.5 rounded-2xl border border-white/5">
+          <span class="text-[10px] text-stone-300 block">कुल पंजीकृत सदस्य</span>
+          <strong id="statUsers" class="text-base sm:text-lg font-bold text-amber-300">...</strong>
+        </div>
+        <div class="bg-black/30 p-2.5 rounded-2xl border border-white/5">
+          <span class="text-[10px] text-stone-300 block">कुल परीक्षा प्रयास</span>
+          <strong id="statQuizzes" class="text-base sm:text-lg font-bold text-emerald-300">...</strong>
+        </div>
+        <div class="bg-black/30 p-2.5 rounded-2xl border border-white/5">
+          <span class="text-[10px] text-stone-300 block">प्रतीक्षारत ड्राफ्ट</span>
+          <strong id="statDrafts" class="text-base sm:text-lg font-bold text-amber-400">0</strong>
+        </div>
+        <div class="bg-black/30 p-2.5 rounded-2xl border border-white/5">
+          <span class="text-[10px] text-stone-300 block">संवाद मंच संदेश</span>
+          <strong id="statPosts" class="text-base sm:text-lg font-bold text-white">...</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 COMPREHENSIVE SUB-TABS -->
+    <div class="flex flex-wrap gap-1.5 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm text-xs font-bold">
+      <button onclick="switchStudioPane('pane_overview')" id="btn_pane_overview" class="admin-subtab-active flex-1 min-w-[110px] py-2 px-2.5 rounded-xl border border-stone-200 transition">
+        1. सुविचार व ड्राफ्ट
+      </button>
+      <button onclick="switchStudioPane('pane_media')" id="btn_pane_media" class="flex-1 min-w-[110px] py-2 px-2.5 rounded-xl text-stone-700 bg-stone-50 border border-stone-200 transition">
+        2. साहित्य व भजन
+      </button>
+      <button onclick="switchStudioPane('pane_quiz')" id="btn_pane_quiz" class="flex-1 min-w-[110px] py-2 px-2.5 rounded-xl text-stone-700 bg-stone-50 border border-stone-200 transition">
+        3. प्रश्न बैंक व विजेता
+      </button>
+      <button onclick="switchStudioPane('pane_exam')" id="btn_pane_exam" class="flex-1 min-w-[110px] py-2 px-2.5 rounded-xl text-stone-700 bg-stone-50 border border-stone-200 transition">
+        4. परीक्षा व प्रोक्टरिंग
+      </button>
+      <button onclick="switchStudioPane('pane_system')" id="btn_pane_system" class="flex-1 min-w-[110px] py-2 px-2.5 rounded-xl text-stone-700 bg-stone-50 border border-stone-200 transition">
+        5. मेंटेनेंस व सुरक्षा
+      </button>
+    </div>
+
+    <!-- PANE 1: DRAFTS, DAILY QUOTE & AMAVASYA MANAGER -->
+    <div id="pane_overview" class="space-y-4">
+      
+      <!-- DRAFT APPROVAL QUEUE -->
+      <div class="bg-amber-50/80 p-5 rounded-3xl border-2 border-amber-300 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-yatra text-base text-forest">✅ ड्राफ्ट समीक्षा कतार (Draft Approval Queue - Owner Power)</h3>
+            <p class="text-xs text-stone-600">संपादकों (Editors) द्वारा भेजे गए सुविचार व प्रश्न यहाँ दिखेंगे। केवल Super Owner ही Live या Reject कर सकते हैं:</p>
+          </div>
+          <span class="px-2.5 py-1 bg-amber-400 text-stone-950 rounded-full text-[10px] font-extrabold shrink-0">Only Owner Approval</span>
+        </div>
+        <div id="draftReviewListBox" class="space-y-2 text-xs">
+          <div class="text-stone-400 p-2">ड्राफ्ट लोड हो रहे हैं...</div>
+        </div>
+      </div>
+
+      <!-- DAILY BANNER UPDATER -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">📢 दैनिक पावन सुविचार अद्यतन (Daily Banner Quote)</h3>
+        <p class="text-xs text-stone-500">यह संदेश मुख्य वेबसाइट के शीर्ष बैनर पर लाइव दिखाई देगा:</p>
+        <textarea id="adminBannerInput" rows="2" placeholder="जैसे: जीव दया पालणी, रूंख लीलो नी घावै..." class="w-full p-3 text-xs rounded-2xl border border-stone-300 focus:outline-none focus:border-forest"></textarea>
+        <button onclick="saveAdminBanner()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+          ✓ सुविचार लाइव प्रकाशित करें
+        </button>
+      </div>
+
+      <!-- AMAVASYA DATE & FASTING CONFIG -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">🌑 पावन अमावस्या तिथि प्रबंधक (Amavasya Manager)</h3>
+        <p class="text-xs text-stone-500">तारीख निर्धारित करने पर मुख्य वेबसाइट का लाइव काउंटडाउन इसी समय के अनुसार चलेगा:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div>
+            <label class="block text-[11px] font-bold text-stone-600 mb-1">अमावस्या का पावन नाम:</label>
+            <input type="text" id="adminAmavasyaName" placeholder="उदा: कार्तिक अमावस्या (दीपावली पर्व)" class="w-full p-2.5 rounded-xl border border-stone-300">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-stone-600 mb-1">अमावस्या की तारीख (Date):</label>
+            <input type="date" id="adminAmavasyaDate" class="w-full p-2.5 rounded-xl border border-stone-300">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-stone-600 mb-1">उपवास एवं साधना संदेश:</label>
+          <input type="text" id="adminAmavasyaDesc" placeholder="उदा: उपवास, ध्यान, जप एवं हवन साधना का संकल्प" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+        </div>
+        <button onclick="saveAdminAmavasya()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+          💾 अमावस्या तिथि व संदेश सहेजें
+        </button>
+      </div>
+    </div>
+
+    <!-- PANE 2: LITERATURE (PDF) & AUDIO BHAJAN MANAGER -->
+    <div id="pane_media" class="hidden space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- PDF UPLOADER -->
+        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+          <h3 class="font-yatra text-base text-forest">📄 PDF साहित्य ग्रंथ जोड़ें</h3>
+          <input type="text" id="adminPdfTag" placeholder="श्रेणी टैग (उदा: पवित्र ग्रंथ / आरती)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <input type="text" id="adminPdfTitle" placeholder="पुस्तक अथवा ग्रंथ का नाम" class="w-full p-2.5 text-xs rounded-xl border border-stone-300 font-semibold">
+          <input type="text" id="adminPdfLink" placeholder="PDF फाइल लिंक (उदा: ./shabadwani.pdf या URL)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <button onclick="saveAdminPdf()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+            ➕ PDF साहित्य जोड़ें
+          </button>
+          <div class="pt-2 border-t border-stone-100">
+            <h4 class="font-bold text-xs text-forest mb-1.5">अपलोड किए गए PDF ग्रंथ:</h4>
+            <div id="adminPdfManageList" class="space-y-1.5 text-xs max-h-44 overflow-y-auto custom-scroll"></div>
+          </div>
+        </div>
+
+        <!-- AUDIO BHAJAN UPLOADER -->
+        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+          <h3 class="font-yatra text-base text-forest">🎵 ऑडियो भजन व आरती जोड़ें</h3>
+          <input type="text" id="adminAudioTitle" placeholder="भजन / आरती का पावन शीर्षक" class="w-full p-2.5 text-xs rounded-xl border border-stone-300 font-semibold">
+          <input type="text" id="adminAudioLink" placeholder="ऑडियो फाइल लिंक (उदा: ./bhajan1.mp3 या URL)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <button onclick="saveAdminAudio()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+            ➕ ऑडियो भजन जोड़ें
+          </button>
+          <div class="pt-2 border-t border-stone-100">
+            <h4 class="font-bold text-xs text-forest mb-1.5">ऑडियो प्लेयर ट्रैक सूची:</h4>
+            <div id="adminAudioManageList" class="space-y-1.5 text-xs max-h-44 overflow-y-auto custom-scroll"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PANE 3: QUESTION BANK & LEADERBOARD WINNERS -->
+    <div id="pane_quiz" class="hidden space-y-4">
+      
+      <!-- DAILY WINNERS LEADERBOARD CONTROLLER -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-yatra text-base text-forest">🏆 शीर्ष विजेता (Daily Leaderboard Winners)</h3>
+          <button onclick="clearDailyWinnersToBlank()" class="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-bold transition">
+            स्थान खाली (Blank —) करें
+          </button>
+        </div>
+        <p class="text-xs text-stone-500">मुख्य परीक्षा टैब में दिखने वाले शीर्ष 3 विजेताओं का नाम व स्कोर यहाँ सेट करें:</p>
+        <div class="space-y-2 text-xs">
+          <div class="flex gap-2">
+            <input type="text" id="win1Name" placeholder="🥇 1st Place Name" class="w-2/3 p-2.5 border rounded-xl font-bold">
+            <input type="text" id="win1Score" placeholder="Score (उदा: 10/10)" class="w-1/3 p-2.5 border rounded-xl">
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="win2Name" placeholder="🥈 2nd Place Name" class="w-2/3 p-2.5 border rounded-xl font-bold">
+            <input type="text" id="win2Score" placeholder="Score (उदा: 9/10)" class="w-1/3 p-2.5 border rounded-xl">
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="win3Name" placeholder="🥉 3rd Place Name" class="w-2/3 p-2.5 border rounded-xl font-bold">
+            <input type="text" id="win3Score" placeholder="Score (उदा: 9/10)" class="w-1/3 p-2.5 border rounded-xl">
+          </div>
+        </div>
+        <button onclick="saveDailyWinners()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+          ✓ विजेता सूची लाइव प्रकाशित करें
+        </button>
+      </div>
+
+      <!-- BULK QUESTION BANK IMPORTER -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-yatra text-base text-forest">⚡ बल्क प्रश्न बैंक इम्पोर्टर (Bulk Importer)</h3>
+          <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Regex Parser</span>
+        </div>
+        <p class="text-xs text-stone-500">प्रश्नों को नीचे दिए गए मानक प्रारूप में एक साथ पेस्ट करें:</p>
+        <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
+A) 1730 ईस्वी
+B) 1485 ईस्वी
+C) 1857 ईस्वी
+D) 1947 ईस्वी
+Ans: A
+
+Q: बिश्नोई पंथ में कितने नियम हैं?
+A) 21
+B) 29
+C) 36
+D) 108
+Ans: B"></textarea>
+        <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
+          🚀 सभी प्रश्न सीधे डेटाबेस में जोड़ें
+        </button>
+        <div class="pt-2 border-t border-stone-100">
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="font-bold text-xs text-forest">वर्तमान प्रश्न बैंक सूची:</h4>
+            <button onclick="clearAllQuizQuestions()" class="text-xs text-red-600 font-bold hover:underline">सभी प्रश्न हटाएं</button>
+          </div>
+          <div id="adminQuizList" class="space-y-1.5 text-xs max-h-48 overflow-y-auto custom-scroll"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PANE 4: EXAM ENGINE, CAMERA PROCTORING & ENROLLMENT REVIEW -->
+    <div id="pane_exam" class="hidden space-y-4">
+      
+      <!-- PHOTO PROCTORING TOGGLE -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-yatra text-base text-forest">📷 परीक्षा फोटो कैप्चरिंग / कैमरा प्रोक्टरिंग</h3>
+            <p class="text-xs text-stone-500">ऑन करने पर परीक्षार्थियों का कैमरा स्नैपशॉट परीक्षा के दौरान सुरक्षित रिकॉर्ड किया जाएगा:</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="examProctoringToggle" onchange="toggleExamProctoring(this.checked)" class="sr-only peer">
+            <div class="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-forest"></div>
+          </label>
+        </div>
+        <div id="proctoringStatusBadge" class="p-2.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold">
+          स्थिति: प्रोक्टरिंग लोड हो रही है...
+        </div>
+      </div>
+
+      <!-- EXAM SUBMISSIONS & SNAPSHOTS VIEWER -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-yatra text-base text-forest">📋 परीक्षा सबमिशन एवं सत्यापन समीक्षा</h3>
+          <button onclick="loadExamSubmissions()" class="px-3 py-1 bg-stone-100 text-stone-700 rounded-lg text-xs font-bold">↻ रिफ्रेश सबमिशन</button>
+        </div>
+        <div id="examSubmissionsList" class="space-y-2 text-xs max-h-56 overflow-y-auto custom-scroll">
+          <div class="text-stone-400">रिकॉर्ड लोड करने के लिए रिफ्रेश करें।</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PANE 5: SECTION MAINTENANCE, VIP BYPASS, TRUSTED EDITORS & DATA EXPORT -->
+    <div id="pane_system" class="hidden space-y-4">
+      
+      <!-- PER-SECTION SOFT MAINTENANCE CONTROLLER -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
+          <div>
+            <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण</h3>
+            <p class="text-xs text-stone-500">प्लेटफॉर्म या किसी विशेष टैब को मेंटेनेंस में डालें:</p>
+          </div>
+          <label class="flex items-center gap-1.5 text-xs font-bold text-forest cursor-pointer bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+            <input type="checkbox" id="adminVipBypassToggle" checked class="accent-forest">
+            <span>VIP Admin/Editor Bypass सक्रिय</span>
+          </label>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <label class="font-bold text-stone-700 block">1. संपूर्ण प्लेटफॉर्म मोड (Global Mode):</label>
+          <select id="adminGlobalMaintMode" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold bg-stone-50">
+            <option value="off">🟢 चालू है (Normal - No Maintenance)</option>
+            <option value="phone_only">📱 केवल फ़ोन / ऐप बंद करें</option>
+            <option value="web_only">💻 केवल वेबसाइट बंद करें</option>
+            <option value="both">🔴 दोनों बंद करें (Complete Maintenance)</option>
+          </select>
+          <input type="text" id="adminMaintMessage" placeholder="सामान्य मेंटेनेंस संदेश लिखें..." class="w-full p-2.5 rounded-xl border border-stone-300">
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-stone-100 text-xs">
+          <label class="font-bold text-stone-700 block">2. विशेष सेक्शन लॉक करें (Section Locks):</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+              <span>📿 जप माला (Mala)</span>
+              <select id="lock_mala" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+              <span>📚 साहित्य (Library)</span>
+              <select id="lock_library" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+              <span>🏆 ज्ञान परीक्षा (Quiz)</span>
+              <select id="lock_quiz" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+              <span>💬 संवाद मंच (Community)</span>
+              <select id="lock_community" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl shadow transition">
+          💾 मेंटेनेंस सेटिंग्स लागू करें
+        </button>
+      </div>
+
+      <!-- TRUSTED EDITORS ROLE MANAGER -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) नियुक्त करें</h3>
+        <p class="text-xs text-stone-500">संपादक ड्राफ्ट जोड़ सकते हैं, परंतु प्रकाशित केवल मुख्य व्यवस्थापक कर सकते हैं:</p>
+        <div class="flex gap-2 text-xs">
+          <input type="text" id="newEditorPhoneInput" maxlength="10" placeholder="10-अंकों का मोबाइल नंबर" class="flex-1 p-2.5 rounded-xl border border-stone-300 font-semibold">
+          <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">
+            ➕ संपादक बनाएं
+          </button>
+        </div>
+        <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
+      </div>
+
+      <!-- PDF & EXCEL REPORTS EXPORT -->
+      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">📄 आधिकारिक डेटा रिपोर्ट एक्सपोर्ट (PDF & Excel)</h3>
+        <p class="text-xs text-stone-500">परीक्षा परिणाम एवं सदस्यों का डेटाबेस एक क्लिक में डाउनलोड करें:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold">
+          <button onclick="exportQuizResultsPdf()" class="py-2.5 px-4 bg-forest hover:bg-emerald-950 text-white rounded-xl shadow transition flex items-center justify-center gap-1.5">
+            <span>क्विज़ रिजल्ट रिपोर्ट (PDF)</span> 📑
+          </button>
+          <button onclick="exportQuizResultsExcel()" class="py-2.5 px-4 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl shadow transition flex items-center justify-center gap-1.5">
+            <span>क्विज़ रिजल्ट शीट (Excel .xlsx)</span> 📊
+          </button>
+          <button onclick="exportMembersPdf()" class="py-2.5 px-4 bg-terracotta hover:bg-amber-800 text-white rounded-xl shadow transition flex items-center justify-center gap-1.5">
+            <span>पंजीकृत सदस्य सूची (PDF)</span> 👥
+          </button>
+          <button onclick="exportMembersExcel()" class="py-2.5 px-4 bg-amber-700 hover:bg-amber-800 text-white rounded-xl shadow transition flex items-center justify-center gap-1.5">
+            <span>पंजीकृत सदस्य शीट (Excel .xlsx)</span> 📋
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- EMBEDDED COMPLETE OWNER STUDIO LOGIC ENGINE -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
+      authDomain: "bishnoi-platform.firebaseapp.com",
+      projectId: "bishnoi-platform",
+      storageBucket: "bishnoi-platform.firebasestorage.app",
+      messagingSenderId: "1001226124051",
+      appId: "1:1001226124051:web:ad4dc69e04e6701024f8e6"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const SUPER_OWNER_UID = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
+    let currentAdminUser = null;
+    let draftItemsList = [];
+    let editorsPhoneList = [];
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      const toastMsg = document.getElementById('toastMsg');
+      if (!toast || !toastMsg) return;
+      toastMsg.innerText = msg;
+      toast.classList.remove('-translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-20', 'opacity-0');
+      }, 3200);
+    }
+
+    // 1. STRICT SERVER-SIDE AUTH VERIFICATION
+    window.addEventListener('DOMContentLoaded', () => {
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+          alert("⚠️ अनधिकृत पहुंच! कृपया पहले मुख्य वेबसाइट पर लॉगिन करें।");
+          window.location.href = "index.html";
+          return;
+        }
+
+        try {
+          const roleDoc = await db.collection('roles').doc(user.uid).get();
+          const role = roleDoc.exists ? roleDoc.data().role : null;
+
+          // Check if Super Owner or Trusted Editor
+          if (user.uid !== SUPER_OWNER_UID && role !== 'owner' && role !== 'editor') {
+            alert("⚠️ पहुंच वर्जित! आपके खाते को व्यवस्थापक अधिकार प्राप्त नहीं हैं।");
+            window.location.href = "index.html";
+            return;
+          }
+
+          currentAdminUser = { uid: user.uid, role: role || 'owner' };
+          document.getElementById('adminAuthLock')?.classList.add('hidden');
+
+          // Initialize Dashboard Listeners
+          refreshStudioAnalytics();
+          listenDraftQueue();
+          listenPdfAndAudio();
+          listenQuizQuestions();
+          listenTrustedEditors();
+          listenProctoringConfig();
+          loadExistingSettings();
+        } catch (err) {
+          alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
+          window.location.href = "index.html";
+        }
+      });
+    });
+
+    function switchStudioPane(paneId) {
+      ['pane_overview', 'pane_media', 'pane_quiz', 'pane_exam', 'pane_system'].forEach(id => {
+        document.getElementById(id)?.classList.add('hidden');
+        document.getElementById(`btn_${id}`)?.classList.remove('admin-subtab-active');
+      });
+      document.getElementById(paneId)?.classList.remove('hidden');
+      document.getElementById(`btn_${paneId}`)?.classList.add('admin-subtab-active');
+    }
+
+    async function refreshStudioAnalytics() {
+      try {
+        const [uSnap, qSnap, dSnap, pSnap] = await Promise.all([
+          db.collection('users').get(),
+          db.collection('quizAttempts').get(),
+          db.collection('draftQueue').get(),
+          db.collection('posts').get()
+        ]);
+        document.getElementById('statUsers').innerText = uSnap.size;
+        document.getElementById('statQuizzes').innerText = qSnap.size;
+        document.getElementById('statDrafts').innerText = dSnap.size;
+        document.getElementById('statPosts').innerText = pSnap.size;
+      } catch (e) {
+        console.error("Telemetry error:", e);
+      }
+    }
+
+    // 2. DRAFT QUEUE SYSTEM (EDITORS SAVE DRAFT -> OWNER APPROVES)
+    function listenDraftQueue() {
+      db.collection('draftQueue').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        draftItemsList = [];
+        const box = document.getElementById('draftReviewListBox');
+        if (!box) return;
+        box.innerHTML = '';
+
+        if (snap.empty) {
+          box.innerHTML = `<div class="text-stone-400 p-2">कोई भी ड्राफ्ट प्रतीक्षारत नहीं है।</div>`;
+          return;
+        }
+
+        snap.forEach(doc => {
+          const d = doc.data();
+          draftItemsList.push({ id: doc.id, ...d });
+          const isSuperOwner = currentAdminUser?.role === 'owner' || currentAdminUser?.uid === SUPER_OWNER_UID;
+
+          box.innerHTML += `
+            <div class="p-3.5 rounded-2xl bg-white border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+              <div>
+                <span class="text-[10px] font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">
+                  ${d.type === 'banner' ? '📢 सुविचार' : '🏆 प्रश्न'} • लेखक: ${d.author || 'संपादक'}
+                </span>
+                <p class="font-bold text-forest mt-1 text-xs sm:text-sm">${d.content?.substring(0, 80)}...</p>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${isSuperOwner ? `
+                  <button onclick="approveDraft('${doc.id}')" class="px-3 py-1.5 bg-forest text-white rounded-xl font-bold text-xs shadow hover:bg-emerald-950">✓ Live करें</button>
+                  <button onclick="rejectDraft('${doc.id}')" class="px-2.5 py-1.5 bg-red-100 text-red-700 rounded-xl font-bold text-xs hover:bg-red-200">✕ हटाएं</button>
+                ` : `<span class="text-[11px] font-bold text-amber-700">⏳ Owner की स्वीकृति प्रतीक्षारत</span>`}
+              </div>
+            </div>
+          `;
+        });
+      });
+    }
+
+    async function approveDraft(draftId) {
+      const item = draftItemsList.find(x => x.id === draftId);
+      if (!item) return;
+
+      try {
+        if (item.type === 'banner') {
+          await db.collection('settings').doc('dailySandesh').set({ text: item.content });
+        } else if (item.type === 'quiz') {
+          await db.collection('quiz').add({
+            q: item.q, opts: item.opts, ans: item.ans,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+        await db.collection('draftQueue').doc(draftId).delete();
+        showToast("✅ ड्राफ्ट स्वीकृत होकर लाइव हो गया!");
+      } catch (err) {
+        showToast("त्रुटि: " + err.message);
+      }
+    }
+
+    async function rejectDraft(draftId) {
+      try {
+        await db.collection('draftQueue').doc(draftId).delete();
+        showToast("ड्राफ्ट अस्वीकृत कर दिया गया।");
+      } catch (err) {
+        showToast("त्रुटि: " + err.message);
+      }
+    }
+
+    // 3. DAILY BANNER & AMAVASYA MANAGER
+    async function saveAdminBanner() {
+      const txt = document.getElementById('adminBannerInput')?.value.trim();
+      if (!txt) return showToast("कृपया सुविचार लिखें!");
+
+      try {
+        await db.collection('settings').doc('dailySandesh').set({ text: txt });
+        document.getElementById('adminBannerInput').value = '';
+        showToast("✅ सुविचार मुख्य वेबसाइट पर लाइव हो गया!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function saveAdminAmavasya() {
+      const name = document.getElementById('adminAmavasyaName')?.value.trim();
+      const date = document.getElementById('adminAmavasyaDate')?.value;
+      const desc = document.getElementById('adminAmavasyaDesc')?.value.trim();
+      if (!date) return showToast("कृपया अमावस्या की तारीख चुनें!");
+
+      try {
+        await db.collection('settings').doc('amavasyaConfig').set({
+          name: name || "पावन अमावस्या",
+          date: date,
+          desc: desc || "उपवास, ध्यान एवं हवन साधना"
+        });
+        showToast("✅ अमावस्या तिथि सफलतापूर्वक सहेजी गई!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function loadExistingSettings() {
+      db.collection('settings').doc('dailySandesh').get().then(doc => {
+        if (doc.exists && doc.data().text) {
+          const el = document.getElementById('adminBannerInput');
+          if (el) el.placeholder = doc.data().text;
+        }
+      });
+      db.collection('settings').doc('amavasyaConfig').get().then(doc => {
+        if (doc.exists) {
+          const d = doc.data();
+          if (document.getElementById('adminAmavasyaName')) document.getElementById('adminAmavasyaName').value = d.name || '';
+          if (document.getElementById('adminAmavasyaDate')) document.getElementById('adminAmavasyaDate').value = d.date || '';
+          if (document.getElementById('adminAmavasyaDesc')) document.getElementById('adminAmavasyaDesc').value = d.desc || '';
+        }
+      });
+      db.collection('settings').doc('dailyWinners').get().then(doc => {
+        if (doc.exists) {
+          const d = doc.data();
+          if (document.getElementById('win1Name')) document.getElementById('win1Name').value = d.p1Name || '';
+          if (document.getElementById('win1Score')) document.getElementById('win1Score').value = d.p1Score || '';
+          if (document.getElementById('win2Name')) document.getElementById('win2Name').value = d.p2Name || '';
+          if (document.getElementById('win2Score')) document.getElementById('win2Score').value = d.p2Score || '';
+          if (document.getElementById('win3Name')) document.getElementById('win3Name').value = d.p3Name || '';
+          if (document.getElementById('win3Score')) document.getElementById('win3Score').value = d.p3Score || '';
+        }
+      });
+    }
+
+    // 4. LITERATURE & AUDIO
+    async function saveAdminPdf() {
+      const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
+      const title = document.getElementById('adminPdfTitle')?.value.trim();
+      const link = document.getElementById('adminPdfLink')?.value.trim();
+      if (!title || !link) return showToast("कृपया शीर्षक और लिंक दोनों दर्ज करें!");
+
+      try {
+        await db.collection('pdfs').add({
+          tag, title, link,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        document.getElementById('adminPdfTitle').value = '';
+        document.getElementById('adminPdfLink').value = '';
+        showToast("✅ PDF ग्रंथ जोड़ा गया!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function saveAdminAudio() {
+      const title = document.getElementById('adminAudioTitle')?.value.trim();
+      const link = document.getElementById('adminAudioLink')?.value.trim();
+      if (!title || !link) return showToast("कृपया शीर्षक और ऑडियो लिंक दर्ज करें!");
+
+      try {
+        await db.collection('audios').add({
+          title, link,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        document.getElementById('adminAudioTitle').value = '';
+        document.getElementById('adminAudioLink').value = '';
+        showToast("✅ ऑडियो भजन जोड़ा गया!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    function listenPdfAndAudio() {
+      db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        const box = document.getElementById('adminPdfManageList');
+        if (!box) return;
+        box.innerHTML = '';
+        snap.forEach(doc => {
+          box.innerHTML += `
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200">
+              <span class="font-semibold text-stone-800 truncate">${doc.data().title}</span>
+              <button onclick="deleteDocItem('pdfs', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0 ml-2">हटाएं</button>
+            </div>
+          `;
+        });
+      });
+
+      db.collection('audios').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        const box = document.getElementById('adminAudioManageList');
+        if (!box) return;
+        box.innerHTML = '';
+        snap.forEach(doc => {
+          box.innerHTML += `
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200">
+              <span class="font-semibold text-stone-800 truncate">${doc.data().title}</span>
+              <button onclick="deleteDocItem('audios', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0 ml-2">हटाएं</button>
+            </div>
+          `;
+        });
+      });
+    }
+
+    async function deleteDocItem(col, id) {
+      if (!confirm("क्या आप इसे हटाना चाहते हैं?")) return;
+      try {
+        await db.collection(col).doc(id).delete();
+        showToast("आइटम हटा दिया गया।");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    // 5. BULK QUESTION BANK & WINNERS
+    async function saveDailyWinners() {
+      try {
+        await db.collection('settings').doc('dailyWinners').set({
+          p1Name: document.getElementById('win1Name')?.value.trim() || '—',
+          p1Score: document.getElementById('win1Score')?.value.trim() || '—',
+          p2Name: document.getElementById('win2Name')?.value.trim() || '—',
+          p2Score: document.getElementById('win2Score')?.value.trim() || '—',
+          p3Name: document.getElementById('win3Name')?.value.trim() || '—',
+          p3Score: document.getElementById('win3Score')?.value.trim() || '—'
+        });
+        showToast("✅ शीर्ष विजेता सूची अपडेट हो गई!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function clearDailyWinnersToBlank() {
+      try {
+        await db.collection('settings').doc('dailyWinners').set({
+          p1Name: '—', p1Score: '—',
+          p2Name: '—', p2Score: '—',
+          p3Name: '—', p3Score: '—'
+        });
+        if (document.getElementById('win1Name')) document.getElementById('win1Name').value = '—';
+        if (document.getElementById('win1Score')) document.getElementById('win1Score').value = '—';
+        if (document.getElementById('win2Name')) document.getElementById('win2Name').value = '—';
+        if (document.getElementById('win2Score')) document.getElementById('win2Score').value = '—';
+        if (document.getElementById('win3Name')) document.getElementById('win3Name').value = '—';
+        if (document.getElementById('win3Score')) document.getElementById('win3Score').value = '—';
+        showToast("विजेता सूची रिक्त (Blank) कर दी गई।");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function importBulkQuestions() {
+      const raw = document.getElementById('bulkQuizInput')?.value.trim();
+      if (!raw) return showToast("कृपया प्रश्न पेस्ट करें!");
+
+      const blocks = raw.split(/\n\s*\n/);
+      const batch = db.batch();
+      let count = 0;
+
+      for (let b of blocks) {
+        const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+        let q = '', opts = [], ans = 0;
+        for (let l of lines) {
+          if (/^Q\s*:/i.test(l)) q = l.replace(/^Q\s*:/i, '').trim();
+          else if (/^[A-D]\s*\)/i.test(l)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
+          else if (/^Ans\s*:/i.test(l)) {
+            const char = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
+            ans = char === 'A' ? 0 : char === 'B' ? 1 : char === 'C' ? 2 : 3;
+          }
+        }
+        if (q && opts.length >= 2) {
+          const ref = db.collection('quiz').doc();
+          batch.set(ref, { q, opts, ans, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          count++;
+        }
+      }
+
+      if (count === 0) return showToast("प्रारूप अमान्य है! कृपया प्रारूप जाँचें।");
+
+      try {
+        await batch.commit();
+        document.getElementById('bulkQuizInput').value = '';
+        showToast(`✅ ${count} प्रश्न क्विज़ बैंक में जोड़े गए!`);
+      } catch (err) {
+        showToast("इम्पोर्ट त्रुटि: " + err.message);
+      }
+    }
+
+    function listenQuizQuestions() {
+      db.collection('quiz').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        const box = document.getElementById('adminQuizList');
+        if (!box) return;
+        box.innerHTML = '';
+        snap.forEach(doc => {
+          box.innerHTML += `
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200">
+              <span class="truncate pr-2">${doc.data().q}</span>
+              <button onclick="deleteDocItem('quiz', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">हटाएं</button>
+            </div>
+          `;
+        });
+      });
+    }
+
+    async function clearAllQuizQuestions() {
+      if (!confirm("क्या आप वास्तव में सभी प्रश्न बैंक हटाना चाहते हैं?")) return;
+      try {
+        const snap = await db.collection('quiz').get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        showToast("सभी प्रश्न हटा दिए गए।");
+      } catch (err) {
+        showToast("त्रुटि: " + err.message);
+      }
+    }
+
+    // 6. EXAM PROCTORING TOGGLE & SUBMISSIONS
+    function listenProctoringConfig() {
+      db.collection('settings').doc('examConfig').onSnapshot(doc => {
+        const isEnabled = doc.exists && doc.data().proctoringEnabled === true;
+        const toggle = document.getElementById('examProctoringToggle');
+        const badge = document.getElementById('proctoringStatusBadge');
+        if (toggle) toggle.checked = isEnabled;
+        if (badge) {
+          badge.className = isEnabled 
+            ? "p-2.5 rounded-xl bg-emerald-50 text-forest font-bold text-xs border border-emerald-200" 
+            : "p-2.5 rounded-xl bg-stone-100 text-stone-600 font-bold text-xs border border-stone-200";
+          badge.innerText = isEnabled 
+            ? "✓ कैमरा फोटो कैप्चरिंग सक्रिय है (Active)" 
+            : "🔒 कैमरा प्रोक्टरिंग निष्क्रिय है (Disabled)";
+        }
+      });
+    }
+
+    async function toggleExamProctoring(val) {
+      try {
+        await db.collection('settings').doc('examConfig').set({
+          proctoringEnabled: val
+        }, { merge: true });
+        showToast(val ? "📷 फोटो प्रोक्टरिंग ऑन कर दी गई!" : "🔒 प्रोक्टरिंग बंद की गई।");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function loadExamSubmissions() {
+      const list = document.getElementById('examSubmissionsList');
+      if (!list) return;
+      list.innerHTML = `<div class="text-stone-400">सबमिशन लोड हो रहे हैं...</div>`;
+
+      try {
+        const snap = await db.collection('quizAttempts').orderBy('submittedAt', 'desc').limit(20).get();
+        if (snap.empty) {
+          list.innerHTML = `<div class="text-stone-400">कोई सबमिशन नहीं मिला।</div>`;
+          return;
+        }
+
+        list.innerHTML = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          list.innerHTML += `
+            <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-forest">${d.name || 'प्रतिभागी'}</span>
+                <span class="text-[11px] text-stone-500 block">स्कोर: ${d.score}/${d.total} (${d.percentage}%)</span>
+              </div>
+              <span class="text-[10px] text-stone-400 font-mono">सत्यापित</span>
+            </div>
+          `;
+        });
+      } catch (e) {
+        list.innerHTML = `<div class="text-red-600">त्रुटि: ${e.message}</div>`;
+      }
+    }
+
+    // 7. MAINTENANCE CONTROLS & TRUSTED EDITORS
+    async function saveMaintenanceSettings() {
+      const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
+      const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
+      const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
+
+      const sections = {
+        mala: document.getElementById('lock_mala')?.value || 'off',
+        library: document.getElementById('lock_library')?.value || 'off',
+        quiz: document.getElementById('lock_quiz')?.value || 'off',
+        community: document.getElementById('lock_community')?.value || 'off'
+      };
+
+      try {
+        await db.collection('settings').doc('maintenance').set({
+          globalMode, message, vipBypass, sections
+        }, { merge: true });
+        showToast("✅ मेंटेनेंस सेटिंग्स सफलतापूर्वक लागू की गईं!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    function listenTrustedEditors() {
+      db.collection('settings').doc('editorRoles').onSnapshot(doc => {
+        editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
+        const box = document.getElementById('trustedEditorsListBox');
+        if (!box) return;
+        if (editorsPhoneList.length === 0) {
+          box.innerHTML = `<div class="text-stone-400">कोई सहायक संपादक नहीं है।</div>`;
+          return;
+        }
+        box.innerHTML = editorsPhoneList.map(ph => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+            <span class="font-bold text-forest">✍️ संपादक नंबर: ${ph}</span>
+            <button onclick="removeTrustedEditor('${ph}')" class="text-red-600 font-bold hover:underline">हटाएं</button>
+          </div>
+        `).join('');
+      });
+    }
+
+    async function addTrustedEditor() {
+      const ph = document.getElementById('newEditorPhoneInput')?.value.trim();
+      if (!/^[6-9]\d{9}$/.test(ph)) return showToast("कृपया सही 10-अंकों का नंबर दर्ज करें!");
+      if (!editorsPhoneList.includes(ph)) editorsPhoneList.push(ph);
+
+      try {
+        await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
+        document.getElementById('newEditorPhoneInput').value = '';
+        showToast("✅ नया संपादक नियुक्त किया गया!");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    async function removeTrustedEditor(ph) {
+      editorsPhoneList = editorsPhoneList.filter(p => p !== ph);
+      try {
+        await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
+        showToast("संपादक अधिकार हटा दिया गया।");
+      } catch (e) {
+        showToast("त्रुटि: " + e.message);
+      }
+    }
+
+    // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
+    async function exportQuizResultsPdf() {
+      try {
+        const snap = await db.collection('quizAttempts').get();
+        if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
+
+        const rows = [];
+        snap.forEach(d => {
+          const r = d.data();
+          rows.push([r.name || 'प्रतिभागी', `${r.score}/${r.total}`, `${r.percentage}%`]);
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("Bishnoi Digital Platform - Quiz Performance Report", 14, 18);
+        doc.autoTable({ startY: 25, head: [['Candidate Name', 'Score', 'Percentage']], body: rows });
+        doc.save("Bishnoi_Quiz_Report.pdf");
+        showToast("✅ क्विज़ PDF रिपोर्ट डाउनलोड हो गई!");
+      } catch (e) {
+        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+      }
+    }
+
+    async function exportQuizResultsExcel() {
+      try {
+        const snap = await db.collection('quizAttempts').get();
+        if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
+
+        const data = [];
+        snap.forEach(d => {
+          const r = d.data();
+          data.push({
+            "Candidate Name": r.name || 'प्रतिभागी',
+            "Score": `${r.score}/${r.total}`,
+            "Percentage": `${r.percentage}%`
+          });
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "QuizResults");
+        XLSX.writeFile(wb, "Bishnoi_Quiz_Results.xlsx");
+        showToast("✅ क्विज़ Excel शीट डाउनलोड हो गई!");
+      } catch (e) {
+        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+      }
+    }
+
+    async function exportMembersPdf() {
+      try {
+        const snap = await db.collection('users').get();
+        if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
+
+        const rows = [];
+        snap.forEach(d => {
+          const u = d.data();
+          rows.push([u.name || 'सदस्य', u.phone || u.email || '-', u.location || '-']);
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("Bishnoi Digital Platform - Registered Members", 14, 18);
+        doc.autoTable({ startY: 25, head: [['Name', 'Contact Identifier', 'Location']], body: rows });
+        doc.save("Bishnoi_Members_List.pdf");
+        showToast("✅ सदस्य PDF रिपोर्ट डाउनलोड हो गई!");
+      } catch (e) {
+        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+      }
+    }
+
+    async function exportMembersExcel() {
+      try {
+        const snap = await db.collection('users').get();
+        if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
+
+        const data = [];
+        snap.forEach(d => {
+          const u = d.data();
+          data.push({
+            "Name": u.name || 'सदस्य',
+            "Contact Identifier": u.phone || u.email || '-',
+            "Location": u.location || '-'
+          });
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Members");
+        XLSX.writeFile(wb, "Bishnoi_Members_List.xlsx");
+        showToast("✅ सदस्य Excel शीट डाउनलोड हो गई!");
+      } catch (e) {
+        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+      }
+    }
+
+    function handleStudioLogout() {
+      auth.signOut().then(() => {
+        window.location.href = "index.html";
+      });
+    }
+  </script>
+</body>
+</html>
