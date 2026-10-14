@@ -1628,7 +1628,9 @@
         if (phoneInput) phoneInput.value = profile.phone || state.user.phoneNumber || '';
         setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
         setText('profileEmailDisplay', email);
-        setText('profileAccountStatus', state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता • अपनी जानकारी अपडेट करें');
+        const verification = profile.verificationStatus || 'unverified';
+        const verificationLabel = verification === 'confirmed' ? 'व्यवस्थापक द्वारा सत्यापित' : verification === 'rejected' ? 'सत्यापन अस्वीकृत' : 'सत्यापन लंबित';
+        setText('profileAccountStatus', (state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता') + ' • ' + verificationLabel);
         setText('profileRoleBadge', state.isOwner ? 'OWNER' : 'सदस्य');
         setText('statMalaTotal', state.mala.count || 0);
         setText('statMalaLaps', state.mala.laps || 0);
