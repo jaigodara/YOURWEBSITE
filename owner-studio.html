@@ -401,11 +401,11 @@ Ans: B"></textarea>
       <!-- STUDENT / ADMIT-CARD CONFIRMATION -->
       <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ विद्यार्थी / प्रवेश-पत्र पुष्टि</h3>
-        <p class="text-xs text-stone-500">लॉगिन खातों की वास्तविकता जाँचने के लिए users चुनें; परीक्षा प्रवेश-पत्र के लिए आपके वास्तविक registration collection का उपयोग करें। पुष्टि के साथ रोल नंबर दें, तभी प्रवेश-पत्र बनाया जा सकेगा।</p>
+        <p class="text-xs text-stone-500">वेबसाइट से आए विद्यार्थियों के लिए examEnrolledStudents चुनें। रोल नंबर अपने-आप बनता है; आपको केवल विद्यार्थी की जाँच करके पुष्टि करनी है। प्रवेश-पत्र पुष्टि के बाद उपलब्ध होगा।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
           <select id="registrationCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+            <option value="examEnrolledStudents" selected>examEnrolledStudents (वेबसाइट परीक्षा पंजीकरण)</option>
             <option value="users">users (लॉगिन खाते)</option>
-            <option value="examEnrolledStudents">examEnrolledStudents (वेबसाइट परीक्षा पंजीकरण)</option>
             <option value="examRegistrations">examRegistrations</option>
             <option value="studentRegistrations">studentRegistrations</option>
             <option value="registrations">registrations</option>
@@ -423,7 +423,17 @@ Ans: B"></textarea>
 
     <!-- PANE 5: SECTION MAINTENANCE, VIP BYPASS, TRUSTED EDITORS & DATA EXPORT -->
     <div id="pane_system" class="hidden space-y-4">
-      
+
+      <!-- OWNER BROADCAST NOTIFICATIONS -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">🔔 सभी उपयोगकर्ताओं के लिए सूचना भेजें</h3>
+        <p class="text-xs text-stone-500">यह संदेश मुख्य वेबसाइट के ऊपर “नई सूचनाएँ और घोषणाएँ” में सभी visitors को दिखाई देगा। प्रवेश-पत्र, परीक्षा तारीख या नई सामग्री की जानकारी यहाँ लिखें।</p>
+        <input id="notificationTitle" maxlength="100" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="सूचना का शीर्षक (जैसे प्रवेश-पत्र उपलब्ध हैं)">
+        <textarea id="notificationMessage" maxlength="2000" rows="3" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="पूरी जानकारी लिखें…"></textarea>
+        <button id="publishNotificationButton" type="button" onclick="publishPortalNotification()" class="px-4 py-2.5 rounded-xl bg-forest text-white font-bold text-xs">📣 सभी को सूचना प्रकाशित करें</button>
+        <p id="ownerNotificationStatus" class="text-xs text-stone-500" aria-live="polite"></p>
+      </div>
+
       <!-- PER-SECTION SOFT MAINTENANCE CONTROLLER -->
       <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b border-stone-100 pb-2">
@@ -1391,12 +1401,12 @@ Ans: B"></textarea>
     async function loadRegistrationReviews() {
       const list = document.getElementById('registrationReviewList');
       if (!list) return;
-      const collectionName = document.getElementById('registrationCollection')?.value || 'users';
+      const collectionName = document.getElementById('registrationCollection')?.value || 'examEnrolledStudents';
       const queryText = (document.getElementById('registrationSearch')?.value || '').trim().toLowerCase();
       list.innerHTML = '<div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लोड हो रहे हैं...</div>';
       try {
         const snap = await db.collection(collectionName).limit(100).get();
-        const rows = snap.docs.map(doc => ({ id: doc.id, uid: doc.data().uid || doc.id, ...doc.data() })).filter(d => {
+        const rows = snap.docs.map(doc => { const data = doc.data() || {}; const uid = data.uid || doc.id; return { id: doc.id, ...data, uid, ...(collectionName === 'examEnrolledStudents' ? { rollNumber: data.rollNumber || ('BIS-' + uid) } : {}) }; }).filter(d => {
           const haystack = [d.name, d.displayName, d.fullName, d.rollNumber, d.uid, d.email, d.phone, d.mobile].join(' ').toLowerCase();
           return !queryText || haystack.includes(queryText);
         });
@@ -1422,6 +1432,7 @@ Ans: B"></textarea>
           rollInput.maxLength = 40;
           rollInput.placeholder = 'रोल नंबर';
           rollInput.value = d.rollNumber || '';
+          if (collectionName === 'examEnrolledStudents') { rollInput.readOnly = true; rollInput.title = 'यह रोल नंबर UID से अपने-आप बनाया गया है'; rollInput.classList.add('bg-stone-100'); }
           rollInput.className = 'p-2 rounded-lg border border-stone-300 text-xs w-28';
           const status = document.createElement('select');
           status.className = 'p-2 rounded-lg border border-stone-300 text-xs';
@@ -1445,7 +1456,7 @@ Ans: B"></textarea>
           save.addEventListener('click', async () => {
             save.disabled = true;
             try {
-              const rollNumber = rollInput.value.trim();
+              const rollNumber = collectionName === 'examEnrolledStudents' ? (d.rollNumber || ('BIS-' + (d.uid || d.id))) : rollInput.value.trim();
               if (status.value === 'confirmed' && !rollNumber) {
                 showToast('पुष्टि से पहले विद्यार्थी का रोल नंबर दर्ज करें।');
                 save.disabled = false;
@@ -1707,6 +1718,47 @@ Ans: B"></textarea>
         showToast("एक्सपोर्ट त्रुटि: " + e.message);
       }
     }
+
+    async function publishPortalNotification() {
+      const titleInput = document.getElementById('notificationTitle');
+      const messageInput = document.getElementById('notificationMessage');
+      const status = document.getElementById('ownerNotificationStatus');
+      const button = document.getElementById('publishNotificationButton');
+      const title = (titleInput?.value || '').trim();
+      const message = (messageInput?.value || '').trim();
+      if (!currentAdminUser || !['owner','editor'].includes(currentAdminUser.role)) {
+        if (status) status.textContent = 'केवल अधिकृत owner/editor सूचना प्रकाशित कर सकते हैं।';
+        return;
+      }
+      if (!title || !message) {
+        if (status) status.textContent = 'शीर्षक और सूचना दोनों लिखें।';
+        return;
+      }
+      if (button) button.disabled = true;
+      if (status) status.textContent = 'सूचना प्रकाशित की जा रही है…';
+      try {
+        await db.collection('notifications').add({
+          title,
+          message,
+          active: true,
+          audience: 'all',
+          type: 'announcement',
+          createdBy: auth.currentUser?.uid || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (titleInput) titleInput.value = '';
+        if (messageInput) messageInput.value = '';
+        if (status) status.textContent = 'सूचना प्रकाशित हो गई। नियमों की अनुमति होने पर यह मुख्य वेबसाइट पर दिखाई देगी।';
+        showToast('सूचना प्रकाशित कर दी गई।');
+      } catch (error) {
+        console.error('Notification publish failed:', error);
+        if (status) status.textContent = 'सूचना प्रकाशित नहीं हुई: ' + error.message + ' — notifications collection के Firestore rules जाँचें।';
+        showToast('सूचना प्रकाशित नहीं हो सकी।');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+    window.publishPortalNotification = publishPortalNotification;
 
     function handleStudioLogout() {
       auth.signOut().then(() => {
