@@ -570,6 +570,13 @@ Ans: B"></textarea>
           }
 
           currentAdminUser = { uid: user.uid, role: role || 'owner' };
+          const hasOwnerRole = role === 'owner' || user.uid === SUPER_OWNER_UID || user.uid === RECOVERED_OWNER_UID;
+          if (!hasOwnerRole) {
+            ['btn_pane_media', 'btn_pane_quiz', 'btn_pane_exam', 'btn_pane_system'].forEach(id => {
+              document.getElementById(id)?.classList.add('hidden');
+            });
+            document.querySelectorAll('[onclick*="switchStudioPane(\'pane_media\')"], [onclick*="switchStudioPane(\'pane_quiz\')"], [onclick*="switchStudioPane(\'pane_exam\')"], [onclick*="switchStudioPane(\'pane_system\')"]').forEach(el => el.classList.add('hidden'));
+          }
           document.getElementById('adminAuthLock')?.classList.add('hidden');
 
           // Initialize Dashboard Listeners
@@ -591,6 +598,11 @@ Ans: B"></textarea>
     });
 
     function switchStudioPane(paneId) {
+      const isOwner = currentAdminUser?.role === 'owner' || currentAdminUser?.uid === SUPER_OWNER_UID || currentAdminUser?.uid === RECOVERED_OWNER_UID;
+      if (!isOwner && paneId !== 'pane_overview') {
+        showToast('Trusted Editor को केवल ड्राफ्ट/समीक्षा पैनल की अनुमति है। अन्य बदलाव मुख्य व्यवस्थापक कर सकते हैं।');
+        return;
+      }
       ['pane_overview', 'pane_media', 'pane_quiz', 'pane_exam', 'pane_system'].forEach(id => {
         document.getElementById(id)?.classList.add('hidden');
         document.getElementById(`btn_${id}`)?.classList.remove('admin-subtab-active');
