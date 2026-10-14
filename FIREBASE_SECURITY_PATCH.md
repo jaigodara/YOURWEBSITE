@@ -24,6 +24,23 @@ Keep the existing signedIn() and owner() helpers. This helper intentionally excl
         request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1));
     }
 
+    function sessionDeadlineReached(mode) {
+      let sessionPath = /databases/$(database)/documents/examSessions/$(request.auth.uid + '_' + mode);
+      return exists(sessionPath) &&
+        get(sessionPath).data.get('endAt', null) != null &&
+        request.time >= get(sessionPath).data.endAt;
+    }
+
+    function validScheduledSessionEnd(mode, endAt) {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return exists(configPath) && (
+        (mode == 'quiz' && endAt == get(configPath).data.get('quizEndAt', null)) ||
+        (mode == 'mock1' && endAt == get(configPath).data.get('mock1EndAt', null)) ||
+        (mode == 'mock2' && endAt == get(configPath).data.get('mock2EndAt', null)) ||
+        (mode == 'main' && endAt == get(configPath).data.get('mainEndAt', null))
+      );
+    }
+
     function editorHasPermission(permission) {
       let rolePath = /databases/$(database)/documents/roles/$(request.auth.uid);
       return signedIn() &&
@@ -216,8 +233,8 @@ Replace the existing create rules for the three submission collections with the 
       allow create: if confirmedExamStudent() &&
         request.resource.data.uid == request.auth.uid &&
         (
-          (request.resource.data.mode == 'mock1' && examStarted('mock1StartAt')) ||
-          (request.resource.data.mode == 'mock2' && examStarted('mock2StartAt'))
+          (request.resource.data.mode == 'mock1' && examStarted('mock1StartAt') && sessionDeadlineReached('mock1')) ||
+          (request.resource.data.mode == 'mock2' && examStarted('mock2StartAt') && sessionDeadlineReached('mock2'))
         );
       allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
@@ -228,7 +245,8 @@ Replace the existing create rules for the three submission collections with the 
       allow create: if confirmedExamStudent() &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.mode == 'main' &&
-        examStarted('mainStartAt');
+        examStarted('mainStartAt') &&
+        sessionDeadlineReached('main');
       allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
       allow update, delete: if canReviewExam();
@@ -243,7 +261,13 @@ Add this match block to let students create/update only their own session metada
     match /examSessions/{sessionId} {
       allow create: if signedIn() &&
         request.resource.data.uid == request.auth.uid &&
-        request.resource.data.status in ['active', 'late_request'];
+        (
+          request.resource.data.status == 'late_request' ||
+          (
+            request.resource.data.status == 'active' &&
+            validScheduledSessionEnd(request.resource.data.mode, request.resource.data.endAt)
+          )
+        );
       allow read: if examOwner() ||
         (signedIn() && resource.data.uid == request.auth.uid);
       allow update: if examOwner() || (
@@ -255,6 +279,7 @@ Add this match block to let students create/update only their own session metada
           'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt',
           'lateEntryRequested', 'requestedAt', 'reentryGrantConsumedAt'
         ]) &&
+        request.resource.data.get('endAt', null) == resource.data.get('endAt', null) &&
         (
           request.resource.data.status == resource.data.status ||
           (resource.data.status == 'active' && request.resource.data.status == 'kicked') ||
