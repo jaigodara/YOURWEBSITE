@@ -1788,6 +1788,7 @@ function renderExamVisibility() {
       if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
         notify('टैब बदलने की सीमा पूरी हुई। उत्तर सुरक्षित हैं; दोबारा प्रवेश के लिए व्यवस्थापक से संपर्क करें।', 'error');
         state.exam.active = false;
+        updateExamSession('kicked', { kickedAt: serverTimestamp(), reason: 'tab_switch_limit' });
         stopExamResources();
         setText('examResult', 'परीक्षा अस्थायी रूप से लॉक की गई है। आपके उत्तर इसी टैब में सुरक्षित हैं; व्यवस्थापक से अनुमति लें।');
         setVisible('submitExamBtn', false);
