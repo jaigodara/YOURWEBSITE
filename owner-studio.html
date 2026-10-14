@@ -318,8 +318,17 @@ C) 36
 D) 108
 Ans: B"></textarea>
         <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
-          🚀 सभी प्रश्न सीधे डेटाबेस में जोड़ें
+          👀 पहले सभी प्रश्नों का Preview / जाँच करें
         </button>
+        <section id="bulkQuestionPreviewSection" class="hidden pt-3 space-y-3" aria-live="polite">
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+            हर प्रश्न, चारों विकल्प और सही उत्तर जाँचें। गलत प्रश्न हटाएँ या यहीं सुधारें। नीचे का बटन केवल Draft में सहेजेगा; विद्यार्थियों के लिए प्रकाशित करने का अलग बटन होगा।
+          </div>
+          <div id="bulkQuestionPreview" class="space-y-3"></div>
+          <button id="saveBulkQuestionDraftsButton" type="button" onclick="saveBulkQuestionDrafts()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
+            💾 जाँचे गए प्रश्न Draft में सहेजें
+          </button>
+        </section>
         <div class="pt-2 border-t border-stone-100">
           <div class="flex items-center justify-between mb-1.5">
             <h4 class="font-bold text-xs text-forest">वर्तमान प्रश्न बैंक सूची:</h4>
@@ -883,60 +892,202 @@ Ans: B"></textarea>
       }
     }
 
+    let bulkQuestionDrafts = [];
+    let bulkEditingQuestionId = null;
+
+    function renderBulkQuestionPreview() {
+      const section = document.getElementById('bulkQuestionPreviewSection');
+      const host = document.getElementById('bulkQuestionPreview');
+      const saveButton = document.getElementById('saveBulkQuestionDraftsButton');
+      if (!section || !host) return;
+      host.replaceChildren();
+      section.classList.toggle('hidden', bulkQuestionDrafts.length === 0);
+      if (saveButton) saveButton.disabled = bulkQuestionDrafts.length === 0;
+
+      bulkQuestionDrafts.forEach((question, index) => {
+        const card = document.createElement('article');
+        card.className = 'rounded-2xl border border-stone-200 bg-white p-3 space-y-2';
+        const heading = document.createElement('div');
+        heading.className = 'flex items-center justify-between gap-2';
+        const label = document.createElement('strong');
+        label.className = 'text-xs text-forest';
+        label.textContent = 'प्रश्न ' + (index + 1) + (question.id ? ' · मौजूदा प्रश्न संपादन' : ' · Draft Preview');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-700';
+        remove.textContent = '✕ प्रश्न हटाएँ';
+        remove.addEventListener('click', () => {
+          bulkQuestionDrafts.splice(index, 1);
+          renderBulkQuestionPreview();
+        });
+        heading.append(label, remove);
+
+        const qLabel = document.createElement('label');
+        qLabel.className = 'block text-xs font-semibold text-stone-700';
+        qLabel.textContent = 'प्रश्न का पूरा पाठ';
+        const qInput = document.createElement('textarea');
+        qInput.rows = 2;
+        qInput.maxLength = 5000;
+        qInput.value = question.q || '';
+        qInput.className = 'w-full rounded-xl border border-stone-300 p-2.5 text-sm';
+        qInput.addEventListener('input', () => { question.q = qInput.value; });
+        qLabel.appendChild(qInput);
+        card.append(heading, qLabel);
+
+        question.opts = Array.isArray(question.opts) ? question.opts : ['', '', '', ''];
+        ['A', 'B', 'C', 'D'].forEach((letter, optionIndex) => {
+          const labelEl = document.createElement('label');
+          labelEl.className = 'block text-xs font-semibold text-stone-700';
+          labelEl.textContent = 'विकल्प ' + letter;
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.maxLength = 2000;
+          input.value = question.opts[optionIndex] || '';
+          input.className = 'mt-1 w-full rounded-xl border border-stone-300 p-2.5 text-sm font-normal';
+          input.addEventListener('input', () => { question.opts[optionIndex] = input.value; });
+          labelEl.appendChild(input);
+          card.appendChild(labelEl);
+        });
+
+        const answerLabel = document.createElement('label');
+        answerLabel.className = 'block text-xs font-semibold text-stone-700';
+        answerLabel.textContent = 'सही उत्तर चुनें';
+        const answerSelect = document.createElement('select');
+        answerSelect.className = 'mt-1 w-full rounded-xl border border-stone-300 p-2.5 text-sm';
+        [['0','A'],['1','B'],['2','C'],['3','D']].forEach(([value, text]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = text;
+          answerSelect.appendChild(option);
+        });
+        answerSelect.value = String(Number(question.ans) || 0);
+        answerSelect.addEventListener('change', () => { question.ans = Number(answerSelect.value); });
+        answerLabel.appendChild(answerSelect);
+        card.appendChild(answerLabel);
+        host.appendChild(card);
+      });
+      if (bulkQuestionDrafts.length) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
       if (!raw) return showToast('कृपया प्रश्न पेस्ट करें!');
-      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
-      const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
-      if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
-
-      const blocks = raw.split(/(?=^\s*Q\s*:)/im).map(x => x.trim()).filter(Boolean);
+      const blocks = raw.split(new RegExp('(?=^\\\\s*Q\\\\s*:)', 'im')).map(x => x.trim()).filter(Boolean);
       const parsed = [];
       const errors = [];
       blocks.forEach((block, index) => {
-        const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+        const lines = block.split(new RegExp('\\\\r?\\\\n')).map(x => x.trim()).filter(Boolean);
         let q = '';
         const opts = [];
         let ansLetter = '';
         for (const line of lines) {
-          if (/^Q\s*:/i.test(line)) q = line.replace(/^Q\s*:/i, '').trim();
-          else if (/^[A-D]\s*[).:-]/i.test(line)) opts.push(line.replace(/^[A-D]\s*[).:-]\s*/i, '').trim());
-          else if (/^(?:Ans|Answer|उत्तर)\s*:/i.test(line)) ansLetter = line.replace(/^(?:Ans|Answer|उत्तर)\s*:/i, '').trim().toUpperCase();
+          if (new RegExp('^Q\\\\s*:', 'i').test(line)) q = line.replace(new RegExp('^Q\\\\s*:', 'i'), '').trim();
+          else if (new RegExp('^[A-D]\\\\s*[).:-]', 'i').test(line)) opts.push(line.replace(new RegExp('^[A-D]\\\\s*[).:-]\\\\s*', 'i'), '').trim());
+          else if (new RegExp('^(?:Ans|Answer|उत्तर)\\\\s*:', 'i').test(line)) ansLetter = line.replace(new RegExp('^(?:Ans|Answer|उत्तर)\\\\s*:', 'i'), '').trim().toUpperCase();
         }
-        if (!q || opts.length !== 4 || !['A','B','C','D'].includes(ansLetter)) {
-          errors.push('प्रश्न ' + (index + 1) + ': प्रश्न, चार विकल्प (A-D) और Ans: A/B/C/D आवश्यक हैं।');
+        if (!q || opts.length !== 4 || !['A','B','C','D'].includes(ansLetter) || opts.some(option => !option)) {
+          errors.push('प्रश्न ' + (index + 1) + ': प्रश्न, चार भरे हुए विकल्प और Ans: A/B/C/D आवश्यक हैं।');
           return;
         }
         parsed.push({ q, opts, ans: ['A','B','C','D'].indexOf(ansLetter) });
       });
-      if (!parsed.length) return showToast(errors[0] || 'प्रारूप अमान्य है।');
+      if (errors.length || parsed.length !== blocks.length) {
+        return showToast(errors.length + ' प्रश्नों का प्रारूप गलत है। कोई डेटा सहेजा नहीं गया। ' + (errors[0] || 'प्रारूप जाँचें।'));
+      }
+      if (!parsed.length) return showToast('प्रारूप अमान्य है।');
       if (parsed.length > 450) return showToast('एक बार में अधिकतम 450 प्रश्न जोड़ें।');
-      if (errors.length) return showToast(errors.length + ' प्रश्नों का प्रारूप गलत है। पहले उन्हें ठीक करें; कोई प्रश्न सेव नहीं किया गया। ' + errors[0]);
+      bulkEditingQuestionId = null;
+      bulkQuestionDrafts = parsed;
+      renderBulkQuestionPreview();
+      showToast(parsed.length + ' प्रश्न Preview में हैं। सही उत्तर और विकल्प जाँचकर Draft में सहेजें।');
+    }
 
+    async function saveBulkQuestionDrafts() {
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+      if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
+      if (!bulkQuestionDrafts.length) return showToast('पहले प्रश्नों का Preview तैयार करें।');
+      if (bulkQuestionDrafts.some(q => !String(q.q || '').trim() || !Array.isArray(q.opts) || q.opts.length !== 4 || q.opts.some(x => !String(x || '').trim()) || !Number.isInteger(Number(q.ans)) || Number(q.ans) < 0 || Number(q.ans) > 3)) {
+        return showToast('हर प्रश्न में पूरा पाठ, चार विकल्प और सही उत्तर होना चाहिए।');
+      }
       try {
         const batch = db.batch();
-        parsed.forEach(question => {
-          const ref = db.collection(target).doc();
-          batch.set(ref, {
-            ...question,
-            // Keep both the older Owner Studio fields and the exam engine's canonical schema.
-            question: question.q,
-            text: question.q,
-            options: question.opts,
-            correctAnswer: question.ans,
-            answerIndex: question.ans,
+        bulkQuestionDrafts.forEach(question => {
+          const ref = question.id ? db.collection(target).doc(question.id) : db.collection(target).doc();
+          const data = {
+            q: question.q.trim(),
+            question: question.q.trim(),
+            text: question.q.trim(),
+            opts: question.opts.map(x => String(x).trim()),
+            options: question.opts.map(x => String(x).trim()),
+            ans: Number(question.ans),
+            correctAnswer: Number(question.ans),
+            answerIndex: Number(question.ans),
             examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: auth.currentUser?.uid || null
-          });
+            status: 'draft',
+            published: false,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: auth.currentUser?.uid || null
+          };
+          if (!question.id) {
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            data.createdBy = auth.currentUser?.uid || null;
+          }
+          batch.set(ref, data, { merge: true });
         });
         await batch.commit();
+        const count = bulkQuestionDrafts.length;
+        bulkQuestionDrafts = [];
+        bulkEditingQuestionId = null;
         document.getElementById('bulkQuizInput').value = '';
-        showToast('' + parsed.length + ' प्रश्न ' + target + ' में जोड़े गए।');
+        renderBulkQuestionPreview();
+        listenQuizQuestions();
+        showToast(count + ' प्रश्न Draft में सहेजे गए। विद्यार्थियों को दिखाने के लिए नीचे से प्रकाशित करें।');
       } catch (err) {
-        showToast('इम्पोर्ट त्रुटि: ' + err.message);
+        showToast('Draft सहेजने में त्रुटि: ' + err.message);
       }
     }
+
+    async function editQuestionDoc(target, id) {
+      try {
+        const snap = await db.collection(target).doc(id).get();
+        if (!snap.exists) return showToast('यह प्रश्न अब मौजूद नहीं है।');
+        const d = snap.data() || {};
+        const options = Array.isArray(d.options) ? d.options : Array.isArray(d.opts) ? d.opts : [];
+        if (options.length !== 4) return showToast('इस प्रश्न में चार विकल्प नहीं हैं; पहले डेटा सुधारें।');
+        document.getElementById('bulkQuestionTarget').value = target;
+        bulkQuestionDrafts = [{
+          id,
+          q: String(d.question || d.text || d.q || ''),
+          opts: options.map(option => String(typeof option === 'object' ? (option.text || option.label || option.value || '') : option)),
+          ans: Number(d.correctAnswer ?? d.answerIndex ?? d.ans ?? 0)
+        }];
+        bulkEditingQuestionId = id;
+        renderBulkQuestionPreview();
+        showToast('प्रश्न संपादन के लिए Preview में खुल गया। बदलाव Draft में सहेजने के बाद दोबारा प्रकाशित करें।');
+      } catch (error) {
+        showToast('प्रश्न नहीं खुला: ' + error.message);
+      }
+    }
+
+    async function publishQuestionDoc(target, id, publish) {
+      try {
+        await db.collection(target).doc(id).set({
+          status: publish ? 'published' : 'draft',
+          published: !!publish,
+          ...(publish ? { publishedAt: firebase.firestore.FieldValue.serverTimestamp(), publishedBy: auth.currentUser?.uid || null } : {}),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.currentUser?.uid || null
+        }, { merge: true });
+        showToast(publish ? 'प्रश्न प्रकाशित हो गया। परीक्षा का समय शुरू होने से पहले छात्र प्रवेश नहीं कर पाएँगे।' : 'प्रश्न वापस Draft में कर दिया गया।');
+        listenQuizQuestions();
+      } catch (error) {
+        showToast('प्रकाशन असफल: ' + error.message);
+      }
+    }
+
+    window.saveBulkQuestionDrafts = saveBulkQuestionDrafts;
+    window.importBulkQuestions = importBulkQuestions;
 
     function listenQuizQuestions() {
       if (window.__quizQuestionListener) window.__quizQuestionListener();
@@ -946,12 +1097,32 @@ Ans: B"></textarea>
         if (!box) return;
         box.innerHTML = '';
         snap.forEach(doc => {
-          box.innerHTML += `
-            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200">
-              <span class="truncate pr-2">${doc.data().q}</span>
-              <button onclick="deleteDocItem('${target}', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">हटाएं</button>
-            </div>
-          `;
+          const d = doc.data() || {};
+          const row = document.createElement('div');
+          row.className = 'flex flex-wrap items-center gap-2 p-2 rounded-xl bg-stone-50 border border-stone-200';
+          const title = document.createElement('span');
+          title.className = 'min-w-0 flex-1 text-xs';
+          title.textContent = String(d.question || d.text || d.q || 'प्रश्न').slice(0, 180);
+          const status = document.createElement('span');
+          status.className = 'rounded px-2 py-1 text-[10px] font-bold ' + (d.published === true && d.status !== 'draft' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900');
+          status.textContent = d.published === true && d.status !== 'draft' ? 'प्रकाशित' : 'Draft';
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'rounded-lg border px-2 py-1 text-[10px] font-bold';
+          edit.textContent = '✏️ संपादित करें';
+          edit.addEventListener('click', () => editQuestionDoc(target, doc.id));
+          const publish = document.createElement('button');
+          publish.type = 'button';
+          publish.className = 'rounded-lg border px-2 py-1 text-[10px] font-bold ' + (d.published === true && d.status !== 'draft' ? 'border-amber-300 text-amber-800' : 'border-emerald-300 text-emerald-800');
+          publish.textContent = d.published === true && d.status !== 'draft' ? 'Draft में वापस' : 'प्रकाशित करें';
+          publish.addEventListener('click', () => publishQuestionDoc(target, doc.id, !(d.published === true && d.status !== 'draft')));
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-700';
+          remove.textContent = 'हटाएँ';
+          remove.addEventListener('click', () => deleteDocItem(target, doc.id));
+          row.append(title, status, edit, publish, remove);
+          box.appendChild(row);
         });
       });
     }
