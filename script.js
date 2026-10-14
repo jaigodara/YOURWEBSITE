@@ -1030,8 +1030,12 @@
     if (exam.beforeUnload) {
       window.removeEventListener('beforeunload', exam.beforeUnload);
     }
+    if (exam.visibilityHandler) {
+      document.removeEventListener('visibilitychange', exam.visibilityHandler);
+    }
 
     exam.beforeUnload = null;
+    exam.visibilityHandler = null;
   }
 
   function formatTime(seconds) {
@@ -1107,8 +1111,8 @@
         index: 0,
         answers: {},
         review: {},
-        endAt: Date.now() + CONFIG.defaultExamMinutes * 60 * 1000,
-        durationMinutes: CONFIG.defaultExamMinutes,
+        endAt: Date.now() + Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes) * 60 * 1000,
+        durationMinutes: Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes),
         timer: null,
         tabSwitches: 0,
         submitted: false,
@@ -1136,6 +1140,18 @@
       };
 
       window.addEventListener('beforeunload', state.exam.beforeUnload);
+
+      // Visibility-change monitoring: this is a deterrent, not tamper-proof proctoring.
+      state.exam.visibilityHandler = () => {
+        if (!state.exam.active || document.visibilityState !== 'hidden') return;
+        state.exam.tabSwitches = (state.exam.tabSwitches || 0) + 1;
+        notify(`Exam tab change ${state.exam.tabSwitches}/${CONFIG.maxTabSwitches}.`, 'error');
+        if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
+          notify('Maximum tab changes reached. Submitting the exam.', 'error');
+          window.submitPortalExam(true);
+        }
+      };
+      document.addEventListener('visibilitychange', state.exam.visibilityHandler);
 
       notify('Exam started.', 'success');
     } catch (e) {
@@ -1185,13 +1201,19 @@
 
     const result = {
       uid: state.user.uid,
+      name: state.profile?.displayName || state.user.displayName || state.user.email || 'प्रतिभागी',
+      email: state.user.email || null,
       mode: exam.mode,
+      total: exam.questions.length,
       totalQuestions: exam.questions.length,
       attempted,
       correct,
       score: correct,
+      answers: { ...exam.answers },
+      review: { ...exam.review },
       submittedAt: serverTimestamp(),
-      automatic
+      automatic,
+      manualReviewStatus: 'pending'
     };
 
     try {
