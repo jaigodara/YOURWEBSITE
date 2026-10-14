@@ -204,7 +204,7 @@ In Firebase Console → Storage → Rules, merge the following path rules into y
 
 - Publish the Firestore and Storage rules in Firebase Console; GitHub/Vercel deployment does not deploy Firebase rules.
 - Main/mock submissions and private notifications require corresponding existing match blocks to enforce owner-only writes and student-own reads. Review those existing blocks before publishing.
-- A browser-only exam cannot provide tamper-proof timing or proctoring. Rules can enforce scheduled start and question-read permissions; a trusted backend is needed for fully authoritative deadlines, anti-duplicate submissions, and secure result lookup by roll number/name/DOB.
+- Once these rules are published, Firestore can reject main/mock submissions before the stored session deadline. The browser countdown itself is still client-side and can drift; a trusted backend is needed for authoritative timer display, anti-duplicate attempts, reliable proctoring evidence, and public result lookup without login.
 
 ## 7. Enforce enrollment and scheduled start on submission writes
 
