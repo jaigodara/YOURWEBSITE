@@ -457,6 +457,10 @@ Ans: B"></textarea>
               <span>💬 संवाद मंच (Community)</span>
               <select id="lock_community" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
             </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+              <span>📜 इतिहास व संस्कार</span>
+              <select id="lock_history" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock / अपडेट संदेश</option></select>
+            </div>
           </div>
         </div>
 
@@ -1288,45 +1292,54 @@ Ans: B"></textarea>
     }
 
     function listenTrustedEditors() {
-      db.collection('settings').doc('editorRoles').onSnapshot(doc => {
-        editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
+      db.collection('roles').where('role', '==', 'editor').onSnapshot(snapshot => {
         const box = document.getElementById('trustedEditorsListBox');
         if (!box) return;
-        if (editorsPhoneList.length === 0) {
-          box.innerHTML = `<div class="text-stone-400">कोई सहायक संपादक नहीं है।</div>`;
+        if (snapshot.empty) {
+          box.innerHTML = '<div class="text-stone-400">कोई UID-आधारित सहायक संपादक नियुक्त नहीं है।</div>';
           return;
         }
-        box.innerHTML = editorsPhoneList.map(ph => `
-          <div class="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200">
-            <span class="font-bold text-forest">✍️ संपादक नंबर: ${ph}</span>
-            <button onclick="removeTrustedEditor('${ph}')" class="text-red-600 font-bold hover:underline">हटाएं</button>
-          </div>
-        `).join('');
-      });
+        box.innerHTML = '';
+        snapshot.forEach(doc => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200';
+          const label = document.createElement('span');
+          label.className = 'font-bold text-forest break-all';
+          label.textContent = '✍️ Editor UID: ' + doc.id;
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'text-red-600 font-bold hover:underline shrink-0';
+          remove.textContent = 'हटाएं';
+          remove.addEventListener('click', () => removeTrustedEditor(doc.id));
+          row.append(label, remove);
+          box.appendChild(row);
+        });
+      }, error => showToast('Editor सूची नहीं पढ़ी जा सकी: ' + error.message + ' — roles rules जाँचें।'));
     }
 
     async function addTrustedEditor() {
-      const ph = document.getElementById('newEditorPhoneInput')?.value.trim();
-      if (!/^[6-9]\d{9}$/.test(ph)) return showToast("कृपया सही 10-अंकों का नंबर दर्ज करें!");
-      if (!editorsPhoneList.includes(ph)) editorsPhoneList.push(ph);
-
+      const uid = document.getElementById('newEditorUidInput')?.value.trim();
+      if (!uid || uid.length < 20 || /\s/.test(uid)) return showToast('सही Firebase Authentication UID दर्ज करें।');
+      if (uid === auth.currentUser?.uid) return showToast('अपने UID को editor के रूप में दोबारा जोड़ने की आवश्यकता नहीं है।');
       try {
-        await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
-        document.getElementById('newEditorPhoneInput').value = '';
-        showToast("✅ नया संपादक नियुक्त किया गया!");
+        await db.collection('roles').doc(uid).set({
+          role: 'editor',
+          grantedBy: auth.currentUser?.uid || null,
+          grantedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        document.getElementById('newEditorUidInput').value = '';
+        showToast('Editor role सहेज दिया गया। अगर permission denied आए तो Firestore rules में owner-only role write जोड़ना होगा।');
       } catch (e) {
-        showToast("त्रुटि: " + e.message);
+        showToast('Editor role नहीं सहेजा गया: ' + e.message + ' — यह UID-based role write Firestore rules से अनुमति प्राप्त होना चाहिए।');
       }
     }
 
-    async function removeTrustedEditor(ph) {
-      editorsPhoneList = editorsPhoneList.filter(p => p !== ph);
+    async function removeTrustedEditor(uid) {
+      if (!confirm('इस UID का editor role हटाएँ?')) return;
       try {
-        await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
-        showToast("संपादक अधिकार हटा दिया गया।");
-      } catch (e) {
-        showToast("त्रुटि: " + e.message);
-      }
+        await db.collection('roles').doc(uid).delete();
+        showToast('Editor role हटा दिया गया।');
+      } catch (e) { showToast('Editor role नहीं हटाया गया: ' + e.message); }
     }
 
     // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
