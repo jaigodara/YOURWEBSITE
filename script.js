@@ -2008,15 +2008,15 @@ function renderExamVisibility() {
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
 
-    // The main examination is restricted to students whose enrollment has been
-    // confirmed by the owner. Client checks improve UX; Firestore rules/backend
-    // must enforce the same eligibility for production-grade security.
-    if (['quiz', 'mock1', 'mock2', 'main'].includes(mode)) {
+    // Enrollment confirmation is required for the official main examination.
+    // Daily quizzes and practice mock exams remain available to signed-in students.
+    // Firestore rules/backend must enforce main-exam eligibility too.
+    if (mode === 'main') {
       try {
         const enrollmentSnap = await collection('examEnrolledStudents').doc(state.user.uid).get();
         const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
         if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
-          notify('क्विज़/मॉक/मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
+          notify('मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
           switchTab('quiz');
           const enrollmentSection = byId('enrollmentSection');
           if (enrollmentSection) enrollmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
