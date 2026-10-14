@@ -654,3 +654,23 @@ mindmap
 - [ ] Firestore denies unauthorized writes even if browser code is modified.
 - [ ] No console errors in the tested flows.
 - [ ] Mobile, tablet and desktop interactions pass.
+
+
+## Follow-up implementation — Owner Studio integration
+
+This follow-up branch connects the previously separate controls to the actual public-page IDs and Firestore collections.
+
+- Digital Jap Mala: aligns the `BishnoiApp.tapMalaBead()` alias and counter display IDs, fixes the 108-bead renderer, and syncs saved counts from the signed-in user's profile.
+- Maintenance: listens to `settings/maintenance`, loads the saved Owner Studio values, shows a public maintenance banner/overlay, and displays section-specific update notices for Mala, Sahitya, Pariksha, Community, and History. The configured VIP bypass is a UI behaviour only; server-side rules must still protect writes.
+- History: Owner Studio's Sahitya/Media pane can publish history and children's-culture entries to `historyItems`; the public History tab reads and renders them.
+- Authentication: removes the visible SMS OTP route when it is not configured, collects name and contact phone during email/password registration, and creates a profile record for Google sign-ins for manual owner review. Phone numbers are contact details unless separately verified.
+- Question import: requires choosing Daily Quiz, Mock 1, Mock 2, or Main Exam; validates four options and an A/B/C/D answer; writes the target collection and both legacy and current exam-engine field names.
+- Evaluation: sorts submissions by roll number when available, joins stored answers to the question bank for readable answer sheets, and supports automatic score comparison, publish, hold, or cancel decisions. Published results are reflected in the student's own result panel.
+- Registration/admit card: owner can review user/registration records, assign roll numbers, set verification status, and print a styled admit card only after confirmation and roll-number assignment.
+- Trusted Editor: uses a Firebase Authentication UID and a `roles/{uid}` document with `role: "editor"`; editors are restricted in the Owner Studio UI to the draft/review pane. This UI restriction is not a security boundary by itself.
+
+### Required configuration and limits
+
+- No Firestore rules file was found in this repository during source review. Do not make public write rules to make these features appear to work. Rules must permit public reads only for published content, a user's own profile/result reads and profile updates, and owner-only writes to maintenance, question banks, roles, review decisions, registrations, and history content.
+- The phone-number field does not provide phone+password authentication or identity verification. The available login methods remain Google and email/password. Phone+password without SMS requires a secure server-side phone-to-account lookup; do not expose all user records to guests to emulate it.
+- The site and Owner Studio have not been end-to-end tested against live Firebase/Vercel in this patch. Permission-denied errors may require secure Firestore rule changes. Client-side scheduling, maintenance and result visibility must not be treated as authoritative security enforcement.
