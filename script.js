@@ -1851,7 +1851,7 @@ function renderExamVisibility() {
       const remaining = Math.ceil((state.exam.endAt - Date.now()) / 1000);
       setText('examTimer', formatTime(remaining));
       persistActiveExam();
-      if (remaining <= 0) window.submitPortalExam(true);
+      if (remaining <= 0 && Date.now() >= (state.exam.nextSubmissionRetryAt || 0)) window.submitPortalExam(true);
     }, 1000);
     state.exam.beforeUnload = event => {
       if (!state.exam.active || state.exam.submitted) return;
@@ -2065,7 +2065,7 @@ function renderExamVisibility() {
           <div class="space-y-2">
             ${options.map((option, index) => `
               <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 hover:border-emerald-500 hover:bg-emerald-50">
-                <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''} ${exam.kicked ? 'disabled' : ''}>
+                <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''} ${(exam.kicked || exam.lockedAtDeadline) ? 'disabled' : ''}>
                 <span>${escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || JSON.stringify(option)) : option)}</span>
               </label>
             `).join('')}
@@ -2084,10 +2084,10 @@ function renderExamVisibility() {
     setText('examQuestionNumber', `प्रश्न ${exam.index + 1}/${exam.questions.length}`);
     const previous = byId('previousQuestionBtn');
     const next = byId('nextQuestionBtn');
-    if (previous) previous.disabled = exam.kicked || exam.index <= 0;
-    if (next) next.disabled = exam.kicked || exam.index >= exam.questions.length - 1;
+    if (previous) previous.disabled = exam.kicked || exam.lockedAtDeadline || exam.index <= 0;
+    if (next) next.disabled = exam.kicked || exam.lockedAtDeadline || exam.index >= exam.questions.length - 1;
     const submitButton = byId('submitExamBtn');
-    if (submitButton) submitButton.disabled = exam.kicked;
+    if (submitButton) submitButton.disabled = exam.kicked || exam.lockedAtDeadline;
     if (previous) previous.classList.toggle('opacity-40', previous.disabled);
     if (next) next.classList.toggle('opacity-40', next.disabled);
     if (workspace) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2263,7 +2263,7 @@ function renderExamVisibility() {
         setText('examTimer', formatTime(remaining));
         persistActiveExam();
 
-        if (remaining <= 0) {
+        if (remaining <= 0 && Date.now() >= (state.exam.nextSubmissionRetryAt || 0)) {
           window.submitPortalExam(true);
         }
       }, 1000);
@@ -2308,7 +2308,7 @@ function renderExamVisibility() {
   };
 
   window.nextExamQuestion = function () {
-    if (!state.exam.active || state.exam.kicked) return;
+    if (!state.exam.active || state.exam.kicked || state.exam.lockedAtDeadline) return;
     state.exam.index = Math.min(state.exam.index + 1, state.exam.questions.length - 1);
     persistActiveExam();
     renderExamQuestion();
@@ -2324,7 +2324,7 @@ function renderExamVisibility() {
   window.submitPortalExam = async function (automatic = false) {
     const exam = state.exam;
 
-    if (!exam.active || exam.submitted) return;
+    if (!exam.active || exam.submitted || exam.submitting) return;
     if (exam.kicked && !automatic) {
       notify('यह प्रयास Owner की अनुमति तक लॉक है।', 'error');
       return;
@@ -2336,10 +2336,7 @@ function renderExamVisibility() {
 
     if (!automatic && !confirm('Submit your answers now?')) return;
 
-    exam.submitted = true;
-    exam.active = false;
-    clearPersistedExam();
-    stopExamResources();
+    exam.submitting = true;
 
     let correct = 0;
     let attempted = 0;
@@ -2380,6 +2377,11 @@ function renderExamVisibility() {
 
     try {
       await collection(CONFIG.submissionCollections[exam.mode]).add(result);
+      exam.submitting = false;
+      exam.submitted = true;
+      exam.active = false;
+      clearPersistedExam();
+      stopExamResources();
       updateExamSession('submitted', { submittedAt: serverTimestamp() });
       if (instantResult) {
         collection('userNotifications').doc(state.user.uid).collection('items').add({
@@ -2398,18 +2400,23 @@ function renderExamVisibility() {
         ? `दैनिक क्विज़ परिणाम: ${correct}/${exam.questions.length}. Attempted: ${attempted}.`
         : 'आपके उत्तर जमा हो गए हैं। परिणाम Owner द्वारा जाँच और घोषित किए जाने के बाद ही दिखेगा।');
       notify('Exam submitted successfully.', 'success');
+      setVisible('previousQuestionBtn', false);
+      setVisible('nextQuestionBtn', false);
+      setVisible('submitExamBtn', false);
+      setVisible('exitExamWorkspace', true);
     } catch (e) {
       console.error(e);
+      exam.submitting = false;
+      exam.active = true;
+      exam.lockedAtDeadline = Date.now() >= exam.endAt;
+      exam.nextSubmissionRetryAt = Date.now() + 15000;
+      persistActiveExam();
+      if (exam.lockedAtDeadline) renderExamQuestion();
       setText('examResult', instantResult
-        ? 'क्विज़ समाप्त हुआ, लेकिन परिणाम सहेजा नहीं जा सका।'
-        : 'परीक्षा समाप्त हुई, लेकिन उत्तर-पत्र सहेजा नहीं जा सका। कृपया व्यवस्थापक से संपर्क करें।');
-      notify('Exam ended, but the submission could not be saved.', 'error');
+        ? 'समय पूरा हुआ, लेकिन परिणाम सर्वर पर सहेजा नहीं जा सका। आपके उत्तर सुरक्षित हैं; सिस्टम पुनः प्रयास करेगा।'
+        : 'समय पूरा हुआ, लेकिन उत्तर-पत्र सर्वर ने अभी स्वीकार नहीं किया। आपके उत्तर सुरक्षित हैं; सिस्टम पुनः प्रयास करेगा।');
+      notify('Submission was not accepted yet. Your answers are preserved and will retry.', 'error');
     }
-
-    setVisible('previousQuestionBtn', false);
-    setVisible('nextQuestionBtn', false);
-    setVisible('submitExamBtn', false);
-    setVisible('exitExamWorkspace', true);
   };
 
   // Quiz aliases for existing HTML controls.
