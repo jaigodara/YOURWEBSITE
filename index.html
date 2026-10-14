@@ -21,6 +21,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
   
 
@@ -109,6 +110,10 @@
         <a href="owner-studio.html" id="ownerStudioPortalBtn" class="hidden px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
           <span>🛡️ ओनर स्टूडियो</span>
         </a>
+        <button id="notificationBellButton" type="button" onclick="window.toggleNotificationPanel()" class="hidden relative rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-forest transition" aria-label="सूचनाएँ खोलें" title="सूचनाएँ">
+          <span id="notificationBellGlyph" class="inline-block text-lg">🔔</span>
+          <span id="notificationUnreadCount" class="hidden absolute -right-1 -top-1 min-w-4 h-4 rounded-full bg-red-600 px-1 text-[9px] font-extrabold leading-4 text-white">0</span>
+        </button>
         <div id="authActionsContainer">
           <button id="authLoginButton" type="button" onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
             लॉगिन करें
@@ -149,20 +154,35 @@
   </nav>
 
   <!-- MAIN TAB CONTAINERS -->
-  <section id="publicNotificationsSection" aria-live="polite" class="hidden max-w-5xl w-full mx-auto px-4 pt-3">
-  <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
-    <div class="flex items-center gap-2 mb-3">
-      <span class="text-xl" aria-hidden="true">🔔</span>
-      <div>
-        <h2 class="font-yatra text-base text-forest">नई सूचनाएँ और घोषणाएँ</h2>
-        <p class="text-[11px] text-stone-500">प्रवेश-पत्र, परीक्षा, नई सामग्री और मंच के अपडेट</p>
+  <section id="publicNotificationsSection" aria-live="polite" class="hidden fixed right-3 top-[68px] z-[110] w-[min(92vw,440px)] max-h-[75vh] overflow-y-auto rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-2xl">
+    <div class="mb-3 flex items-start justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="text-xl" aria-hidden="true">🔔</span>
+        <div>
+          <h2 class="font-yatra text-base text-forest">आपकी सूचनाएँ</h2>
+          <p class="text-[11px] text-stone-500">लॉगिन किए हुए खाते के लिए परीक्षा, प्रवेश-पत्र और मंच के अपडेट</p>
+        </div>
       </div>
+      <button type="button" onclick="window.toggleNotificationPanel(false)" class="rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs" aria-label="सूचना पैनल बंद करें">✕</button>
     </div>
     <div id="publicNotificationsList" class="space-y-2">
       <p class="text-xs text-stone-500">सूचनाएँ लोड हो रही हैं…</p>
     </div>
+  </section>
+
+  <div id="notificationPopup" class="hidden fixed inset-0 z-[200] bg-stone-950/60 p-4 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="notificationPopupTitle">
+    <section class="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-amber-300 bg-[#fffdf7] p-5 shadow-2xl">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-extrabold uppercase tracking-widest text-amber-800">नई सूचना</p>
+          <h2 id="notificationPopupTitle" class="mt-1 font-yatra text-xl text-forest">आपके लिए नई सूचना है</h2>
+        </div>
+        <button type="button" onclick="window.dismissNotificationPopup()" class="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm" aria-label="सूचना बंद करें">✕</button>
+      </div>
+      <div id="notificationPopupList" class="mt-4 space-y-3"></div>
+      <button type="button" onclick="window.dismissNotificationPopup()" class="mt-4 w-full rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white">समझ गया</button>
+    </section>
   </div>
-</section>
 
 <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
     
