@@ -1194,11 +1194,46 @@
     });
   }
 
+  // Lightweight lunar-phase estimate for the homepage. This is an estimate,
+  // not a location-specific traditional Panchang calculation.
+  function renderPanchangEstimate() {
+    const dateEl = byId('autoPanchangDate');
+    const detailsEl = byId('autoPanchangDetails');
+    const titleEl = byId('amavasyaTitleDisplay');
+    const countdownEl = byId('amavasyaCountdownBox');
+    if (!dateEl || !detailsEl || !titleEl || !countdownEl) return;
+
+    const now = new Date();
+    const synodicMonth = 29.530588853;
+    const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14);
+    const ageDays = ((now.getTime() - knownNewMoon) / 86400000 % synodicMonth + synodicMonth) % synodicMonth;
+    const tithi = Math.min(30, Math.floor(ageDays / synodicMonth * 30) + 1);
+    const paksha = tithi <= 15 ? 'शुक्ल पक्ष' : 'कृष्ण पक्ष';
+    const pakshaTithi = tithi <= 15 ? tithi : tithi - 15;
+    const tithiNames = ['प्रतिपदा','द्वितीया','तृतीया','चतुर्थी','पञ्चमी','षष्ठी','सप्तमी','अष्टमी','नवमी','दशमी','एकादशी','द्वादशी','त्रयोदशी','चतुर्दशी','पूर्णिमा'];
+    const tithiName = tithi === 30 ? 'अमावस्या' : (tithi === 15 ? 'पूर्णिमा' : (tithiNames[pakshaTithi - 1] || 'तिथि'));
+    const dateText = new Intl.DateTimeFormat('hi-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+    dateEl.textContent = dateText + ' • ' + paksha + ' ' + tithiName;
+    detailsEl.textContent = 'चंद्र-चक्र पर आधारित अनुमानित तिथि। स्थानीय सूर्योदय और पंचांग परंपरा के अनुसार तिथि में अंतर हो सकता है।';
+
+    const elapsedCycles = Math.floor((now.getTime() - knownNewMoon) / (synodicMonth * 86400000));
+    let nextNewMoon = knownNewMoon + (elapsedCycles + 1) * synodicMonth * 86400000;
+    while (nextNewMoon <= now.getTime()) nextNewMoon += synodicMonth * 86400000;
+    const remainingMs = nextNewMoon - now.getTime();
+    const totalMinutes = Math.floor(remainingMs / 60000);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+    titleEl.textContent = 'आगामी अमावस्या (अनुमानित)';
+    countdownEl.textContent = days + ' दिन, ' + hours + ' घंटे, ' + minutes + ' मिनट शेष';
+  }
+
   function initPortal() {
     if (state.initialized) return;
     state.initialized = true;
 
     renderDailyMessage();
+    renderPanchangEstimate();
     initMalaState();
     initKaraokePlayer();
     renderNiyamsList();
@@ -1380,6 +1415,11 @@
     const password = byId('loginPass')?.value || '';
     if (!state.auth) return notify('Authentication is unavailable.', 'error');
     if (!email || !password) return notify('ईमेल और पासवर्ड दर्ज करें।', 'error');
+    // Firebase email/password sign-in does not accept a mobile number as the identifier.
+    // Phone-number/password login requires a separate backend or a different Firebase flow.
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      return notify('यह लॉगिन अभी ईमेल + पासवर्ड से चलता है। कृपया Firebase खाते का ईमेल दर्ज करें; मोबाइल नंबर + पासवर्ड समर्थित नहीं है।', 'error');
+    }
     try {
       const register = !!byId('nameRow') && !byId('nameRow').classList.contains('hidden');
       if (register) {
