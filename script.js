@@ -356,19 +356,8 @@
   function initAuthUI() {
     if (!state.auth) return;
 
-    // Resolve a completed Google redirect explicitly so any Firebase error is visible.
-    // onAuthStateChanged remains the source of truth for the signed-in session.
-    if (typeof state.auth.getRedirectResult === 'function') {
-      state.auth.getRedirectResult().then(result => {
-        if (result && result.user) {
-          notify('Google sign-in successful.', 'success');
-        }
-      }).catch(error => {
-        console.error('Google redirect result failed:', error);
-        notify(authErrorMessage(error), 'error');
-      });
-    }
-
+    // Google sign-in uses signInWithPopup now. The auth-state observer below
+    // remains the single source of truth for the active Firebase session.
     state.auth.onAuthStateChanged(async user => {
       clearSubscriptions();
       state.user = user;
