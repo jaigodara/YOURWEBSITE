@@ -2060,6 +2060,43 @@ function renderExamVisibility() {
       return;
     }
 
+    const durationMinutes = Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
+    const scheduledEndAt = scheduledStart + durationMinutes * 60 * 1000;
+    let lateEntryGranted = false;
+    if (Date.now() >= scheduledEndAt) {
+      const sessionRef = collection('examSessions').doc(state.user.uid + '_' + mode);
+      try {
+        const sessionSnap = await sessionRef.get();
+        const session = sessionSnap.exists ? sessionSnap.data() || {} : {};
+        if (session.lateEntryRequested && session.status === 'denied') {
+          notify('Owner ने देर से प्रवेश का अनुरोध अस्वीकार कर दिया है।', 'error');
+          return;
+        }
+        lateEntryGranted = session.status === 'active' &&
+          session.lateEntryRequested === true &&
+          !!session.reentryGrantedAt;
+        if (!lateEntryGranted) {
+          await sessionRef.set({
+            uid: state.user.uid,
+            name: state.profile?.displayName || state.user.displayName || state.user.email || 'विद्यार्थी',
+            mode,
+            status: 'late_request',
+            lateEntryRequested: true,
+            requestedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            endAtMs: scheduledEndAt
+          }, { merge: true });
+          notify('परीक्षा का निर्धारित समय निकल गया है। देर से प्रवेश का अनुरोध Owner को भेज दिया गया है; अनुमति मिलने पर फिर से शुरू करें।', 'error');
+          return;
+        }
+      } catch (lateError) {
+        console.error('Late-entry request failed:', lateError);
+        notify('देर से प्रवेश का अनुरोध नहीं भेजा जा सका। Firestore examSessions rules जाँचें।', 'error');
+        return;
+      }
+    }
+    const attemptEndAt = lateEntryGranted ? Date.now() + durationMinutes * 60 * 1000 : scheduledEndAt;
+
     const collectionName = CONFIG.examCollections[mode];
     if (!collectionName) {
       notify('Unknown exam type.', 'error');
@@ -2100,8 +2137,8 @@ function renderExamVisibility() {
         index: 0,
         answers: {},
         review: {},
-        endAt: Date.now() + Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes) * 60 * 1000,
-        durationMinutes: Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes),
+        endAt: attemptEndAt,
+        durationMinutes,
         timer: null,
         tabSwitches: 0,
         submitted: false,
