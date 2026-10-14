@@ -878,21 +878,39 @@
       body.className = 'text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
       body.textContent = item.message || '';
       card.append(title, body);
-      if (item.fileUrl && item.fileType?.startsWith('image/')) {
+      if ((item.fileUrl || item.filePath) && item.fileType?.startsWith('image/')) {
         const image = document.createElement('img');
-        image.src = item.fileUrl;
+        if (item.fileUrl) image.src = item.fileUrl;
+        else if (item.filePath && state.storage && state.user) {
+          state.storage.ref().child(item.filePath).getDownloadURL()
+            .then(url => { if (state.user && image.isConnected) image.src = url; })
+            .catch(error => console.warn('Private notification image unavailable; check Storage rules.', error));
+        }
         image.alt = item.fileName || item.title || 'सूचना फोटो';
         image.loading = 'lazy';
         image.className = 'max-h-64 w-full rounded-lg border border-stone-200 object-contain bg-stone-50';
         card.appendChild(image);
       }
-      if (item.fileUrl) {
+      if (item.fileUrl || item.filePath) {
         const link = document.createElement('a');
-        link.href = item.fileUrl;
+        link.href = item.fileUrl || '#';
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.className = 'inline-flex rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white';
         link.textContent = item.fileType === 'application/pdf' ? '📄 PDF खोलें / डाउनलोड करें' : item.fileName ? '📎 संलग्न फ़ाइल खोलें' : '📎 फ़ाइल खोलें';
+        if (item.filePath && !item.fileUrl) {
+          link.addEventListener('click', async event => {
+            event.preventDefault();
+            try {
+              if (!state.user || !state.storage) throw new Error('लॉगिन/Storage उपलब्ध नहीं है।');
+              const url = await state.storage.ref().child(item.filePath).getDownloadURL();
+              window.open(url, '_blank', 'noopener,noreferrer');
+            } catch (error) {
+              notify('फ़ाइल नहीं खुली। Storage rules और लॉगिन जाँचें।', 'error');
+              console.warn('Private notification file unavailable:', error);
+            }
+          });
+        }
         card.appendChild(link);
       }
       if (item.createdAt && typeof item.createdAt.toDate === 'function') {
