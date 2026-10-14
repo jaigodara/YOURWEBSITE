@@ -726,12 +726,11 @@
     if (kidsHost) kidsHost.innerHTML = kids.length ? kids.map(card).join('') : '<div class="rounded-2xl border border-dashed border-stone-300 p-5 text-center text-xs text-stone-500">बाल संस्कार की सामग्री जल्द यहाँ दिखाई जाएगी।</div>';
   }
 
+
 function renderExamVisibility() {
   const c = state.examConfig || {};
 
-  // Feature visibility is separate from maintenance mode.
-  // Hiding an exam must not generate an automatic maintenance announcement.
-  const map = [
+  const features = [
     ['enrollmentSection', c.enrollmentVisible !== false],
     ['mockHub', c.mockVisible !== false],
     ['mockExam1Card', c.mock1Visible !== false],
@@ -743,33 +742,21 @@ function renderExamVisibility() {
     ['myResultsPanel', c.resultsVisible !== false]
   ];
 
-  map.forEach(([id, visible]) => setVisible(id, visible));
+  features.forEach(([id, visible]) => setVisible(id, visible));
 
-  // Keep countdowns independent of feature visibility announcements.
+  // Exam visibility is not maintenance mode.
+  // Do not show year-round update announcements just because
+  // an owner has hidden an exam or its results.
+  const notice = byId('examFeatureNotice');
+  if (notice) {
+    notice.hidden = true;
+    notice.classList.add('hidden');
+    notice.textContent = '';
+  }
+
   renderExamCountdowns();
 }
-    map.forEach(([id, visible]) => setVisible(id, visible));
-    const quizTab = byId('tab-quiz');
-    if (quizTab) {
-      let notice = byId('examFeatureNotice');
-      if (!notice) {
-        notice = document.createElement('div');
-        notice.id = 'examFeatureNotice';
-        notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
-        quizTab.prepend(notice);
-      }
-      const updates = [];
-      if (c.dailyQuizVisible === false) updates.push('दैनिक ज्ञान परीक्षा में नए प्रश्न/अपडेट जोड़े जा रहे हैं।');
-      if (c.mockVisible === false || c.mock1Visible === false) updates.push('Mock Exam 1 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
-      if (c.mockVisible === false || c.mock2Visible === false) updates.push('Mock Exam 2 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
-      if (c.mainExamVisible === false) updates.push('Main Exam की जानकारी जल्द प्रकाशित की जाएगी।');
-      if (c.resultsVisible === false) updates.push('परिणाम घोषणा अनुभाग में अपडेट जारी हैं।');
-      notice.hidden = updates.length === 0;
-      notice.classList.toggle('hidden', updates.length === 0);
-      notice.innerHTML = updates.length ? '<strong>📢 परीक्षा अनुभाग अपडेट</strong><ul class="mt-2 list-disc pl-5 text-xs leading-relaxed">' + updates.map(escapeHtml).map(x => '<li>' + x + '</li>').join('') + '</ul>' : '';
-    }
-    renderExamCountdowns();
-  }
+
 
   const EXAM_SCHEDULES = [
     { mode: 'quiz', field: 'quizStartAtMs', element: 'quizCountdown', label: 'दैनिक ज्ञान परीक्षा' },
