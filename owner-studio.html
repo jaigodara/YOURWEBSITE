@@ -1406,7 +1406,22 @@ Ans: B"></textarea>
       list.innerHTML = '<div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लोड हो रहे हैं...</div>';
       try {
         const snap = await db.collection(collectionName).limit(100).get();
-        const rows = snap.docs.map(doc => { const data = doc.data() || {}; const uid = data.uid || doc.id; return { id: doc.id, ...data, uid, ...(collectionName === 'examEnrolledStudents' ? { rollNumber: data.rollNumber || ('BIS-' + uid) } : {}) }; }).filter(d => {
+        // Repair legacy enrollment records to the same deterministic unique UID-based roll number.
+        if (collectionName === 'examEnrolledStudents' && !snap.empty) {
+          const repairBatch = db.batch();
+          let repairCount = 0;
+          snap.docs.forEach(doc => {
+            const data = doc.data() || {};
+            const uid = data.uid || doc.id;
+            const uniqueRoll = 'BIS-' + uid;
+            if (data.rollNumber !== uniqueRoll) {
+              repairBatch.set(doc.ref, { uid, rollNumber: uniqueRoll }, { merge: true });
+              repairCount++;
+            }
+          });
+          if (repairCount) await repairBatch.commit();
+        }
+        const rows = snap.docs.map(doc => { const data = doc.data() || {}; const uid = data.uid || doc.id; return { id: doc.id, ...data, uid, ...(collectionName === 'examEnrolledStudents' ? { rollNumber: 'BIS-' + uid } : {}) }; }).filter(d => {
           const haystack = [d.name, d.displayName, d.fullName, d.rollNumber, d.uid, d.email, d.phone, d.mobile].join(' ').toLowerCase();
           return !queryText || haystack.includes(queryText);
         });
