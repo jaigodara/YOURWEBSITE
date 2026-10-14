@@ -119,6 +119,7 @@
     settings: {},
     maintenance: { globalMode: 'off', message: '', sections: {} },
     historyItems: [],
+    myResults: [],
     mala: { count: 0, laps: 0 },
     fontSize: 16,
     quizQuestions: [],
@@ -570,6 +571,21 @@
       },
       'Exam configuration'
     );
+
+    if (state.user) {
+      Object.entries(CONFIG.submissionCollections).forEach(([mode, collectionName]) => {
+        subscribe(
+          collection(collectionName).where('uid', '==', state.user.uid).limit(50),
+          snap => {
+            const others = state.myResults.filter(x => x.mode !== mode);
+            const rows = snap.docs.map(d => ({ id: d.id, mode, collectionName, ...d.data() }));
+            state.myResults = [...others, ...rows].sort((a,b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt));
+            renderMyResults();
+          },
+          'My exam results'
+        );
+      });
+    }
   }
 
   function applyPortalSettings() {
@@ -641,6 +657,25 @@
       setText('globalMaintenanceMessage', message);
     }
     });
+  }
+
+  function renderMyResults() {
+    const host = byId('myResultsList');
+    if (!host) return;
+    const rows = state.myResults || [];
+    if (!rows.length) {
+      host.innerHTML = '<p class="text-xs text-stone-500">आपके जमा किए गए परीक्षा प्रयास यहाँ दिखाई देंगे।</p>';
+      return;
+    }
+    const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'Mock Exam 1', mock2: 'Mock Exam 2', main: 'Main Exam' };
+    host.innerHTML = rows.map(row => {
+      const published = row.resultPublished === true || row.manualReviewStatus === 'published' || (row.mode === 'quiz' && row.resultPublished !== false);
+      const held = row.manualReviewStatus === 'held';
+      const cancelled = row.manualReviewStatus === 'cancelled';
+      const score = row.finalScore ?? row.manualScore ?? row.score;
+      const status = published ? 'परिणाम घोषित' : held ? 'जाँच के लिए रोका गया' : cancelled ? 'परिणाम रद्द' : 'जाँच जारी है';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold ' + (published ? 'text-emerald-700' : 'text-amber-700') + '">' + status + '</span></div><p class="text-[11px] text-stone-600">' + (published ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? row.totalQuestions ?? '—') : 'अंतिम अंक परिणाम घोषित होने पर दिखेंगे।') + '</p><p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(row.submittedAt?.toDate ? row.submittedAt.toDate().toLocaleString('hi-IN') : '') + '</p></article>';
+    }).join('');
   }
 
   function renderHistoryItems() {
@@ -1400,9 +1435,12 @@
       mode: exam.mode,
       total: exam.questions.length,
       totalQuestions: exam.questions.length,
+      rollNumber: state.profile?.rollNumber || null,
       attempted,
       correct,
       score: correct,
+      finalScore: exam.mode === 'quiz' ? correct : null,
+      resultPublished: exam.mode === 'quiz',
       answers: { ...exam.answers },
       review: { ...exam.review },
       submittedAt: serverTimestamp(),
