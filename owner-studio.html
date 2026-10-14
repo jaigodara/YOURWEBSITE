@@ -343,6 +343,7 @@ Ans: B"></textarea>
         <p class="text-xs text-stone-500">ये विकल्प मुख्य वेबसाइट के examConfig/current दस्तावेज़ में सहेजे जाते हैं। किसी सेक्शन को छिपाने से उसका डेटा मिटता नहीं है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuiz" type="checkbox" class="accent-forest"> दैनिक क्विज़ दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock" type="checkbox" class="accent-forest"> मॉक परीक्षा 1/2 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock1" type="checkbox" class="accent-forest"> मॉक परीक्षा 1 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock2" type="checkbox" class="accent-forest"> मॉक परीक्षा 2 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMainExam" type="checkbox" class="accent-forest"> मुख्य परीक्षा दिखाएँ</label>
@@ -940,6 +941,7 @@ Ans: B"></textarea>
         const data = snap.exists ? snap.data() : {};
         const pairs = [
           ['ownerShowDailyQuiz', data.dailyQuizVisible !== false],
+          ['ownerShowMock', data.mockVisible !== false],
           ['ownerShowMock1', data.mock1Visible !== false],
           ['ownerShowMock2', data.mock2Visible !== false],
           ['ownerShowMainExam', data.mainExamVisible !== false],
@@ -965,6 +967,7 @@ Ans: B"></textarea>
       }
       const config = {
         dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
+        mockVisible: !!document.getElementById('ownerShowMock')?.checked,
         mock1Visible: !!document.getElementById('ownerShowMock1')?.checked,
         mock2Visible: !!document.getElementById('ownerShowMock2')?.checked,
         mockVisible: !!document.getElementById('ownerShowMock1')?.checked || !!document.getElementById('ownerShowMock2')?.checked,
