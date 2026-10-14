@@ -123,7 +123,8 @@
     mala: { count: 0, laps: 0 },
     fontSize: 16,
     quizQuestions: [],
-    initialized: false
+    initialized: false,
+    publicNotificationsUnsubscribe: null
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -814,6 +815,54 @@
     popup.document.close();
   }
 
+  function initPublicNotifications() {
+    const host = byId('publicNotificationsList');
+    const section = byId('publicNotificationsSection');
+    if (!host || !section || !state.db || state.publicNotificationsUnsubscribe) return;
+    state.publicNotificationsUnsubscribe = state.db.collection('notifications')
+      .where('active', '==', true)
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .onSnapshot(snapshot => {
+        host.replaceChildren();
+        if (snapshot.empty) {
+          section.hidden = true;
+          section.classList.add('hidden');
+          return;
+        }
+        section.hidden = false;
+        section.classList.remove('hidden');
+        snapshot.forEach(doc => {
+          const item = doc.data() || {};
+          const card = document.createElement('article');
+          card.className = 'rounded-xl border border-amber-200 bg-white p-3';
+          const title = document.createElement('h3');
+          title.className = 'font-bold text-forest text-sm';
+          title.textContent = item.title || 'नई सूचना';
+          const body = document.createElement('p');
+          body.className = 'mt-1 text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
+          body.textContent = item.message || '';
+          card.append(title, body);
+          if (item.createdAt && typeof item.createdAt.toDate === 'function') {
+            const time = document.createElement('p');
+            time.className = 'mt-2 text-[10px] text-stone-400';
+            time.textContent = item.createdAt.toDate().toLocaleString('hi-IN');
+            card.appendChild(time);
+          }
+          host.appendChild(card);
+        });
+      }, error => {
+        console.warn('Public notifications could not load:', error);
+        // Keep the rest of the website usable when notification rules are not deployed yet.
+        section.hidden = true;
+        section.classList.add('hidden');
+      });
+    state.unsubscribers.push(() => {
+      if (state.publicNotificationsUnsubscribe) state.publicNotificationsUnsubscribe();
+      state.publicNotificationsUnsubscribe = null;
+    });
+  }
+
   function initEnrollmentUI() {
     const form = byId('examEnrollmentForm');
     const login = byId('enrollmentLoginButton');
@@ -854,12 +903,14 @@
             examName,
             location,
             verificationStatus: old.verificationStatus || 'pending',
-            rollNumber: old.rollNumber || '',
+            // Firebase Auth UIDs are unique; preserving the full UID makes this
+            // generated roll number unique without a manual counter or race.
+            rollNumber: old.rollNumber || ('BIS-' + state.user.uid),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           };
           if (!existing.exists) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
           await ref.set(data, { merge: true });
-          if (status) status.textContent = 'पंजीकरण भेज दिया गया। व्यवस्थापक की पुष्टि और रोल नंबर मिलने के बाद प्रवेश-पत्र यहीं दिखेगा।';
+          if (status) status.textContent = 'पंजीकरण भेज दिया गया। आपका यूनिक रोल नंबर अपने-आप बन गया है; व्यवस्थापक की पुष्टि के बाद प्रवेश-पत्र यहीं मिलेगा।';
           await refreshEnrollmentStatus();
           notify('परीक्षा पंजीकरण सहेज दिया गया।', 'success');
         } catch (error) {
@@ -1805,6 +1856,7 @@ function renderExamVisibility() {
 
     if (initFirebase()) {
       initAuthUI();
+      initPublicNotifications();
       loadShabadRepository();
     }
 
