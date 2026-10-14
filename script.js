@@ -419,7 +419,11 @@
       'auth/user-not-found': 'Account not found.',
       'auth/wrong-password': 'Incorrect email or password.',
       'auth/invalid-credential': 'Incorrect email or password.',
-      'auth/too-many-requests': 'Too many attempts. Try again later.'
+      'auth/too-many-requests': 'Too many attempts. Try again later.',
+      'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase.',
+      'auth/invalid-phone-number': 'Please enter a valid phone number with country code.',
+      'auth/invalid-verification-code': 'The SMS code is incorrect. Try again.',
+      'auth/code-expired': 'The SMS code expired. Request a new code.'
     })[e.code] || 'Sign-in failed. Check your details and try again.';
   }
 
@@ -1409,17 +1413,37 @@
       modal.style.display = 'none';
     }
   };
+  let phoneConfirmation = null;
+  let phoneRecaptcha = null;
+  authApi.setLoginMethod = function (method) {
+    const phone = method === 'phone';
+    byId('emailLoginForm')?.classList.toggle('hidden', phone);
+    byId('phoneLoginForm')?.classList.toggle('hidden', !phone);
+    byId('emailLoginTab')?.classList.toggle('bg-forest', !phone);
+    byId('emailLoginTab')?.classList.toggle('text-white', !phone);
+    byId('emailLoginTab')?.classList.toggle('bg-stone-100', phone);
+    byId('emailLoginTab')?.classList.toggle('text-stone-700', phone);
+    byId('phoneLoginTab')?.classList.toggle('bg-forest', phone);
+    byId('phoneLoginTab')?.classList.toggle('text-white', phone);
+    byId('phoneLoginTab')?.classList.toggle('bg-stone-100', !phone);
+    byId('phoneLoginTab')?.classList.toggle('text-stone-700', !phone);
+    if (phone) {
+      try {
+        if (!phoneRecaptcha && window.firebase?.auth) {
+          phoneRecaptcha = new firebase.auth.RecaptchaVerifier('phoneRecaptcha', { size: 'normal' });
+          phoneRecaptcha.render().catch(error => console.warn('reCAPTCHA render:', error));
+        }
+      } catch (error) {
+        console.warn('Phone reCAPTCHA initialization:', error);
+      }
+    }
+  };
   authApi.handleAuthSubmit = async function (event) {
     if (event) event.preventDefault();
     const email = (byId('loginIdentifier')?.value || '').trim();
     const password = byId('loginPass')?.value || '';
     if (!state.auth) return notify('Authentication is unavailable.', 'error');
     if (!email || !password) return notify('ईमेल और पासवर्ड दर्ज करें।', 'error');
-    // Firebase email/password sign-in does not accept a mobile number as the identifier.
-    // Phone-number/password login requires a separate backend or a different Firebase flow.
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
-      return notify('यह लॉगिन अभी ईमेल + पासवर्ड से चलता है। कृपया Firebase खाते का ईमेल दर्ज करें; मोबाइल नंबर + पासवर्ड समर्थित नहीं है।', 'error');
-    }
     try {
       const register = !!byId('nameRow') && !byId('nameRow').classList.contains('hidden');
       if (register) {
@@ -1433,14 +1457,50 @@
       notify(authErrorMessage(error), 'error');
     }
   };
+  authApi.sendPhoneCode = async function () {
+    if (!state.auth || !window.firebase?.auth) return notify('Authentication is unavailable.', 'error');
+    const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\\s()-]/g, '');
+    if (!/^\\+[1-9]\\d{7,14}$/.test(phone)) {
+      return notify('देश कोड सहित सही मोबाइल नंबर दर्ज करें, जैसे +919876543210।', 'error');
+    }
+    try {
+      if (!phoneRecaptcha) {
+        phoneRecaptcha = new firebase.auth.RecaptchaVerifier('phoneRecaptcha', { size: 'normal' });
+      }
+      phoneConfirmation = await state.auth.signInWithPhoneNumber(phone, phoneRecaptcha);
+      byId('phoneCodeRow')?.classList.remove('hidden');
+      notify('SMS OTP भेज दिया गया है।', 'success');
+    } catch (error) {
+      console.error('Phone sign-in failed:', error);
+      try { await phoneRecaptcha?.clear(); } catch (_) {}
+      phoneRecaptcha = null;
+      notify(error.code === 'auth/operation-not-allowed'
+        ? 'Firebase Console में Phone sign-in provider enable करना आवश्यक है.'
+        : authErrorMessage(error), 'error');
+    }
+  };
+  authApi.verifyPhoneCode = async function () {
+    const code = (byId('phoneLoginCode')?.value || '').trim();
+    if (!phoneConfirmation) return notify('पहले OTP भेजें।', 'error');
+    if (!/^\\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
+    try {
+      await phoneConfirmation.confirm(code);
+      phoneConfirmation = null;
+      authApi.closeAuthModal();
+      notify('मोबाइल नंबर सत्यापित हो गया।', 'success');
+    } catch (error) {
+      console.error('Phone OTP verification failed:', error);
+      notify(authErrorMessage(error), 'error');
+    }
+  };
   authApi.signInWithGoogle = async function () {
     if (!state.auth || !window.firebase?.auth) {
       return notify('Google login is unavailable.', 'error');
     }
     try {
+      // Redirect avoids many popup/COOP compatibility warnings in modern browsers.
       const provider = new firebase.auth.GoogleAuthProvider();
-      await state.auth.signInWithPopup(provider);
-      authApi.closeAuthModal();
+      await state.auth.signInWithRedirect(provider);
     } catch (error) {
       console.error('Google sign-in failed:', error);
       notify(authErrorMessage(error), 'error');
