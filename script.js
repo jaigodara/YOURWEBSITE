@@ -820,19 +820,19 @@
     const section = byId('publicNotificationsSection');
     if (!host || !section || !state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
-      .where('active', '==', true)
       .orderBy('createdAt', 'desc')
-      .limit(5)
+      .limit(20)
       .onSnapshot(snapshot => {
         host.replaceChildren();
-        if (snapshot.empty) {
+        const activeDocs = snapshot.docs.filter(doc => (doc.data() || {}).active === true).slice(0, 5);
+        if (!activeDocs.length) {
           section.hidden = true;
           section.classList.add('hidden');
           return;
         }
         section.hidden = false;
         section.classList.remove('hidden');
-        snapshot.forEach(doc => {
+        activeDocs.forEach(doc => {
           const item = doc.data() || {};
           const card = document.createElement('article');
           card.className = 'rounded-xl border border-amber-200 bg-white p-3';
