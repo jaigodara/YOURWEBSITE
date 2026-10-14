@@ -712,6 +712,24 @@
     ];
 
     map.forEach(([id, visible]) => setVisible(id, visible));
+    const quizTab = byId('tab-quiz');
+    if (quizTab) {
+      let notice = byId('examFeatureNotice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'examFeatureNotice';
+        notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
+        quizTab.prepend(notice);
+      }
+      const updates = [];
+      if (c.dailyQuizVisible === false) updates.push('दैनिक ज्ञान परीक्षा में नए प्रश्न/अपडेट जोड़े जा रहे हैं।');
+      if (c.mockVisible === false || c.mock1Visible === false) updates.push('Mock Exam 1 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
+      if (c.mockVisible === false || c.mock2Visible === false) updates.push('Mock Exam 2 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
+      if (c.mainExamVisible === false) updates.push('Main Exam की जानकारी जल्द प्रकाशित की जाएगी।');
+      notice.hidden = updates.length === 0;
+      notice.classList.toggle('hidden', updates.length === 0);
+      notice.innerHTML = updates.length ? '<strong>📢 परीक्षा अनुभाग अपडेट</strong><ul class="mt-2 list-disc pl-5 text-xs leading-relaxed">' + updates.map(escapeHtml).map(x => '<li>' + x + '</li>').join('') + '</ul>' : '';
+    }
     renderExamCountdowns();
   }
 
