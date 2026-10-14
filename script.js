@@ -1499,7 +1499,7 @@
   authApi.sendPhoneCode = async function () {
     if (!state.auth || !window.firebase?.auth) return notify('Authentication is unavailable.', 'error');
     const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\s()-]/g, '');
-    if (!/^\\+[1-9]\\d{7,14}$/.test(phone)) {
+    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
       return notify('देश कोड सहित सही मोबाइल नंबर दर्ज करें, जैसे +919876543210।', 'error');
     }
     try {
@@ -1521,7 +1521,7 @@
   authApi.verifyPhoneCode = async function () {
     const code = (byId('phoneLoginCode')?.value || '').trim();
     if (!phoneConfirmation) return notify('पहले OTP भेजें।', 'error');
-    if (!/^\\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
+    if (!/^\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
     try {
       await phoneConfirmation.confirm(code);
       phoneConfirmation = null;
