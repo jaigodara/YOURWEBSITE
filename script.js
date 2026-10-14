@@ -310,11 +310,24 @@
     async function loadUserProfile(user) {
     const snap = await collection('users').doc(user.uid).get();
     state.profile = snap.exists ? snap.data() : {};
-    // Do not accept localStorage, query params, or client-provided role as authority.
-    state.roles = asArray(state.profile.roles);
+    let roleData = {};
+    try {
+      const roleSnap = await collection('roles').doc(user.uid).get();
+      roleData = roleSnap.exists ? roleSnap.data() : {};
+    } catch (roleError) {
+      console.warn('Owner role could not be read; owner-only access remains disabled.', roleError);
+    }
+    // Roles are read from Firestore, never from browser storage or URL parameters.
+    state.roles = [
+      ...asArray(state.profile.roles),
+      ...(typeof roleData.role === 'string' ? [roleData.role] : []),
+      ...(Array.isArray(roleData.roles) ? roleData.roles : [])
+    ];
     state.isOwner = state.profile.role === 'owner' ||
       state.profile.isOwner === true ||
-      state.roles.includes('owner');
+      state.roles.includes('owner') ||
+      roleData.role === 'owner' ||
+      roleData.role === 'editor';
 
     if (CONFIG.ownerEmailAllowlist.length &&
         CONFIG.ownerEmailAllowlist.includes((user.email || '').toLowerCase())) {
