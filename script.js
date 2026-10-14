@@ -329,10 +329,34 @@
   async function loadUserProfile(user) {
     state.profile = {};
     try {
-      const snap = await collection('users').doc(user.uid).get();
-      state.profile = snap.exists ? snap.data() : {};
+      const profileRef = collection('users').doc(user.uid);
+      const snap = await profileRef.get();
+      if (snap.exists) {
+        state.profile = snap.data();
+        if (!state.profile.verificationStatus) {
+          await profileRef.set({
+            verificationStatus: 'unverified',
+            displayName: state.profile.displayName || user.displayName || '',
+            email: user.email || null,
+            phone: state.profile.phone || user.phoneNumber || '',
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          state.profile = { ...state.profile, verificationStatus: 'unverified' };
+        }
+      } else {
+        state.profile = {
+          displayName: user.displayName || '',
+          email: user.email || null,
+          phone: user.phoneNumber || '',
+          phoneVerified: !!user.phoneNumber,
+          verificationStatus: 'unverified',
+          authProvider: user.providerData?.[0]?.providerId || 'unknown',
+          createdAt: serverTimestamp()
+        };
+        await profileRef.set(state.profile, { merge: true });
+      }
     } catch (profileError) {
-      console.warn('User profile document could not be read:', profileError);
+      console.warn('User profile could not be created/read; check users Firestore rules:', profileError);
     }
     let roleData = {};
     try {
