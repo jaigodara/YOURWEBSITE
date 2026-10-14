@@ -383,7 +383,7 @@ Ans: B"></textarea>
       <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
       <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
-        <p class="text-xs text-stone-500">सबमिशन चुनें, उत्तर देखें और आवश्यक होने पर मैन्युअल अंक/टिप्पणी सहेजें। यह UI उन्हीं रिकॉर्डों को पढ़ेगा जिनकी Firestore rules अनुमति देती हैं।</p>
+        <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
           <select id="reviewSubmissionCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
             <option value="mainExamSubmissions">मुख्य परीक्षा — mainExamSubmissions</option>
@@ -391,7 +391,7 @@ Ans: B"></textarea>
             <option value="quizAttempts" selected>दैनिक क्विज़ — quizAttempts</option>
           </select>
           <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-          <button onclick="loadExamSubmissions()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">↻ रिकॉर्ड लाएँ</button>
+          <button onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 जाँच शुरू करें</button>
         </div>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
           <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
