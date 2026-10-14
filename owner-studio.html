@@ -749,6 +749,7 @@ Ans: B"></textarea>
           if (isPrimaryOwner()) {
             listenTrustedEditors();
             listenProctoringConfig();
+            loadOwnerDataDashboard();
             loadExistingSettings();
             loadMaintenanceSettings();
             loadExamVisibilitySettings();
@@ -780,6 +781,15 @@ Ans: B"></textarea>
       });
       document.getElementById(paneId)?.classList.remove('hidden');
       document.getElementById(`btn_${paneId}`)?.classList.add('admin-subtab-active');
+      // Load the manual-check queue whenever the exam pane is opened so it is
+      // not left looking like an empty/unupdated section after navigation.
+      if (paneId === 'pane_exam') {
+        window.setTimeout(() => loadExamSubmissions(), 0);
+        window.setTimeout(() => loadExamSessionQueue(), 0);
+      }
+      if (paneId === 'pane_overview' && isPrimaryOwner()) {
+        window.setTimeout(() => loadOwnerDataDashboard(), 0);
+      }
     }
 
     async function refreshStudioAnalytics() {
