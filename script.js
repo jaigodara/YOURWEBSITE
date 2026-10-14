@@ -86,7 +86,8 @@
     lateEntryMinutes: 5,
     maxTabSwitches: 3,
     proctorSnapshotSeconds: 60,
-    ownerEmailAllowlist: []
+    ownerEmailAllowlist: [],
+    ownerUid: "rdP0ZXzSP9fGzmJshEVvbOfb31g2"
   });
 
   const state = {
@@ -307,9 +308,14 @@
     });
     state.unsubscribers = [];
   }
-    async function loadUserProfile(user) {
-    const snap = await collection('users').doc(user.uid).get();
-    state.profile = snap.exists ? snap.data() : {};
+  async function loadUserProfile(user) {
+    state.profile = {};
+    try {
+      const snap = await collection('users').doc(user.uid).get();
+      state.profile = snap.exists ? snap.data() : {};
+    } catch (profileError) {
+      console.warn('User profile document could not be read:', profileError);
+    }
     let roleData = {};
     try {
       const roleSnap = await collection('roles').doc(user.uid).get();
@@ -323,7 +329,8 @@
       ...(typeof roleData.role === 'string' ? [roleData.role] : []),
       ...(Array.isArray(roleData.roles) ? roleData.roles : [])
     ];
-    state.isOwner = state.profile.role === 'owner' ||
+    state.isOwner = user.uid === CONFIG.ownerUid ||
+      state.profile.role === 'owner' ||
       state.profile.isOwner === true ||
       state.roles.includes('owner') ||
       roleData.role === 'owner' ||
@@ -342,6 +349,8 @@
     setText('profileName', state.profile.displayName || user.displayName || 'Student');
     setVisible('tab-admin', state.isOwner || state.roles.includes('admin'));
     setVisible('ownerStudio', state.isOwner || state.roles.includes('admin'));
+    setVisible('ownerStudioPortalBtn', state.isOwner || state.roles.includes('admin'));
+    setVisible('profileOwnerStudioLink', state.isOwner || state.roles.includes('admin'));
 
     const loginBtn = byId('authButton') || byId('profileButton');
     if (loginBtn) loginBtn.textContent = state.profile.displayName || 'Profile';
@@ -397,6 +406,8 @@
         setText('profileName', 'Guest');
         setVisible('tab-admin', false);
         setVisible('ownerStudio', false);
+        setVisible('ownerStudioPortalBtn', false);
+        setVisible('profileOwnerStudioLink', false);
       }
 
       renderAuthState();
@@ -423,6 +434,8 @@
     });
 
     setText('bnavProfileLabel', state.user ? 'खाता' : 'प्रोफ़ाइल');
+    setVisible('ownerStudioPortalBtn', !!state.isOwner);
+    setVisible('profileOwnerStudioLink', !!state.isOwner);
 
     $$('[data-owner-only]').forEach(el => {
       el.hidden = !state.isOwner;
@@ -550,6 +563,48 @@
     ];
 
     map.forEach(([id, visible]) => setVisible(id, visible));
+    renderExamCountdowns();
+  }
+
+  const EXAM_SCHEDULES = [
+    { mode: 'quiz', field: 'quizStartAtMs', element: 'quizCountdown', label: 'दैनिक ज्ञान परीक्षा' },
+    { mode: 'mock1', field: 'mock1StartAtMs', element: 'mock1Countdown', label: 'मॉक परीक्षा 1' },
+    { mode: 'mock2', field: 'mock2StartAtMs', element: 'mock2Countdown', label: 'मॉक परीक्षा 2' },
+    { mode: 'main', field: 'mainStartAtMs', element: 'mainExamCountdown', label: 'मुख्य परीक्षा' }
+  ];
+
+  function getExamStartAt(mode) {
+    const entry = EXAM_SCHEDULES.find(item => item.mode === mode);
+    const value = entry ? Number(state.examConfig?.[entry.field]) : 0;
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  function renderExamCountdowns() {
+    const now = Date.now();
+    EXAM_SCHEDULES.forEach(item => {
+      const el = byId(item.element);
+      if (!el) return;
+      const startAt = getExamStartAt(item.mode);
+      if (!startAt) {
+        el.textContent = '🟢 अभी उपलब्ध • समय निर्धारित नहीं';
+        el.className = 'rounded-xl bg-white/90 border border-emerald-200 p-3 text-xs font-bold text-emerald-900';
+        return;
+      }
+      const remaining = startAt - now;
+      if (remaining <= 0) {
+        el.textContent = '🟢 परीक्षा शुरू हो चुकी है • आप प्रवेश कर सकते हैं';
+        el.className = 'rounded-xl bg-white/90 border border-emerald-200 p-3 text-xs font-bold text-emerald-900';
+        return;
+      }
+      const totalSeconds = Math.floor(remaining / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const countdown = days ? `${days} दिन ${hours} घंटे ${minutes} मिनट` : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      el.textContent = `⏳ ${item.label} शुरू होने में: ${countdown}`;
+      el.className = 'rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs font-extrabold text-amber-900';
+    });
   }
 
   // 29 Niyam cards: use authored content if present in HTML or Firestore;
@@ -1086,6 +1141,15 @@
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
 
+    const scheduledStart = getExamStartAt(mode);
+    if (scheduledStart && Date.now() < scheduledStart) {
+      const startText = new Date(scheduledStart).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' });
+      notify(`यह परीक्षा ${startText} पर शुरू होगी। काउंटडाउन पूरा होने तक प्रवेश बंद है।`, 'error');
+      switchTab('quiz');
+      renderExamCountdowns();
+      return;
+    }
+
     const collectionName = CONFIG.examCollections[mode];
     if (!collectionName) {
       notify('Unknown exam type.', 'error');
@@ -1314,6 +1378,8 @@
 
     renderDailyMessage();
     renderPanchangEstimate();
+    renderExamCountdowns();
+    window.setInterval(renderExamCountdowns, 1000);
     initMalaState();
     initKaraokePlayer();
     renderNiyamsList();
@@ -1355,9 +1421,27 @@
   app.switchTab = window.switchTab;
   app.openProfileOrAuth = function () {
     if (state.user) {
-      window.switchTab('profile');
-      const profile = byId('userProfileModal');
-      if (profile) profile.classList.remove('hidden');
+      const modal = byId('userProfileModal');
+      if (modal) {
+        const profile = state.profile || {};
+        const displayName = profile.displayName || state.user.displayName || '';
+        const email = state.user.email || state.user.phoneNumber || 'Google / अन्य लॉगिन खाता';
+        const nameInput = byId('profEditName');
+        const locationInput = byId('profEditLocation');
+        if (nameInput) nameInput.value = displayName;
+        if (locationInput) locationInput.value = profile.location || '';
+        setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
+        setText('profileEmailDisplay', email);
+        setText('profileAccountStatus', state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता • अपनी जानकारी अपडेट करें');
+        setText('profileRoleBadge', state.isOwner ? 'OWNER' : 'सदस्य');
+        setText('statMalaTotal', state.mala.count || 0);
+        setText('statMalaLaps', state.mala.laps || 0);
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modal.style.display = 'flex';
+      } else {
+        notify('प्रोफ़ाइल पैनल नहीं मिला। पेज को रिफ्रेश करें।', 'error');
+      }
       return;
     }
     const modal = byId('authModal');
@@ -1486,6 +1570,7 @@
     const modal = byId('userProfileModal');
     if (modal) {
       modal.classList.add('hidden');
+      modal.classList.remove('flex');
       modal.style.display = 'none';
     }
   };
@@ -1609,11 +1694,15 @@
     const name = (byId('profEditName')?.value || '').trim();
     const location = (byId('profEditLocation')?.value || '').trim();
     try {
+      const displayName = name || state.profile?.displayName || state.user.displayName || '';
       await state.db.collection('users').doc(state.user.uid).set({
-        displayName: name || state.profile?.displayName || '',
-        location: location,
+        displayName,
+        location,
+        email: state.user.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      state.profile = { ...(state.profile || {}), displayName, location };
+      setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {
       console.error('Profile save failed:', error);
