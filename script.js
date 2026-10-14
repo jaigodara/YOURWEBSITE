@@ -115,7 +115,10 @@
       submitted: false,
       stream: null,
       proctorTimer: null,
-      beforeUnload: null
+      beforeUnload: null,
+      kicked: false,
+      sessionUnsubscribe: null,
+      sessionId: null
     },
     settings: {},
     maintenance: { globalMode: 'off', message: '', sections: {} },
@@ -1705,7 +1708,8 @@ function renderExamVisibility() {
         review: exam.review,
         endAt: exam.endAt,
         durationMinutes: exam.durationMinutes,
-        tabSwitches: exam.tabSwitches || 0
+        tabSwitches: exam.tabSwitches || 0,
+        kicked: exam.kicked === true
       }));
     } catch (error) {
       console.warn('Active exam progress could not be stored in this tab.', error);
@@ -1745,10 +1749,14 @@ function renderExamVisibility() {
       submitted: false,
       stream: null,
       proctorTimer: null,
-      beforeUnload: null
+      beforeUnload: null,
+      kicked: saved.kicked === true,
+      sessionUnsubscribe: null,
+      sessionId: null
     };
 
     ensureExamWorkspace(state.exam.mode);
+    attachExamSessionListener();
     setVisible('portalExamWorkspace', true);
     ['enrollmentSection', 'myResultsPanel', 'dailyQuizSection', 'mockHub', 'mainExamSection']
       .forEach(id => setVisible(id, false));
@@ -1789,8 +1797,61 @@ function renderExamVisibility() {
       }
     };
     document.addEventListener('visibilitychange', state.exam.visibilityHandler);
+    if (state.exam.kicked) setText('examResult', 'परीक्षा अस्थायी रूप से लॉक है। Owner से पुनः प्रवेश की अनुमति की प्रतीक्षा करें।');
     if (state.exam.endAt <= Date.now()) window.submitPortalExam(true);
     else notify('आपकी परीक्षा पिछली स्थिति से फिर शुरू हुई है।', 'success');
+  }
+
+  function examSessionDocumentRef() {
+    const exam = state.exam;
+    if (!state.user || !exam?.mode) return null;
+    const id = state.user.uid + '_' + exam.mode;
+    exam.sessionId = id;
+    return collection('examSessions').doc(id);
+  }
+
+  function updateExamSession(status, extra = {}) {
+    const ref = examSessionDocumentRef();
+    if (!ref || !state.user) return Promise.resolve();
+    const exam = state.exam;
+    return ref.set({
+      uid: state.user.uid,
+      name: state.profile?.displayName || state.user.displayName || state.user.email || 'विद्यार्थी',
+      mode: exam.mode,
+      status,
+      currentQuestion: Number(exam.index || 0) + 1,
+      totalQuestions: exam.questions?.length || 0,
+      tabSwitches: Number(exam.tabSwitches || 0),
+      endAtMs: Number(exam.endAt || 0),
+      updatedAt: serverTimestamp(),
+      ...extra
+    }, { merge: true }).catch(error => {
+      console.warn('Exam session status could not be saved. Check examSessions rules.', error);
+    });
+  }
+
+  function attachExamSessionListener() {
+    const ref = examSessionDocumentRef();
+    if (!ref) return;
+    if (state.exam.sessionUnsubscribe) state.exam.sessionUnsubscribe();
+    state.exam.sessionUnsubscribe = ref.onSnapshot(snapshot => {
+      if (!snapshot.exists || !state.exam.active || state.exam.submitted) return;
+      const status = snapshot.data()?.status;
+      if (status === 'kicked' && !state.exam.kicked) {
+        state.exam.kicked = true;
+        persistActiveExam();
+        renderExamQuestion();
+        setText('examResult', 'बार-बार टैब बदलने के कारण परीक्षा अस्थायी रूप से लॉक है। उत्तर सुरक्षित हैं; Owner पुनः प्रवेश दे सकता है।');
+      } else if (status === 'active' && state.exam.kicked) {
+        state.exam.kicked = false;
+        persistActiveExam();
+        renderExamQuestion();
+        setText('examResult', 'Owner ने पुनः प्रवेश की अनुमति दे दी है। जारी रखें।');
+        notify('परीक्षा में पुनः प्रवेश की अनुमति मिल गई।', 'success');
+      } else if (status === 'denied' && state.exam.kicked) {
+        setText('examResult', 'Owner ने पुनः प्रवेश की अनुमति नहीं दी है। समय पूरा होने पर ही प्रयास जमा होगा।');
+      }
+    }, error => console.warn('Exam session listener failed:', error));
   }
 
   function stopExamResources() {
@@ -1813,6 +1874,10 @@ function renderExamVisibility() {
     }
     if (exam.visibilityHandler) {
       document.removeEventListener('visibilitychange', exam.visibilityHandler);
+    }
+    if (exam.sessionUnsubscribe) {
+      exam.sessionUnsubscribe();
+      exam.sessionUnsubscribe = null;
     }
 
     exam.beforeUnload = null;
@@ -1911,7 +1976,7 @@ function renderExamVisibility() {
           <div class="space-y-2">
             ${options.map((option, index) => `
               <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 hover:border-emerald-500 hover:bg-emerald-50">
-                <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''}>
+                <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''} ${exam.kicked ? 'disabled' : ''}>
                 <span>${escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || JSON.stringify(option)) : option)}</span>
               </label>
             `).join('')}
@@ -1930,8 +1995,10 @@ function renderExamVisibility() {
     setText('examQuestionNumber', `प्रश्न ${exam.index + 1}/${exam.questions.length}`);
     const previous = byId('previousQuestionBtn');
     const next = byId('nextQuestionBtn');
-    if (previous) previous.disabled = exam.index <= 0;
-    if (next) next.disabled = exam.index >= exam.questions.length - 1;
+    if (previous) previous.disabled = exam.kicked || exam.index <= 0;
+    if (next) next.disabled = exam.kicked || exam.index >= exam.questions.length - 1;
+    const submitButton = byId('submitExamBtn');
+    if (submitButton) submitButton.disabled = exam.kicked;
     if (previous) previous.classList.toggle('opacity-40', previous.disabled);
     if (next) next.classList.toggle('opacity-40', next.disabled);
     if (workspace) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2039,9 +2106,14 @@ function renderExamVisibility() {
         submitted: false,
         stream: null,
         proctorTimer: null,
-        beforeUnload: null
+        beforeUnload: null,
+        kicked: false,
+        sessionUnsubscribe: null,
+        sessionId: null
       };
       persistActiveExam();
+      attachExamSessionListener();
+      updateExamSession('active', { startedAt: serverTimestamp() });
 
       ensureExamWorkspace(mode);
       setVisible('portalExamWorkspace', true);
@@ -2077,16 +2149,16 @@ function renderExamVisibility() {
         state.exam.tabSwitches = (state.exam.tabSwitches || 0) + 1;
         persistActiveExam();
         notify(`Exam tab change ${state.exam.tabSwitches}/${CONFIG.maxTabSwitches}.`, 'error');
-        if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
-          // Do not submit early: keep answers and deadline, pause the attempt,
-          // and leave final submission to the actual exam deadline.
-          state.exam.active = false;
-          stopExamResources();
-          setText('examResult', 'टैब बदलने की सीमा पूरी हुई। उत्तर सुरक्षित हैं, परीक्षा समय पूरा होने तक स्वतः जमा नहीं माने जाएँगे। व्यवस्थापक से दोबारा प्रवेश की अनुमति लें।');
-          setVisible('submitExamBtn', false);
-          setVisible('nextQuestionBtn', false);
-          setVisible('previousQuestionBtn', false);
-          setVisible('exitExamWorkspace', true);
+        if (state.exam.tabSwitches >= CONFIG.maxTabSwitches && !state.exam.kicked) {
+          // Lock the attempt without submitting it or stopping the deadline timer.
+          // The owner can re-enable the same session from Owner Studio.
+          state.exam.kicked = true;
+          persistActiveExam();
+          renderExamQuestion();
+          setText('examResult', 'बार-बार टैब बदलने के कारण परीक्षा अस्थायी रूप से लॉक है। उत्तर सुरक्षित हैं; Owner पुनः प्रवेश दे सकता है। समय पूरा होने पर प्रयास जमा होगा।');
+          updateExamSession('kicked');
+        } else {
+          updateExamSession(state.exam.kicked ? 'kicked' : 'active');
         }
       };
       document.addEventListener('visibilitychange', state.exam.visibilityHandler);
@@ -2103,14 +2175,14 @@ function renderExamVisibility() {
   };
 
   window.nextExamQuestion = function () {
-    if (!state.exam.active) return;
+    if (!state.exam.active || state.exam.kicked) return;
     state.exam.index = Math.min(state.exam.index + 1, state.exam.questions.length - 1);
     persistActiveExam();
     renderExamQuestion();
   };
 
   window.previousExamQuestion = function () {
-    if (!state.exam.active) return;
+    if (!state.exam.active || state.exam.kicked) return;
     state.exam.index = Math.max(0, state.exam.index - 1);
     persistActiveExam();
     renderExamQuestion();
@@ -2120,6 +2192,10 @@ function renderExamVisibility() {
     const exam = state.exam;
 
     if (!exam.active || exam.submitted) return;
+    if (exam.kicked && !automatic) {
+      notify('यह प्रयास Owner की अनुमति तक लॉक है।', 'error');
+      return;
+    }
 
     if (!automatic && !confirm('Submit your answers now?')) return;
 
@@ -2167,6 +2243,7 @@ function renderExamVisibility() {
 
     try {
       await collection(CONFIG.submissionCollections[exam.mode]).add(result);
+      updateExamSession('submitted', { submittedAt: serverTimestamp() });
       setText('examResult', instantResult
         ? `दैनिक क्विज़ परिणाम: ${correct}/${exam.questions.length}. Attempted: ${attempted}.`
         : 'आपके उत्तर जमा हो गए हैं। परिणाम Owner द्वारा जाँच और घोषित किए जाने के बाद ही दिखेगा।');
