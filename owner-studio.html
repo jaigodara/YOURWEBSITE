@@ -570,6 +570,13 @@ Ans: B"></textarea>
           <input type="text" id="newEditorUidInput" placeholder="Firebase Auth UID (मोबाइल नंबर नहीं)" class="flex-1 min-w-0 p-2.5 rounded-xl border border-stone-300 font-semibold">
           <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">➕ UID नियुक्त करें</button>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-xs">
+          <label class="flex items-center gap-2"><input id="editorPermissionMedia" type="checkbox"> मीडिया/PDF/ऑडियो संपादन</label>
+          <label class="flex items-center gap-2"><input id="editorPermissionQuizDrafts" type="checkbox"> दैनिक क्विज़ Draft बनाना/संपादित करना</label>
+          <label class="flex items-center gap-2"><input id="editorPermissionExamReview" type="checkbox"> परीक्षा उत्तर-पत्र जाँच/परिणाम प्रकाशित करना</label>
+          <label class="flex items-center gap-2"><input id="editorPermissionNotifications" type="checkbox"> लॉगिन उपयोगकर्ताओं को सूचना भेजना</label>
+        </div>
+        <p class="text-[10px] text-stone-500">चयनित अधिकार roles/{UID}.permissions में सहेजे जाएँगे। संवेदनशील शेड्यूल, नामांकन, प्रवेश-पत्र रिलीज़ और भूमिका प्रबंधन केवल Owner के पास रहेगा।
         <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
 
       </div>
@@ -626,6 +633,10 @@ Ans: B"></textarea>
       );
     }
 
+    function hasEditorPermission(permission) {
+      return currentAdminUser?.role === 'editor' && currentAdminUser.permissions?.[permission] === true;
+    }
+
     let draftItemsList = [];
     let editorsPhoneList = [];
 
@@ -653,7 +664,8 @@ Ans: B"></textarea>
 
         try {
           const roleDoc = await db.collection('roles').doc(user.uid).get();
-          const role = roleDoc.exists ? roleDoc.data().role : null;
+          const roleData = roleDoc.exists ? roleDoc.data() || {} : {};
+          const role = roleData.role;
 
           // Check if Super Owner or Trusted Editor
           if (user.uid !== SUPER_OWNER_UID && user.uid !== RECOVERED_OWNER_UID && role !== 'owner' && role !== 'editor') {
@@ -662,13 +674,32 @@ Ans: B"></textarea>
             return;
           }
 
-          currentAdminUser = { uid: user.uid, role: role || 'owner' };
+          currentAdminUser = { uid: user.uid, role: role || 'owner', permissions: roleData.permissions || {} };
           const hasOwnerRole = role === 'owner' || user.uid === SUPER_OWNER_UID || user.uid === RECOVERED_OWNER_UID;
           if (!hasOwnerRole) {
-            ['btn_pane_media', 'btn_pane_quiz', 'btn_pane_exam', 'btn_pane_system'].forEach(id => {
-              document.getElementById(id)?.classList.add('hidden');
+            const panePermissions = {
+              btn_pane_media: 'media',
+              btn_pane_quiz: 'quizDrafts',
+              btn_pane_exam: 'examReview',
+              btn_pane_system: 'notifications'
+            };
+            Object.entries(panePermissions).forEach(([buttonId, permission]) => {
+              if (currentAdminUser.permissions[permission] !== true) {
+                document.getElementById(buttonId)?.classList.add('hidden');
+              }
             });
-            document.querySelectorAll('[onclick*="switchStudioPane(\'pane_media\')"], [onclick*="switchStudioPane(\'pane_quiz\')"], [onclick*="switchStudioPane(\'pane_exam\')"], [onclick*="switchStudioPane(\'pane_system\')"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('[data-owner-only="true"]').forEach(el => el.classList.add('hidden'));
+            const systemPane = document.getElementById('pane_system');
+            if (systemPane && currentAdminUser.permissions.notifications === true) {
+              Array.from(systemPane.children).forEach(el => { if (el.id !== 'ownerNotificationCard') el.classList.add('hidden'); });
+            }
+            if (currentAdminUser.permissions.quizDrafts === true) {
+              const targetSelect = document.getElementById('bulkQuestionTarget');
+              if (targetSelect) {
+                Array.from(targetSelect.options).forEach(option => { if (option.value !== 'quiz') option.hidden = true; });
+                targetSelect.value = 'quiz';
+              }
+            }
           }
           document.getElementById('adminAuthLock')?.classList.add('hidden');
 
@@ -693,9 +724,15 @@ Ans: B"></textarea>
     });
 
     function switchStudioPane(paneId) {
-      const isOwner = currentAdminUser?.role === 'owner' || currentAdminUser?.uid === SUPER_OWNER_UID || currentAdminUser?.uid === RECOVERED_OWNER_UID;
-      if (!isOwner && paneId !== 'pane_overview') {
-        showToast('Trusted Editor को केवल ड्राफ्ट/समीक्षा पैनल की अनुमति है। अन्य बदलाव मुख्य व्यवस्थापक कर सकते हैं।');
+      const isOwner = isPrimaryOwner();
+      const panePermission = {
+        pane_media: 'media',
+        pane_quiz: 'quizDrafts',
+        pane_exam: 'examReview',
+        pane_system: 'notifications'
+      }[paneId];
+      if (!isOwner && paneId !== 'pane_overview' && (!panePermission || !hasEditorPermission(panePermission))) {
+        showToast('इस Owner Studio अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।');
         return;
       }
       ['pane_overview', 'pane_media', 'pane_quiz', 'pane_exam', 'pane_system'].forEach(id => {
@@ -2266,10 +2303,17 @@ Ans: B"></textarea>
       try {
         await db.collection('roles').doc(uid).set({
           role: 'editor',
+          permissions: {
+            media: !!document.getElementById('editorPermissionMedia')?.checked,
+            quizDrafts: !!document.getElementById('editorPermissionQuizDrafts')?.checked,
+            examReview: !!document.getElementById('editorPermissionExamReview')?.checked,
+            notifications: !!document.getElementById('editorPermissionNotifications')?.checked
+          },
           grantedBy: auth.currentUser?.uid || null,
           grantedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         document.getElementById('newEditorUidInput').value = '';
+        ['editorPermissionMedia','editorPermissionQuizDrafts','editorPermissionExamReview','editorPermissionNotifications'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
         showToast('Editor role सहेज दिया गया। अगर permission denied आए तो Firestore rules में owner-only role write जोड़ना होगा।');
       } catch (e) {
         showToast('Editor role नहीं सहेजा गया: ' + e.message + ' — यह UID-based role write Firestore rules से अनुमति प्राप्त होना चाहिए।');
