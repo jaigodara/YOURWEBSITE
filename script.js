@@ -1836,13 +1836,14 @@ function renderExamVisibility() {
     if (state.exam.sessionUnsubscribe) state.exam.sessionUnsubscribe();
     state.exam.sessionUnsubscribe = ref.onSnapshot(snapshot => {
       if (!snapshot.exists || !state.exam.active || state.exam.submitted) return;
-      const status = snapshot.data()?.status;
+      const sessionData = snapshot.data() || {};
+      const status = sessionData.status;
       if (status === 'kicked' && !state.exam.kicked) {
         state.exam.kicked = true;
         persistActiveExam();
         renderExamQuestion();
         setText('examResult', 'बार-बार टैब बदलने के कारण परीक्षा अस्थायी रूप से लॉक है। उत्तर सुरक्षित हैं; Owner पुनः प्रवेश दे सकता है।');
-      } else if (status === 'active' && state.exam.kicked) {
+      } else if (status === 'active' && state.exam.kicked && sessionData.reentryGrantedAt) {
         state.exam.kicked = false;
         persistActiveExam();
         renderExamQuestion();
