@@ -817,7 +817,7 @@
     setText('malaLapsDisplay', state.mala.laps);
     const p = byId('malaProgressBar');
     if (p) p.style.width = `${state.mala.count / 108 * 100}%`;
-    $('.mala-bead').forEach((b, i) => b.classList.toggle('bead-done', i < state.mala.count));
+    $$('.mala-bead').forEach((b, i) => b.classList.toggle('bead-done', i < state.mala.count));
   }
 
   window.tapHomeMalaBead = function () {
