@@ -346,7 +346,7 @@ Ans: B"></textarea>
 
       <!-- MANUAL EXAM REVIEW FIRST: visible immediately when opening the exam pane -->
       <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-3">
+      <div id="ownerExamSessionMonitorPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-3">
         <div class="flex items-start justify-between gap-3">
           <div>
             <h3 class="font-yatra text-base text-forest">🛡️ लाइव परीक्षा निगरानी / पुनः प्रवेश</h3>
@@ -378,7 +378,7 @@ Ans: B"></textarea>
 
       
       <!-- PHOTO PROCTORING TOGGLE -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
+      <div id="ownerProctoringPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
           <div>
             <h3 class="font-yatra text-base text-forest">📷 परीक्षा फोटो कैप्चरिंग / कैमरा प्रोक्टरिंग</h3>
@@ -396,7 +396,7 @@ Ans: B"></textarea>
 
 
       <!-- EXAM AVAILABILITY / VISIBILITY CONTROLS -->
-      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerExamVisibilitySettingsPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎛️ परीक्षा अनुभाग नियंत्रण</h3>
         <p class="text-xs text-stone-500">ये विकल्प मुख्य वेबसाइट के examConfig/current दस्तावेज़ में सहेजे जाते हैं। किसी सेक्शन को छिपाने से उसका डेटा मिटता नहीं है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -424,7 +424,7 @@ Ans: B"></textarea>
       </div>
 
       <!-- STUDENT / ADMIT-CARD CONFIRMATION -->
-      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerRegistrationReviewPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ विद्यार्थी / प्रवेश-पत्र पुष्टि</h3>
         <p class="text-xs text-stone-500">वेबसाइट से आए विद्यार्थियों के लिए examEnrolledStudents चुनें। रोल नंबर अपने-आप बनता है; आपको केवल विद्यार्थी की जाँच करके पुष्टि करनी है। प्रवेश-पत्र पुष्टि के बाद उपलब्ध होगा।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
@@ -444,7 +444,7 @@ Ans: B"></textarea>
       </div>
 
       <!-- ADMIT CARD SETTINGS AND RELEASE CONTROL -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-emerald-200 shadow-sm space-y-3">
+      <div id="ownerAdmitCardSettingsPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ प्रवेश-पत्र विवरण और रिलीज़ नियंत्रण</h3>
         <p class="text-xs text-stone-500">अगली परीक्षा के लिए विवरण यहीं बदलें। पुष्टि किए हुए विद्यार्थी भी तब तक प्रवेश-पत्र नहीं देखेंगे, जब तक आप रिलीज़ नहीं करते।</p>
         <label class="block text-xs font-bold text-stone-700">परीक्षा का नाम
@@ -491,7 +491,7 @@ Ans: B"></textarea>
     <div id="pane_system" class="hidden space-y-4">
 
       <!-- OWNER BROADCAST NOTIFICATIONS -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+      <div id="ownerNotificationCard" data-editor-permission="notifications" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🔔 सभी उपयोगकर्ताओं के लिए सूचना भेजें</h3>
         <p class="text-xs text-stone-500">यह संदेश मुख्य वेबसाइट के ऊपर “नई सूचनाएँ और घोषणाएँ” में सभी visitors को दिखाई देगा। प्रवेश-पत्र, परीक्षा तारीख या नई सामग्री की जानकारी यहाँ लिखें।</p>
         <input id="notificationTitle" maxlength="100" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="सूचना का शीर्षक (जैसे प्रवेश-पत्र उपलब्ध हैं)">
@@ -829,7 +829,7 @@ Ans: B"></textarea>
 
     // 3. DAILY BANNER & AMAVASYA MANAGER
     async function saveAdminBanner() {
-      if (!isPrimaryOwner()) return showToast('यह सेटिंग केवल Owner बदल सकता है।');
+      if (!isPrimaryOwner() && !hasEditorPermission('media')) return showToast('मीडिया संपादन की अनुमति नहीं है।');
       const txt = document.getElementById('adminBannerInput')?.value.trim();
       if (!txt) return showToast("कृपया सुविचार लिखें!");
 
@@ -891,7 +891,7 @@ Ans: B"></textarea>
 
     // 4. LITERATURE & AUDIO
     async function saveAdminPdf() {
-      if (!isPrimaryOwner()) return showToast('PDF लाइब्रेरी केवल Owner बदल सकता है।');
+      if (!isPrimaryOwner() && !hasEditorPermission('media')) return showToast('PDF लाइब्रेरी संपादन की अनुमति नहीं है।');
       const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
       const title = document.getElementById('adminPdfTitle')?.value.trim();
       const link = document.getElementById('adminPdfLink')?.value.trim();
@@ -911,7 +911,7 @@ Ans: B"></textarea>
     }
 
     async function saveAdminAudio() {
-      if (!isPrimaryOwner()) return showToast('ऑडियो लाइब्रेरी केवल Owner बदल सकता है।');
+      if (!isPrimaryOwner() && !hasEditorPermission('media')) return showToast('ऑडियो लाइब्रेरी संपादन की अनुमति नहीं है।');
       const title = document.getElementById('adminAudioTitle')?.value.trim();
       const link = document.getElementById('adminAudioLink')?.value.trim();
       if (!title || !link) return showToast("कृपया शीर्षक और ऑडियो लिंक दर्ज करें!");
@@ -1119,8 +1119,9 @@ Ans: B"></textarea>
     }
 
     async function saveBulkQuestionDrafts() {
-      if (!isPrimaryOwner()) return showToast('प्रश्न बैंक में बदलाव केवल Owner कर सकता है।');
+      if (!isPrimaryOwner() && !hasEditorPermission('quizDrafts')) return showToast('दैनिक क्विज़ Draft संपादन की अनुमति नहीं है।');
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      if (!isPrimaryOwner() && target !== 'quiz') return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
       const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
       if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
       if (!bulkQuestionDrafts.length) return showToast('पहले प्रश्नों का Preview तैयार करें।');
@@ -1180,6 +1181,7 @@ Ans: B"></textarea>
     }
 
     async function editQuestionDoc(target, id) {
+      if (!isPrimaryOwner() && (!hasEditorPermission('quizDrafts') || target !== 'quiz')) return showToast('इस प्रश्न को संपादित करने की अनुमति नहीं है।');
       try {
         const snap = await db.collection(target).doc(id).get();
         if (!snap.exists) return showToast('यह प्रश्न अब मौजूद नहीं है।');
@@ -1283,6 +1285,10 @@ Ans: B"></textarea>
           remove.className = 'rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-700';
           remove.textContent = 'हटाएँ';
           remove.addEventListener('click', () => deleteDocItem(target, doc.id));
+          if (!isPrimaryOwner()) {
+            publish.classList.add('hidden');
+            remove.classList.add('hidden');
+          }
           row.append(title, status, edit, publish, remove);
           box.appendChild(row);
         });
@@ -1630,7 +1636,7 @@ Ans: B"></textarea>
     let examReviewQuestionLookup = {};
 
     async function saveCurrentExamReview(showMessage = true) {
-      if (!isPrimaryOwner()) return showToast('मैन्युअल परिणाम प्रकाशित करने का अधिकार केवल Owner को है।');
+      if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('मैन्युअल परिणाम समीक्षा की अनुमति नहीं है।');
       const d = examReviewQueue[examReviewIndex];
       if (!d) return false;
       const scoreInput = document.getElementById('currentReviewScore');
@@ -1941,6 +1947,7 @@ Ans: B"></textarea>
     }
 
     async function loadExamSessionQueue() {
+      if (!isPrimaryOwner()) return showToast('लाइव सत्र केवल Owner देख सकता है।');
       const host = document.getElementById('examSessionQueue');
       if (!host) return;
       host.replaceChildren();
@@ -1999,6 +2006,7 @@ Ans: B"></textarea>
     window.loadExamSessionQueue = loadExamSessionQueue;
 
     async function loadExamSubmissions() {
+      if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र समीक्षा की अनुमति नहीं है।');
       const list = document.getElementById('examSubmissionsList');
       if (!list) return;
       examReviewCollection = document.getElementById('reviewSubmissionCollection')?.value || 'quizAttempts';
@@ -2436,8 +2444,8 @@ Ans: B"></textarea>
       const recipientUid = (recipientInput?.value || '').trim();
       const file = attachmentInput?.files?.[0] || null;
 
-      if (!isPrimaryOwner()) {
-        if (status) status.textContent = 'केवल Owner सूचना प्रकाशित कर सकता है।';
+      if (!isPrimaryOwner() && !hasEditorPermission('notifications')) {
+        if (status) status.textContent = 'सूचना प्रकाशित करने की अनुमति नहीं है।';
         return;
       }
       if (!title || (!message && !file)) {
