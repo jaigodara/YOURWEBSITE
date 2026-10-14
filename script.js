@@ -392,15 +392,26 @@
 
   function renderAuthState() {
     const label = state.user
-      ? (state.profile?.displayName || state.user.email || 'Account')
-      : 'Sign in';
+      ? (state.profile?.displayName || state.user.displayName || state.user.email || 'Account')
+      : 'लॉगिन करें';
 
-    ['authButton', 'profileButton', 'loginBtn'].forEach(id => {
+    ['authButton', 'profileButton', 'loginBtn', 'authLoginButton'].forEach(id => {
       const el = byId(id);
-      if (el) el.textContent = label;
+      if (!el) return;
+      el.textContent = label;
+      if (id === 'authLoginButton') {
+        // Keep the existing visual design but make the button reflect the real
+        // Firebase session and open the profile after successful sign-in.
+        el.onclick = state.user
+          ? () => window.BishnoiAuth?.openProfileOrAuth?.()
+          : () => window.BishnoiAuth?.openAuthModal?.();
+        el.setAttribute('aria-label', state.user ? 'खाता और प्रोफ़ाइल खोलें' : 'लॉगिन करें');
+      }
     });
 
-    $$('[data-owner-only]').forEach(el => {
+    setText('bnavProfileLabel', state.user ? 'खाता' : 'प्रोफ़ाइल');
+
+    $('[data-owner-only]').forEach(el => {
       el.hidden = !state.isOwner;
     });
   }
