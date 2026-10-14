@@ -1414,8 +1414,9 @@ Ans: B"></textarea>
         return false;
       }
       let status = decision.value;
-      const autoScore = Number(d.score ?? d.correct ?? 0);
-      if (status === 'auto') status = value === autoScore ? 'published' : 'held';
+      const autoScoreValue = d.score ?? d.correct ?? d.autoScore;
+      const autoScore = Number(autoScoreValue);
+      if (status === 'auto') status = autoScoreValue !== null && autoScoreValue !== undefined && Number.isFinite(autoScore) && value === autoScore ? 'published' : 'held';
       const published = status === 'published';
       const saveButton = document.getElementById('currentReviewSave');
       if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'सहेजा जा रहा है…'; }
@@ -1457,6 +1458,24 @@ Ans: B"></textarea>
       }
 
       const d = examReviewQueue[examReviewIndex];
+      const rawAnswersForScore = d.answers || d.responses || {};
+      const scoreEntries = Array.isArray(rawAnswersForScore)
+        ? rawAnswersForScore.map((answer, index) => [String(index), answer])
+        : Object.entries(rawAnswersForScore);
+      let computedAutoScore = 0;
+      let canComputeAutoScore = false;
+      scoreEntries.forEach(([questionId, answer]) => {
+        const question = examReviewQuestionLookup[questionId];
+        if (!question) return;
+        const correct = question.correctAnswer ?? question.answerIndex ?? question.ans;
+        if (correct === undefined || correct === null) return;
+        canComputeAutoScore = true;
+        const normalizedCorrect = typeof correct === 'string' && /^[A-D]$/i.test(correct.trim())
+          ? ['A','B','C','D'].indexOf(correct.trim().toUpperCase())
+          : correct;
+        if (String(answer) === String(normalizedCorrect)) computedAutoScore++;
+      });
+      d.autoScore = canComputeAutoScore ? computedAutoScore : null;
       const totalStudents = examReviewQueue.length;
       const top = document.createElement('div');
       top.className = 'sticky top-0 z-10 p-3 rounded-xl bg-forest text-white flex items-center justify-between gap-3';
@@ -1489,7 +1508,7 @@ Ans: B"></textarea>
       meta.className = 'text-xs text-stone-600';
       meta.textContent = 'UID: ' + (d.uid || d.userId || d.id) + ' · ईमेल: ' + (d.email || '—') +
         ' · परीक्षा: ' + (d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
-        (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
+        (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
         ' · वर्तमान स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
       card.append(name, meta);
 
@@ -1571,7 +1590,7 @@ Ans: B"></textarea>
       scoreInput.min = '0';
       scoreInput.max = String(Math.max(0, Number(d.total ?? d.totalQuestions ?? 100)));
       scoreInput.step = '0.25';
-      scoreInput.value = d.manualScore ?? d.score ?? 0;
+      scoreInput.value = d.manualScore ?? d.score ?? d.autoScore ?? 0;
       scoreInput.className = 'mt-1 w-full p-3 rounded-lg border border-stone-300 text-sm';
       scoreLabel.appendChild(scoreInput);
 
