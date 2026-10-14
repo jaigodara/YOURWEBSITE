@@ -116,6 +116,10 @@ Add this match block inside the existing Firestore service block:
       allow create: if (
         canSendNotifications() && request.resource.data.recipientUid == uid
       ) || (
+        canReviewExam() &&
+        request.resource.data.type == 'exam-result' &&
+        request.resource.data.recipientUid == uid
+      ) || (
         signedIn() &&
         request.auth.uid == uid &&
         request.resource.data.recipientUid == uid &&
