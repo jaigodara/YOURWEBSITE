@@ -1241,7 +1241,7 @@
   app.openProfileOrAuth = function () {
     if (state.user) {
       window.switchTab('profile');
-      const profile = byId('profileModal');
+      const profile = byId('userProfileModal');
       if (profile) profile.classList.remove('hidden');
       return;
     }
@@ -1317,12 +1317,12 @@
     });
   };
   app.tapMalaBead = function () {
-    state.malaCount = Math.max(0, Number(state.malaCount || 0)) + 1;
+    state.mala.count = Math.max(0, Number(state.mala.count || 0)) + 1;
     saveMala();
     renderMala();
   };
   app.resetMala = function () {
-    state.malaCount = 0;
+    state.mala.count = 0;
     saveMala();
     renderMala();
   };
@@ -1368,7 +1368,7 @@
   };
   authApi.openProfileOrAuth = app.openProfileOrAuth;
   authApi.closeProfileModal = function () {
-    const modal = byId('profileModal');
+    const modal = byId('userProfileModal');
     if (modal) {
       modal.classList.add('hidden');
       modal.style.display = 'none';
@@ -1376,8 +1376,8 @@
   };
   authApi.handleAuthSubmit = async function (event) {
     if (event) event.preventDefault();
-    const email = (byId('loginEmail')?.value || byId('authEmail')?.value || '').trim();
-    const password = byId('loginPassword')?.value || byId('authPassword')?.value || '';
+    const email = (byId('loginIdentifier')?.value || '').trim();
+    const password = byId('loginPass')?.value || '';
     if (!state.auth) return notify('Authentication is unavailable.', 'error');
     if (!email || !password) return notify('ईमेल और पासवर्ड दर्ज करें।', 'error');
     try {
