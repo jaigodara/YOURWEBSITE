@@ -484,6 +484,12 @@
     });
 
     setText('bnavProfileLabel', state.user ? 'खाता' : 'प्रोफ़ाइल');
+
+    // Community posting follows the same Firebase session as the rest of the site.
+    // Guests see the login prompt; signed-in users see the message composer.
+    setVisible('postAuthPrompt', !state.user);
+    setVisible('postEditor', !!state.user);
+
     setVisible('ownerStudioPortalBtn', !!state.isOwner);
     setVisible('profileOwnerStudioLink', !!state.isOwner);
 
@@ -1094,60 +1100,80 @@ function renderExamVisibility() {
       `;
     }).join('');
   }
-    // Community posts
+    // Community chat: keep the current HTML IDs and Firestore rules in sync.
+  let communityPostsCache = [];
+  let communityTopicFilter = 'all';
+
   function renderCommunity(posts) {
-    const host = byId('communityPosts') || byId('postsList');
+    communityPostsCache = Array.isArray(posts) ? posts : [];
+    const host = byId('communityFeed') || byId('communityPosts') || byId('postsList');
     if (!host) return;
 
-    host.innerHTML = posts.map(post => `
-      <article class="community-post" data-post-id="${escapeHtml(post.id)}">
-        <h3>${escapeHtml(post.title || 'Community update')}</h3>
-        <p>${escapeHtml(post.text || post.content || '')}</p>
-        <small>${escapeHtml(post.authorName || 'Community member')}</small>
-        <button type="button" data-upvote="${escapeHtml(post.id)}">
-          👍 ${Number(post.upvotes) || 0}
-        </button>
-      </article>
-    `).join('');
+    const filtered = communityTopicFilter === 'all'
+      ? communityPostsCache
+      : communityPostsCache.filter(post => (post.topic || 'सामान्य चर्चा') === communityTopicFilter);
 
-    host.querySelectorAll('[data-upvote]').forEach(button => {
-      button.addEventListener('click', () => window.upvoteCommunityPost(button.dataset.upvote));
-    });
+    if (!filtered.length) {
+      host.innerHTML = '<div class="rounded-xl bg-white p-4 text-center text-xs text-stone-500">अभी कोई संदेश नहीं है। चर्चा की शुरुआत आप कर सकते हैं।</div>';
+      return;
+    }
+
+    host.innerHTML = filtered.map(post => {
+      const body = post.body || post.text || post.content || '';
+      const author = post.displayName || post.authorName || 'समाज का सदस्य';
+      const topic = post.topic || 'सामान्य चर्चा';
+      const when = post.createdAt && typeof post.createdAt.toDate === 'function'
+        ? post.createdAt.toDate().toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' })
+        : '';
+      return `
+        <article class="rounded-xl bg-white border border-stone-200 p-3.5 shadow-sm space-y-2" data-post-id="${escapeHtml(post.id || '')}">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 rounded-full px-2 py-1">${escapeHtml(topic)}</span>
+            <span class="text-[10px] text-stone-400">${escapeHtml(when)}</span>
+          </div>
+          <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
+          <div class="text-[10px] text-stone-500">— ${escapeHtml(author)}</div>
+        </article>
+      `;
+    }).join('');
   }
 
-  window.createCommunityPost = async function () {
+  window.BishnoiCommunity = window.BishnoiCommunity || {};
+  window.BishnoiCommunity.filterTopic = function (topic) {
+    communityTopicFilter = topic || 'all';
+    renderCommunity(communityPostsCache);
+  };
+  window.BishnoiCommunity.submitPost = async function () {
     if (!requireUser()) return;
 
-    const title = (byId('postTitle')?.value || '').trim();
-    const content = (byId('postContent')?.value || '').trim();
-
-    if (!content) {
-      notify('Please write something before posting.');
+    const input = byId('postText');
+    const body = (input?.value || '').trim();
+    if (!body) {
+      notify('संदेश लिखकर भेजें।');
+      input?.focus();
+      return;
+    }
+    if (body.length > 300) {
+      notify('संदेश 300 अक्षरों से छोटा रखें।', 'error');
       return;
     }
 
-    if (content.length > 5000 || title.length > 200) {
-      notify('Your post is too long.', 'error');
-      return;
-    }
-
+    const topic = byId('chatTopicFilter')?.value || 'सामान्य चर्चा';
     try {
+      // These fields match the current Firestore rule:
+      // request.resource.data.uid == request.auth.uid and body is a string.
       await collection('posts').add({
-        title,
-        text: content,
-        authorUid: state.user.uid,
-        authorName: state.profile?.displayName || state.user.displayName || 'Community member',
-        upvotes: 0,
+        uid: state.user.uid,
+        body,
+        topic,
+        displayName: state.profile?.displayName || state.user.displayName || 'समाज का सदस्य',
         createdAt: serverTimestamp()
       });
-
-      if (byId('postTitle')) byId('postTitle').value = '';
-      if (byId('postContent')) byId('postContent').value = '';
-
-      notify('Your post has been published.', 'success');
+      if (input) input.value = '';
+      notify('आपका संदेश प्रकाशित हो गया।', 'success');
     } catch (e) {
-      console.error(e);
-      notify('Could not publish the post. Check your Firestore permissions.', 'error');
+      console.error('Community post failed:', e);
+      notify('संदेश नहीं भेजा जा सका। Firestore permissions जाँचें।', 'error');
     }
   };
 
