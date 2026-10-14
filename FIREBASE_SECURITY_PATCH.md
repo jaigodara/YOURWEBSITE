@@ -152,6 +152,15 @@ In Firebase Console → Storage → Rules, merge the following path rules into y
             )
           );
         }
+        function editorHasPermission(permission) {
+          return signedIn() &&
+            firestore.exists(/databases/(default)/documents/roles/$(request.auth.uid)) &&
+            firestore.get(/databases/(default)/documents/roles/$(request.auth.uid)).data.role == 'editor' &&
+            firestore.get(/databases/(default)/documents/roles/$(request.auth.uid)).data.permissions[permission] == true;
+        }
+        function canSendNotifications() {
+          return examOwner() || editorHasPermission('notifications');
+        }
         function validAttachment() {
           return request.resource.size <= 10 * 1024 * 1024 &&
             (
