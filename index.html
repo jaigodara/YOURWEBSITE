@@ -149,7 +149,22 @@
   </nav>
 
   <!-- MAIN TAB CONTAINERS -->
-  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
+  <section id="publicNotificationsSection" aria-live="polite" class="hidden max-w-5xl w-full mx-auto px-4 pt-3">
+  <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-xl" aria-hidden="true">🔔</span>
+      <div>
+        <h2 class="font-yatra text-base text-forest">नई सूचनाएँ और घोषणाएँ</h2>
+        <p class="text-[11px] text-stone-500">प्रवेश-पत्र, परीक्षा, नई सामग्री और मंच के अपडेट</p>
+      </div>
+    </div>
+    <div id="publicNotificationsList" class="space-y-2">
+      <p class="text-xs text-stone-500">सूचनाएँ लोड हो रही हैं…</p>
+    </div>
+  </div>
+</section>
+
+<main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6">
     
     <!-- 1. HOME TAB -->
     <section id="tab-home" class="space-y-6">
