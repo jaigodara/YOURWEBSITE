@@ -395,6 +395,8 @@
       clearSubscriptions();
       state.user = user;
       state.profile = null;
+      state.myResults = [];
+      renderMyResults();
       state.isOwner = false;
       state.roles = [];
 
@@ -407,6 +409,12 @@
       if (user) {
         try {
           await loadUserProfile(user);
+          if (state.profile?.mala && typeof state.profile.mala === 'object') {
+            state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
+            state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
+            try { localStorage.setItem('bishnoi_mala_v2', JSON.stringify({ ...state.mala, date: localDateKey() })); } catch (_) {}
+            renderMala();
+          }
           notify(`Welcome${state.profile?.displayName ? ' ' + state.profile.displayName : ''}!`, 'success');
         } catch (e) {
           console.error('Signed-in profile initialization failed:', e);
