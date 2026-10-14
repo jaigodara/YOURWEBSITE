@@ -1480,11 +1480,21 @@ Ans: B"></textarea>
         const ms = new Date(value).getTime();
         return Number.isFinite(ms) ? ms : null;
       };
+      const quizStartAtMs = readStartTime('ownerQuizStartAt');
+      const mock1StartAtMs = readStartTime('ownerMock1StartAt');
+      const mock2StartAtMs = readStartTime('ownerMock2StartAt');
+      const mainStartAtMs = readStartTime('ownerMainStartAt');
+      const asTimestamp = ms => ms ? firebase.firestore.Timestamp.fromMillis(ms) : null;
       const config = {
-        quizStartAtMs: readStartTime('ownerQuizStartAt'),
-        mock1StartAtMs: readStartTime('ownerMock1StartAt'),
-        mock2StartAtMs: readStartTime('ownerMock2StartAt'),
-        mainStartAtMs: readStartTime('ownerMainStartAt'),
+        quizStartAtMs,
+        mock1StartAtMs,
+        mock2StartAtMs,
+        mainStartAtMs,
+        // Timestamp copies let Firestore Rules enforce the official start time.
+        quizStartAt: asTimestamp(quizStartAtMs),
+        mock1StartAt: asTimestamp(mock1StartAtMs),
+        mock2StartAt: asTimestamp(mock2StartAtMs),
+        mainStartAt: asTimestamp(mainStartAtMs),
         dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
         // The master toggle controls the whole mock section; individual toggles
         // decide which cards are visible when the master toggle is enabled.
