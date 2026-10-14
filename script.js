@@ -542,6 +542,8 @@
     const map = [
       ['enrollmentSection', c.enrollmentVisible !== false],
       ['mockHub', c.mockVisible !== false],
+      ['mockExam1Card', c.mock1Visible !== false],
+      ['mockExam2Card', c.mock2Visible !== false],
       ['mainExamSection', c.mainExamVisible !== false],
       ['dailyQuizSection', c.dailyQuizVisible !== false],
       ['resultsDesk', c.resultsVisible !== false]
