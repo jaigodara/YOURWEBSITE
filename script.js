@@ -1899,6 +1899,7 @@ function renderExamVisibility() {
       totalQuestions: exam.questions?.length || 0,
       tabSwitches: Number(exam.tabSwitches || 0),
       endAtMs: Number(exam.endAt || 0),
+      endAt: Number(exam.endAt) > 0 ? firebase.firestore.Timestamp.fromMillis(Number(exam.endAt)) : null,
       updatedAt: serverTimestamp(),
       ...extra
     }, { merge: true }).catch(error => {
@@ -2144,6 +2145,7 @@ function renderExamVisibility() {
     const durationMinutes = Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
     const scheduledEndAt = scheduledStart + durationMinutes * 60 * 1000;
     let lateEntryGranted = false;
+    let ownerGrantedEndAt = null;
     if (Date.now() >= scheduledEndAt) {
       const sessionRef = collection('examSessions').doc(state.user.uid + '_' + mode);
       try {
@@ -2153,9 +2155,12 @@ function renderExamVisibility() {
           notify('Owner ने देर से प्रवेश का अनुरोध अस्वीकार कर दिया है।', 'error');
           return;
         }
+        ownerGrantedEndAt = timestampMillis(session.endAt) || Number(session.endAtMs) || null;
         lateEntryGranted = session.status === 'active' &&
           session.lateEntryRequested === true &&
-          !!session.reentryGrantedAt;
+          !!session.reentryGrantedAt &&
+          !!ownerGrantedEndAt &&
+          ownerGrantedEndAt > Date.now();
         if (!lateEntryGranted) {
           await sessionRef.set({
             uid: state.user.uid,
@@ -2176,7 +2181,7 @@ function renderExamVisibility() {
         return;
       }
     }
-    const attemptEndAt = lateEntryGranted ? Date.now() + durationMinutes * 60 * 1000 : scheduledEndAt;
+    const attemptEndAt = lateEntryGranted ? ownerGrantedEndAt : scheduledEndAt;
 
     const collectionName = CONFIG.examCollections[mode];
     if (!collectionName) {
