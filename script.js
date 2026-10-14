@@ -87,7 +87,8 @@
     maxTabSwitches: 3,
     proctorSnapshotSeconds: 60,
     ownerEmailAllowlist: [],
-    ownerUid: "rdP0ZXzSP9fGzmJshEVvbOfb31g2"
+    ownerUid: "rdP0ZXzSP9fGzmJshEVvbOfb31g2",
+    legacyOwnerUid: "8YRBWWMKG2OUW6cmzZkGbFgOqyp2"
   });
 
   const state = {
@@ -330,6 +331,7 @@
       ...(Array.isArray(roleData.roles) ? roleData.roles : [])
     ];
     state.isOwner = user.uid === CONFIG.ownerUid ||
+      user.uid === CONFIG.legacyOwnerUid ||
       state.profile.role === 'owner' ||
       state.profile.isOwner === true ||
       state.roles.includes('owner') ||
