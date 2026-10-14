@@ -138,3 +138,50 @@ In Firebase Console → Storage → Rules, merge the following path rules into y
 - Publish the Firestore and Storage rules in Firebase Console; GitHub/Vercel deployment does not deploy Firebase rules.
 - Main/mock submissions and private notifications require corresponding existing match blocks to enforce owner-only writes and student-own reads. Review those existing blocks before publishing.
 - A browser-only exam cannot provide tamper-proof timing or proctoring. Rules can enforce scheduled start and question-read permissions; a trusted backend is needed for fully authoritative deadlines, anti-duplicate submissions, and secure result lookup by roll number/name/DOB.
+
+## 7. Enforce enrollment and scheduled start on submission writes
+
+Add this helper inside the Firestore service block:
+
+    function confirmedExamStudent() {
+      let enrollmentPath = /databases/$(database)/documents/examEnrolledStudents/$(request.auth.uid);
+      return signedIn() &&
+        exists(enrollmentPath) &&
+        get(enrollmentPath).data.verificationStatus == 'confirmed';
+    }
+
+Replace the existing create rules for the three submission collections with the matching checks below. Keep reads limited to the student who owns the record and the exam owner; do not leave any broader signed-in create/read rule for these collections.
+
+    match /quizAttempts/{attemptId} {
+      allow create: if confirmedExamStudent() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.mode == 'quiz' &&
+        examStarted('quizStartAt');
+      allow read: if examOwner() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if examOwner();
+    }
+
+    match /mockExamSubmissions/{attemptId} {
+      allow create: if confirmedExamStudent() &&
+        request.resource.data.uid == request.auth.uid &&
+        (
+          (request.resource.data.mode == 'mock1' && examStarted('mock1StartAt')) ||
+          (request.resource.data.mode == 'mock2' && examStarted('mock2StartAt'))
+        );
+      allow read: if examOwner() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if examOwner();
+    }
+
+    match /mainExamSubmissions/{attemptId} {
+      allow create: if confirmedExamStudent() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.mode == 'main' &&
+        examStarted('mainStartAt');
+      allow read: if examOwner() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if examOwner();
+    }
+
+These examples must replace the corresponding existing collection rules rather than be added beside permissive rules. The code still needs backend-side duplicate-attempt enforcement if each student may submit only once.
