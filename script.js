@@ -1057,9 +1057,10 @@
         }
         const fullName = (byId('enrollmentName')?.value || '').trim();
         const phone = (byId('enrollmentPhone')?.value || '').trim();
+        const dateOfBirth = (byId('enrollmentDob')?.value || '').trim();
         const examName = (byId('enrollmentExam')?.value || 'मुख्य परीक्षा').trim();
         const location = (byId('enrollmentLocation')?.value || '').trim();
-        if (fullName.length < 2 || !/^[+()\d\s-]{10,20}$/.test(phone)) {
+        if (fullName.length < 2 || !/^[+()\d\s-]{10,20}$/.test(phone) || !dateOfBirth || new Date(dateOfBirth).getTime() > Date.now()) {
           if (status) status.textContent = 'कृपया सही पूरा नाम और मोबाइल नंबर दर्ज करें।';
           return;
         }
@@ -1074,6 +1075,7 @@
             fullName,
             name: fullName,
             phone,
+            dateOfBirth,
             examName,
             location,
             verificationStatus: old.verificationStatus || 'pending',
