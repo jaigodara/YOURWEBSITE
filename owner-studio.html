@@ -512,7 +512,8 @@ Ans: B"></textarea>
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    const SUPER_OWNER_UID = "rdP0ZXzSP9fGzmJshEVvbOfb31g2";
+    const SUPER_OWNER_UID = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
+    const RECOVERED_OWNER_UID = "rdP0ZXzSP9fGzmJshEVvbOfb31g2";
     let currentAdminUser = null;
     let draftItemsList = [];
     let editorsPhoneList = [];
@@ -544,7 +545,7 @@ Ans: B"></textarea>
           const role = roleDoc.exists ? roleDoc.data().role : null;
 
           // Check if Super Owner or Trusted Editor
-          if (user.uid !== SUPER_OWNER_UID && role !== 'owner' && role !== 'editor') {
+          if (user.uid !== SUPER_OWNER_UID && user.uid !== RECOVERED_OWNER_UID && role !== 'owner' && role !== 'editor') {
             alert("⚠️ पहुंच वर्जित! आपके खाते को व्यवस्थापक अधिकार प्राप्त नहीं हैं।");
             window.location.href = "index.html";
             return;
