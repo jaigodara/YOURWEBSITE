@@ -353,6 +353,15 @@ Ans: B"></textarea>
         <label class="block text-xs font-bold text-stone-700">परीक्षा की डिफ़ॉल्ट अवधि (मिनट)
           <input id="ownerExamDuration" type="number" min="1" max="360" value="120" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300">
         </label>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <div><h4 class="font-yatra text-sm text-forest">⏳ परीक्षा शुरू होने का समय तय करें</h4><p class="text-[11px] text-stone-600 mt-1">तारीख और समय चुनें। खाली छोड़ने पर परीक्षा बिना तय समय के उपलब्ध रहेगी। समय आपके डिवाइस के स्थानीय समय क्षेत्र के अनुसार सहेजा जाएगा।</p></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <label class="font-bold text-stone-700">दैनिक ज्ञान परीक्षा शुरू<input id="ownerQuizStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700">मॉक परीक्षा 1 शुरू<input id="ownerMock1StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700">मॉक परीक्षा 2 शुरू<input id="ownerMock2StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700">मुख्य परीक्षा शुरू<input id="ownerMainStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+          </div>
+        </div>
         <button onclick="saveExamVisibilitySettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 परीक्षा सेटिंग्स सहेजें</button>
       </div>
 
@@ -504,6 +513,7 @@ Ans: B"></textarea>
     const auth = firebase.auth();
 
     const SUPER_OWNER_UID = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
+    const RECOVERED_OWNER_UID = "rdP0ZXzSP9fGzmJshEVvbOfb31g2";
     let currentAdminUser = null;
     let draftItemsList = [];
     let editorsPhoneList = [];
@@ -535,7 +545,7 @@ Ans: B"></textarea>
           const role = roleDoc.exists ? roleDoc.data().role : null;
 
           // Check if Super Owner or Trusted Editor
-          if (user.uid !== SUPER_OWNER_UID && role !== 'owner' && role !== 'editor') {
+          if (user.uid !== SUPER_OWNER_UID && user.uid !== RECOVERED_OWNER_UID && role !== 'owner' && role !== 'editor') {
             alert("⚠️ पहुंच वर्जित! आपके खाते को व्यवस्थापक अधिकार प्राप्त नहीं हैं।");
             window.location.href = "index.html";
             return;
@@ -954,6 +964,17 @@ Ans: B"></textarea>
         });
         const duration = document.getElementById('ownerExamDuration');
         if (duration) duration.value = Math.min(360, Math.max(1, Number(data.durationMinutes) || 120));
+        const toLocalInput = value => {
+          const ms = Number(value);
+          if (!Number.isFinite(ms) || ms <= 0) return '';
+          const date = new Date(ms);
+          const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+          return local.toISOString().slice(0, 16);
+        };
+        [['ownerQuizStartAt', data.quizStartAtMs], ['ownerMock1StartAt', data.mock1StartAtMs], ['ownerMock2StartAt', data.mock2StartAtMs], ['ownerMainStartAt', data.mainStartAtMs]].forEach(([id, value]) => {
+          const input = document.getElementById(id);
+          if (input) input.value = toLocalInput(value);
+        });
       } catch (e) {
         showToast('परीक्षा सेटिंग्स पढ़ने में त्रुटि: ' + e.message);
       }
@@ -965,7 +986,17 @@ Ans: B"></textarea>
         showToast('परीक्षा अवधि 1 से 360 मिनट के बीच रखें।');
         return;
       }
+      const readStartTime = id => {
+        const value = document.getElementById(id)?.value || '';
+        if (!value) return null;
+        const ms = new Date(value).getTime();
+        return Number.isFinite(ms) ? ms : null;
+      };
       const config = {
+        quizStartAtMs: readStartTime('ownerQuizStartAt'),
+        mock1StartAtMs: readStartTime('ownerMock1StartAt'),
+        mock2StartAtMs: readStartTime('ownerMock2StartAt'),
+        mainStartAtMs: readStartTime('ownerMainStartAt'),
         dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
         mockVisible: !!document.getElementById('ownerShowMock')?.checked,
         mock1Visible: !!document.getElementById('ownerShowMock1')?.checked,
@@ -980,7 +1011,7 @@ Ans: B"></textarea>
       };
       try {
         await db.collection('examConfig').doc('current').set(config, { merge: true });
-        showToast('परीक्षा की दृश्यता और अवधि सहेज दी गई।');
+        showToast('परीक्षा की दृश्यता, अवधि और शुरू होने के समय सहेज दिए गए।');
       } catch (e) {
         showToast('सेटिंग्स सहेज नहीं सकीं: ' + e.message);
       }
