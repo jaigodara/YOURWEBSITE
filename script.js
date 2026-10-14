@@ -2297,6 +2297,19 @@ function renderExamVisibility() {
     try {
       await collection(CONFIG.submissionCollections[exam.mode]).add(result);
       updateExamSession('submitted', { submittedAt: serverTimestamp() });
+      if (instantResult) {
+        collection('userNotifications').doc(state.user.uid).collection('items').add({
+          title: '🏆 दैनिक क्विज़ परिणाम',
+          message: 'आपके अंक: ' + correct + '/' + exam.questions.length + ' · हल किए गए प्रश्न: ' + attempted + '।',
+          type: 'quiz-result',
+          resultScore: correct,
+          resultTotal: exam.questions.length,
+          recipientUid: state.user.uid,
+          active: true,
+          audience: 'private',
+          createdAt: serverTimestamp()
+        }).catch(error => console.warn('Quiz result notification was not saved; check private notification rules.', error));
+      }
       setText('examResult', instantResult
         ? `दैनिक क्विज़ परिणाम: ${correct}/${exam.questions.length}. Attempted: ${attempted}.`
         : 'आपके उत्तर जमा हो गए हैं। परिणाम Owner द्वारा जाँच और घोषित किए जाने के बाद ही दिखेगा।');
