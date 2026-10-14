@@ -17,6 +17,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
   <!-- jsPDF, AutoTable & SheetJS for PDF / Excel Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -441,7 +442,14 @@ Ans: B"></textarea>
         <p class="text-xs text-stone-500">यह संदेश मुख्य वेबसाइट के ऊपर “नई सूचनाएँ और घोषणाएँ” में सभी visitors को दिखाई देगा। प्रवेश-पत्र, परीक्षा तारीख या नई सामग्री की जानकारी यहाँ लिखें।</p>
         <input id="notificationTitle" maxlength="100" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="सूचना का शीर्षक (जैसे प्रवेश-पत्र उपलब्ध हैं)">
         <textarea id="notificationMessage" maxlength="2000" rows="3" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="पूरी जानकारी लिखें…"></textarea>
-        <button id="publishNotificationButton" type="button" onclick="publishPortalNotification()" class="px-4 py-2.5 rounded-xl bg-forest text-white font-bold text-xs">📣 सभी को सूचना प्रकाशित करें</button>
+        <label class="block text-xs font-bold text-stone-700">किसे भेजना है? (खाली छोड़ें = सभी लॉगिन उपयोगकर्ता)
+          <input id="notificationRecipientUid" maxlength="128" class="mt-1 w-full p-3 rounded-xl border border-stone-300 text-sm font-normal" placeholder="विशेष विद्यार्थी का Firebase UID (केवल उसी को)">
+        </label>
+        <label class="block text-xs font-bold text-stone-700">फोटो या PDF संलग्न करें (अधिकतम 10 MB)
+          <input id="notificationAttachment" type="file" accept="image/*,application/pdf" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-xs font-normal">
+        </label>
+        <p class="text-[11px] text-stone-500">व्यक्तिगत सूचना में विद्यार्थी का UID भरें। व्यक्तिगत सूचनाओं के लिए Firestore rules में userNotifications/{uid}/items की निजी अनुमति और Storage rules आवश्यक हैं।</p>
+        <button id="publishNotificationButton" type="button" onclick="publishPortalNotification()" class="px-4 py-2.5 rounded-xl bg-forest text-white font-bold text-xs">📣 लॉगिन उपयोगकर्ताओं को सूचना प्रकाशित करें</button>
         <p id="ownerNotificationStatus" class="text-xs text-stone-500" aria-live="polite"></p>
       </div>
 
@@ -1910,37 +1918,91 @@ Ans: B"></textarea>
     async function publishPortalNotification() {
       const titleInput = document.getElementById('notificationTitle');
       const messageInput = document.getElementById('notificationMessage');
+      const recipientInput = document.getElementById('notificationRecipientUid');
+      const attachmentInput = document.getElementById('notificationAttachment');
       const status = document.getElementById('ownerNotificationStatus');
       const button = document.getElementById('publishNotificationButton');
       const title = (titleInput?.value || '').trim();
       const message = (messageInput?.value || '').trim();
+      const recipientUid = (recipientInput?.value || '').trim();
+      const file = attachmentInput?.files?.[0] || null;
+
       if (!currentAdminUser || !['owner','editor'].includes(currentAdminUser.role)) {
         if (status) status.textContent = 'केवल अधिकृत owner/editor सूचना प्रकाशित कर सकते हैं।';
         return;
       }
-      if (!title || !message) {
-        if (status) status.textContent = 'शीर्षक और सूचना दोनों लिखें।';
+      if (!title || (!message && !file)) {
+        if (status) status.textContent = 'शीर्षक और लिखित जानकारी या एक संलग्न फ़ाइल आवश्यक है।';
         return;
       }
+      if (recipientUid && !/^[A-Za-z0-9_-]{10,128}$/.test(recipientUid)) {
+        if (status) status.textContent = 'विद्यार्थी का सही Firebase UID दर्ज करें।';
+        return;
+      }
+      if (file) {
+        const validType = file.type === 'application/pdf' || file.type.startsWith('image/');
+        if (!validType) {
+          if (status) status.textContent = 'केवल PDF या image फ़ाइल अपलोड करें।';
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          if (status) status.textContent = 'फ़ाइल 10 MB से छोटी होनी चाहिए।';
+          return;
+        }
+      }
       if (button) button.disabled = true;
-      if (status) status.textContent = 'सूचना प्रकाशित की जा रही है…';
+      if (status) status.textContent = 'सूचना/फ़ाइल अपलोड की जा रही है…';
+
       try {
-        await db.collection('notifications').add({
+        let fileUrl = '';
+        let fileName = '';
+        let fileType = '';
+        if (file) {
+          if (!firebase.storage) throw new Error('Firebase Storage SDK उपलब्ध नहीं है।');
+          const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-100) || 'attachment';
+          const storagePath = 'notificationUploads/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
+          const upload = await firebase.storage().ref().child(storagePath).put(file, { contentType: file.type });
+          fileUrl = await upload.ref.getDownloadURL();
+          fileName = file.name;
+          fileType = file.type;
+        }
+
+        const notification = {
           title,
           message,
+          fileUrl: fileUrl || null,
+          fileName: fileName || null,
+          fileType: fileType || null,
           active: true,
-          audience: 'all',
-          type: 'announcement',
+          type: fileType === 'application/pdf' ? 'document' : fileType.startsWith('image/') ? 'image' : 'announcement',
           createdBy: auth.currentUser?.uid || null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+
+        if (recipientUid) {
+          await db.collection('userNotifications').doc(recipientUid).collection('items').add({
+            ...notification,
+            recipientUid,
+            audience: 'private'
+          });
+        } else {
+          await db.collection('notifications').add({
+            ...notification,
+            audience: 'all'
+          });
+        }
+
         if (titleInput) titleInput.value = '';
         if (messageInput) messageInput.value = '';
-        if (status) status.textContent = 'सूचना प्रकाशित हो गई। नियमों की अनुमति होने पर यह मुख्य वेबसाइट पर दिखाई देगी।';
+        if (recipientInput) recipientInput.value = '';
+        if (attachmentInput) attachmentInput.value = '';
+        if (status) status.textContent = recipientUid
+          ? 'व्यक्तिगत सूचना भेज दी गई। यह केवल उसी UID वाले लॉगिन खाते में दिखेगी, यदि निजी Firestore rules लागू हैं।'
+          : 'सूचना प्रकाशित हो गई। यह केवल लॉगिन किए हुए उपयोगकर्ताओं को दिखाई जाएगी।';
         showToast('सूचना प्रकाशित कर दी गई।');
       } catch (error) {
         console.error('Notification publish failed:', error);
-        if (status) status.textContent = 'सूचना प्रकाशित नहीं हुई: ' + error.message + ' — notifications collection के Firestore rules जाँचें।';
+        if (status) status.textContent = 'सूचना प्रकाशित नहीं हुई: ' + error.message + ' — Firestore/Storage rules जाँचें।';
         showToast('सूचना प्रकाशित नहीं हो सकी।');
       } finally {
         if (button) button.disabled = false;
