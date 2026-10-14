@@ -338,6 +338,19 @@
   function initAuthUI() {
     if (!state.auth) return;
 
+    // Resolve a completed Google redirect explicitly so any Firebase error is visible.
+    // onAuthStateChanged remains the source of truth for the signed-in session.
+    if (typeof state.auth.getRedirectResult === 'function') {
+      state.auth.getRedirectResult().then(result => {
+        if (result && result.user) {
+          notify('Google sign-in successful.', 'success');
+        }
+      }).catch(error => {
+        console.error('Google redirect result failed:', error);
+        notify(authErrorMessage(error), 'error');
+      });
+    }
+
     state.auth.onAuthStateChanged(async user => {
       clearSubscriptions();
       state.user = user;
@@ -345,14 +358,19 @@
       state.isOwner = false;
       state.roles = [];
 
+      // These subscriptions only read portal content. Firestore rules must still
+      // allow public reads for public collections and must deny guest writes.
+      // Starting them for guests lets the literature/community/exam pages render
+      // without making posting, exam submissions, or owner actions public.
+      startLiveListeners();
+
       if (user) {
         try {
           await loadUserProfile(user);
-          startLiveListeners();
           notify(`Welcome${state.profile?.displayName ? ' ' + state.profile.displayName : ''}!`, 'success');
         } catch (e) {
-          console.error(e);
-          notify('Signed in, but your profile could not load.', 'error');
+          console.error('Signed-in profile initialization failed:', e);
+          notify('Signed in, but your profile could not load. Check Firestore permissions.', 'error');
         }
       } else {
         setText('userDisplayName', 'Sign in');
@@ -421,6 +439,9 @@
       'auth/invalid-credential': 'Incorrect email or password.',
       'auth/too-many-requests': 'Too many attempts. Try again later.',
       'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase.',
+      'auth/unauthorized-domain': 'This website domain is not authorized in Firebase Authentication. Add the exact domain in Firebase Console.',
+      'auth/network-request-failed': 'Network request failed. Check your connection and browser privacy settings, then try again.',
+      'auth/popup-blocked': 'The sign-in popup was blocked. Allow popups for this website and try again.',
       'auth/invalid-phone-number': 'Please enter a valid phone number with country code.',
       'auth/invalid-verification-code': 'The SMS code is incorrect. Try again.',
       'auth/code-expired': 'The SMS code expired. Request a new code.'
@@ -1498,8 +1519,10 @@
       return notify('Google login is unavailable.', 'error');
     }
     try {
-      // Redirect avoids many popup/COOP compatibility warnings in modern browsers.
+      // Persist the Firebase session across the provider round-trip.
+      await state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await state.auth.signInWithRedirect(provider);
     } catch (error) {
       console.error('Google sign-in failed:', error);
