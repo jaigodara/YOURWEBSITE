@@ -406,6 +406,7 @@ Ans: B"></textarea>
           <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
           <button type="button" onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 मुख्य परीक्षा के उत्तर-पत्र लाएँ</button>
         </div>
+        <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
           <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
         </div>
@@ -2175,8 +2176,13 @@ Ans: B"></textarea>
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र समीक्षा की अनुमति नहीं है।');
       const list = document.getElementById('examSubmissionsList');
       if (!list) return;
-      examReviewCollection = document.getElementById('reviewSubmissionCollection')?.value || 'quizAttempts';
+      examReviewCollection = document.getElementById('reviewSubmissionCollection')?.value || 'mainExamSubmissions';
       const queryText = (document.getElementById('reviewSubmissionSearch')?.value || '').trim().toLowerCase();
+      const queueStatus = document.getElementById('examReviewQueueStatus');
+      const loadButton = document.querySelector('#manualExamReviewSection button[onclick="loadExamSubmissions()"]');
+      const collectionLabels = { mainExamSubmissions: 'मुख्य परीक्षा', mockExamSubmissions: 'मॉक परीक्षा 1/2', quizAttempts: 'दैनिक क्विज़' };
+      if (queueStatus) queueStatus.textContent = (collectionLabels[examReviewCollection] || examReviewCollection) + ' के उत्तर-पत्र लोड हो रहे हैं…';
+      if (loadButton) loadButton.textContent = 'लोड हो रहा है…';
       list.innerHTML = '<div class="text-stone-400 text-xs">सबमिशन लोड हो रहे हैं...</div>';
 
       try {
@@ -2223,12 +2229,16 @@ Ans: B"></textarea>
         }
         examReviewIndex = 0;
         renderCurrentExamReview();
+        if (queueStatus) queueStatus.textContent = (collectionLabels[examReviewCollection] || examReviewCollection) + ': ' + examReviewQueue.length + ' रिकॉर्ड मिले' + (queryText ? ' · खोज फ़िल्टर लागू' : '') + '।';
       } catch (e) {
+        if (queueStatus) queueStatus.textContent = 'लोड असफल: ' + e.message + ' · Firestore rules/collection जाँचें।';
         list.innerHTML = '';
         const error = document.createElement('div');
         error.className = 'text-red-700 text-xs p-3 bg-red-50 rounded-xl border border-red-200';
         error.textContent = 'सबमिशन लोड नहीं हो सके: ' + e.message + ' — collection का नाम और Firestore rules जाँचें।';
         list.appendChild(error);
+      } finally {
+        if (loadButton) loadButton.textContent = '📝 चुने गए उत्तर-पत्र लाएँ';
       }
     }
 
