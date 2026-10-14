@@ -117,10 +117,10 @@
           <span class="text-[10px] opacity-75">साहित्य एवं ऑडियो</span>
         </button>
 
-        <button onclick="switchStudioPane('pane_exam'); document.getElementById('manualExamReviewSection')?.scrollIntoView({behavior:'smooth',block:'start'});" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
-          <span class="text-2xl block">📷</span>
-          <span class="font-bold text-xs sm:text-sm block mt-1">परीक्षा व कैमरा</span>
-          <span class="text-[10px] opacity-75">फोटो प्रोक्टरिंग ऑन/ऑफ</span>
+        <button type="button" onclick="switchStudioPane('pane_exam'); requestAnimationFrame(() => document.getElementById('manualExamReviewSection')?.scrollIntoView({behavior:'smooth',block:'start'}));" class="p-3.5 rounded-2xl bg-amber-400 text-stone-950 hover:bg-amber-300 border border-amber-200 text-left transition group">
+          <span class="text-2xl block">📝</span>
+          <span class="font-bold text-xs sm:text-sm block mt-1">मैन्युअल अंक जाँच</span>
+          <span class="text-[10px] opacity-80">उत्तर-पत्र खोलें व अंक सत्यापित करें</span>
         </button>
       </div>
 
@@ -333,6 +333,26 @@ Ans: B"></textarea>
 
     <!-- PANE 4: EXAM ENGINE, CAMERA PROCTORING & ENROLLMENT REVIEW -->
     <div id="pane_exam" class="hidden space-y-4">
+
+      <!-- MANUAL EXAM REVIEW FIRST: visible immediately when opening the exam pane -->
+      <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
+      <div id="manualExamReviewSection" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
+        <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+          <select id="reviewSubmissionCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+            <option value="mainExamSubmissions" selected>मुख्य परीक्षा — mainExamSubmissions</option>
+            <option value="mockExamSubmissions">मॉक परीक्षा 1/2 — mockExamSubmissions</option>
+            <option value="quizAttempts">दैनिक क्विज़ — quizAttempts</option>
+          </select>
+          <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+          <button type="button" onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 मुख्य परीक्षा के उत्तर-पत्र लाएँ</button>
+        </div>
+        <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
+          <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
+        </div>
+      </div>
+
       
       <!-- PHOTO PROCTORING TOGGLE -->
       <div class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
@@ -378,24 +398,6 @@ Ans: B"></textarea>
           </div>
         </div>
         <button onclick="saveExamVisibilitySettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 परीक्षा सेटिंग्स सहेजें</button>
-      </div>
-
-      <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
-      <div id="manualExamReviewSection" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
-        <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
-        <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
-          <select id="reviewSubmissionCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-            <option value="mainExamSubmissions">मुख्य परीक्षा — mainExamSubmissions</option>
-            <option value="mockExamSubmissions">मॉक परीक्षा 1/2 — mockExamSubmissions</option>
-            <option value="quizAttempts" selected>दैनिक क्विज़ — quizAttempts</option>
-          </select>
-          <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-          <button onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 जाँच शुरू करें</button>
-        </div>
-        <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
-          <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
-        </div>
       </div>
 
       <!-- STUDENT / ADMIT-CARD CONFIRMATION -->
