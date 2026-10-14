@@ -6,7 +6,7 @@
 (function() {
   'use strict';
 
-  // 1. FIREBASE INITIALIZATION & CONFIG
+  // 1. FIREBASE CONFIGURATION & INITIALIZATION
   const firebaseConfig = {
     apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
     authDomain: "bishnoi-platform.firebaseapp.com",
@@ -38,9 +38,9 @@
   let isAnswering = false;
 
   // Mala State
-  let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0');
-  let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0');
-  let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0');
+  let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0', 10);
+  let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0', 10);
+  let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0', 10);
   let readNiyamsSet = new Set(JSON.parse(localStorage.getItem('bishnoi_read_niyams') || '[]'));
 
   // Amavasya & Panchang State
@@ -106,7 +106,7 @@
     }
   ];
 
-  // 4. TOAST NOTIFICATIONS & CONFIRM MODALS
+  // 4. TOAST NOTIFICATIONS & CONFIRMATION MODALS
   function showToast(msg) {
     const toast = document.getElementById('toastNotification');
     const toastMsg = document.getElementById('toastMsg');
@@ -138,7 +138,7 @@
     confirmCallback = null;
   }
 
-  // 5. NAVIGATION & TAB CONTROLLER
+  // 5. NAVIGATION & TAB SWITCHING
   function switchTab(tabId) {
     currentActiveTab = tabId;
     const allTabs = ['home', 'library', 'quiz', 'community', 'mala', 'history'];
@@ -175,7 +175,7 @@
     }
   }
 
-  // 6. FIREBASE AUTHENTICATION (NO PLAINTEXT PASSWORDS)
+  // 6. AUTHENTICATION & SESSION LIFECYCLE
   function initAuthEngine() {
     auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -203,7 +203,6 @@
       updateAuthUI();
     });
 
-    // 20-minute inactivity session auto-lock
     const resetInactivity = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer);
       if (currentUser) {
@@ -235,7 +234,6 @@
       postPrompt?.classList.add('hidden');
       postEditor?.classList.remove('hidden');
 
-      // Check Owner Studio permissions via server-side role
       db.collection('roles').doc(currentUser.uid).get().then(doc => {
         const isOwner = currentUser.uid === SUPER_OWNER_UID || (doc.exists && (doc.data().role === 'owner' || doc.data().role === 'editor'));
         if (studioBtn) studioBtn.classList.toggle('hidden', !isOwner);
@@ -266,7 +264,6 @@
 
     if (!identifier || !pass) return showToast("कृपया सभी विवरण भरें!");
 
-    // Map 10-digit phone to secure internal Firebase Auth email
     const email = /^[6-9]\d{9}$/.test(identifier) 
       ? `user_${identifier}@bishnoism.internal` 
       : identifier;
@@ -520,7 +517,7 @@
       return showToast("आपका पौधा रोपण संकल्प पहले से दर्ज है। साधुवाद!");
     }
     const el = document.getElementById('treeCounterDisplay');
-    const cnt = parseInt(el?.innerText || '1485') + 1;
+    const cnt = parseInt(el?.innerText || '1485', 10) + 1;
     if (el) el.innerText = cnt;
     localStorage.setItem('bishnoi_tree_pledged', '1');
     db.collection('stats').doc('treePledges').set({
@@ -698,7 +695,7 @@
     modal?.classList.remove('flex');
   }
 
-  // 13. QUIZ ARENA & CERTIFICATE GENERATOR
+  // 13. QUIZ ARENA & ROYAL MERIT CERTIFICATE
   function initQuizEngine() {
     db.collection('quiz').onSnapshot(snap => {
       if (!snap.empty) {
@@ -1001,7 +998,7 @@
     `).join('');
   }
 
-  // 16. INITIALIZATION & NAMESPACE EXPORTS
+  // 16. INITIALIZATION & DUAL-MOUNT NAMESPACE EXPORTS
   window.addEventListener('DOMContentLoaded', () => {
     initAuthEngine();
     computeAutoPanchang();
@@ -1031,7 +1028,7 @@
     });
   });
 
-  // Dual-Mount: Namespaces & Globals for Glitch-Free Compatibility
+  // Namespace Exports (Matching index.html button bindings)
   window.BishnoiApp = {
     showToast, switchTab, switchHistorySubTab, tapMalaBead, resetMala,
     filterNiyams, shareNiyam, openPdf, closePdfViewer, toggleAudio,
@@ -1053,7 +1050,7 @@
     submitPost, filterTopic
   };
 
-  // Direct Global Fallbacks
+  // Direct Global Fallbacks (Guarantees backward compatibility with older click events)
   window.switchTab = switchTab;
   window.tapMalaBead = tapMalaBead;
   window.openAuthModal = openAuthModal;
