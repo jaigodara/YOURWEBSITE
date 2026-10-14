@@ -442,6 +442,7 @@
       if (user) {
         try {
           await loadUserProfile(user);
+          restoreActiveExamForUser();
           if (state.profile?.mala && typeof state.profile.mala === 'object') {
             state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
             state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
@@ -1515,6 +1516,109 @@ function renderExamVisibility() {
   };
 
   // Exam utilities
+  const ACTIVE_EXAM_STORAGE_KEY = 'bishnoi_active_exam_v1';
+
+  function persistActiveExam() {
+    const exam = state.exam;
+    if (!state.user || !exam?.active || exam.submitted) return;
+    try {
+      sessionStorage.setItem(ACTIVE_EXAM_STORAGE_KEY, JSON.stringify({
+        uid: state.user.uid,
+        mode: exam.mode,
+        questions: exam.questions,
+        index: exam.index,
+        answers: exam.answers,
+        review: exam.review,
+        endAt: exam.endAt,
+        durationMinutes: exam.durationMinutes,
+        tabSwitches: exam.tabSwitches || 0
+      }));
+    } catch (error) {
+      console.warn('Active exam progress could not be stored in this tab.', error);
+    }
+  }
+
+  function clearPersistedExam() {
+    try { sessionStorage.removeItem(ACTIVE_EXAM_STORAGE_KEY); } catch (_) {}
+  }
+
+  function restoreActiveExamForUser() {
+    if (!state.user) return;
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem(ACTIVE_EXAM_STORAGE_KEY) || 'null'); } catch (_) { saved = null; }
+    if (!saved) return;
+    if (saved.uid !== state.user.uid) {
+      clearPersistedExam();
+      return;
+    }
+    if (!saved.mode || !Array.isArray(saved.questions) || !saved.questions.length || !Number(saved.endAt)) {
+      clearPersistedExam();
+      return;
+    }
+
+    stopExamResources();
+    state.exam = {
+      active: true,
+      mode: saved.mode,
+      questions: saved.questions,
+      index: Math.max(0, Math.min(Number(saved.index) || 0, saved.questions.length - 1)),
+      answers: saved.answers && typeof saved.answers === 'object' ? saved.answers : {},
+      review: saved.review && typeof saved.review === 'object' ? saved.review : {},
+      endAt: Number(saved.endAt),
+      durationMinutes: Math.max(1, Number(saved.durationMinutes) || CONFIG.defaultExamMinutes),
+      timer: null,
+      tabSwitches: Math.max(0, Number(saved.tabSwitches) || 0),
+      submitted: false,
+      stream: null,
+      proctorTimer: null,
+      beforeUnload: null
+    };
+
+    ensureExamWorkspace(state.exam.mode);
+    setVisible('portalExamWorkspace', true);
+    ['enrollmentSection', 'myResultsPanel', 'dailyQuizSection', 'mockHub', 'mainExamSection']
+      .forEach(id => setVisible(id, false));
+    setVisible('previousQuestionBtn', true);
+    setVisible('nextQuestionBtn', true);
+    setVisible('submitExamBtn', true);
+    setText('examResult', 'आपकी पिछली परीक्षा उसी प्रश्न और सुरक्षित किए गए उत्तरों से फिर शुरू की गई है।');
+    switchTab('quiz');
+    renderExamQuestion();
+
+    state.exam.timer = setInterval(() => {
+      const remaining = Math.ceil((state.exam.endAt - Date.now()) / 1000);
+      setText('examTimer', formatTime(remaining));
+      persistActiveExam();
+      if (remaining <= 0) window.submitPortalExam(true);
+    }, 1000);
+    state.exam.beforeUnload = event => {
+      if (!state.exam.active || state.exam.submitted) return;
+      persistActiveExam();
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', state.exam.beforeUnload);
+    state.exam.visibilityHandler = () => {
+      if (!state.exam.active || document.visibilityState !== 'hidden') return;
+      state.exam.tabSwitches = (state.exam.tabSwitches || 0) + 1;
+      persistActiveExam();
+      notify('परीक्षा टैब बदला गया: ' + state.exam.tabSwitches + '/' + CONFIG.maxTabSwitches, 'error');
+      if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
+        notify('टैब बदलने की सीमा पूरी हुई। उत्तर सुरक्षित हैं; दोबारा प्रवेश के लिए व्यवस्थापक से संपर्क करें।', 'error');
+        state.exam.active = false;
+        stopExamResources();
+        setText('examResult', 'परीक्षा अस्थायी रूप से लॉक की गई है। आपके उत्तर इसी टैब में सुरक्षित हैं; व्यवस्थापक से अनुमति लें।');
+        setVisible('submitExamBtn', false);
+        setVisible('nextQuestionBtn', false);
+        setVisible('previousQuestionBtn', false);
+        setVisible('exitExamWorkspace', true);
+      }
+    };
+    document.addEventListener('visibilitychange', state.exam.visibilityHandler);
+    if (state.exam.endAt <= Date.now()) window.submitPortalExam(true);
+    else notify('आपकी परीक्षा पिछली स्थिति से फिर शुरू हुई है।', 'success');
+  }
+
   function stopExamResources() {
     const exam = state.exam;
 
@@ -1645,6 +1749,7 @@ function renderExamVisibility() {
     host.querySelectorAll('input[name="examAnswer"]').forEach(input => {
       input.addEventListener('change', () => {
         exam.answers[answerKey] = Number(input.value);
+        persistActiveExam();
       });
     });
 
@@ -1756,6 +1861,7 @@ function renderExamVisibility() {
         proctorTimer: null,
         beforeUnload: null
       };
+      persistActiveExam();
 
       ensureExamWorkspace(mode);
       setVisible('portalExamWorkspace', true);
@@ -1770,6 +1876,7 @@ function renderExamVisibility() {
       state.exam.timer = setInterval(() => {
         const remaining = Math.ceil((state.exam.endAt - Date.now()) / 1000);
         setText('examTimer', formatTime(remaining));
+        persistActiveExam();
 
         if (remaining <= 0) {
           window.submitPortalExam(true);
@@ -1788,10 +1895,18 @@ function renderExamVisibility() {
       state.exam.visibilityHandler = () => {
         if (!state.exam.active || document.visibilityState !== 'hidden') return;
         state.exam.tabSwitches = (state.exam.tabSwitches || 0) + 1;
+        persistActiveExam();
         notify(`Exam tab change ${state.exam.tabSwitches}/${CONFIG.maxTabSwitches}.`, 'error');
         if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
-          notify('Maximum tab changes reached. Submitting the exam.', 'error');
-          window.submitPortalExam(true);
+          // Do not submit early: keep answers and deadline, pause the attempt,
+          // and leave final submission to the actual exam deadline.
+          state.exam.active = false;
+          stopExamResources();
+          setText('examResult', 'टैब बदलने की सीमा पूरी हुई। उत्तर सुरक्षित हैं, परीक्षा समय पूरा होने तक स्वतः जमा नहीं माने जाएँगे। व्यवस्थापक से दोबारा प्रवेश की अनुमति लें।');
+          setVisible('submitExamBtn', false);
+          setVisible('nextQuestionBtn', false);
+          setVisible('previousQuestionBtn', false);
+          setVisible('exitExamWorkspace', true);
         }
       };
       document.addEventListener('visibilitychange', state.exam.visibilityHandler);
@@ -1810,12 +1925,14 @@ function renderExamVisibility() {
   window.nextExamQuestion = function () {
     if (!state.exam.active) return;
     state.exam.index = Math.min(state.exam.index + 1, state.exam.questions.length - 1);
+    persistActiveExam();
     renderExamQuestion();
   };
 
   window.previousExamQuestion = function () {
     if (!state.exam.active) return;
     state.exam.index = Math.max(0, state.exam.index - 1);
+    persistActiveExam();
     renderExamQuestion();
   };
 
@@ -1828,6 +1945,7 @@ function renderExamVisibility() {
 
     exam.submitted = true;
     exam.active = false;
+    clearPersistedExam();
     stopExamResources();
 
     let correct = 0;
