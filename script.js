@@ -1975,11 +1975,13 @@ function renderExamVisibility() {
     }
 
     try {
-      const snapshot = await collection(collectionName).get();
+      // Fetch only explicitly published questions. Old/unmarked records must
+      // be reviewed and published in Owner Studio before they enter an exam.
+      const snapshot = await collection(collectionName).where('published', '==', true).get();
       const questions = snapshot.docs
         .filter(doc => {
           const data = doc.data() || {};
-          return data.published !== false && data.status !== 'draft';
+          return data.published === true && data.status !== 'draft';
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
