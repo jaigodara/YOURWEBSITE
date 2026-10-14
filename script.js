@@ -2245,6 +2245,10 @@ function renderExamVisibility() {
       notify('यह प्रयास Owner की अनुमति तक लॉक है।', 'error');
       return;
     }
+    if (!automatic && ['main', 'mock1', 'mock2'].includes(exam.mode) && Date.now() < exam.endAt) {
+      notify('मुख्य/मॉक परीक्षा का उत्तर-पत्र निर्धारित समय पूरा होने पर ही जमा होगा। आपके उत्तर सुरक्षित हैं।', 'error');
+      return;
+    }
 
     if (!automatic && !confirm('Submit your answers now?')) return;
 
