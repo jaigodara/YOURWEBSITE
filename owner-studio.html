@@ -288,7 +288,14 @@
           <h3 class="font-yatra text-base text-forest">⚡ बल्क प्रश्न बैंक इम्पोर्टर (Bulk Importer)</h3>
           <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Regex Parser</span>
         </div>
-        <p class="text-xs text-stone-500">प्रश्नों को नीचे दिए गए मानक प्रारूप में एक साथ पेस्ट करें:</p>
+        <p class="text-xs text-stone-500">पहले परीक्षा चुनें, फिर सभी प्रश्न इसी प्रारूप में पेस्ट करें। सही विकल्प Ans में A/B/C/D लिखें। खाली पंक्ति अगले प्रश्न को अलग करती है।</p>
+        <label class="block text-xs font-bold text-stone-700">प्रश्न किस परीक्षा में जोड़ने हैं?</label>
+        <select id="bulkQuestionTarget" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-50">
+          <option value="quiz">दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
+          <option value="mockExam_1">Mock Exam 1</option>
+          <option value="mockExam_2">Mock Exam 2</option>
+          <option value="mainExamQuestions">Main Exam</option>
+        </select>
         <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
@@ -461,14 +468,20 @@ Ans: B"></textarea>
       <!-- TRUSTED EDITORS ROLE MANAGER -->
       <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) नियुक्त करें</h3>
-        <p class="text-xs text-stone-500">संपादक ड्राफ्ट जोड़ सकते हैं, परंतु प्रकाशित केवल मुख्य व्यवस्थापक कर सकते हैं:</p>
+        <p class="text-xs text-stone-500">संपादक को Firebase Authentication का UID दें। यह सुविधा roles/{UID} में role=editor लिखेगी; Firestore rules को owner-only role writes की अनुमति देनी चाहिए। केवल मोबाइल नंबर जोड़ना login अधिकार नहीं देता।</p>
         <div class="flex gap-2 text-xs">
-          <input type="text" id="newEditorPhoneInput" maxlength="10" placeholder="10-अंकों का मोबाइल नंबर" class="flex-1 p-2.5 rounded-xl border border-stone-300 font-semibold">
-          <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">
-            ➕ संपादक बनाएं
-          </button>
+          <input type="text" id="newEditorUidInput" placeholder="Firebase Auth UID (मोबाइल नंबर नहीं)" class="flex-1 min-w-0 p-2.5 rounded-xl border border-stone-300 font-semibold">
+          <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">➕ UID नियुक्त करें</button>
         </div>
         <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
+        <div class="pt-4 border-t border-stone-100 space-y-2">
+          <h4 class="font-yatra text-sm text-forest">📜 इतिहास व संस्कार सामग्री प्रकाशित करें</h4>
+          <input id="historyItemTitle" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="शीर्षक, जैसे खेजड़ली इतिहास">
+          <select id="historyItemCategory" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs"><option value="history">📜 इतिहास व संस्कार</option><option value="kids">🧸 बाल संस्कार</option></select>
+          <textarea id="historyItemContent" rows="4" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="जानकारी / इतिहास का पाठ लिखें"></textarea>
+          <input id="historyItemDate" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="दिनांक / स्रोत (वैकल्पिक)">
+          <button onclick="publishHistoryItem()" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold">📜 इतिहास/संस्कार वेबसाइट पर प्रकाशित करें</button>
+        </div>
       </div>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
