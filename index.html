@@ -579,6 +579,44 @@
   </div>
 
 
+<!-- Remove only the obsolete root service worker; preserve unrelated workers and caches. -->
+<script>
+(function removeObsoleteBishnoiWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  const isBishnoiWorker = worker => {
+    if (!worker || !worker.scriptURL) return false;
+    try {
+      const url = new URL(worker.scriptURL, window.location.href);
+      return url.origin === window.location.origin && url.pathname.replace(/\\/$/, '') === '/sw.js';
+    } catch (_) { return false; }
+  };
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    const obsolete = registrations.filter(registration =>
+      isBishnoiWorker(registration.active) ||
+      isBishnoiWorker(registration.waiting) ||
+      isBishnoiWorker(registration.installing) ||
+      (registration.scope === new URL('/', window.location.origin).href &&
+       registration.active && isBishnoiWorker(registration.active))
+    );
+    if (!obsolete.length) return;
+    return Promise.all(obsolete.map(registration => registration.unregister())).then(results => {
+      console.info('[Bishnoi] Removed obsolete /sw.js registration; unrelated workers and caches were left untouched.');
+      if (results.some(Boolean) && isBishnoiWorker(navigator.serviceWorker.controller)) {
+        const key = 'bishnoi_sw_cleanup_reload_v1';
+        try {
+          if (!sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, '1');
+            window.location.reload();
+          } else {
+            sessionStorage.removeItem(key);
+          }
+        } catch (_) {}
+      }
+    });
+  }).catch(error => console.warn('[Bishnoi] Could not inspect service-worker registrations:', error));
+})();
+</script>
+
 <!-- APPLICATION SCRIPT -->
 <script src="./script.js"></script>
 </body>
