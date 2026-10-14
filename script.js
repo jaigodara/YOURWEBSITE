@@ -117,6 +117,9 @@
       beforeUnload: null
     },
     settings: {},
+    maintenance: { globalMode: 'off', message: '', sections: {} },
+    historyItems: [],
+    myResults: [],
     mala: { count: 0, laps: 0 },
     fontSize: 16,
     quizQuestions: [],
@@ -137,6 +140,14 @@
   }[c]));
 
   const now = () => Date.now();
+
+  function timestampMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.toDate === 'function') return value.toDate().getTime();
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
 
   const localDateKey = () => {
     const d = new Date();
@@ -318,10 +329,34 @@
   async function loadUserProfile(user) {
     state.profile = {};
     try {
-      const snap = await collection('users').doc(user.uid).get();
-      state.profile = snap.exists ? snap.data() : {};
+      const profileRef = collection('users').doc(user.uid);
+      const snap = await profileRef.get();
+      if (snap.exists) {
+        state.profile = snap.data();
+        if (!state.profile.verificationStatus) {
+          await profileRef.set({
+            verificationStatus: 'unverified',
+            displayName: state.profile.displayName || user.displayName || '',
+            email: user.email || null,
+            phone: state.profile.phone || user.phoneNumber || '',
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          state.profile = { ...state.profile, verificationStatus: 'unverified' };
+        }
+      } else {
+        state.profile = {
+          displayName: user.displayName || '',
+          email: user.email || null,
+          phone: user.phoneNumber || '',
+          phoneVerified: !!user.phoneNumber,
+          verificationStatus: 'unverified',
+          authProvider: user.providerData?.[0]?.providerId || 'unknown',
+          createdAt: serverTimestamp()
+        };
+        await profileRef.set(state.profile, { merge: true });
+      }
     } catch (profileError) {
-      console.warn('User profile document could not be read:', profileError);
+      console.warn('User profile could not be created/read; check users Firestore rules:', profileError);
     }
     let roleData = {};
     try {
@@ -392,6 +427,8 @@
       clearSubscriptions();
       state.user = user;
       state.profile = null;
+      state.myResults = [];
+      renderMyResults();
       state.isOwner = false;
       state.roles = [];
 
@@ -404,6 +441,12 @@
       if (user) {
         try {
           await loadUserProfile(user);
+          if (state.profile?.mala && typeof state.profile.mala === 'object') {
+            state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
+            state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
+            try { localStorage.setItem('bishnoi_mala_v2', JSON.stringify({ ...state.mala, date: localDateKey() })); } catch (_) {}
+            renderMala();
+          }
           notify(`Welcome${state.profile?.displayName ? ' ' + state.profile.displayName : ''}!`, 'success');
         } catch (e) {
           console.error('Signed-in profile initialization failed:', e);
@@ -525,6 +568,24 @@
     );
 
     subscribe(
+      collection('settings').doc('maintenance'),
+      snap => {
+        state.maintenance = snap.exists ? snap.data() : { globalMode: 'off', message: '', sections: {} };
+        applyMaintenanceSettings();
+      },
+      'Maintenance settings'
+    );
+
+    subscribe(
+      collection('historyItems').orderBy('createdAt', 'desc').limit(100),
+      snap => {
+        state.historyItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderHistoryItems();
+      },
+      'History and culture updates'
+    );
+
+    subscribe(
       collection('posts').orderBy('createdAt', 'desc').limit(50),
       snap => renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'Community'
@@ -550,26 +611,120 @@
       },
       'Exam configuration'
     );
+
+    if (state.user) {
+      Object.entries(CONFIG.submissionCollections).forEach(([mode, collectionName]) => {
+        subscribe(
+          collection(collectionName).where('uid', '==', state.user.uid).limit(50),
+          snap => {
+            const others = state.myResults.filter(x => x.mode !== mode);
+            const rows = snap.docs.map(d => ({ id: d.id, mode, collectionName, ...d.data() }));
+            state.myResults = [...others, ...rows].sort((a,b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt));
+            renderMyResults();
+          },
+          'My exam results'
+        );
+      });
+    }
   }
 
   function applyPortalSettings() {
     const s = state.settings || {};
-
     const banner = s.dailySandesh || 'जीव दया पालणी, रूंख लीलो नी घावै';
     setText('dailySandesh', banner);
-    if (byId('dailyBannerText') && !byId('dailyBannerText').textContent.trim()) {
-      setText('dailyBannerText', banner);
-    }
-    setVisible('maintenanceBanner', !!s.maintenanceMode);
-
+    if (byId('dailyBannerText') && !byId('dailyBannerText').textContent.trim()) setText('dailyBannerText', banner);
     const progress = Math.max(0, Math.min(100, Number(s.maintenanceProgress) || 0));
     setText('maintenanceProgress', `${progress}%`);
-
     const bar = byId('maintenanceProgressBar');
     if (bar) bar.style.width = `${progress}%`;
-
-    // Maintenance is a banner, not a blanket block: other portal tabs remain usable.
     renderExamVisibility();
+  }
+
+  function applyMaintenanceSettings() {
+    const m = state.maintenance || {};
+    const mode = m.globalMode || 'off';
+    const message = m.message || 'इस भाग में नए अपडेट जोड़े जा रहे हैं। कृपया कुछ समय बाद फिर देखें।';
+    const banner = byId('maintenanceBanner');
+    if (banner) {
+      const active = mode !== 'off';
+      banner.hidden = !active;
+      banner.classList.toggle('hidden', !active);
+      setText('maintenanceMessage', message);
+      setText('maintenanceModeLabel', mode === 'both' ? 'पूरे मंच पर रखरखाव' : mode === 'web_only' ? 'वेबसाइट रखरखाव' : mode === 'phone_only' ? 'मोबाइल/ऐप रखरखाव' : '');
+    }
+    const sectionLabels = {
+      mala: ['tab-mala', '📿 डिजिटल जप माला'],
+      library: ['tab-library', '📚 साहित्य'],
+      quiz: ['tab-quiz', '🏆 परीक्षा'],
+      community: ['tab-community', '💬 संवाद'],
+      history: ['tab-history', '📜 इतिहास व संस्कार']
+    };
+    Object.entries(sectionLabels).forEach(([key, [sectionId, label]]) => {
+      const section = byId(sectionId);
+      if (!section) return;
+      let notice = byId(`maintenance-notice-${key}`);
+      const locked = (m.sections || {})[key] === 'both' && !(m.vipBypass !== false && state.isOwner);
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = `maintenance-notice-${key}`;
+        notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
+        section.prepend(notice);
+      }
+      notice.hidden = !locked;
+      notice.classList.toggle('hidden', !locked);
+      notice.innerHTML = locked ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(message)}</p>` : '';
+      Array.from(section.children).forEach(child => {
+        if (child === notice) return;
+        if (locked) {
+          if (!child.hasAttribute('data-maintenance-was-hidden')) {
+            child.setAttribute('data-maintenance-was-hidden', (child.hidden || child.classList.contains('hidden')) ? 'yes' : 'no');
+          }
+          child.hidden = true;
+          child.classList.add('hidden');
+        } else if (child.hasAttribute('data-maintenance-was-hidden')) {
+          const wasHidden = child.getAttribute('data-maintenance-was-hidden') === 'yes';
+          child.hidden = wasHidden;
+          child.classList.toggle('hidden', wasHidden);
+          child.removeAttribute('data-maintenance-was-hidden');
+        }
+      });
+    });
+    const globalOverlay = byId('globalMaintenanceOverlay');
+    if (globalOverlay) {
+      const blockWebsite = (mode === 'web_only' || mode === 'both') && !(m.vipBypass !== false && state.isOwner);
+      globalOverlay.hidden = !blockWebsite;
+      globalOverlay.classList.toggle('hidden', !blockWebsite);
+      setText('globalMaintenanceMessage', message);
+    }
+  }
+
+  function renderMyResults() {
+    const host = byId('myResultsList');
+    if (!host) return;
+    const rows = state.myResults || [];
+    if (!rows.length) {
+      host.innerHTML = '<p class="text-xs text-stone-500">आपके जमा किए गए परीक्षा प्रयास यहाँ दिखाई देंगे।</p>';
+      return;
+    }
+    const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'Mock Exam 1', mock2: 'Mock Exam 2', main: 'Main Exam' };
+    host.innerHTML = rows.map(row => {
+      const published = row.resultPublished === true || row.manualReviewStatus === 'published' || (row.mode === 'quiz' && row.resultPublished !== false);
+      const held = row.manualReviewStatus === 'held';
+      const cancelled = row.manualReviewStatus === 'cancelled';
+      const score = row.finalScore ?? row.manualScore ?? row.score;
+      const status = published ? 'परिणाम घोषित' : held ? 'जाँच के लिए रोका गया' : cancelled ? 'परिणाम रद्द' : 'जाँच जारी है';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold ' + (published ? 'text-emerald-700' : 'text-amber-700') + '">' + status + '</span></div><p class="text-[11px] text-stone-600">' + (published ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? row.totalQuestions ?? '—') : 'अंतिम अंक परिणाम घोषित होने पर दिखेंगे।') + '</p><p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(row.submittedAt?.toDate ? row.submittedAt.toDate().toLocaleString('hi-IN') : '') + '</p></article>';
+    }).join('');
+  }
+
+  function renderHistoryItems() {
+    const historyHost = byId('historySubView');
+    const kidsHost = byId('kidsSubView');
+    const history = (state.historyItems || []).filter(x => x.category !== 'kids');
+    const kids = (state.historyItems || []).filter(x => x.category === 'kids');
+    const card = x => `<article class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm space-y-2"><h3 class="font-yatra text-base text-forest">${escapeHtml(x.title || 'इतिहास व संस्कार')}</h3><p class="text-xs leading-relaxed text-stone-700 whitespace-pre-wrap">${escapeHtml(x.content || '')}</p><p class="text-[10px] text-stone-400">${escapeHtml(x.dateLabel || '')}</p></article>`;
+    if (historyHost) historyHost.innerHTML = history.length ? history.map(card).join('') : '<div class="rounded-2xl border border-dashed border-stone-300 p-5 text-center text-xs text-stone-500">इतिहास की नई जानकारी Owner Studio से जोड़ी जा सकती है।</div>';
+    if (kidsHost) kidsHost.innerHTML = kids.length ? kids.map(card).join('') : '<div class="rounded-2xl border border-dashed border-stone-300 p-5 text-center text-xs text-stone-500">बाल संस्कार की सामग्री जल्द यहाँ दिखाई जाएगी।</div>';
   }
 
   function renderExamVisibility() {
@@ -584,10 +739,30 @@
       // The actual daily quiz/leaderboard container in index.html is quizIntroCard.
       ['quizIntroCard', c.dailyQuizVisible !== false],
       ['dailyQuizSection', c.dailyQuizVisible !== false],
-      ['resultsDesk', c.resultsVisible !== false]
+      ['resultsDesk', c.resultsVisible !== false],
+      ['myResultsPanel', c.resultsVisible !== false]
     ];
 
     map.forEach(([id, visible]) => setVisible(id, visible));
+    const quizTab = byId('tab-quiz');
+    if (quizTab) {
+      let notice = byId('examFeatureNotice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'examFeatureNotice';
+        notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
+        quizTab.prepend(notice);
+      }
+      const updates = [];
+      if (c.dailyQuizVisible === false) updates.push('दैनिक ज्ञान परीक्षा में नए प्रश्न/अपडेट जोड़े जा रहे हैं।');
+      if (c.mockVisible === false || c.mock1Visible === false) updates.push('Mock Exam 1 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
+      if (c.mockVisible === false || c.mock2Visible === false) updates.push('Mock Exam 2 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
+      if (c.mainExamVisible === false) updates.push('Main Exam की जानकारी जल्द प्रकाशित की जाएगी।');
+      if (c.resultsVisible === false) updates.push('परिणाम घोषणा अनुभाग में अपडेट जारी हैं।');
+      notice.hidden = updates.length === 0;
+      notice.classList.toggle('hidden', updates.length === 0);
+      notice.innerHTML = updates.length ? '<strong>📢 परीक्षा अनुभाग अपडेट</strong><ul class="mt-2 list-disc pl-5 text-xs leading-relaxed">' + updates.map(escapeHtml).map(x => '<li>' + x + '</li>').join('') + '</ul>' : '';
+    }
     renderExamCountdowns();
   }
 
@@ -696,26 +871,22 @@
     setText('malaCount', state.mala.count);
     setText('malaLapCount', state.mala.laps);
     setText('malaProgress', `${Math.round(state.mala.count / 108 * 100)}%`);
-
+    setText('currentBeadDisplay', state.mala.count);
+    setText('malaTotalDisplay', state.mala.laps * 108 + state.mala.count);
+    setText('malaLapsDisplay', state.mala.laps);
     const p = byId('malaProgressBar');
     if (p) p.style.width = `${state.mala.count / 108 * 100}%`;
-
-    $$('.mala-bead').forEach((b, i) => {
-      b.classList.toggle('bead-done', i < state.mala.count);
-    });
+    $$('.mala-bead').forEach((b, i) => b.classList.toggle('bead-done', i < state.mala.count));
   }
 
   window.tapHomeMalaBead = function () {
     state.mala.count++;
-
     if (state.mala.count >= 108) {
       state.mala.count = 0;
       state.mala.laps++;
-      notify(`One mala complete! Total laps: ${state.mala.laps}`, 'success');
+      notify('एक माला पूरी हुई! साधना के लिए धन्यवाद।', 'success');
     }
-
     if (navigator.vibrate && byId('hapticToggle')?.checked) navigator.vibrate(25);
-
     saveMala();
     renderMala();
   };
@@ -1145,11 +1316,13 @@
 
     const options = Array.isArray(question.options)
       ? question.options
-      : [question.optionA, question.optionB, question.optionC, question.optionD].filter(Boolean);
+      : Array.isArray(question.opts)
+        ? question.opts
+        : [question.optionA, question.optionB, question.optionC, question.optionD].filter(Boolean);
 
     host.innerHTML = `
       <p>Question ${exam.index + 1} of ${exam.questions.length}</p>
-      <h3>${escapeHtml(question.question || question.text || 'Question')}</h3>
+      <h3>${escapeHtml(question.question || question.text || question.q || 'Question')}</h3>
       <div class="exam-options">
         ${options.map((option, index) => `
           <label>
@@ -1310,7 +1483,7 @@
       if (answer !== undefined && answer !== null) {
         attempted++;
 
-        const correctAnswer = question.correctAnswer ?? question.answerIndex;
+        const correctAnswer = question.correctAnswer ?? question.answerIndex ?? question.ans;
 
         if (String(answer) === String(correctAnswer)) correct++;
       }
@@ -1323,9 +1496,12 @@
       mode: exam.mode,
       total: exam.questions.length,
       totalQuestions: exam.questions.length,
+      rollNumber: state.profile?.rollNumber || null,
       attempted,
       correct,
       score: correct,
+      finalScore: exam.mode === 'quiz' ? correct : null,
+      resultPublished: exam.mode === 'quiz',
       answers: { ...exam.answers },
       review: { ...exam.review },
       submittedAt: serverTimestamp(),
@@ -1479,11 +1655,15 @@
         const email = state.user.email || state.user.phoneNumber || 'Google / अन्य लॉगिन खाता';
         const nameInput = byId('profEditName');
         const locationInput = byId('profEditLocation');
+        const phoneInput = byId('profEditPhone');
         if (nameInput) nameInput.value = displayName;
         if (locationInput) locationInput.value = profile.location || '';
+        if (phoneInput) phoneInput.value = profile.phone || state.user.phoneNumber || '';
         setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
         setText('profileEmailDisplay', email);
-        setText('profileAccountStatus', state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता • अपनी जानकारी अपडेट करें');
+        const verification = profile.verificationStatus || 'unverified';
+        const verificationLabel = verification === 'confirmed' ? 'व्यवस्थापक द्वारा सत्यापित' : verification === 'rejected' ? 'सत्यापन अस्वीकृत' : 'सत्यापन लंबित';
+        setText('profileAccountStatus', (state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता') + ' • ' + verificationLabel);
         setText('profileRoleBadge', state.isOwner ? 'OWNER' : 'सदस्य');
         setText('statMalaTotal', state.mala.count || 0);
         setText('statMalaLaps', state.mala.laps || 0);
@@ -1566,26 +1746,23 @@
       item.hidden = !!term && !item.textContent.toLocaleLowerCase().includes(term);
     });
   };
-  app.tapMalaBead = function () {
-    state.mala.count = Math.max(0, Number(state.mala.count || 0)) + 1;
-    saveMala();
-    renderMala();
-  };
+  app.tapMalaBead = window.tapHomeMalaBead;
+  app.tapHomeMalaBead = window.tapHomeMalaBead;
   app.resetMala = function () {
     state.mala.count = 0;
     saveMala();
     renderMala();
   };
   app.switchHistorySubTab = function (name) {
-    const ids = ['full-history', 'kids-corner'];
-    ids.forEach(function (id) {
-      const panel = byId(id);
-      if (panel) panel.classList.toggle('hidden', id !== name);
-    });
+    const isKids = name === 'kids-corner';
+    const historyPanel = byId('historySubView');
+    const kidsPanel = byId('kidsSubView');
+    if (historyPanel) historyPanel.classList.toggle('hidden', isKids);
+    if (kidsPanel) kidsPanel.classList.toggle('hidden', !isKids);
     const historyButton = byId('sub-history-btn');
     const kidsButton = byId('sub-kids-btn');
-    if (historyButton) historyButton.classList.toggle('bg-forest', name === 'full-history');
-    if (kidsButton) kidsButton.classList.toggle('bg-forest', name === 'kids-corner');
+    if (historyButton) { historyButton.classList.toggle('bg-forest', !isKids); historyButton.classList.toggle('text-white', !isKids); }
+    if (kidsButton) { kidsButton.classList.toggle('bg-forest', isKids); kidsButton.classList.toggle('text-white', isKids); }
   };
   app.closePdfViewer = function () {
     const modal = byId('inbuiltPdfModal');
@@ -1659,7 +1836,18 @@
     try {
       const register = !!byId('nameRow') && !byId('nameRow').classList.contains('hidden');
       if (register) {
-        await state.auth.createUserWithEmailAndPassword(email, password);
+        const displayName = (byId('loginName')?.value || '').trim();
+        const phone = (byId('registerPhone')?.value || '').trim();
+        if (!displayName) return notify('पंजीकरण के लिए अपना पूरा नाम दर्ज करें।', 'error');
+        if (!/^\+?[0-9\s()-]{10,16}$/.test(phone)) return notify('सही मोबाइल नंबर दर्ज करें। उदाहरण: +91 9876543210', 'error');
+        const credential = await state.auth.createUserWithEmailAndPassword(email, password);
+        if (credential.user && displayName) await credential.user.updateProfile({ displayName });
+        await state.db.collection('users').doc(credential.user.uid).set({
+          displayName, phone, phoneVerified: false, email,
+          verificationStatus: 'unverified',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
       } else {
         await state.auth.signInWithEmailAndPassword(email, password);
       }
@@ -1735,8 +1923,14 @@
     const row = byId('nameRow');
     const title = byId('authTitle');
     const toggle = byId('authToggleBtn');
+    const phoneRow = byId('registerPhoneRow');
     const register = !!row && row.classList.contains('hidden');
     if (row) row.classList.toggle('hidden', !register);
+    if (phoneRow) phoneRow.classList.toggle('hidden', !register);
+    const phoneInput = byId('registerPhone');
+    if (phoneInput) phoneInput.required = register;
+    const nameInput = byId('loginName');
+    if (nameInput) nameInput.required = register;
     if (title) title.textContent = register ? 'पंजीकरण (Sign Up)' : 'लॉगिन (Sign In)';
     if (toggle) toggle.textContent = register ? 'पहले से सदस्य हैं? लॉगिन करें' : 'नए सदस्य हैं? पंजीकरण करें';
   };
@@ -1744,15 +1938,16 @@
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();
     const location = (byId('profEditLocation')?.value || '').trim();
+    const phone = (byId('profEditPhone')?.value || '').trim();
     try {
       const displayName = name || state.profile?.displayName || state.user.displayName || '';
       await state.db.collection('users').doc(state.user.uid).set({
-        displayName,
-        location,
+        displayName, location, phone,
+        phoneVerified: state.profile?.phoneVerified === true,
         email: state.user.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      state.profile = { ...(state.profile || {}), displayName, location };
+      state.profile = { ...(state.profile || {}), displayName, location, phone };
       setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {

@@ -249,6 +249,14 @@
         </div>
 
       </div>
+              <div class="pt-4 border-t border-stone-100 space-y-2">
+          <h4 class="font-yatra text-sm text-forest">📜 इतिहास व संस्कार सामग्री प्रकाशित करें</h4>
+          <input id="historyItemTitle" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="शीर्षक, जैसे खेजड़ली इतिहास">
+          <select id="historyItemCategory" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs"><option value="history">📜 इतिहास व संस्कार</option><option value="kids">🧸 बाल संस्कार</option></select>
+          <textarea id="historyItemContent" rows="4" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="जानकारी / इतिहास का पाठ लिखें"></textarea>
+          <input id="historyItemDate" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="दिनांक / स्रोत (वैकल्पिक)">
+          <button onclick="publishHistoryItem()" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold">📜 इतिहास/संस्कार वेबसाइट पर प्रकाशित करें</button>
+        </div>
     </div>
 
     <!-- PANE 3: QUESTION BANK & LEADERBOARD WINNERS -->
@@ -288,7 +296,14 @@
           <h3 class="font-yatra text-base text-forest">⚡ बल्क प्रश्न बैंक इम्पोर्टर (Bulk Importer)</h3>
           <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Regex Parser</span>
         </div>
-        <p class="text-xs text-stone-500">प्रश्नों को नीचे दिए गए मानक प्रारूप में एक साथ पेस्ट करें:</p>
+        <p class="text-xs text-stone-500">पहले परीक्षा चुनें, फिर सभी प्रश्न इसी प्रारूप में पेस्ट करें। सही विकल्प Ans में A/B/C/D लिखें। खाली पंक्ति अगले प्रश्न को अलग करती है।</p>
+        <label class="block text-xs font-bold text-stone-700">प्रश्न किस परीक्षा में जोड़ने हैं?</label>
+        <select id="bulkQuestionTarget" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-50">
+          <option value="quiz">दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
+          <option value="mockExam_1">Mock Exam 1</option>
+          <option value="mockExam_2">Mock Exam 2</option>
+          <option value="mainExamQuestions">Main Exam</option>
+        </select>
         <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
@@ -368,7 +383,7 @@ Ans: B"></textarea>
       <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
       <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
-        <p class="text-xs text-stone-500">सबमिशन चुनें, उत्तर देखें और आवश्यक होने पर मैन्युअल अंक/टिप्पणी सहेजें। यह UI उन्हीं रिकॉर्डों को पढ़ेगा जिनकी Firestore rules अनुमति देती हैं।</p>
+        <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
           <select id="reviewSubmissionCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
             <option value="mainExamSubmissions">मुख्य परीक्षा — mainExamSubmissions</option>
@@ -376,7 +391,7 @@ Ans: B"></textarea>
             <option value="quizAttempts" selected>दैनिक क्विज़ — quizAttempts</option>
           </select>
           <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-          <button onclick="loadExamSubmissions()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">↻ रिकॉर्ड लाएँ</button>
+          <button onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 जाँच शुरू करें</button>
         </div>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
           <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
@@ -386,9 +401,10 @@ Ans: B"></textarea>
       <!-- STUDENT / ADMIT-CARD CONFIRMATION -->
       <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ विद्यार्थी / प्रवेश-पत्र पुष्टि</h3>
-        <p class="text-xs text-stone-500">अपने वास्तविक registration collection का चयन करें। डिफ़ॉल्ट नाम केवल प्रस्तावित है; यदि आपके डेटाबेस में दूसरा नाम है, तो उसी collection को चुनें।</p>
+        <p class="text-xs text-stone-500">लॉगिन खातों की वास्तविकता जाँचने के लिए users चुनें; परीक्षा प्रवेश-पत्र के लिए आपके वास्तविक registration collection का उपयोग करें। पुष्टि के साथ रोल नंबर दें, तभी प्रवेश-पत्र बनाया जा सकेगा।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
           <select id="registrationCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+            <option value="users">users (लॉगिन खाते)</option>
             <option value="examRegistrations">examRegistrations</option>
             <option value="studentRegistrations">studentRegistrations</option>
             <option value="registrations">registrations</option>
@@ -450,6 +466,10 @@ Ans: B"></textarea>
               <span>💬 संवाद मंच (Community)</span>
               <select id="lock_community" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
             </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+              <span>📜 इतिहास व संस्कार</span>
+              <select id="lock_history" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock / अपडेट संदेश</option></select>
+            </div>
           </div>
         </div>
 
@@ -461,14 +481,13 @@ Ans: B"></textarea>
       <!-- TRUSTED EDITORS ROLE MANAGER -->
       <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) नियुक्त करें</h3>
-        <p class="text-xs text-stone-500">संपादक ड्राफ्ट जोड़ सकते हैं, परंतु प्रकाशित केवल मुख्य व्यवस्थापक कर सकते हैं:</p>
+        <p class="text-xs text-stone-500">संपादक को Firebase Authentication का UID दें। यह सुविधा roles/{UID} में role=editor लिखेगी; Firestore rules को owner-only role writes की अनुमति देनी चाहिए। केवल मोबाइल नंबर जोड़ना login अधिकार नहीं देता।</p>
         <div class="flex gap-2 text-xs">
-          <input type="text" id="newEditorPhoneInput" maxlength="10" placeholder="10-अंकों का मोबाइल नंबर" class="flex-1 p-2.5 rounded-xl border border-stone-300 font-semibold">
-          <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">
-            ➕ संपादक बनाएं
-          </button>
+          <input type="text" id="newEditorUidInput" placeholder="Firebase Auth UID (मोबाइल नंबर नहीं)" class="flex-1 min-w-0 p-2.5 rounded-xl border border-stone-300 font-semibold">
+          <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">➕ UID नियुक्त करें</button>
         </div>
         <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
+
       </div>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
@@ -552,6 +571,13 @@ Ans: B"></textarea>
           }
 
           currentAdminUser = { uid: user.uid, role: role || 'owner' };
+          const hasOwnerRole = role === 'owner' || user.uid === SUPER_OWNER_UID || user.uid === RECOVERED_OWNER_UID;
+          if (!hasOwnerRole) {
+            ['btn_pane_media', 'btn_pane_quiz', 'btn_pane_exam', 'btn_pane_system'].forEach(id => {
+              document.getElementById(id)?.classList.add('hidden');
+            });
+            document.querySelectorAll('[onclick*="switchStudioPane(\'pane_media\')"], [onclick*="switchStudioPane(\'pane_quiz\')"], [onclick*="switchStudioPane(\'pane_exam\')"], [onclick*="switchStudioPane(\'pane_system\')"]').forEach(el => el.classList.add('hidden'));
+          }
           document.getElementById('adminAuthLock')?.classList.add('hidden');
 
           // Initialize Dashboard Listeners
@@ -559,9 +585,11 @@ Ans: B"></textarea>
           listenDraftQueue();
           listenPdfAndAudio();
           listenQuizQuestions();
+          document.getElementById('bulkQuestionTarget')?.addEventListener('change', listenQuizQuestions);
           listenTrustedEditors();
           listenProctoringConfig();
           loadExistingSettings();
+          loadMaintenanceSettings();
           loadExamVisibilitySettings();
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
@@ -571,6 +599,11 @@ Ans: B"></textarea>
     });
 
     function switchStudioPane(paneId) {
+      const isOwner = currentAdminUser?.role === 'owner' || currentAdminUser?.uid === SUPER_OWNER_UID || currentAdminUser?.uid === RECOVERED_OWNER_UID;
+      if (!isOwner && paneId !== 'pane_overview') {
+        showToast('Trusted Editor को केवल ड्राफ्ट/समीक्षा पैनल की अनुमति है। अन्य बदलाव मुख्य व्यवस्थापक कर सकते हैं।');
+        return;
+      }
       ['pane_overview', 'pane_media', 'pane_quiz', 'pane_exam', 'pane_system'].forEach(id => {
         document.getElementById(id)?.classList.add('hidden');
         document.getElementById(`btn_${id}`)?.classList.remove('admin-subtab-active');
@@ -839,43 +872,63 @@ Ans: B"></textarea>
 
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
-      if (!raw) return showToast("कृपया प्रश्न पेस्ट करें!");
+      if (!raw) return showToast('कृपया प्रश्न पेस्ट करें!');
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+      if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
 
-      const blocks = raw.split(/\n\s*\n/);
-      const batch = db.batch();
-      let count = 0;
-
-      for (let b of blocks) {
-        const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
-        let q = '', opts = [], ans = 0;
-        for (let l of lines) {
-          if (/^Q\s*:/i.test(l)) q = l.replace(/^Q\s*:/i, '').trim();
-          else if (/^[A-D]\s*\)/i.test(l)) opts.push(l.replace(/^[A-D]\s*\)/i, '').trim());
-          else if (/^Ans\s*:/i.test(l)) {
-            const char = l.replace(/^Ans\s*:/i, '').trim().toUpperCase();
-            ans = char === 'A' ? 0 : char === 'B' ? 1 : char === 'C' ? 2 : 3;
-          }
+      const blocks = raw.split(/(?=^\s*Q\s*:)/im).map(x => x.trim()).filter(Boolean);
+      const parsed = [];
+      const errors = [];
+      blocks.forEach((block, index) => {
+        const lines = block.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+        let q = '';
+        const opts = [];
+        let ansLetter = '';
+        for (const line of lines) {
+          if (/^Q\s*:/i.test(line)) q = line.replace(/^Q\s*:/i, '').trim();
+          else if (/^[A-D]\s*[).:-]/i.test(line)) opts.push(line.replace(/^[A-D]\s*[).:-]\s*/i, '').trim());
+          else if (/^(?:Ans|Answer|उत्तर)\s*:/i.test(line)) ansLetter = line.replace(/^(?:Ans|Answer|उत्तर)\s*:/i, '').trim().toUpperCase();
         }
-        if (q && opts.length >= 2) {
-          const ref = db.collection('quiz').doc();
-          batch.set(ref, { q, opts, ans, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-          count++;
+        if (!q || opts.length !== 4 || !['A','B','C','D'].includes(ansLetter)) {
+          errors.push('प्रश्न ' + (index + 1) + ': प्रश्न, चार विकल्प (A-D) और Ans: A/B/C/D आवश्यक हैं।');
+          return;
         }
-      }
-
-      if (count === 0) return showToast("प्रारूप अमान्य है! कृपया प्रारूप जाँचें।");
+        parsed.push({ q, opts, ans: ['A','B','C','D'].indexOf(ansLetter) });
+      });
+      if (!parsed.length) return showToast(errors[0] || 'प्रारूप अमान्य है।');
+      if (parsed.length > 450) return showToast('एक बार में अधिकतम 450 प्रश्न जोड़ें।');
+      if (errors.length) return showToast(errors.length + ' प्रश्नों का प्रारूप गलत है। पहले उन्हें ठीक करें; कोई प्रश्न सेव नहीं किया गया। ' + errors[0]);
 
       try {
+        const batch = db.batch();
+        parsed.forEach(question => {
+          const ref = db.collection(target).doc();
+          batch.set(ref, {
+            ...question,
+            // Keep both the older Owner Studio fields and the exam engine's canonical schema.
+            question: question.q,
+            text: question.q,
+            options: question.opts,
+            correctAnswer: question.ans,
+            answerIndex: question.ans,
+            examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: auth.currentUser?.uid || null
+          });
+        });
         await batch.commit();
         document.getElementById('bulkQuizInput').value = '';
-        showToast(`✅ ${count} प्रश्न क्विज़ बैंक में जोड़े गए!`);
+        showToast('' + parsed.length + ' प्रश्न ' + target + ' में जोड़े गए।');
       } catch (err) {
-        showToast("इम्पोर्ट त्रुटि: " + err.message);
+        showToast('इम्पोर्ट त्रुटि: ' + err.message);
       }
     }
 
     function listenQuizQuestions() {
-      db.collection('quiz').orderBy('createdAt', 'desc').onSnapshot(snap => {
+      if (window.__quizQuestionListener) window.__quizQuestionListener();
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').onSnapshot(snap => {
         const box = document.getElementById('adminQuizList');
         if (!box) return;
         box.innerHTML = '';
@@ -883,7 +936,7 @@ Ans: B"></textarea>
           box.innerHTML += `
             <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200">
               <span class="truncate pr-2">${doc.data().q}</span>
-              <button onclick="deleteDocItem('quiz', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">हटाएं</button>
+              <button onclick="deleteDocItem('${target}', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">हटाएं</button>
             </div>
           `;
         });
@@ -891,13 +944,14 @@ Ans: B"></textarea>
     }
 
     async function clearAllQuizQuestions() {
-      if (!confirm("क्या आप वास्तव में सभी प्रश्न बैंक हटाना चाहते हैं?")) return;
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      if (!confirm("क्या आप " + target + " के सभी प्रश्न हटाना चाहते हैं? यह कार्रवाई वापस नहीं होगी।")) return;
       try {
-        const snap = await db.collection('quiz').get();
+        const snap = await db.collection(target).get();
         const batch = db.batch();
         snap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
-        showToast("सभी प्रश्न हटा दिए गए।");
+        showToast(target + " के सभी प्रश्न हटा दिए गए।");
       } catch (err) {
         showToast("त्रुटि: " + err.message);
       }
@@ -1029,11 +1083,34 @@ Ans: B"></textarea>
       try {
         const snap = await db.collection(collectionName).limit(100).get();
         const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        rows.sort((a, b) => timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt));
+        rows.sort((a, b) => {
+          const ar = String(a.rollNumber || '');
+          const br = String(b.rollNumber || '');
+          if (ar && br) {
+            const serial = ar.localeCompare(br, undefined, { numeric: true, sensitivity: 'base' });
+            if (serial) return serial;
+          } else if (ar || br) return ar ? -1 : 1;
+          return timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt);
+        });
         const filtered = rows.filter(d => {
           const text = [d.name, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
           return !queryText || text.includes(queryText);
         });
+        const questionCollections = collectionName === 'mainExamSubmissions'
+          ? ['mainExamQuestions']
+          : collectionName === 'mockExamSubmissions'
+            ? [...new Set(filtered.map(d => d.mode === 'mock1' ? 'mockExam_1' : d.mode === 'mock2' ? 'mockExam_2' : '').filter(Boolean))]
+            : ['quiz'];
+        if (collectionName === 'mockExamSubmissions' && !questionCollections.length) questionCollections.push('mockExam_1', 'mockExam_2');
+        const questionLookup = {};
+        for (const questionCollection of questionCollections) {
+          try {
+            const questionSnap = await db.collection(questionCollection).get();
+            questionSnap.forEach(questionDoc => { questionLookup[questionDoc.id] = { id: questionDoc.id, ...questionDoc.data() }; });
+          } catch (questionError) {
+            console.warn('Question text could not be loaded from ' + questionCollection, questionError);
+          }
+        }
         list.innerHTML = '';
         if (!filtered.length) {
           list.innerHTML = '<div class="text-stone-400 text-xs p-3">इस खोज में कोई रिकॉर्ड नहीं मिला। Collection का नाम और Firestore permissions जाँचें।</div>';
@@ -1058,10 +1135,25 @@ Ans: B"></textarea>
           summary.textContent = 'उत्तर / सबमिशन विवरण देखें';
           const pre = document.createElement('pre');
           pre.className = 'mt-2 whitespace-pre-wrap break-words bg-white border rounded-lg p-2 max-h-40 overflow-auto';
+          const answers = d.answers || {};
+          const answerSheet = Object.entries(answers).map(([questionId, answer]) => {
+            const q = questionLookup[questionId] || {};
+            const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : [];
+            const correct = q.correctAnswer ?? q.answerIndex ?? q.ans;
+            const letter = index => Number.isInteger(Number(index)) && Number(index) >= 0 && Number(index) < 26 ? String.fromCharCode(65 + Number(index)) : String(index);
+            return {
+              question: q.question || q.text || q.q || ('Question ID: ' + questionId),
+              selectedAnswer: options[Number(answer)] ?? answer,
+              selectedOption: letter(answer),
+              correctAnswer: correct == null ? 'प्रश्न बैंक में उपलब्ध नहीं' : (options[Number(correct)] ?? correct),
+              correctOption: correct == null ? '—' : letter(correct),
+              isCorrect: correct == null ? null : String(answer) === String(correct)
+            };
+          });
           const safeDetails = {
             uid: d.uid || null, rollNumber: d.rollNumber || null,
             attempted: d.attempted ?? null, correct: d.correct ?? null,
-            answers: d.answers || null, answerDetails: d.answerDetails || null,
+            answerSheet,
             manualScore: d.manualScore ?? null, manualFeedback: d.manualFeedback || null
           };
           pre.textContent = JSON.stringify(safeDetails, null, 2);
@@ -1078,6 +1170,27 @@ Ans: B"></textarea>
           scoreInput.value = d.manualScore ?? d.score ?? 0;
           scoreInput.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
           scoreLabel.appendChild(scoreInput);
+
+          const decisionLabel = document.createElement('label');
+          decisionLabel.className = 'block text-xs font-bold text-stone-700';
+          decisionLabel.textContent = 'परिणाम निर्णय';
+          const decision = document.createElement('select');
+          decision.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
+          [
+            ['auto', 'ऑटो तुलना: मेल खाए तो प्रकाशित, नहीं तो रोकें'],
+            ['publish', 'मैन्युअल अंक स्वीकार कर प्रकाशित करें'],
+            ['hold', 'फिर से जाँचने के लिए रोकें'],
+            ['cancel', 'परिणाम रद्द करें']
+          ].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            decision.appendChild(option);
+          });
+          if (d.manualReviewStatus === 'published' || d.resultPublished === true) decision.value = 'publish';
+          else if (d.manualReviewStatus === 'held') decision.value = 'hold';
+          else if (d.manualReviewStatus === 'cancelled') decision.value = 'cancel';
+          decisionLabel.appendChild(decision);
 
           const feedback = document.createElement('textarea');
           feedback.rows = 2;
@@ -1097,26 +1210,32 @@ Ans: B"></textarea>
               showToast('अंक 0 और कुल अंकों के बीच होने चाहिए।');
               return;
             }
+            const autoScore = Number(d.score ?? d.correct ?? 0);
+            let status = decision.value;
+            if (status === 'auto') status = value === autoScore ? 'published' : 'held';
+            const published = status === 'published';
             save.disabled = true;
             try {
               await db.collection(collectionName).doc(d.id).set({
                 manualScore: value,
+                finalScore: published ? value : null,
+                resultPublished: published,
                 manualFeedback: feedback.value.trim(),
-                manualReviewStatus: 'checked',
+                manualReviewStatus: status,
                 manualReviewedBy: auth.currentUser?.uid || null,
                 manualReviewedAt: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
               meta.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोड: ' + (d.mode || collectionName) +
                 ' · स्वचालित अंक: ' + (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
-                ' · स्थिति: जाँच पूरी · मैन्युअल अंक: ' + value;
-              showToast('मैन्युअल जाँच सहेज दी गई।');
+                ' · मैन्युअल अंक: ' + value + ' · स्थिति: ' + ({published:'परिणाम घोषित',held:'फिर जाँच हेतु रोका गया',cancelled:'परिणाम रद्द'}[status] || 'जाँच बाकी');
+              showToast(published ? 'परिणाम प्रकाशित कर दिया गया। विद्यार्थी के परिणाम पैनल में दिखेगा।' : status === 'held' ? 'परिणाम रोक दिया गया है; विद्यार्थी को अंक नहीं दिखेंगे।' : 'परिणाम रद्द कर दिया गया।');
             } catch (e) {
               showToast('जाँच सहेज नहीं सकी: ' + e.message);
             } finally {
               save.disabled = false;
             }
           });
-          card.append(name, meta, details, scoreLabel, feedback, save);
+          card.append(name, meta, details, scoreLabel, decisionLabel, feedback, save);
           list.appendChild(card);
         });
       } catch (e) {
@@ -1128,16 +1247,34 @@ Ans: B"></textarea>
       }
     }
 
+    function printAdmitCard(d) {
+      if (d.verificationStatus !== 'confirmed') return showToast('पहले पंजीकरण की पुष्टि करें, फिर प्रवेश-पत्र बनाएँ।');
+      if (!d.rollNumber) return showToast('पहले रोल नंबर आवंटित करें।');
+      const popup = window.open('', '_blank', 'width=900,height=700');
+      if (!popup) return showToast('प्रवेश-पत्र के लिए popup अनुमति दें।');
+      const name = escapeStudioText(d.fullName || d.name || 'विद्यार्थी');
+      const roll = escapeStudioText(d.rollNumber || 'आवंटित नहीं');
+      const exam = escapeStudioText(d.examName || d.examTitle || d.exam || 'मुख्य परीक्षा');
+      const email = escapeStudioText(d.email || '—');
+      const phone = escapeStudioText(d.phone || d.mobile || '—');
+      const date = escapeStudioText(d.examDate || d.date || 'आधिकारिक सूचना के अनुसार');
+      const venue = escapeStudioText(d.examCenter || d.center || 'ऑनलाइन परीक्षा पोर्टल');
+      const id = escapeStudioText(d.registrationNumber || d.id || d.uid || '—');
+      popup.document.open();
+      popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:22px;overflow:hidden;box-shadow:0 12px 36px #0001}.head{background:#173b29;color:#fff;padding:26px;text-align:center;border-bottom:5px solid #d9a62e}.head h1{margin:0;font-size:24px}.head p{margin:8px 0 0;font-size:12px;color:#ffe8a3}.body{padding:26px}.badge{display:inline-block;border:1px solid #d9a62e;border-radius:999px;padding:6px 14px;font-size:11px;font-weight:bold;background:#fff8dc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}.field{border:1px solid #e3e5df;border-radius:12px;padding:12px}.label{font-size:10px;color:#68766b;text-transform:uppercase}.value{font-size:14px;font-weight:bold;margin-top:6px;overflow-wrap:anywhere}.notice{background:#fff8e3;border:1px solid #e8d18a;padding:14px;border-radius:12px;margin-top:22px;font-size:12px;line-height:1.7}.sign{display:flex;justify-content:space-between;gap:20px;margin-top:38px;font-size:11px}.sign div{border-top:1px solid #8a958d;padding-top:8px;width:42%;text-align:center}@media(max-width:540px){.grid{grid-template-columns:1fr}.sign{flex-direction:column}.sign div{width:100%}}@media print{body{background:#fff;padding:0}.card{box-shadow:none;max-width:none}.print{display:none}}</style></head><body><article class="card"><header class="head"><div style="font-size:34px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>आधिकारिक परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><strong>परीक्षार्थी प्रवेश विवरण</strong><span class="badge">पंजीकरण सत्यापित</span></div><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+id+'</div></div><div class="field"><div class="label">ईमेल</div><div class="value">'+email+'</div></div><div class="field"><div class="label">मोबाइल</div><div class="value">'+phone+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>1. प्रवेश-पत्र और अपनी पंजीकरण जानकारी सुरक्षित रखें।<br>2. परीक्षा के आधिकारिक समय और निर्देशों का पालन करें।<br>3. यदि रोल नंबर, दिनांक या परीक्षा केंद्र गलत है तो परीक्षा से पहले व्यवस्थापक से संपर्क करें।<br>4. ऑनलाइन परीक्षा के लिए निर्धारित समय पर वेबसाइट पर लॉगिन करें।</div><div class="sign"><div>परीक्षार्थी के हस्ताक्षर</div><div>परीक्षा व्यवस्थापक</div></div><p style="text-align:center;color:#778176;font-size:10px;margin-top:26px">यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर तैयार किया गया है।</p></main></article><p class="print" style="text-align:center"><button onclick="window.print()" style="background:#173b29;color:white;border:0;border-radius:10px;padding:12px 24px;font-weight:bold;cursor:pointer">प्रवेश-पत्र प्रिंट / PDF में सेव करें</button></p></body></html>');
+      popup.document.close();
+    }
+
     async function loadRegistrationReviews() {
       const list = document.getElementById('registrationReviewList');
       if (!list) return;
-      const collectionName = document.getElementById('registrationCollection')?.value || 'examRegistrations';
+      const collectionName = document.getElementById('registrationCollection')?.value || 'users';
       const queryText = (document.getElementById('registrationSearch')?.value || '').trim().toLowerCase();
       list.innerHTML = '<div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लोड हो रहे हैं...</div>';
       try {
         const snap = await db.collection(collectionName).limit(100).get();
-        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(d => {
-          const haystack = [d.name, d.fullName, d.rollNumber, d.uid, d.email, d.phone, d.mobile].join(' ').toLowerCase();
+        const rows = snap.docs.map(doc => ({ id: doc.id, uid: doc.data().uid || doc.id, ...doc.data() })).filter(d => {
+          const haystack = [d.name, d.displayName, d.fullName, d.rollNumber, d.uid, d.email, d.phone, d.mobile].join(' ').toLowerCase();
           return !queryText || haystack.includes(queryText);
         });
         list.innerHTML = '';
@@ -1152,11 +1289,17 @@ Ans: B"></textarea>
           info.className = 'flex-1 min-w-0';
           const title = document.createElement('div');
           title.className = 'font-bold text-forest text-xs';
-          title.textContent = d.fullName || d.name || d.rollNumber || d.uid || 'विद्यार्थी';
+          title.textContent = d.fullName || d.name || d.displayName || d.rollNumber || d.uid || 'विद्यार्थी';
           const sub = document.createElement('div');
           sub.className = 'text-[11px] text-stone-500 break-words';
-          sub.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · वर्तमान स्थिति: ' + (d.verificationStatus || 'pending');
+          sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + (d.verificationStatus || 'pending');
           info.append(title, sub);
+          const rollInput = document.createElement('input');
+          rollInput.type = 'text';
+          rollInput.maxLength = 40;
+          rollInput.placeholder = 'रोल नंबर';
+          rollInput.value = d.rollNumber || '';
+          rollInput.className = 'p-2 rounded-lg border border-stone-300 text-xs w-28';
           const status = document.createElement('select');
           status.className = 'p-2 rounded-lg border border-stone-300 text-xs';
           [['pending','लंबित'],['confirmed','पुष्टि की गई'],['rejected','अस्वीकृत']].forEach(([value,label]) => {
@@ -1165,6 +1308,13 @@ Ans: B"></textarea>
             status.appendChild(option);
           });
           status.value = ['pending','confirmed','rejected'].includes(d.verificationStatus) ? d.verificationStatus : 'pending';
+          const admit = document.createElement('button');
+          admit.type = 'button';
+          admit.className = 'px-3 py-2 bg-amber-500 text-stone-950 rounded-lg text-xs font-bold disabled:opacity-40';
+          admit.textContent = '🎟️ प्रवेश-पत्र';
+          admit.disabled = d.verificationStatus !== 'confirmed' || !d.rollNumber;
+          admit.title = admit.disabled ? 'पुष्टि और रोल नंबर आवश्यक हैं' : 'प्रवेश-पत्र प्रिंट करें';
+          admit.addEventListener('click', () => printAdmitCard(d));
           const save = document.createElement('button');
           save.type = 'button';
           save.className = 'px-3 py-2 bg-forest text-white rounded-lg text-xs font-bold';
@@ -1172,12 +1322,37 @@ Ans: B"></textarea>
           save.addEventListener('click', async () => {
             save.disabled = true;
             try {
+              const rollNumber = rollInput.value.trim();
+              if (status.value === 'confirmed' && !rollNumber) {
+                showToast('पुष्टि से पहले विद्यार्थी का रोल नंबर दर्ज करें।');
+                save.disabled = false;
+                return;
+              }
               await db.collection(collectionName).doc(d.id).set({
+                rollNumber,
                 verificationStatus: status.value,
                 verifiedBy: auth.currentUser?.uid || null,
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
-              sub.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · वर्तमान स्थिति: ' + status.value;
+              // If this is a user account, carry its assigned serial roll number
+              // into prior submissions so the reviewer can sort the answer sheets.
+              if (collectionName === 'users' && d.id) {
+                for (const submissionCollection of ['quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions']) {
+                  try {
+                    const attempts = await db.collection(submissionCollection).where('uid', '==', d.id).get();
+                    const batch = db.batch();
+                    attempts.forEach(attempt => batch.set(attempt.ref, { rollNumber }, { merge: true }));
+                    if (!attempts.empty) await batch.commit();
+                  } catch (syncError) {
+                    console.warn('Could not sync roll number to ' + submissionCollection, syncError);
+                  }
+                }
+              }
+              d.rollNumber = rollNumber;
+              sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
+              d.verificationStatus = status.value;
+              admit.disabled = status.value !== 'confirmed' || !rollNumber;
+              admit.title = admit.disabled ? 'पुष्टि और रोल नंबर आवश्यक हैं' : 'प्रवेश-पत्र प्रिंट करें';
               showToast('विद्यार्थी / प्रवेश-पत्र स्थिति सहेज दी गई।');
             } catch (e) {
               showToast('स्थिति सहेज नहीं सके: ' + e.message);
@@ -1185,7 +1360,7 @@ Ans: B"></textarea>
               save.disabled = false;
             }
           });
-          card.append(info, status, save);
+          card.append(info, rollInput, status, save, admit);
           list.appendChild(card);
         });
       } catch (e) {
@@ -1198,68 +1373,114 @@ Ans: B"></textarea>
     }
 
     // 7. MAINTENANCE CONTROLS & TRUSTED EDITORS
+    async function loadMaintenanceSettings() {
+      try {
+        const snap = await db.collection('settings').doc('maintenance').get();
+        if (!snap.exists) return;
+        const data = snap.data();
+        const mode = document.getElementById('adminGlobalMaintMode');
+        const message = document.getElementById('adminMaintMessage');
+        const bypass = document.getElementById('adminVipBypassToggle');
+        if (mode) mode.value = data.globalMode || 'off';
+        if (message) message.value = data.message || '';
+        if (bypass) bypass.checked = data.vipBypass !== false;
+        const sections = data.sections || {};
+        Object.entries({mala:'lock_mala', library:'lock_library', quiz:'lock_quiz', community:'lock_community', history:'lock_history'}).forEach(([key,id]) => {
+          const el = document.getElementById(id);
+          if (el) el.value = sections[key] || 'off';
+        });
+      } catch (e) { showToast('मेंटेनेंस सेटिंग्स लोड नहीं हुईं: ' + e.message); }
+    }
+
     async function saveMaintenanceSettings() {
       const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
       const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
       const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
-
       const sections = {
         mala: document.getElementById('lock_mala')?.value || 'off',
         library: document.getElementById('lock_library')?.value || 'off',
         quiz: document.getElementById('lock_quiz')?.value || 'off',
-        community: document.getElementById('lock_community')?.value || 'off'
+        community: document.getElementById('lock_community')?.value || 'off',
+        history: document.getElementById('lock_history')?.value || 'off'
       };
-
       try {
         await db.collection('settings').doc('maintenance').set({
-          globalMode, message, vipBypass, sections
+          globalMode, message, vipBypass, sections,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.currentUser?.uid || null
         }, { merge: true });
-        showToast("✅ मेंटेनेंस सेटिंग्स सफलतापूर्वक लागू की गईं!");
-      } catch (e) {
-        showToast("त्रुटि: " + e.message);
-      }
+        showToast('मेंटेनेंस सेटिंग्स लागू कर दी गईं। मुख्य वेबसाइट पर रिफ्रेश करके जाँचें।');
+      } catch (e) { showToast('त्रुटि: ' + e.message); }
+    }
+
+    async function publishHistoryItem() {
+      const title = document.getElementById('historyItemTitle')?.value.trim();
+      const content = document.getElementById('historyItemContent')?.value.trim();
+      const category = document.getElementById('historyItemCategory')?.value || 'history';
+      const dateLabel = document.getElementById('historyItemDate')?.value.trim() || '';
+      if (!title || !content) return showToast('इतिहास सामग्री का शीर्षक और विवरण दोनों भरें।');
+      try {
+        await db.collection('historyItems').add({
+          title, content, category, dateLabel, published: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.currentUser?.uid || null
+        });
+        document.getElementById('historyItemTitle').value = '';
+        document.getElementById('historyItemContent').value = '';
+        document.getElementById('historyItemDate').value = '';
+        showToast('इतिहास/संस्कार सामग्री मुख्य वेबसाइट पर प्रकाशित हो गई।');
+      } catch (e) { showToast('प्रकाशित नहीं हुआ: ' + e.message + ' — Firestore rules में historyItems write जाँचें।'); }
     }
 
     function listenTrustedEditors() {
-      db.collection('settings').doc('editorRoles').onSnapshot(doc => {
-        editorsPhoneList = (doc.exists && Array.isArray(doc.data().phones)) ? doc.data().phones : [];
+      db.collection('roles').where('role', '==', 'editor').onSnapshot(snapshot => {
         const box = document.getElementById('trustedEditorsListBox');
         if (!box) return;
-        if (editorsPhoneList.length === 0) {
-          box.innerHTML = `<div class="text-stone-400">कोई सहायक संपादक नहीं है।</div>`;
+        if (snapshot.empty) {
+          box.innerHTML = '<div class="text-stone-400">कोई UID-आधारित सहायक संपादक नियुक्त नहीं है।</div>';
           return;
         }
-        box.innerHTML = editorsPhoneList.map(ph => `
-          <div class="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200">
-            <span class="font-bold text-forest">✍️ संपादक नंबर: ${ph}</span>
-            <button onclick="removeTrustedEditor('${ph}')" class="text-red-600 font-bold hover:underline">हटाएं</button>
-          </div>
-        `).join('');
-      });
+        box.innerHTML = '';
+        snapshot.forEach(doc => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200';
+          const label = document.createElement('span');
+          label.className = 'font-bold text-forest break-all';
+          label.textContent = '✍️ Editor UID: ' + doc.id;
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'text-red-600 font-bold hover:underline shrink-0';
+          remove.textContent = 'हटाएं';
+          remove.addEventListener('click', () => removeTrustedEditor(doc.id));
+          row.append(label, remove);
+          box.appendChild(row);
+        });
+      }, error => showToast('Editor सूची नहीं पढ़ी जा सकी: ' + error.message + ' — roles rules जाँचें।'));
     }
 
     async function addTrustedEditor() {
-      const ph = document.getElementById('newEditorPhoneInput')?.value.trim();
-      if (!/^[6-9]\d{9}$/.test(ph)) return showToast("कृपया सही 10-अंकों का नंबर दर्ज करें!");
-      if (!editorsPhoneList.includes(ph)) editorsPhoneList.push(ph);
-
+      const uid = document.getElementById('newEditorUidInput')?.value.trim();
+      if (!uid || uid.length < 20 || /\s/.test(uid)) return showToast('सही Firebase Authentication UID दर्ज करें।');
+      if (uid === auth.currentUser?.uid) return showToast('अपने UID को editor के रूप में दोबारा जोड़ने की आवश्यकता नहीं है।');
       try {
-        await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
-        document.getElementById('newEditorPhoneInput').value = '';
-        showToast("✅ नया संपादक नियुक्त किया गया!");
+        await db.collection('roles').doc(uid).set({
+          role: 'editor',
+          grantedBy: auth.currentUser?.uid || null,
+          grantedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        document.getElementById('newEditorUidInput').value = '';
+        showToast('Editor role सहेज दिया गया। अगर permission denied आए तो Firestore rules में owner-only role write जोड़ना होगा।');
       } catch (e) {
-        showToast("त्रुटि: " + e.message);
+        showToast('Editor role नहीं सहेजा गया: ' + e.message + ' — यह UID-based role write Firestore rules से अनुमति प्राप्त होना चाहिए।');
       }
     }
 
-    async function removeTrustedEditor(ph) {
-      editorsPhoneList = editorsPhoneList.filter(p => p !== ph);
+    async function removeTrustedEditor(uid) {
+      if (!confirm('इस UID का editor role हटाएँ?')) return;
       try {
-        await db.collection('settings').doc('editorRoles').set({ phones: editorsPhoneList });
-        showToast("संपादक अधिकार हटा दिया गया।");
-      } catch (e) {
-        showToast("त्रुटि: " + e.message);
-      }
+        await db.collection('roles').doc(uid).delete();
+        showToast('Editor role हटा दिया गया।');
+      } catch (e) { showToast('Editor role नहीं हटाया गया: ' + e.message); }
     }
 
     // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
