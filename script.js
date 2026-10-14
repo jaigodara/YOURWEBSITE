@@ -696,7 +696,6 @@
       globalOverlay.classList.toggle('hidden', !blockWebsite);
       setText('globalMaintenanceMessage', message);
     }
-    });
   }
 
   function renderMyResults() {
