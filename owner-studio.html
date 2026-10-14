@@ -1073,15 +1073,259 @@ Ans: B"></textarea>
       }
     }
 
+    // Sequential exam-checking queue: one answer sheet at a time, sorted by roll number.
+    let examReviewQueue = [];
+    let examReviewIndex = 0;
+    let examReviewCollection = 'quizAttempts';
+    let examReviewQuestionLookup = {};
+
+    async function saveCurrentExamReview(showMessage = true) {
+      const d = examReviewQueue[examReviewIndex];
+      if (!d) return false;
+      const scoreInput = document.getElementById('currentReviewScore');
+      const decision = document.getElementById('currentReviewDecision');
+      const feedback = document.getElementById('currentReviewFeedback');
+      if (!scoreInput || !decision || !feedback) return false;
+
+      const total = Number(d.total ?? d.totalQuestions ?? 100);
+      const value = Number(scoreInput.value);
+      if (!Number.isFinite(value) || value < 0 || value > total) {
+        showToast('अंक 0 और कुल अंकों के बीच होने चाहिए।');
+        scoreInput.focus();
+        return false;
+      }
+      let status = decision.value;
+      const autoScore = Number(d.score ?? d.correct ?? 0);
+      if (status === 'auto') status = value === autoScore ? 'published' : 'held';
+      const published = status === 'published';
+      const saveButton = document.getElementById('currentReviewSave');
+      if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'सहेजा जा रहा है…'; }
+      try {
+        await db.collection(examReviewCollection).doc(d.id).set({
+          manualScore: value,
+          finalScore: published ? value : null,
+          resultPublished: published,
+          manualFeedback: feedback.value.trim(),
+          manualReviewStatus: status,
+          manualReviewedBy: auth.currentUser?.uid || null,
+          manualReviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        d.manualScore = value;
+        d.finalScore = published ? value : null;
+        d.resultPublished = published;
+        d.manualFeedback = feedback.value.trim();
+        d.manualReviewStatus = status;
+        if (showMessage) {
+          showToast(published ? 'परिणाम प्रकाशित कर दिया गया।' :
+            status === 'held' ? 'जाँच सहेजी गई; परिणाम रोक दिया गया है।' : 'जाँच सहेजी गई; परिणाम रद्द कर दिया गया।');
+        }
+        return true;
+      } catch (e) {
+        showToast('जाँच सहेज नहीं सकी: ' + e.message);
+        return false;
+      } finally {
+        if (saveButton) { saveButton.disabled = false; saveButton.textContent = '✓ जाँच सहेजें'; }
+      }
+    }
+
+    function renderCurrentExamReview() {
+      const list = document.getElementById('examSubmissionsList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!examReviewQueue.length) {
+        list.innerHTML = '<div class="text-stone-400 text-xs p-3">इस खोज में कोई रिकॉर्ड नहीं मिला। Collection का नाम, समय और Firestore permissions जाँचें।</div>';
+        return;
+      }
+
+      const d = examReviewQueue[examReviewIndex];
+      const totalStudents = examReviewQueue.length;
+      const top = document.createElement('div');
+      top.className = 'sticky top-0 z-10 p-3 rounded-xl bg-forest text-white flex items-center justify-between gap-3';
+      const progress = document.createElement('div');
+      progress.className = 'text-xs font-bold';
+      progress.textContent = 'विद्यार्थी ' + (examReviewIndex + 1) + ' / ' + totalStudents + '  ·  रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं');
+      const jump = document.createElement('select');
+      jump.className = 'max-w-[45%] p-2 rounded-lg text-stone-900 text-xs';
+      jump.setAttribute('aria-label', 'विद्यार्थी चुनें');
+      examReviewQueue.forEach((row, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' + (row.name || row.fullName || row.email || row.uid || 'विद्यार्थी');
+        jump.appendChild(option);
+      });
+      jump.value = String(examReviewIndex);
+      jump.addEventListener('change', async () => {
+        if (!await saveCurrentExamReview(false)) return;
+        examReviewIndex = Number(jump.value);
+        renderCurrentExamReview();
+      });
+      top.append(progress, jump);
+
+      const card = document.createElement('article');
+      card.className = 'p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-3';
+      const name = document.createElement('h4');
+      name.className = 'font-bold text-forest text-base';
+      name.textContent = d.name || d.fullName || d.email || d.uid || 'प्रतिभागी';
+      const meta = document.createElement('div');
+      meta.className = 'text-xs text-stone-600';
+      meta.textContent = 'UID: ' + (d.uid || d.userId || d.id) + ' · ईमेल: ' + (d.email || '—') +
+        ' · परीक्षा: ' + (d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
+        (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
+        ' · वर्तमान स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
+      card.append(name, meta);
+
+      const answers = d.answers || d.responses || {};
+      const answerEntries = Array.isArray(answers)
+        ? answers.map((answer, index) => [String(index), answer])
+        : Object.entries(answers);
+      const answerList = document.createElement('div');
+      answerList.className = 'space-y-2';
+      const answerHeading = document.createElement('div');
+      answerHeading.className = 'font-bold text-sm text-forest border-b pb-2';
+      answerHeading.textContent = 'उत्तर-पत्र (' + answerEntries.length + ' प्रश्न)';
+      answerList.appendChild(answerHeading);
+
+      if (!answerEntries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-xs text-stone-500 p-3 bg-white rounded-lg border';
+        empty.textContent = 'इस सबमिशन में answers/responses फ़ील्ड नहीं मिली। नीचे उपलब्ध सबमिशन विवरण देखें।';
+        answerList.appendChild(empty);
+      }
+
+      answerEntries.forEach(([questionId, answer], index) => {
+        const q = examReviewQuestionLookup[questionId] || {};
+        const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
+        const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
+        const selectedIndex = Number(answer);
+        const selectedText = Number.isInteger(selectedIndex) && selectedIndex >= 0 && selectedIndex < options.length
+          ? options[selectedIndex] : (answer == null || answer === '' ? 'उत्तर नहीं दिया' : String(answer));
+        const correctIndex = Number(correct);
+        const correctText = correct == null ? 'प्रश्न बैंक में उपलब्ध नहीं' :
+          (Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < options.length ? options[correctIndex] : String(correct));
+        const item = document.createElement('div');
+        item.className = 'p-3 rounded-lg bg-white border border-stone-200 text-xs space-y-1';
+        const question = document.createElement('div');
+        question.className = 'font-semibold text-stone-900';
+        question.textContent = (index + 1) + '. ' + (q.question || q.text || q.q || d.questionTexts?.[questionId] || ('Question ID: ' + questionId));
+        const selected = document.createElement('div');
+        selected.className = 'text-stone-700';
+        selected.textContent = 'विद्यार्थी का उत्तर: ' + selectedText;
+        const correctAnswer = document.createElement('div');
+        correctAnswer.className = 'text-emerald-800';
+        correctAnswer.textContent = 'सही उत्तर: ' + correctText;
+        item.append(question, selected, correctAnswer);
+        if (options.length) {
+          const choices = document.createElement('ol');
+          choices.className = 'list-[upper-alpha] pl-5 text-stone-500';
+          options.forEach(optionText => {
+            const li = document.createElement('li');
+            li.textContent = String(optionText);
+            choices.appendChild(li);
+          });
+          item.appendChild(choices);
+        }
+        answerList.appendChild(item);
+      });
+      card.appendChild(answerList);
+
+      const rawDetails = document.createElement('details');
+      rawDetails.className = 'text-xs';
+      const rawSummary = document.createElement('summary');
+      rawSummary.className = 'cursor-pointer font-semibold text-terracotta';
+      rawSummary.textContent = 'तकनीकी सबमिशन विवरण देखें';
+      const raw = document.createElement('pre');
+      raw.className = 'mt-2 whitespace-pre-wrap break-words bg-white border rounded-lg p-2 max-h-40 overflow-auto';
+      raw.textContent = JSON.stringify({
+        uid: d.uid || null, rollNumber: d.rollNumber || null, attempted: d.attempted ?? null,
+        correct: d.correct ?? null, answers: answers, manualScore: d.manualScore ?? null,
+        manualFeedback: d.manualFeedback || null
+      }, null, 2);
+      rawDetails.append(rawSummary, raw);
+      card.appendChild(rawDetails);
+
+      const scoreLabel = document.createElement('label');
+      scoreLabel.className = 'block text-xs font-bold text-stone-700';
+      scoreLabel.textContent = 'सत्यापित अंक (0 से ' + Number(d.total ?? d.totalQuestions ?? 100) + ')';
+      const scoreInput = document.createElement('input');
+      scoreInput.id = 'currentReviewScore';
+      scoreInput.type = 'number';
+      scoreInput.min = '0';
+      scoreInput.max = String(Math.max(0, Number(d.total ?? d.totalQuestions ?? 100)));
+      scoreInput.step = '0.25';
+      scoreInput.value = d.manualScore ?? d.score ?? 0;
+      scoreInput.className = 'mt-1 w-full p-3 rounded-lg border border-stone-300 text-sm';
+      scoreLabel.appendChild(scoreInput);
+
+      const decisionLabel = document.createElement('label');
+      decisionLabel.className = 'block text-xs font-bold text-stone-700';
+      decisionLabel.textContent = 'परिणाम निर्णय';
+      const decision = document.createElement('select');
+      decision.id = 'currentReviewDecision';
+      decision.className = 'mt-1 w-full p-3 rounded-lg border border-stone-300 text-sm';
+      [['hold', 'रोकें — दोबारा जाँचें (सुरक्षित डिफ़ॉल्ट)'], ['auto', 'ऑटो तुलना: अंक मेल खाएँ तो प्रकाशित'], ['publish', 'मैन्युअल अंक स्वीकार कर प्रकाशित करें'], ['cancel', 'परिणाम रद्द करें']].forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        decision.appendChild(option);
+      });
+      if (d.manualReviewStatus === 'published' || d.resultPublished === true) decision.value = 'publish';
+      else if (d.manualReviewStatus === 'held') decision.value = 'hold';
+      else if (d.manualReviewStatus === 'cancelled') decision.value = 'cancel';
+      decisionLabel.appendChild(decision);
+
+      const feedback = document.createElement('textarea');
+      feedback.id = 'currentReviewFeedback';
+      feedback.rows = 2;
+      feedback.maxLength = 1000;
+      feedback.placeholder = 'जाँच टिप्पणी / संशोधन का कारण (वैकल्पिक)';
+      feedback.value = d.manualFeedback || '';
+      feedback.className = 'w-full p-3 rounded-lg border border-stone-300 text-sm';
+
+      const controls = document.createElement('div');
+      controls.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+      const previous = document.createElement('button');
+      previous.type = 'button';
+      previous.className = 'p-3 rounded-lg bg-stone-200 text-stone-800 text-xs font-bold disabled:opacity-40';
+      previous.textContent = '← पिछला विद्यार्थी';
+      previous.disabled = examReviewIndex === 0;
+      previous.addEventListener('click', async () => {
+        if (!await saveCurrentExamReview(false)) return;
+        examReviewIndex--;
+        renderCurrentExamReview();
+      });
+      const save = document.createElement('button');
+      save.id = 'currentReviewSave';
+      save.type = 'button';
+      save.className = 'p-3 rounded-lg bg-amber-400 text-stone-950 text-xs font-bold';
+      save.textContent = '✓ जाँच सहेजें';
+      save.addEventListener('click', () => saveCurrentExamReview(true));
+      const next = document.createElement('button');
+      next.type = 'button';
+      next.className = 'p-3 rounded-lg bg-forest text-white text-xs font-bold';
+      next.textContent = examReviewIndex === totalStudents - 1 ? '✓ अंतिम विद्यार्थी सहेजें' : 'सहेजें और अगला →';
+      next.addEventListener('click', async () => {
+        if (!await saveCurrentExamReview(true)) return;
+        if (examReviewIndex < totalStudents - 1) {
+          examReviewIndex++;
+          renderCurrentExamReview();
+        } else {
+          showToast('सभी ' + totalStudents + ' उत्तर-पत्रों की सूची पूरी हो गई।');
+        }
+      });
+      controls.append(previous, save, next);
+      card.append(scoreLabel, decisionLabel, feedback, controls);
+      list.append(top, card);
+    }
+
     async function loadExamSubmissions() {
       const list = document.getElementById('examSubmissionsList');
       if (!list) return;
-      const collectionName = document.getElementById('reviewSubmissionCollection')?.value || 'quizAttempts';
+      examReviewCollection = document.getElementById('reviewSubmissionCollection')?.value || 'quizAttempts';
       const queryText = (document.getElementById('reviewSubmissionSearch')?.value || '').trim().toLowerCase();
       list.innerHTML = '<div class="text-stone-400 text-xs">सबमिशन लोड हो रहे हैं...</div>';
 
       try {
-        const snap = await db.collection(collectionName).limit(100).get();
+        const snap = await db.collection(examReviewCollection).limit(500).get();
         const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         rows.sort((a, b) => {
           const ar = String(a.rollNumber || '');
@@ -1092,152 +1336,30 @@ Ans: B"></textarea>
           } else if (ar || br) return ar ? -1 : 1;
           return timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt);
         });
-        const filtered = rows.filter(d => {
-          const text = [d.name, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
-          return !queryText || text.includes(queryText);
+        examReviewQueue = rows.filter(d => {
+          const haystack = [d.name, d.fullName, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
+          return !queryText || haystack.includes(queryText);
         });
-        const questionCollections = collectionName === 'mainExamSubmissions'
+
+        const questionCollections = examReviewCollection === 'mainExamSubmissions'
           ? ['mainExamQuestions']
-          : collectionName === 'mockExamSubmissions'
-            ? [...new Set(filtered.map(d => d.mode === 'mock1' ? 'mockExam_1' : d.mode === 'mock2' ? 'mockExam_2' : '').filter(Boolean))]
+          : examReviewCollection === 'mockExamSubmissions'
+            ? [...new Set(examReviewQueue.map(d => d.mode === 'mock1' ? 'mockExam_1' : d.mode === 'mock2' ? 'mockExam_2' : '').filter(Boolean))]
             : ['quiz'];
-        if (collectionName === 'mockExamSubmissions' && !questionCollections.length) questionCollections.push('mockExam_1', 'mockExam_2');
-        const questionLookup = {};
+        if (examReviewCollection === 'mockExamSubmissions' && !questionCollections.length) questionCollections.push('mockExam_1', 'mockExam_2');
+        examReviewQuestionLookup = {};
         for (const questionCollection of questionCollections) {
           try {
             const questionSnap = await db.collection(questionCollection).get();
-            questionSnap.forEach(questionDoc => { questionLookup[questionDoc.id] = { id: questionDoc.id, ...questionDoc.data() }; });
+            questionSnap.forEach(questionDoc => {
+              examReviewQuestionLookup[questionDoc.id] = { id: questionDoc.id, ...questionDoc.data() };
+            });
           } catch (questionError) {
             console.warn('Question text could not be loaded from ' + questionCollection, questionError);
           }
         }
-        list.innerHTML = '';
-        if (!filtered.length) {
-          list.innerHTML = '<div class="text-stone-400 text-xs p-3">इस खोज में कोई रिकॉर्ड नहीं मिला। Collection का नाम और Firestore permissions जाँचें।</div>';
-          return;
-        }
-
-        filtered.forEach(d => {
-          const card = document.createElement('article');
-          card.className = 'p-3 rounded-xl bg-stone-50 border border-stone-200 space-y-2';
-          const name = document.createElement('div');
-          name.className = 'font-bold text-forest text-sm';
-          name.textContent = d.name || d.fullName || d.email || d.uid || 'प्रतिभागी';
-          const meta = document.createElement('div');
-          meta.className = 'text-[11px] text-stone-600';
-          meta.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोड: ' + (d.mode || collectionName) +
-            ' · स्वचालित अंक: ' + (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
-            ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
-          const details = document.createElement('details');
-          details.className = 'text-xs';
-          const summary = document.createElement('summary');
-          summary.className = 'cursor-pointer font-semibold text-terracotta';
-          summary.textContent = 'उत्तर / सबमिशन विवरण देखें';
-          const pre = document.createElement('pre');
-          pre.className = 'mt-2 whitespace-pre-wrap break-words bg-white border rounded-lg p-2 max-h-40 overflow-auto';
-          const answers = d.answers || {};
-          const answerSheet = Object.entries(answers).map(([questionId, answer]) => {
-            const q = questionLookup[questionId] || {};
-            const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : [];
-            const correct = q.correctAnswer ?? q.answerIndex ?? q.ans;
-            const letter = index => Number.isInteger(Number(index)) && Number(index) >= 0 && Number(index) < 26 ? String.fromCharCode(65 + Number(index)) : String(index);
-            return {
-              question: q.question || q.text || q.q || ('Question ID: ' + questionId),
-              selectedAnswer: options[Number(answer)] ?? answer,
-              selectedOption: letter(answer),
-              correctAnswer: correct == null ? 'प्रश्न बैंक में उपलब्ध नहीं' : (options[Number(correct)] ?? correct),
-              correctOption: correct == null ? '—' : letter(correct),
-              isCorrect: correct == null ? null : String(answer) === String(correct)
-            };
-          });
-          const safeDetails = {
-            uid: d.uid || null, rollNumber: d.rollNumber || null,
-            attempted: d.attempted ?? null, correct: d.correct ?? null,
-            answerSheet,
-            manualScore: d.manualScore ?? null, manualFeedback: d.manualFeedback || null
-          };
-          pre.textContent = JSON.stringify(safeDetails, null, 2);
-          details.append(summary, pre);
-
-          const scoreLabel = document.createElement('label');
-          scoreLabel.className = 'block text-xs font-bold text-stone-700';
-          scoreLabel.textContent = 'सत्यापित अंक';
-          const scoreInput = document.createElement('input');
-          scoreInput.type = 'number';
-          scoreInput.min = '0';
-          scoreInput.max = String(Math.max(0, Number(d.total ?? d.totalQuestions ?? 100)));
-          scoreInput.step = '0.25';
-          scoreInput.value = d.manualScore ?? d.score ?? 0;
-          scoreInput.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
-          scoreLabel.appendChild(scoreInput);
-
-          const decisionLabel = document.createElement('label');
-          decisionLabel.className = 'block text-xs font-bold text-stone-700';
-          decisionLabel.textContent = 'परिणाम निर्णय';
-          const decision = document.createElement('select');
-          decision.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
-          [
-            ['auto', 'ऑटो तुलना: मेल खाए तो प्रकाशित, नहीं तो रोकें'],
-            ['publish', 'मैन्युअल अंक स्वीकार कर प्रकाशित करें'],
-            ['hold', 'फिर से जाँचने के लिए रोकें'],
-            ['cancel', 'परिणाम रद्द करें']
-          ].forEach(([value, label]) => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = label;
-            decision.appendChild(option);
-          });
-          if (d.manualReviewStatus === 'published' || d.resultPublished === true) decision.value = 'publish';
-          else if (d.manualReviewStatus === 'held') decision.value = 'hold';
-          else if (d.manualReviewStatus === 'cancelled') decision.value = 'cancel';
-          decisionLabel.appendChild(decision);
-
-          const feedback = document.createElement('textarea');
-          feedback.rows = 2;
-          feedback.maxLength = 1000;
-          feedback.placeholder = 'जाँच टिप्पणी / संशोधन का कारण (वैकल्पिक)';
-          feedback.value = d.manualFeedback || '';
-          feedback.className = 'w-full p-2 rounded-lg border border-stone-300 text-xs';
-
-          const save = document.createElement('button');
-          save.type = 'button';
-          save.className = 'w-full py-2 bg-forest hover:bg-emerald-950 text-white rounded-lg text-xs font-bold';
-          save.textContent = '✓ मैन्युअल जाँच सहेजें';
-          save.addEventListener('click', async () => {
-            const value = Number(scoreInput.value);
-            const total = Number(d.total ?? d.totalQuestions ?? 100);
-            if (!Number.isFinite(value) || value < 0 || value > total) {
-              showToast('अंक 0 और कुल अंकों के बीच होने चाहिए।');
-              return;
-            }
-            const autoScore = Number(d.score ?? d.correct ?? 0);
-            let status = decision.value;
-            if (status === 'auto') status = value === autoScore ? 'published' : 'held';
-            const published = status === 'published';
-            save.disabled = true;
-            try {
-              await db.collection(collectionName).doc(d.id).set({
-                manualScore: value,
-                finalScore: published ? value : null,
-                resultPublished: published,
-                manualFeedback: feedback.value.trim(),
-                manualReviewStatus: status,
-                manualReviewedBy: auth.currentUser?.uid || null,
-                manualReviewedAt: firebase.firestore.FieldValue.serverTimestamp()
-              }, { merge: true });
-              meta.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोड: ' + (d.mode || collectionName) +
-                ' · स्वचालित अंक: ' + (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
-                ' · मैन्युअल अंक: ' + value + ' · स्थिति: ' + ({published:'परिणाम घोषित',held:'फिर जाँच हेतु रोका गया',cancelled:'परिणाम रद्द'}[status] || 'जाँच बाकी');
-              showToast(published ? 'परिणाम प्रकाशित कर दिया गया। विद्यार्थी के परिणाम पैनल में दिखेगा।' : status === 'held' ? 'परिणाम रोक दिया गया है; विद्यार्थी को अंक नहीं दिखेंगे।' : 'परिणाम रद्द कर दिया गया।');
-            } catch (e) {
-              showToast('जाँच सहेज नहीं सकी: ' + e.message);
-            } finally {
-              save.disabled = false;
-            }
-          });
-          card.append(name, meta, details, scoreLabel, decisionLabel, feedback, save);
-          list.appendChild(card);
-        });
+        examReviewIndex = 0;
+        renderCurrentExamReview();
       } catch (e) {
         list.innerHTML = '';
         const error = document.createElement('div');
