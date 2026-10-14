@@ -1063,7 +1063,15 @@ Ans: B"></textarea>
       try {
         const snap = await db.collection(collectionName).limit(100).get();
         const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        rows.sort((a, b) => timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt));
+        rows.sort((a, b) => {
+          const ar = String(a.rollNumber || '');
+          const br = String(b.rollNumber || '');
+          if (ar && br) {
+            const serial = ar.localeCompare(br, undefined, { numeric: true, sensitivity: 'base' });
+            if (serial) return serial;
+          } else if (ar || br) return ar ? -1 : 1;
+          return timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt);
+        });
         const filtered = rows.filter(d => {
           const text = [d.name, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
           return !queryText || text.includes(queryText);
@@ -1113,6 +1121,27 @@ Ans: B"></textarea>
           scoreInput.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
           scoreLabel.appendChild(scoreInput);
 
+          const decisionLabel = document.createElement('label');
+          decisionLabel.className = 'block text-xs font-bold text-stone-700';
+          decisionLabel.textContent = 'परिणाम निर्णय';
+          const decision = document.createElement('select');
+          decision.className = 'mt-1 w-full p-2 rounded-lg border border-stone-300 text-xs';
+          [
+            ['auto', 'ऑटो तुलना: मेल खाए तो प्रकाशित, नहीं तो रोकें'],
+            ['publish', 'मैन्युअल अंक स्वीकार कर प्रकाशित करें'],
+            ['hold', 'फिर से जाँचने के लिए रोकें'],
+            ['cancel', 'परिणाम रद्द करें']
+          ].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            decision.appendChild(option);
+          });
+          if (d.manualReviewStatus === 'published' || d.resultPublished === true) decision.value = 'publish';
+          else if (d.manualReviewStatus === 'held') decision.value = 'hold';
+          else if (d.manualReviewStatus === 'cancelled') decision.value = 'cancel';
+          decisionLabel.appendChild(decision);
+
           const feedback = document.createElement('textarea');
           feedback.rows = 2;
           feedback.maxLength = 1000;
@@ -1131,26 +1160,32 @@ Ans: B"></textarea>
               showToast('अंक 0 और कुल अंकों के बीच होने चाहिए।');
               return;
             }
+            const autoScore = Number(d.score ?? d.correct ?? 0);
+            let status = decision.value;
+            if (status === 'auto') status = value === autoScore ? 'published' : 'held';
+            const published = status === 'published';
             save.disabled = true;
             try {
               await db.collection(collectionName).doc(d.id).set({
                 manualScore: value,
+                finalScore: published ? value : null,
+                resultPublished: published,
                 manualFeedback: feedback.value.trim(),
-                manualReviewStatus: 'checked',
+                manualReviewStatus: status,
                 manualReviewedBy: auth.currentUser?.uid || null,
                 manualReviewedAt: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
               meta.textContent = 'रोल नंबर: ' + (d.rollNumber || '—') + ' · मोड: ' + (d.mode || collectionName) +
                 ' · स्वचालित अंक: ' + (d.score ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
-                ' · स्थिति: जाँच पूरी · मैन्युअल अंक: ' + value;
-              showToast('मैन्युअल जाँच सहेज दी गई।');
+                ' · मैन्युअल अंक: ' + value + ' · स्थिति: ' + ({published:'परिणाम घोषित',held:'फिर जाँच हेतु रोका गया',cancelled:'परिणाम रद्द'}[status] || 'जाँच बाकी');
+              showToast(published ? 'परिणाम प्रकाशित कर दिया गया। विद्यार्थी के परिणाम पैनल में दिखेगा।' : status === 'held' ? 'परिणाम रोक दिया गया है; विद्यार्थी को अंक नहीं दिखेंगे।' : 'परिणाम रद्द कर दिया गया।');
             } catch (e) {
               showToast('जाँच सहेज नहीं सकी: ' + e.message);
             } finally {
               save.disabled = false;
             }
           });
-          card.append(name, meta, details, scoreLabel, feedback, save);
+          card.append(name, meta, details, scoreLabel, decisionLabel, feedback, save);
           list.appendChild(card);
         });
       } catch (e) {
