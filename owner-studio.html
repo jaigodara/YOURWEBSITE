@@ -703,19 +703,23 @@ Ans: B"></textarea>
           }
           document.getElementById('adminAuthLock')?.classList.add('hidden');
 
-          // Initialize Dashboard Listeners
+          // Initialize only the listeners granted to this account.
           refreshStudioAnalytics();
           listenDraftQueue();
-          listenPdfAndAudio();
-          listenQuizQuestions();
-          document.getElementById('bulkQuestionTarget')?.addEventListener('change', listenQuizQuestions);
-          listenTrustedEditors();
-          listenProctoringConfig();
-          loadExistingSettings();
-          loadMaintenanceSettings();
-          loadExamVisibilitySettings();
-          loadAdmitCardSettings();
-          loadExamSessionQueue();
+          if (isPrimaryOwner() || hasEditorPermission('media')) listenPdfAndAudio();
+          if (isPrimaryOwner() || hasEditorPermission('quizDrafts')) {
+            listenQuizQuestions();
+            document.getElementById('bulkQuestionTarget')?.addEventListener('change', listenQuizQuestions);
+          }
+          if (isPrimaryOwner()) {
+            listenTrustedEditors();
+            listenProctoringConfig();
+            loadExistingSettings();
+            loadMaintenanceSettings();
+            loadExamVisibilitySettings();
+            loadAdmitCardSettings();
+            loadExamSessionQueue();
+          }
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
           window.location.href = "index.html";
@@ -745,6 +749,14 @@ Ans: B"></textarea>
 
     async function refreshStudioAnalytics() {
       try {
+        if (!isPrimaryOwner()) {
+          const dSnap = await db.collection('draftQueue').get();
+          document.getElementById('statUsers').innerText = '—';
+          document.getElementById('statQuizzes').innerText = '—';
+          document.getElementById('statDrafts').innerText = dSnap.size;
+          document.getElementById('statPosts').innerText = '—';
+          return;
+        }
         const [uSnap, qSnap, dSnap, pSnap] = await Promise.all([
           db.collection('users').get(),
           db.collection('quizAttempts').get(),
@@ -760,7 +772,6 @@ Ans: B"></textarea>
       }
     }
 
-    // 2. DRAFT QUEUE SYSTEM (EDITORS SAVE DRAFT -> OWNER APPROVES)
     function listenDraftQueue() {
       db.collection('draftQueue').orderBy('createdAt', 'desc').onSnapshot(snap => {
         draftItemsList = [];
