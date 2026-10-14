@@ -1304,6 +1304,20 @@ Ans: B"></textarea>
                 verifiedBy: auth.currentUser?.uid || null,
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
+              // If this is a user account, carry its assigned serial roll number
+              // into prior submissions so the reviewer can sort the answer sheets.
+              if (collectionName === 'users' && d.id) {
+                for (const submissionCollection of ['quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions']) {
+                  try {
+                    const attempts = await db.collection(submissionCollection).where('uid', '==', d.id).get();
+                    const batch = db.batch();
+                    attempts.forEach(attempt => batch.set(attempt.ref, { rollNumber }, { merge: true }));
+                    if (!attempts.empty) await batch.commit();
+                  } catch (syncError) {
+                    console.warn('Could not sync roll number to ' + submissionCollection, syncError);
+                  }
+                }
+              }
               d.rollNumber = rollNumber;
               sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
               d.verificationStatus = status.value;
