@@ -174,7 +174,13 @@
 
   const setVisible = (id, visible) => {
     const el = byId(id);
-    if (el) el.hidden = !visible;
+    if (!el) return;
+    const shouldHide = !visible;
+    el.hidden = shouldHide;
+    // Keep the HTML hidden attribute and Tailwind's .hidden utility in sync.
+    // Otherwise an element can remain invisible after the owner turns it on.
+    el.classList.toggle('hidden', shouldHide);
+    el.setAttribute('aria-hidden', String(shouldHide));
   };
 
   const collection = name => {
@@ -560,6 +566,8 @@
       ['mockExam1Card', c.mock1Visible !== false],
       ['mockExam2Card', c.mock2Visible !== false],
       ['mainExamSection', c.mainExamVisible !== false],
+      // The actual daily quiz/leaderboard container in index.html is quizIntroCard.
+      ['quizIntroCard', c.dailyQuizVisible !== false],
       ['dailyQuizSection', c.dailyQuizVisible !== false],
       ['resultsDesk', c.resultsVisible !== false]
     ];
@@ -1142,6 +1150,24 @@
 
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
+
+    // Match the visible cards with the actual start handlers, so hidden exams
+    // cannot still be launched by an old button or a direct JavaScript call.
+    const config = state.examConfig || {};
+    const visibilityField = ({
+      quiz: 'dailyQuizVisible',
+      mock1: 'mock1Visible',
+      mock2: 'mock2Visible',
+      main: 'mainExamVisible'
+    })[mode];
+    if (visibilityField && config[visibilityField] === false) {
+      notify('यह परीक्षा अभी Owner Studio में बंद है।', 'error');
+      return;
+    }
+    if ((mode === 'mock1' || mode === 'mock2') && config.mockVisible === false) {
+      notify('मॉक परीक्षाएँ अभी Owner Studio में बंद हैं।', 'error');
+      return;
+    }
 
     const scheduledStart = getExamStartAt(mode);
     if (scheduledStart && Date.now() < scheduledStart) {
