@@ -442,6 +442,7 @@
       clearSubscriptions();
       state.user = user;
       state.profile = null;
+      state.resultsIdentityVerified = false;
       initPersonalNotificationsForUser();
       initPublicNotifications();
       renderNotificationCenter();
@@ -1135,8 +1136,14 @@
       const held = row.manualReviewStatus === 'held';
       const cancelled = row.manualReviewStatus === 'cancelled';
       const score = row.finalScore ?? row.manualScore ?? row.score;
-      const status = published ? 'परिणाम घोषित' : held ? 'जाँच के लिए रोका गया' : cancelled ? 'परिणाम रद्द' : 'जाँच जारी है';
-      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold ' + (published ? 'text-emerald-700' : 'text-amber-700') + '">' + status + '</span></div><p class="text-[11px] text-stone-600">' + (published ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? row.totalQuestions ?? '—') : 'अंतिम अंक परिणाम घोषित होने पर दिखेंगे।') + '</p><p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(row.submittedAt?.toDate ? row.submittedAt.toDate().toLocaleString('hi-IN') : '') + '</p></article>';
+      const scoreVisible = published && (row.mode === 'quiz' || state.resultsIdentityVerified === true);
+      const status = published
+        ? (scoreVisible ? 'परिणाम घोषित' : 'परिणाम घोषित · पहचान जाँचें')
+        : held ? 'जाँच के लिए रोका गया' : cancelled ? 'परिणाम रद्द' : 'जाँच जारी है';
+      const scoreText = scoreVisible
+        ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? row.totalQuestions ?? '—')
+        : published ? 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।' : 'अंतिम अंक परिणाम घोषित होने पर दिखेंगे।';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold ' + (published ? 'text-emerald-700' : 'text-amber-700') + '">' + status + '</span></div><p class="text-[11px] text-stone-600">' + scoreText + '</p><p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(row.submittedAt?.toDate ? row.submittedAt.toDate().toLocaleString('hi-IN') : '') + '</p></article>';
     }).join('');
   }
 
@@ -2472,6 +2479,41 @@ function renderExamVisibility() {
   // portal's private state and Firebase auth/database objects.
   window.BishnoiApp = window.BishnoiApp || {};
   const app = window.BishnoiApp;
+
+  window.BishnoiApp.verifyMyResultIdentity = async function () {
+    const status = byId('resultLookupStatus');
+    if (!requireUser()) {
+      if (status) status.textContent = 'पहले लॉगिन करें।';
+      return;
+    }
+    const roll = (byId('resultLookupRoll')?.value || '').trim().toLowerCase();
+    const name = (byId('resultLookupName')?.value || '').trim().toLowerCase().split(' ').filter(Boolean).join(' ');
+    const dob = (byId('resultLookupDob')?.value || '').trim();
+    if (!roll || !name || !dob) {
+      if (status) status.textContent = 'रोल नंबर, पूरा नाम और जन्म तिथि तीनों भरें।';
+      return;
+    }
+    try {
+      const snap = await collection('examEnrolledStudents').doc(state.user.uid).get();
+      const record = snap.exists ? snap.data() || {} : {};
+      const expectedRoll = String(record.rollNumber || '').trim().toLowerCase();
+      const expectedName = String(record.fullName || record.name || '').trim().toLowerCase().split(' ').filter(Boolean).join(' ');
+      const expectedDob = String(record.dateOfBirth || '').trim();
+      if (!expectedRoll || roll !== expectedRoll || name !== expectedName || dob !== expectedDob) {
+        state.resultsIdentityVerified = false;
+        renderMyResults();
+        if (status) status.textContent = 'दर्ज विवरण पंजीकरण रिकॉर्ड से मेल नहीं खाते। कृपया सही जानकारी भरें।';
+        return;
+      }
+      state.resultsIdentityVerified = true;
+      renderMyResults();
+      if (status) status.textContent = 'पहचान सत्यापित। घोषित मुख्य/मॉक परिणाम नीचे दिखेंगे।';
+      byId('myResultsList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      if (status) status.textContent = 'पहचान सत्यापित नहीं हो सकी। Firestore rules जाँचें।';
+      console.warn('Result identity verification failed:', error);
+    }
+  };
 
   app.switchTab = window.switchTab;
   app.openProfileOrAuth = function () {
