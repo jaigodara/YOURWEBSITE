@@ -185,3 +185,34 @@ Replace the existing create rules for the three submission collections with the 
     }
 
 These examples must replace the corresponding existing collection rules rather than be added beside permissive rules. The code still needs backend-side duplicate-attempt enforcement if each student may submit only once.
+
+## 8. Exam session, late-entry, and re-entry controls
+
+Add this match block to let students create/update only their own session metadata, while only the exam owner can grant or deny re-entry. Replace any existing broader match for examSessions if one exists.
+
+    match /examSessions/{sessionId} {
+      allow create: if signedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status in ['active', 'late_request'];
+      allow read: if examOwner() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if examOwner() || (
+        signedIn() &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
+          'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt',
+          'lateEntryRequested', 'requestedAt'
+        ]) &&
+        (
+          request.resource.data.status == resource.data.status ||
+          (resource.data.status == 'active' && request.resource.data.status == 'kicked') ||
+          (request.resource.data.status == 'submitted' && resource.data.status == 'submitted') ||
+          (request.resource.data.status == 'late_request' && request.resource.data.lateEntryRequested == true)
+        )
+      );
+      allow delete: if examOwner();
+    }
+
+Owner Studio changes a session to active and adds reentryGrantedAt/reentryGrantedBy when granting access. Students cannot write those grant fields. The live monitor reads the latest 100 sessions; use the refresh control to load new requests.
