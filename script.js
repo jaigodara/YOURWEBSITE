@@ -174,7 +174,13 @@
 
   const setVisible = (id, visible) => {
     const el = byId(id);
-    if (el) el.hidden = !visible;
+    if (!el) return;
+    const shouldHide = !visible;
+    el.hidden = shouldHide;
+    // Keep the HTML hidden attribute and Tailwind's .hidden utility in sync.
+    // Otherwise an element can remain invisible after the owner turns it on.
+    el.classList.toggle('hidden', shouldHide);
+    el.setAttribute('aria-hidden', String(shouldHide));
   };
 
   const collection = name => {
@@ -507,6 +513,17 @@
       'Portal settings'
     );
 
+    // Owner Studio's existing banner editor writes settings/dailySandesh.
+    // Listen to that same document so its published text appears on the live homepage.
+    subscribe(
+      collection('settings').doc('dailySandesh'),
+      snap => {
+        const text = snap.exists ? (snap.data().text || '') : '';
+        if (text) setText('dailyBannerText', text);
+      },
+      'Daily banner message'
+    );
+
     subscribe(
       collection('posts').orderBy('createdAt', 'desc').limit(50),
       snap => renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
@@ -538,7 +555,11 @@
   function applyPortalSettings() {
     const s = state.settings || {};
 
-    setText('dailySandesh', s.dailySandesh || 'जीव दया पालणी, रूंख लीलो नी घावै');
+    const banner = s.dailySandesh || 'जीव दया पालणी, रूंख लीलो नी घावै';
+    setText('dailySandesh', banner);
+    if (byId('dailyBannerText') && !byId('dailyBannerText').textContent.trim()) {
+      setText('dailyBannerText', banner);
+    }
     setVisible('maintenanceBanner', !!s.maintenanceMode);
 
     const progress = Math.max(0, Math.min(100, Number(s.maintenanceProgress) || 0));
@@ -560,6 +581,8 @@
       ['mockExam1Card', c.mock1Visible !== false],
       ['mockExam2Card', c.mock2Visible !== false],
       ['mainExamSection', c.mainExamVisible !== false],
+      // The actual daily quiz/leaderboard container in index.html is quizIntroCard.
+      ['quizIntroCard', c.dailyQuizVisible !== false],
       ['dailyQuizSection', c.dailyQuizVisible !== false],
       ['resultsDesk', c.resultsVisible !== false]
     ];
@@ -855,25 +878,29 @@
   };
 
   function renderAudioList(items) {
-    const host = byId('audioList');
+    const host = byId('audioList') || byId('audioPlayerTrackList');
     if (!host) return;
 
-    host.innerHTML = items.map(a => `
-      <button type="button" class="audio-item" data-audio-id="${escapeHtml(a.id)}">
-        ${escapeHtml(a.title || 'Bhajan')} ${a.audioUrl ? '▶' : ''}
-      </button>
-    `).join('');
+    host.innerHTML = items.map(a => {
+      const audioUrl = a.audioUrl || a.link || a.url || '';
+      return `
+        <button type="button" class="audio-item" data-audio-id="${escapeHtml(a.id)}">
+          ${escapeHtml(a.title || 'Bhajan')} ${audioUrl ? '▶' : ''}
+        </button>
+      `;
+    }).join('');
 
     host.querySelectorAll('[data-audio-id]').forEach(btn => {
       btn.onclick = () => {
         const a = items.find(x => x.id === btn.dataset.audioId);
+        const audioUrl = a?.audioUrl || a?.link || a?.url;
 
-        if (!a?.audioUrl) return notify('Audio URL has not been uploaded yet.');
+        if (!audioUrl) return notify('Audio URL has not been uploaded yet.');
 
-        const audio = byId('karaokeAudio') || byId('bhajanAudio');
+        const audio = byId('audioElement') || byId('karaokeAudio') || byId('bhajanAudio');
 
         if (audio) {
-          audio.src = a.audioUrl;
+          audio.src = audioUrl;
           window.activeKaraokeLyrics = asArray(a.lyrics);
 
           const lines = byId('karaokeLyrics');
@@ -890,15 +917,19 @@
   }
 
   function renderPdfLibrary(items) {
-    const host = byId('pdfLibrary') || byId('literatureFiles');
+    const host = byId('pdfLibrary') || byId('literatureFiles') || byId('pdfGrid');
     if (!host) return;
 
-    host.innerHTML = items.map(x => `
-      <article class="library-file">
-        <strong>${escapeHtml(x.title || x.name || 'Document')}</strong>
-        ${x.url ? ` <a href="${escapeHtml(x.url)}" target="_blank" rel="noopener noreferrer">Open</a>` : ''}
-      </article>
-    `).join('');
+    host.innerHTML = items.map(x => {
+      const url = x.url || x.link || x.pdfUrl || '';
+      return `
+        <article class="library-file rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <strong>${escapeHtml(x.title || x.name || 'Document')}</strong>
+          ${x.tag ? `<p class="text-xs text-stone-500 mt-1">${escapeHtml(x.tag)}</p>` : ''}
+          ${url ? `<p class="mt-3"><a class="text-emerald-800 underline font-semibold" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">📄 PDF खोलें</a></p>` : '<p class="text-xs text-stone-500 mt-2">लिंक उपलब्ध नहीं है।</p>'}
+        </article>
+      `;
+    }).join('');
   }
     // Community posts
   function renderCommunity(posts) {
@@ -1142,6 +1173,24 @@
 
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
+
+    // Match the visible cards with the actual start handlers, so hidden exams
+    // cannot still be launched by an old button or a direct JavaScript call.
+    const config = state.examConfig || {};
+    const visibilityField = ({
+      quiz: 'dailyQuizVisible',
+      mock1: 'mock1Visible',
+      mock2: 'mock2Visible',
+      main: 'mainExamVisible'
+    })[mode];
+    if (visibilityField && config[visibilityField] === false) {
+      notify('यह परीक्षा अभी Owner Studio में बंद है।', 'error');
+      return;
+    }
+    if ((mode === 'mock1' || mode === 'mock2') && config.mockVisible === false) {
+      notify('मॉक परीक्षाएँ अभी Owner Studio में बंद हैं।', 'error');
+      return;
+    }
 
     const scheduledStart = getExamStartAt(mode);
     if (scheduledStart && Date.now() < scheduledStart) {

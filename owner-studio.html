@@ -998,10 +998,12 @@ Ans: B"></textarea>
         mock2StartAtMs: readStartTime('ownerMock2StartAt'),
         mainStartAtMs: readStartTime('ownerMainStartAt'),
         dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
-        mockVisible: !!document.getElementById('ownerShowMock')?.checked,
+        // The master toggle controls the whole mock section; individual toggles
+        // decide which cards are visible when the master toggle is enabled.
+        mockVisible: !!document.getElementById('ownerShowMock')?.checked &&
+          (!!document.getElementById('ownerShowMock1')?.checked || !!document.getElementById('ownerShowMock2')?.checked),
         mock1Visible: !!document.getElementById('ownerShowMock1')?.checked,
         mock2Visible: !!document.getElementById('ownerShowMock2')?.checked,
-        mockVisible: !!document.getElementById('ownerShowMock1')?.checked || !!document.getElementById('ownerShowMock2')?.checked,
         mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
