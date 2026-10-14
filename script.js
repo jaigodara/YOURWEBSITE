@@ -1,12 +1,13 @@
 /* ==========================================================================
    विश्नोई समाज डिजिटल मंच (Bishnoi Digital Platform)
-   Complete Production Master Script (script.js) — Dedicated for index.html
+   Revised Master Script — index.html
+   Preserves existing design classes and public namespaces.
    ========================================================================== */
 
-(function() {
+(function () {
   'use strict';
 
-  // 1. FIREBASE CONFIGURATION & INITIALIZATION
+  // 1. FIREBASE CONFIGURATION
   const firebaseConfig = {
     apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
     authDomain: "bishnoi-platform.firebaseapp.com",
@@ -16,47 +17,237 @@
     appId: "1:1001226124051:web:ad4dc69e04e6701024f8e6"
   };
 
+  if (!window.firebase) {
+    console.error("Firebase SDK नहीं मिला। index.html में Firebase SDK जोड़ें।");
+    return;
+  }
+
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
   }
 
   const db = firebase.firestore();
   const auth = firebase.auth();
+
+  // This UID is a client-side display hint, NOT a security boundary.
+  // Firestore rules must independently authorize all privileged operations.
   const SUPER_OWNER_UID = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
 
-  // 2. GLOBAL APPLICATION STATE
+  // 2. APPLICATION STATE
   let currentUser = null;
   let isRegisterMode = false;
-  let currentActiveTab = 'home';
+  let currentActiveTab = "home";
   let confirmCallback = null;
   let inactivityTimer = null;
 
-  // Quiz State
   let quizList = [];
   let currentQ = 0;
   let qScore = 0;
   let isAnswering = false;
+  let quizFinished = false;
 
-  // Mala State
-  let malaBeadCount = parseInt(localStorage.getItem('bishnoi_mala_beads') || '0', 10);
-  let malaLapsCount = parseInt(localStorage.getItem('bishnoi_mala_laps') || '0', 10);
-  let malaTotalCount = parseInt(localStorage.getItem('bishnoi_mala_total') || '0', 10);
-  let readNiyamsSet = new Set(JSON.parse(localStorage.getItem('bishnoi_read_niyams') || '[]'));
+  let malaBeadCount = readNonNegativeInt("bishnoi_mala_beads");
+  let malaLapsCount = readNonNegativeInt("bishnoi_mala_laps");
+  let malaTotalCount = readNonNegativeInt("bishnoi_mala_total");
+  let readNiyamsSet = readReadNiyams();
 
-  // Amavasya & Panchang State
   let amavasyaTargetDate = null;
   let amavasyaTimer = null;
 
-  // Audio State
   const audioSpeeds = [1, 1.25, 1.5];
   let speedIdx = 0;
 
-  // Community Chat State
   let allPosts = [];
-  let currentChatFilter = 'all';
+  let currentChatFilter = "all";
   let lastPostTime = 0;
+  let authListenerStarted = false;
+  let quizListenerStarted = false;
+  let communityListenerStarted = false;
+  let pdfListenerStarted = false;
+  let bannerListenerStarted = false;
+  let treeListenerStarted = false;
+  let amavasyaListenerStarted = false;
 
-  // 3. AUTHENTIC 29 NIYAMS DATA
+  // 3. HELPERS
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function readNonNegativeInt(key) {
+    try {
+      const value = Number.parseInt(localStorage.getItem(key) || "0", 10);
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  function readReadNiyams() {
+    try {
+      const value = JSON.parse(
+        localStorage.getItem("bishnoi_read_niyams") || "[]"
+      );
+
+      if (!Array.isArray(value)) return new Set();
+
+      return new Set(
+        value.filter(n => Number.isInteger(n) && n >= 1 && n <= 29)
+      );
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function saveLocal(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (err) {
+      console.warn("स्थानीय सेटिंग सुरक्षित नहीं हो सकी।", err);
+    }
+  }
+
+  // Escape all dynamic text before placing it into HTML.
+  // Prefer textContent for new code wherever practical.
+  function escapeHTML(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[ch]);
+  }
+
+  function safeText(value, maxLength = 500) {
+    return String(value == null ? "" : value)
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+      .trim()
+      .slice(0, maxLength);
+  }
+
+  function safeHttpUrl(value) {
+    if (typeof value !== "string") return null;
+
+    const candidate = value.trim();
+    if (!candidate || candidate.length > 2048) return null;
+
+    try {
+      const url = new URL(candidate, window.location.href);
+
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        return null;
+      }
+
+      // Reject embedded credentials in links.
+      if (url.username || url.password) return null;
+
+      return url.href;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function showToast(message) {
+    const toast = $("toastNotification");
+    const toastMsg = $("toastMsg");
+
+    if (!toast || !toastMsg) {
+      console.info(safeText(message, 300));
+      return;
+    }
+
+    toastMsg.textContent = safeText(message, 300);
+    toast.classList.remove("-translate-y-20", "opacity-0");
+    toast.classList.add("translate-y-0", "opacity-100");
+
+    setTimeout(() => {
+      toast.classList.remove("translate-y-0", "opacity-100");
+      toast.classList.add("-translate-y-20", "opacity-0");
+    }, 3200);
+  }
+
+  function openConfirmModal(title, message, callback) {
+    const modal = $("customConfirmModal");
+    if (!modal) {
+      showToast("पुष्टिकरण विंडो उपलब्ध नहीं है।");
+      return;
+    }
+
+    if ($("confirmTitle")) $("confirmTitle").textContent = safeText(title, 120);
+    if ($("confirmMsg")) $("confirmMsg").textContent = safeText(message, 500);
+
+    confirmCallback = typeof callback === "function" ? callback : null;
+    modal.classList.remove("hidden");
+  }
+
+  function closeConfirmModal(result) {
+    $("customConfirmModal")?.classList.add("hidden");
+
+    const callback = confirmCallback;
+    confirmCallback = null;
+
+    if (callback) {
+      try {
+        callback(Boolean(result));
+      } catch (err) {
+        console.error("Confirmation callback error:", err);
+      }
+    }
+  }
+
+  function friendlyAuthError(error) {
+    const code = error && error.code;
+
+    const messages = {
+      "auth/invalid-email": "ईमेल पता सही नहीं है।",
+      "auth/user-not-found": "खाता नहीं मिला। विवरण जाँचें या पंजीकरण करें।",
+      "auth/wrong-password": "लॉगिन विवरण सही नहीं हैं।",
+      "auth/invalid-credential": "लॉगिन विवरण सही नहीं हैं।",
+      "auth/email-already-in-use": "यह ईमेल पहले से पंजीकृत है।",
+      "auth/weak-password": "कृपया अधिक मजबूत पासवर्ड चुनें।",
+      "auth/too-many-requests": "बहुत अधिक प्रयास हुए हैं। कुछ देर बाद प्रयास करें।",
+      "auth/popup-closed-by-user": "Google लॉगिन विंडो बंद कर दी गई।",
+      "auth/popup-blocked": "ब्राउज़र ने लॉगिन विंडो रोक दी।",
+      "auth/network-request-failed": "नेटवर्क की समस्या है। दोबारा प्रयास करें।",
+      "auth/operation-not-allowed": "यह लॉगिन विधि Firebase में सक्षम नहीं है।"
+    };
+
+    return messages[code] || "अनुरोध पूरा नहीं हुआ। कृपया दोबारा प्रयास करें।";
+  }
+
+  function reportFirestoreError(action, error) {
+    console.error(action, error);
+
+    if (error && error.code === "permission-denied") {
+      showToast("इस कार्य की अनुमति नहीं है।");
+    } else if (error && error.code === "unavailable") {
+      showToast("सेवा अभी उपलब्ध नहीं है। इंटरनेट जाँचें।");
+    } else {
+      showToast("अनुरोध पूरा नहीं हुआ। कृपया दोबारा प्रयास करें।");
+    }
+  }
+
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
+
+  function openExternal(url) {
+    const safeUrl = safeHttpUrl(url);
+    if (!safeUrl) {
+      showToast("यह लिंक मान्य नहीं है।");
+      return;
+    }
+
+    const opened = window.open(safeUrl, "_blank", "noopener,noreferrer");
+    if (!opened) showToast("लिंक खोलने के लिए ब्राउज़र अनुमति दें।");
+  }
+
+  // 4. AUTHENTIC 29 NIYAMS
   const niyamsData = [
     { num: 1, title: "प्रसूति सूतक", rule: "तीस दिन सूतक पाळणा", desc: "सूतक काल में ३० दिन तक माता व शिशु की स्वच्छता और विश्राम रखें।" },
     { num: 2, title: "ऋतुवंती पृथक्करण", rule: "पांच दिन रजस्वला पृथक्करण", desc: "माहवारी के दौरान ५ दिन का गृह-कार्य से पूर्ण विश्राम एवं स्वास्थ्य रक्षा।" },
@@ -64,227 +255,303 @@
     { num: 4, title: "शील व संतोष", rule: "शील संतोष सूच राखणा", desc: "सदाचारी, शांत, पवित्र और संतोषी स्वभाव बनाए रखें।" },
     { num: 5, title: "द्विकाल संध्या", rule: "द्वादश कर्म सांध", desc: "सुबह-शाम दोनों समय संध्या-वंदन और ईश्वर स्मरण करें।" },
     { num: 6, title: "सांझ आरती", rule: "सांझ आरती गुण गावै", desc: "संध्या समय आरती व भगवान के पावन गुणों का गायन करें।" },
-    { num: 7, title: "प्रातः होम", rule: "प्रात: होम करणा", desc: "वातावरण शुद्धि एवं आत्मिक शांति हेतु प्रतिदिन प्रातःकाल घी से हवन करें।" },
-    { num: 8, title: "पानी छानना", rule: "पाणी छान पीवणा", desc: "सूक्ष्म जीवों की रक्षा व स्वास्थ्य के लिए पानी सदा छानकर पियें और वाणी भी छानकर बोलें।" },
-    { num: 9, title: "ईंधन जांच", rule: "ईंधन बीन बाळणा", desc: "चूल्हे में लकड़ी व गोबर के उपले कीट-पतंगों को देखकर व झाड़कर ही जलाएं।" },
+    { num: 7, title: "प्रातः होम", rule: "प्रात: होम करणा", desc: "आत्मिक शांति हेतु प्रतिदिन प्रातःकाल हवन करें।" },
+    { num: 8, title: "पानी छानना", rule: "पाणी छान पीवणा", desc: "सूक्ष्म जीवों की रक्षा व स्वास्थ्य के लिए पानी छानकर पियें और वाणी भी छानकर बोलें।" },
+    { num: 9, title: "ईंधन जांच", rule: "ईंधन बीन बाळणा", desc: "ईंधन जलाने से पहले उसमें मौजूद जीव-जंतुओं की रक्षा का ध्यान रखें।" },
     { num: 10, title: "क्षमा धारण", rule: "क्षमा दया मन आणणा", desc: "मन में सदा क्षमा और सहनशीलता का भाव बनाए रखें।" },
     { num: 11, title: "दया भाव", rule: "दया हिरदै राखणी", desc: "प्रत्येक प्राणी और मनुष्य के प्रति हृदय में करुणा व दयालुता रखें।" },
     { num: 12, title: "चोरी त्याग", rule: "चोरी नहीं करणी", desc: "पराई वस्तु कभी न चुराएं और ईमानदारी से जीवन यापन करें।" },
     { num: 13, title: "निंदा त्याग", rule: "निंदा नहीं करणी", desc: "किसी की पीठ पीछे बुराई या चुगली न करें।" },
     { num: 14, title: "झूठ त्याग", rule: "झूठ नहीं बोलना", desc: "सदा सत्य, हितकारी और मधुर वाणी बोलें।" },
     { num: 15, title: "वाद-विवाद त्याग", rule: "वाद विवाद नहीं करणा", desc: "व्यर्थ के झगड़े और अहंकार भरी बहस से दूर रहें।" },
-    { num: 16, title: "अमावस्या व्रत", rule: "अमावस्या व्रत राखणा", desc: "प्रत्येक अमावस्या के दिन उपवास रखें, पर्यावरण चिंतन और हरि स्मरण करें।" },
+    { num: 16, title: "अमावस्या व्रत", rule: "अमावस्या व्रत राखणा", desc: "अमावस्या के दिन उपवास, पर्यावरण चिंतन और हरि स्मरण करें।" },
     { num: 17, title: "विष्णु स्मरण", rule: "विष्णु नाम जपणा", desc: "हृदय में ॐ विष्णवे नमः का निरंतर स्मरण रखें।" },
     { num: 18, title: "जीव दया", rule: "जीव दया पालणी", desc: "सभी मूक पशु-पक्षियों की रक्षा करें, किसी जीव को कष्ट न दें।" },
-    { num: 19, title: "हरा वृक्ष रक्षा", rule: "रूंख लीलो नी घावै", desc: "पर्यावरण संतुलन हेतु हरे-भरे पेड़ों को कभी न काटें।" },
+    { num: 19, title: "हरा वृक्ष रक्षा", rule: "रूंख लीलो नी घावै", desc: "पर्यावरण संतुलन हेतु हरे-भरे पेड़ों को न काटें।" },
     { num: 20, title: "काम-क्रोध संयम", rule: "अजर जरे सो सूर", desc: "काम, क्रोध, लोभ और अहंकार पर नियंत्रण रखें।" },
     { num: 21, title: "स्वहस्त आहार", rule: "आपने हाथे रांधणा", desc: "पवित्रता और सात्विकता के साथ शुद्ध बना भोजन ग्रहण करें।" },
     { num: 22, title: "पशु थापण", rule: "अमर रखावै थाट", desc: "निराश्रित और असहाय पशुओं को कटने से बचाएं और आश्रय दें।" },
-    { num: 23, title: "बैल बधिया निषेध", rule: "बैल बधिया नहीं करणा", desc: "पशुओं पर क्रूरता न करें, बैलों का बंध्याकरण न करें।" },
-    { num: 24, title: "अमल त्याग", rule: "अमल नहीं खाणा", desc: "अफीम और किसी भी प्रकार के नशे का पूर्ण त्याग करें।" },
-    { num: 25, title: "तम्बाकू त्याग", rule: "तम्बाकू नहीं पीणा", desc: "तम्बाकू, बीड़ी, सिगरेट, गुटखा आदि का पूर्ण निषेध रखें।" },
-    { num: 26, title: "भांग त्याग", rule: "भांग नहीं पीणी", desc: "भांग और गांजे जैसे मादक पदार्थों का सेवन कभी न करें।" },
-    { num: 27, title: "मदिरा त्याग", rule: "मद्य नहीं पीणा", desc: "शराब का पूरी तरह त्याग करें।" },
-    { num: 28, title: "मांस त्याग", rule: "मांस नहीं खाणा", desc: "पूर्णतः शाकाहारी रहें, मांस-अंडा कभी न छुएं।" },
-    { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों व सूक्ष्म जीवों को नष्ट करके बनने वाले नीले रंग का त्याग।" }
+    { num: 23, title: "बैल बधिया निषेध", rule: "बैल बधिया नहीं करणा", desc: "पशुओं पर क्रूरता न करें और उनकी देखभाल करें।" },
+    { num: 24, title: "अमल त्याग", rule: "अमल नहीं खाणा", desc: "अफीम और अन्य नशीले पदार्थों का त्याग करें।" },
+    { num: 25, title: "तम्बाकू त्याग", rule: "तम्बाकू नहीं पीणा", desc: "तम्बाकू, बीड़ी, सिगरेट, गुटखा आदि का त्याग करें।" },
+    { num: 26, title: "भांग त्याग", rule: "भांग नहीं पीणी", desc: "भांग और गांजे जैसे मादक पदार्थों का सेवन न करें।" },
+    { num: 27, title: "मदिरा त्याग", rule: "मद्य नहीं पीणा", desc: "शराब का त्याग करें।" },
+    { num: 28, title: "मांस त्याग", rule: "मांस नहीं खाणा", desc: "समाज की परंपरा के अनुसार शाकाहार का पालन करें।" },
+    { num: 29, title: "नील त्याग", rule: "नील नहीं पहरणा", desc: "नील के पौधों और सूक्ष्म जीवों की रक्षा के लिए नील के त्याग की परंपरा का पालन करें।" }
   ];
 
   const historyItemsList = [
     {
-      type: 'history',
-      badge: 'इतिहास अध्याय • १७३० ई.',
-      title: 'खेजड़ली का अमर बलिदान — ३६३ हुतात्माओं की गौरवगाथा',
-      content: 'सन् १७३० (विक्रम संवत १७८७, भाद्रपद शुक्ल दशमी) को जोधपुर के खेजड़ली गाँव में माता अमृता देवी बिश्नोई और उनकी तीन पुत्रियों (आसू, रतनी, भागू) सहित ३६३ बिश्नोई वीरों व वीरांगनाओं ने हरे खेजड़ी वृक्षों की रक्षा के लिए अपने शीश समर्पित कर दिए।',
-      moral: 'सिर साटै रूंख रहै, तो भी सस्तो जाण — प्रकृति और धर्म की रक्षा प्राणों से भी बढ़कर है।'
+      type: "history",
+      badge: "इतिहास अध्याय • १७३० ई.",
+      title: "खेजड़ली का अमर बलिदान — ३६३ हुतात्माओं की गौरवगाथा",
+      content: "सन् १७३० में जोधपुर के खेजड़ली गाँव में माता अमृता देवी बिश्नोई और उनकी तीन पुत्रियों सहित ३६३ बिश्नोई लोगों ने हरे खेजड़ी वृक्षों की रक्षा के लिए बलिदान दिया।",
+      moral: "सिर साटै रूंख रहै, तो भी सस्तो जाण — प्रकृति और धर्म की रक्षा का संदेश।"
     },
     {
-      type: 'kids',
-      badge: '🦌 बाल संस्कार कहानी',
-      title: 'नन्हे हिरण का सच्चा मित्र',
-      content: 'एक बार थार के रेगिस्तान में एक नन्हा चिंकारा प्यास से व्याकुल था। गाँव के बालकों ने उसे देखा, दौड़कर अपने घर से छना हुआ शीतल जल पिलाया और उसकी रक्षा की। वह नन्हा हिरण भयमुक्त होकर गाँव के आँगन में बच्चों के साथ खेलने लगा।',
-      moral: '🌟 सीख: मूक पशु-पक्षी हमारे परिवार की तरह हैं। घर के बाहर पक्षियों व जीवों के लिए परिंडा अवश्य रखें।'
+      type: "kids",
+      badge: "🦌 बाल संस्कार कहानी",
+      title: "नन्हे हिरण का सच्चा मित्र",
+      content: "थार के रेगिस्तान में बच्चों ने एक प्यासे चिंकारे को देखा। उन्होंने उसके लिए पानी रखा और उसकी रक्षा की।",
+      moral: "🌟 सीख: मूक पशु-पक्षियों की रक्षा करें और उनके लिए पानी की व्यवस्था करें।"
     }
   ];
 
-  // 4. TOAST NOTIFICATIONS & CONFIRMATION MODALS
-  function showToast(msg) {
-    const toast = document.getElementById('toastNotification');
-    const toastMsg = document.getElementById('toastMsg');
-    if (!toast || !toastMsg) return;
-    toastMsg.innerText = msg;
-    toast.classList.remove('-translate-y-20', 'opacity-0');
-    toast.classList.add('translate-y-0', 'opacity-100');
-    setTimeout(() => {
-      toast.classList.remove('translate-y-0', 'opacity-100');
-      toast.classList.add('-translate-y-20', 'opacity-0');
-    }, 3200);
-  }
-
-  function openConfirmModal(title, msg, callback) {
-    const modal = document.getElementById('customConfirmModal');
-    const tEl = document.getElementById('confirmTitle');
-    const mEl = document.getElementById('confirmMsg');
-    if (!modal) return;
-    if (tEl) tEl.innerText = title;
-    if (mEl) mEl.innerText = msg;
-    confirmCallback = callback;
-    modal.classList.remove('hidden');
-  }
-
-  function closeConfirmModal(result) {
-    const modal = document.getElementById('customConfirmModal');
-    if (modal) modal.classList.add('hidden');
-    if (confirmCallback) confirmCallback(result);
-    confirmCallback = null;
-  }
-
-  // 5. NAVIGATION & TAB SWITCHING
+  // 5. NAVIGATION
   function switchTab(tabId) {
+    const allowedTabs = ["home", "library", "quiz", "community", "mala", "history"];
+
+    if (!allowedTabs.includes(tabId)) {
+      showToast("यह पृष्ठ उपलब्ध नहीं है।");
+      return;
+    }
+
     currentActiveTab = tabId;
-    const allTabs = ['home', 'library', 'quiz', 'community', 'mala', 'history'];
-    allTabs.forEach(t => document.getElementById(`tab-${t}`)?.classList.add('hidden'));
 
-    const bnavs = ['home', 'library', 'quiz', 'community', 'profile'];
-    bnavs.forEach(b => document.getElementById(`bnav-${b}`)?.classList.remove('bnav-active'));
+    allowedTabs.forEach(tab => {
+      $(`tab-${tab}`)?.classList.add("hidden");
+    });
 
-    const target = document.getElementById(`tab-${tabId}`);
-    if (target) target.classList.remove('hidden');
+    ["home", "library", "quiz", "community", "profile"].forEach(key => {
+      $(`bnav-${key}`)?.classList.remove("bnav-active");
+    });
 
-    const activeNavKey = (tabId === 'mala' || tabId === 'history') ? 'home' : tabId;
-    document.getElementById(`bnav-${activeNavKey}`)?.classList.add('bnav-active');
+    $(`tab-${tabId}`)?.classList.remove("hidden");
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const navKey = (tabId === "mala" || tabId === "history") ? "home" : tabId;
+    $(`bnav-${navKey}`)?.classList.add("bnav-active");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function switchHistorySubTab(sub) {
-    const hView = document.getElementById('historySubView');
-    const kView = document.getElementById('kidsSubView');
-    const hBtn = document.getElementById('sub-history-btn');
-    const kBtn = document.getElementById('sub-kids-btn');
+    const historyView = $("historySubView");
+    const kidsView = $("kidsSubView");
+    const historyBtn = $("sub-history-btn");
+    const kidsBtn = $("sub-kids-btn");
 
-    if (sub === 'full-history') {
-      hView?.classList.remove('hidden');
-      kView?.classList.add('hidden');
-      if (hBtn) hBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
-      if (kBtn) kBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600";
+    if (sub === "full-history") {
+      historyView?.classList.remove("hidden");
+      kidsView?.classList.add("hidden");
+
+      if (historyBtn) {
+        historyBtn.className =
+          "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
+      }
+      if (kidsBtn) {
+        kidsBtn.className =
+          "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600";
+      }
     } else {
-      hView?.classList.add('hidden');
-      kView?.classList.remove('hidden');
-      if (kBtn) kBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
-      if (hBtn) hBtn.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600";
+      historyView?.classList.add("hidden");
+      kidsView?.classList.remove("hidden");
+
+      if (kidsBtn) {
+        kidsBtn.className =
+          "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm";
+      }
+      if (historyBtn) {
+        historyBtn.className =
+          "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600";
+      }
     }
   }
 
-  // 6. AUTHENTICATION & SESSION LIFECYCLE
+  // 6. AUTHENTICATION
   function initAuthEngine() {
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
-          const doc = await db.collection('users').doc(user.uid).get();
-          if (doc.exists) {
-            currentUser = { uid: user.uid, ...doc.data() };
-          } else {
-            currentUser = {
-              uid: user.uid,
-              name: user.displayName || "धर्मप्रेमी सदस्य",
-              email: user.email || "",
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            await db.collection('users').doc(user.uid).set(currentUser, { merge: true });
-          }
-          localStorage.setItem('bishnoi_active_user', JSON.stringify({ uid: user.uid, name: currentUser.name }));
-        } catch (err) {
-          console.error("Profile sync error:", err);
-        }
-      } else {
+    if (authListenerStarted) return;
+    authListenerStarted = true;
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
         currentUser = null;
-        localStorage.removeItem('bishnoi_active_user');
+        try {
+          localStorage.removeItem("bishnoi_active_user");
+        } catch (_) {}
+
+        updateAuthUI();
+        return;
       }
+
+      try {
+        const userRef = db.collection("users").doc(user.uid);
+        const snapshot = await userRef.get();
+
+        if (snapshot.exists) {
+          currentUser = {
+            uid: user.uid,
+            name: safeText(snapshot.data().name || user.displayName || "धर्मप्रेमी सदस्य", 80),
+            email: user.email || "",
+            location: safeText(snapshot.data().location || "", 120)
+          };
+        } else {
+          currentUser = {
+            uid: user.uid,
+            name: safeText(user.displayName || "धर्मप्रेमी सदस्य", 80),
+            email: user.email || "",
+            location: ""
+          };
+
+          await userRef.set({
+            name: currentUser.name,
+            email: currentUser.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+
+        try {
+          localStorage.setItem("bishnoi_active_user", JSON.stringify({
+            uid: user.uid,
+            name: currentUser.name
+          }));
+        } catch (_) {}
+
+      } catch (err) {
+        console.error("Profile sync error:", err);
+        // Keep authentication state, but do not invent a trusted profile.
+        currentUser = {
+          uid: user.uid,
+          name: safeText(user.displayName || "सदस्य", 80),
+          email: user.email || "",
+          location: ""
+        };
+      }
+
       updateAuthUI();
     });
 
     const resetInactivity = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer);
-      if (currentUser) {
-        inactivityTimer = setTimeout(() => {
-          logout();
-          showToast("🔒 सुरक्षा कारणों से २० मिनट निष्क्रियता के बाद सत्र समाप्त हुआ।");
+
+      if (auth.currentUser) {
+        inactivityTimer = setTimeout(async () => {
+          await logout(true);
+          showToast("🔒 सुरक्षा कारणों से निष्क्रियता के बाद सत्र समाप्त हुआ।");
         }, 20 * 60 * 1000);
       }
     };
-    ['click', 'touchstart', 'keydown'].forEach(evt => window.addEventListener(evt, resetInactivity, { passive: true }));
+
+    ["click", "touchstart", "keydown"].forEach(eventName => {
+      window.addEventListener(eventName, resetInactivity, { passive: true });
+    });
   }
 
   function updateAuthUI() {
-    const container = document.getElementById('authActionsContainer');
-    const studioBtn = document.getElementById('ownerStudioPortalBtn');
-    const postPrompt = document.getElementById('postAuthPrompt');
-    const postEditor = document.getElementById('postEditor');
-    const navLabel = document.getElementById('bnavProfileLabel');
+    const container = $("authActionsContainer");
+    const studioBtn = $("ownerStudioPortalBtn");
+    const postPrompt = $("postAuthPrompt");
+    const postEditor = $("postEditor");
+    const navLabel = $("bnavProfileLabel");
 
     if (currentUser) {
       if (container) {
-        container.innerHTML = `
-          <button onclick="window.BishnoiAuth.openProfileModal()" class="text-xs font-bold text-forest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 truncate max-w-[140px] shadow-sm">
-            👤 ${currentUser.name}
-          </button>
-        `;
-      }
-      if (navLabel) navLabel.innerText = "प्रोफ़ाइल";
-      postPrompt?.classList.add('hidden');
-      postEditor?.classList.remove('hidden');
+        container.replaceChildren();
 
-      db.collection('roles').doc(currentUser.uid).get().then(doc => {
-        const isOwner = currentUser.uid === SUPER_OWNER_UID || (doc.exists && (doc.data().role === 'owner' || doc.data().role === 'editor'));
-        if (studioBtn) studioBtn.classList.toggle('hidden', !isOwner);
-      }).catch(() => {
-        if (studioBtn) studioBtn.classList.add('hidden');
-      });
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className =
+          "text-xs font-bold text-forest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 truncate max-w-[140px] shadow-sm";
+        button.textContent = `👤 ${currentUser.name}`;
+        button.addEventListener("click", openProfileModal);
+        container.appendChild(button);
+      }
+
+      if (navLabel) navLabel.textContent = "प्रोफ़ाइल";
+      postPrompt?.classList.add("hidden");
+      postEditor?.classList.remove("hidden");
+
+      // Display-only check. Firestore rules must enforce owner permissions.
+      db.collection("roles").doc(currentUser.uid).get()
+        .then(doc => {
+          const role = doc.exists ? doc.data().role : "";
+          const canSeeStudio =
+            currentUser.uid === SUPER_OWNER_UID ||
+            role === "owner" ||
+            role === "editor";
+
+          if (studioBtn) {
+            studioBtn.classList.toggle("hidden", !canSeeStudio);
+          }
+        })
+        .catch(() => studioBtn?.classList.add("hidden"));
 
     } else {
       if (container) {
-        container.innerHTML = `
-          <button onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
-            लॉगिन करें
-          </button>
-        `;
+        container.replaceChildren();
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className =
+          "px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm";
+        button.textContent = "लॉगिन करें";
+        button.addEventListener("click", openAuthModal);
+        container.appendChild(button);
       }
-      if (navLabel) navLabel.innerText = "लॉगिन";
-      if (studioBtn) studioBtn.classList.add('hidden');
-      postPrompt?.classList.remove('hidden');
-      postEditor?.classList.add('hidden');
+
+      if (navLabel) navLabel.textContent = "लॉगिन";
+      studioBtn?.classList.add("hidden");
+      postPrompt?.classList.remove("hidden");
+      postEditor?.classList.add("hidden");
     }
   }
 
-  async function handleAuthSubmit(e) {
-    e.preventDefault();
-    const identifier = document.getElementById('loginIdentifier')?.value.trim();
-    const pass = document.getElementById('loginPass')?.value.trim();
-    const name = document.getElementById('loginName')?.value.trim();
+  function normaliseLoginIdentifier(identifier) {
+    const value = String(identifier || "").trim();
 
-    if (!identifier || !pass) return showToast("कृपया सभी विवरण भरें!");
+    // Preserve compatibility with the previous phone-number login pattern.
+    // This only works if Firebase Auth accounts were created using this scheme.
+    if (/^[6-9]\d{9}$/.test(value)) {
+      return `user_${value}@bishnoism.internal`;
+    }
 
-    const email = /^[6-9]\d{9}$/.test(identifier) 
-      ? `user_${identifier}@bishnoism.internal` 
-      : identifier;
+    return value;
+  }
+
+  async function handleAuthSubmit(event) {
+    event?.preventDefault();
+
+    const identifier = $("loginIdentifier")?.value.trim();
+    const password = $("loginPass")?.value || "";
+    const name = $("loginName")?.value.trim() || "";
+
+    if (!identifier || !password) {
+      showToast("कृपया लॉगिन विवरण भरें।");
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast("पासवर्ड कम से कम ६ अक्षरों का होना चाहिए।");
+      return;
+    }
+
+    if (isRegisterMode && name.length > 80) {
+      showToast("नाम बहुत लंबा है।");
+      return;
+    }
+
+    const email = normaliseLoginIdentifier(identifier);
 
     try {
       if (isRegisterMode) {
-        const cred = await auth.createUserWithEmailAndPassword(email, pass);
-        await db.collection('users').doc(cred.user.uid).set({
-          name: name || "धर्मप्रेमी सदस्य",
+        const credential = await auth.createUserWithEmailAndPassword(email, password);
+
+        await db.collection("users").doc(credential.user.uid).set({
+          name: safeText(name || "धर्मप्रेमी सदस्य", 80),
           phone: /^[6-9]\d{9}$/.test(identifier) ? identifier : "",
-          email: cred.user.email,
+          email: credential.user.email || "",
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, { merge: true });
+
         showToast("✅ पंजीकरण सफल हुआ!");
       } else {
-        await auth.signInWithEmailAndPassword(email, pass);
+        await auth.signInWithEmailAndPassword(email, password);
         showToast("✅ स्वागत है!");
       }
+
       closeAuthModal();
     } catch (err) {
-      showToast("प्रमाणीकरण त्रुटि: " + err.message);
+      console.error("Authentication failed:", err);
+      showToast(friendlyAuthError(err));
     }
   }
 
@@ -295,77 +562,102 @@
       closeAuthModal();
       showToast("Google लॉगिन सफल हुआ!");
     } catch (err) {
-      showToast("Google त्रुटि: " + err.message);
+      console.error("Google sign-in failed:", err);
+      showToast(friendlyAuthError(err));
     }
   }
 
   function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
-    document.getElementById('nameRow')?.classList.toggle('hidden', !isRegisterMode);
-    const title = document.getElementById('authTitle');
-    const subBtn = document.getElementById('authSubmitBtn');
-    const togBtn = document.getElementById('authToggleBtn');
-    if (title) title.innerText = isRegisterMode ? "नया पंजीकरण" : "लॉगिन (Sign In)";
-    if (subBtn) subBtn.innerText = isRegisterMode ? "खाता बनाएं" : "लॉगिन करें";
-    if (togBtn) togBtn.innerText = isRegisterMode ? "पहले से पंजीकृत हैं? लॉगिन करें" : "नए सदस्य हैं? पंजीकरण करें";
+
+    $("nameRow")?.classList.toggle("hidden", !isRegisterMode);
+
+    if ($("authTitle")) {
+      $("authTitle").textContent = isRegisterMode ? "नया पंजीकरण" : "लॉगिन (Sign In)";
+    }
+    if ($("authSubmitBtn")) {
+      $("authSubmitBtn").textContent = isRegisterMode ? "खाता बनाएं" : "लॉगिन करें";
+    }
+    if ($("authToggleBtn")) {
+      $("authToggleBtn").textContent = isRegisterMode
+        ? "पहले से पंजीकृत हैं? लॉगिन करें"
+        : "नए सदस्य हैं? पंजीकरण करें";
+    }
   }
 
   function openAuthModal() {
-    document.getElementById('authModal')?.classList.remove('hidden');
+    $("authModal")?.classList.remove("hidden");
   }
 
   function closeAuthModal() {
-    document.getElementById('authModal')?.classList.add('hidden');
+    $("authModal")?.classList.add("hidden");
   }
 
   function openProfileModal() {
-    const modal = document.getElementById('userProfileModal');
-    if (!modal || !currentUser) return;
-    const nameDisp = document.getElementById('profHeaderNameDisplay');
-    const nameEdit = document.getElementById('profEditName');
-    const locEdit = document.getElementById('profEditLocation');
-    if (nameDisp) nameDisp.innerText = currentUser.name || "सदस्य";
-    if (nameEdit) nameEdit.value = currentUser.name || "";
-    if (locEdit) locEdit.value = currentUser.location || "";
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (!currentUser) return openAuthModal();
+
+    const modal = $("userProfileModal");
+    if (!modal) return;
+
+    if ($("profHeaderNameDisplay")) {
+      $("profHeaderNameDisplay").textContent = currentUser.name || "सदस्य";
+    }
+    if ($("profEditName")) $("profEditName").value = currentUser.name || "";
+    if ($("profEditLocation")) $("profEditLocation").value = currentUser.location || "";
+
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
   }
 
   function closeProfileModal() {
-    const modal = document.getElementById('userProfileModal');
-    if (modal) {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
+    const modal = $("userProfileModal");
+    modal?.classList.add("hidden");
+    modal?.classList.remove("flex");
   }
 
   async function saveProfile() {
-    if (!currentUser) return;
-    const newName = document.getElementById('profEditName')?.value.trim();
-    const newLoc = document.getElementById('profEditLocation')?.value.trim();
-    if (!newName) return showToast("कृपया नाम खाली न छोड़ें!");
+    if (!auth.currentUser || !currentUser) return openAuthModal();
+
+    const newName = $("profEditName")?.value.trim() || "";
+    const newLocation = $("profEditLocation")?.value.trim() || "";
+
+    if (!newName) return showToast("कृपया नाम खाली न छोड़ें।");
+    if (newName.length > 80 || newLocation.length > 120) {
+      return showToast("नाम या स्थान की जानकारी बहुत लंबी है।");
+    }
 
     try {
-      await db.collection('users').doc(currentUser.uid).set({
-        name: newName,
-        location: newLoc
+      await db.collection("users").doc(auth.currentUser.uid).set({
+        name: safeText(newName, 80),
+        location: safeText(newLocation, 120),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      currentUser.name = newName;
-      currentUser.location = newLoc;
+
+      currentUser.name = safeText(newName, 80);
+      currentUser.location = safeText(newLocation, 120);
+
       updateAuthUI();
       closeProfileModal();
       showToast("प्रोफ़ाइल सुरक्षित हो गई!");
-    } catch (e) {
-      showToast("त्रुटि: " + e.message);
+    } catch (err) {
+      reportFirestoreError("Profile update failed:", err);
     }
   }
 
-  function logout() {
-    auth.signOut().then(() => {
+  async function logout(silent = false) {
+    try {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = null;
+
+      await auth.signOut();
       closeProfileModal();
-      switchTab('home');
-      showToast("सफलतापूर्वक लॉगआउट हुआ।");
-    });
+      switchTab("home");
+
+      if (!silent) showToast("सफलतापूर्वक लॉगआउट हुआ।");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      showToast("लॉगआउट पूरा नहीं हो सका।");
+    }
   }
 
   function openProfileOrAuth() {
@@ -373,633 +665,1131 @@
     else openAuthModal();
   }
 
-  // 7. DAILY BANNER & WHATSAPP SHARING
+  // 7. DAILY BANNER AND WHATSAPP
   function listenBanner() {
-    db.collection('settings').doc('dailySandesh').onSnapshot(doc => {
-      if (doc.exists && doc.data().text) {
-        const el = document.getElementById('dailyBannerText');
-        if (el) el.innerText = doc.data().text;
-      }
-    });
+    if (bannerListenerStarted) return;
+    bannerListenerStarted = true;
+
+    db.collection("settings").doc("dailySandesh").onSnapshot(
+      doc => {
+        const element = $("dailyBannerText");
+        if (!element) return;
+
+        element.textContent =
+          doc.exists ? safeText(doc.data().text || "", 1500) : "";
+      },
+      err => console.warn("Daily banner unavailable:", err)
+    );
   }
 
   function shareBannerWhatsApp() {
-    const txt = document.getElementById('dailyBannerText')?.innerText || "";
-    const text = `🌿 *विश्नोई समाज पावन विचार*\n\n"${txt}"\n\n२९ नियम एवं ज्ञान मंच से जुड़ें:\n${window.location.origin}`;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    const bannerText = $("dailyBannerText")?.textContent || "";
+
+    const text =
+      `🌿 विश्नोई समाज पावन विचार\n\n"${bannerText}"\n\n` +
+      `२९ नियम एवं ज्ञान मंच से जुड़ें:\n${window.location.origin}`;
+
+    openExternal(
+      `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
+    );
   }
 
-  // 8. VEDIC PANCHANG & LIVE AMAVASYA COUNTDOWN
+  // 8. PANCHANG AND AMAVASYA
+  // This is an approximate lunar-cycle display, NOT a verified Panchang.
   function computeAutoPanchang() {
     const now = new Date();
-    const vaars = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
-    const samvat = now.getFullYear() + 57;
+    const weekdays = [
+      "रविवार", "सोमवार", "मंगलवार", "बुधवार",
+      "गुरुवार", "शुक्रवार", "शनिवार"
+    ];
 
-    const synodic = 29.530588;
-    const refNewMoon = new Date('2026-01-18T00:00:00Z').getTime();
-    const diffDays = (now.getTime() - refNewMoon) / 86400000;
-    const moonAge = (diffDays % synodic + synodic) % synodic;
-    const tithiNum = Math.floor(moonAge / (synodic / 30)) + 1;
-    const paksha = tithiNum <= 15 ? 'शुक्ल पक्ष' : 'कृष्ण पक्ष';
-    const tithiName = tithiNum === 15 ? 'पूर्णिमा' : (tithiNum === 30 || tithiNum === 0 ? 'अमावस्या' : `तिथि ${tithiNum <= 15 ? tithiNum : tithiNum - 15}`);
+    const samvat = now.getFullYear() + (now.getMonth() >= 3 ? 57 : 56);
 
-    const dEl = document.getElementById('autoPanchangDate');
-    const dtEl = document.getElementById('autoPanchangDetails');
-    if (dEl) dEl.innerText = `${vaars[now.getDay()]} • विक्रम संवत ${samvat}`;
-    if (dtEl) dtEl.innerText = `आज: ${now.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })} | ${paksha}, ${tithiName} (गणितीय पंचांग)`;
+    const dateElement = $("autoPanchangDate");
+    const detailsElement = $("autoPanchangDetails");
 
-    const daysUntilNext = synodic - moonAge;
-    amavasyaTargetDate = new Date(now.getTime() + daysUntilNext * 86400000);
+    if (dateElement) {
+      dateElement.textContent = `${weekdays[now.getDay()]} • अनुमानित विक्रम संवत ${samvat}`;
+    }
+
+    if (detailsElement) {
+      detailsElement.textContent =
+        `आज: ${now.toLocaleDateString("hi-IN", {
+          day: "numeric",
+          month: "long",
+          year: "numeric"
+        })} | चंद्र-चक्र का अनुमान। सटीक तिथि के लिए स्थानीय पंचांग देखें।`;
+    }
+
+    // Use a rough lunar cycle only as a fallback.
+    const synodicDays = 29.530588;
+    const referenceNewMoon = Date.parse("2026-01-18T00:00:00Z");
+    const elapsedDays = (now.getTime() - referenceNewMoon) / 86400000;
+    const age = ((elapsedDays % synodicDays) + synodicDays) % synodicDays;
+    const daysUntil = synodicDays - age;
+
+    if (!amavasyaTargetDate || amavasyaTargetDate.getTime() <= now.getTime()) {
+      amavasyaTargetDate = new Date(now.getTime() + daysUntil * 86400000);
+    }
+
     startAmavasyaTimer();
   }
 
   function listenAmavasyaConfig() {
-    db.collection('settings').doc('amavasyaConfig').onSnapshot(doc => {
-      if (doc.exists) {
-        const d = doc.data();
-        if (d.name && document.getElementById('amavasyaTitleDisplay')) {
-          document.getElementById('amavasyaTitleDisplay').innerText = d.name;
-        }
-        if (d.desc && document.getElementById('amavasyaFastingNote')) {
-          document.getElementById('amavasyaFastingNote').innerText = d.desc;
-        }
-        if (d.date) {
-          const parsed = new Date(d.date + "T00:00:00");
-          if (!isNaN(parsed.getTime()) && parsed.getTime() > Date.now() - 86400000) {
-            amavasyaTargetDate = parsed;
+    if (amavasyaListenerStarted) return;
+    amavasyaListenerStarted = true;
+
+    db.collection("settings").doc("amavasyaConfig").onSnapshot(
+      doc => {
+        if (doc.exists) {
+          const data = doc.data();
+
+          if ($("amavasyaTitleDisplay")) {
+            $("amavasyaTitleDisplay").textContent =
+              safeText(data.name || "अमावस्या", 120);
+          }
+
+          if ($("amavasyaFastingNote")) {
+            $("amavasyaFastingNote").textContent =
+              safeText(data.desc || "", 500);
+          }
+
+          if (typeof data.date === "string" &&
+              /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+            const parsed = new Date(`${data.date}T00:00:00`);
+
+            if (Number.isFinite(parsed.getTime()) &&
+                parsed.getTime() > Date.now()) {
+              amavasyaTargetDate = parsed;
+            }
           }
         }
-      }
-      startAmavasyaTimer();
-    });
+
+        startAmavasyaTimer();
+      },
+      err => console.warn("Amavasya configuration unavailable:", err)
+    );
   }
 
   function startAmavasyaTimer() {
     if (amavasyaTimer) clearInterval(amavasyaTimer);
+
     function update() {
-      if (!amavasyaTargetDate) return;
+      const box = $("amavasyaCountdownBox");
+      if (!box || !amavasyaTargetDate) return;
+
       const diff = amavasyaTargetDate.getTime() - Date.now();
-      const box = document.getElementById('amavasyaCountdownBox');
-      if (!box) return;
 
       if (diff <= 0) {
-        box.innerText = "🚩 आज पावन अमावस्या व्रत एवं हवन दिवस है!";
+        box.textContent = "🚩 अनुमानित अमावस्या समय आ गया है। स्थानीय पंचांग से पुष्टि करें।";
+        clearInterval(amavasyaTimer);
+        amavasyaTimer = null;
         return;
       }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff / 3600000) % 24);
-      const m = Math.floor((diff / 60000) % 60);
-      const s = Math.floor((diff / 1000) % 60);
-      box.innerHTML = `समय शेष: <b>${d} दिन : ${h} घं : ${m} मि : ${s} से</b>`;
+
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff / 3600000) % 24);
+      const minutes = Math.floor((diff / 60000) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      // Values are numeric; HTML is fixed and contains no user content.
+      box.innerHTML =
+        `समय शेष: <b>${days} दिन : ${hours} घं : ${minutes} मि : ${seconds} से</b>`;
     }
+
     update();
     amavasyaTimer = setInterval(update, 1000);
   }
 
   // 9. DIGITAL JAAP MALA
   function tapMalaBead() {
-    if (navigator.vibrate) navigator.vibrate(35);
-    malaBeadCount++;
-    malaTotalCount++;
+    malaBeadCount += 1;
+    malaTotalCount += 1;
 
     if (malaBeadCount >= 108) {
       malaBeadCount = 0;
-      malaLapsCount++;
+      malaLapsCount += 1;
+
       if (navigator.vibrate) navigator.vibrate([100, 50, 150]);
-      if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60 });
+
+      if (typeof window.confetti === "function") {
+        window.confetti({ particleCount: 50, spread: 60 });
+      }
+
       showToast("ॐ शांति! एक संपूर्ण जप माला (१०८ मनके) पूर्ण हुई!");
+    } else if (navigator.vibrate) {
+      navigator.vibrate(35);
     }
 
-    localStorage.setItem('bishnoi_mala_beads', malaBeadCount.toString());
-    localStorage.setItem('bishnoi_mala_laps', malaLapsCount.toString());
-    localStorage.setItem('bishnoi_mala_total', malaTotalCount.toString());
+    saveLocal("bishnoi_mala_beads", String(malaBeadCount));
+    saveLocal("bishnoi_mala_laps", String(malaLapsCount));
+    saveLocal("bishnoi_mala_total", String(malaTotalCount));
+
     renderMalaCounters();
   }
 
   function resetMala() {
-    openConfirmModal("माला शून्य करें?", "क्या आप जप माला गणना रीसेट करना चाहते हैं?", (confirmed) => {
-      if (confirmed) {
-        malaBeadCount = 0; malaLapsCount = 0; malaTotalCount = 0;
-        localStorage.setItem('bishnoi_mala_beads', '0');
-        localStorage.setItem('bishnoi_mala_laps', '0');
-        localStorage.setItem('bishnoi_mala_total', '0');
+    openConfirmModal(
+      "माला शून्य करें?",
+      "क्या आप जप माला गणना रीसेट करना चाहते हैं?",
+      confirmed => {
+        if (!confirmed) return;
+
+        malaBeadCount = 0;
+        malaLapsCount = 0;
+        malaTotalCount = 0;
+
+        saveLocal("bishnoi_mala_beads", "0");
+        saveLocal("bishnoi_mala_laps", "0");
+        saveLocal("bishnoi_mala_total", "0");
+
         renderMalaCounters();
         showToast("जप माला रीसेट हो गई।");
       }
-    });
+    );
   }
 
   function renderMalaCounters() {
-    const b = document.getElementById('currentBeadDisplay');
-    const l = document.getElementById('malaLapsDisplay');
-    const t = document.getElementById('malaTotalDisplay');
-    const statT = document.getElementById('statMalaTotal');
-    const statL = document.getElementById('statMalaLaps');
-    if (b) b.innerText = malaBeadCount;
-    if (l) l.innerText = malaLapsCount;
-    if (t) t.innerText = malaTotalCount;
-    if (statT) statT.innerText = malaTotalCount;
-    if (statL) statL.innerText = malaLapsCount;
+    if ($("currentBeadDisplay")) $("currentBeadDisplay").textContent = malaBeadCount;
+    if ($("malaLapsDisplay")) $("malaLapsDisplay").textContent = malaLapsCount;
+    if ($("malaTotalDisplay")) $("malaTotalDisplay").textContent = malaTotalCount;
+    if ($("statMalaTotal")) $("statMalaTotal").textContent = malaTotalCount;
+    if ($("statMalaLaps")) $("statMalaLaps").textContent = malaLapsCount;
   }
 
   // 10. TREE PLEDGE COUNTER
   function listenTreeCounter() {
-    db.collection('stats').doc('treePledges').onSnapshot(doc => {
-      if (doc.exists && doc.data().count) {
-        const el = document.getElementById('treeCounterDisplay');
-        if (el) el.innerText = doc.data().count;
-      }
-    });
+    if (treeListenerStarted) return;
+    treeListenerStarted = true;
+
+    db.collection("stats").doc("treePledges").onSnapshot(
+      doc => {
+        const element = $("treeCounterDisplay");
+        if (!element) return;
+
+        const value = doc.exists ? Number(doc.data().count) : 0;
+        element.textContent =
+          Number.isFinite(value) && value >= 0 ? String(Math.floor(value)) : "0";
+      },
+      err => console.warn("Tree pledge count unavailable:", err)
+    );
   }
 
-  function pledgeTree() {
-    if (localStorage.getItem('bishnoi_tree_pledged')) {
-      return showToast("आपका पौधा रोपण संकल्प पहले से दर्ज है। साधुवाद!");
+  async function pledgeTree() {
+    if (localStorage.getItem("bishnoi_tree_pledged")) {
+      return showToast("आपका पौधरोपण संकल्प पहले से इस ब्राउज़र में दर्ज है।");
     }
-    const el = document.getElementById('treeCounterDisplay');
-    const cnt = parseInt(el?.innerText || '1485', 10) + 1;
-    if (el) el.innerText = cnt;
-    localStorage.setItem('bishnoi_tree_pledged', '1');
-    db.collection('stats').doc('treePledges').set({
-      count: firebase.firestore.FieldValue.increment(1)
-    }, { merge: true });
-    showToast("🌱 पौधरोपण संकल्प दर्ज हुआ!");
+
+    try {
+      // A local-storage flag is only a convenience; it cannot prevent fraud.
+      // Production deployments should use an authenticated, rate-limited backend.
+      await db.collection("treePledgeEntries").add({
+        uid: auth.currentUser ? auth.currentUser.uid : null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      saveLocal("bishnoi_tree_pledged", "1");
+      showToast("🌱 पौधरोपण संकल्प दर्ज हुआ!");
+    } catch (err) {
+      reportFirestoreError("Tree pledge failed:", err);
+    }
   }
 
-  // 11. AUDIO PLAYER CONTROLLER
+  // 11. AUDIO PLAYER
   function initAudioListeners() {
-    const audio = document.getElementById('audioElement');
-    const range = document.getElementById('audioRange');
-    const cur = document.getElementById('audioCurTime');
-    const dur = document.getElementById('audioDurTime');
-    const btn = document.getElementById('audioPlayBtn');
+    const audio = $("audioElement");
+    const range = $("audioRange");
+    const current = $("audioCurTime");
+    const duration = $("audioDurTime");
+    const button = $("audioPlayBtn");
 
-    audio?.addEventListener('timeupdate', () => {
-      if (audio.duration && range) {
-        range.value = (audio.currentTime / audio.duration) * 100;
-        if (cur) cur.innerText = formatTime(audio.currentTime);
-        if (dur) dur.innerText = formatTime(audio.duration);
+    if (!audio || audio.dataset.bishnoiBound === "1") return;
+    audio.dataset.bishnoiBound = "1";
+
+    audio.addEventListener("timeupdate", () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        if (range) range.value = String((audio.currentTime / audio.duration) * 100);
+        if (current) current.textContent = formatTime(audio.currentTime);
+        if (duration) duration.textContent = formatTime(audio.duration);
       }
     });
 
-    audio?.addEventListener('play', () => { if (btn) btn.innerText = '⏸'; });
-    audio?.addEventListener('pause', () => { if (btn) btn.innerText = '▶'; });
+    audio.addEventListener("loadedmetadata", () => {
+      if (duration) duration.textContent = formatTime(audio.duration);
+    });
+
+    audio.addEventListener("play", () => {
+      if (button) button.textContent = "⏸";
+    });
+
+    audio.addEventListener("pause", () => {
+      if (button) button.textContent = "▶";
+    });
+
+    audio.addEventListener("error", () => {
+      showToast("ऑडियो लोड नहीं हो सका। लिंक और इंटरनेट जाँचें।");
+    });
   }
 
   function toggleAudio() {
-    const audio = document.getElementById('audioElement');
-    if (!audio) return;
+    const audio = $("audioElement");
+    if (!audio) return showToast("ऑडियो प्लेयर उपलब्ध नहीं है।");
+
     if (audio.paused) {
-      audio.play().catch(err => showToast("ऑडियो लोड नहीं हो सका: " + err.message));
+      audio.play().catch(() => showToast("ऑडियो चलाने की अनुमति नहीं मिली।"));
     } else {
       audio.pause();
     }
   }
 
   function seekAudio(delta) {
-    const audio = document.getElementById('audioElement');
-    if (audio) audio.currentTime += delta;
+    const audio = $("audioElement");
+    if (!audio || !Number.isFinite(audio.duration)) return;
+
+    audio.currentTime = Math.max(
+      0,
+      Math.min(audio.duration, audio.currentTime + Number(delta || 0))
+    );
   }
 
   function cycleAudioSpeed() {
     speedIdx = (speedIdx + 1) % audioSpeeds.length;
-    const spd = audioSpeeds[speedIdx];
-    const audio = document.getElementById('audioElement');
-    const btn = document.getElementById('audioSpeedBtn');
-    if (audio) audio.playbackRate = spd;
-    if (btn) btn.innerText = `${spd}x`;
-    showToast(`गति: ${spd}x`);
+
+    const speed = audioSpeeds[speedIdx];
+    const audio = $("audioElement");
+
+    if (audio) audio.playbackRate = speed;
+    if ($("audioSpeedBtn")) $("audioSpeedBtn").textContent = `${speed}x`;
+
+    showToast(`गति: ${speed}x`);
   }
 
-  function handleAudioSeek(val) {
-    const audio = document.getElementById('audioElement');
-    if (audio && audio.duration) audio.currentTime = (val / 100) * audio.duration;
+  function handleAudioSeek(value) {
+    const audio = $("audioElement");
+    const percentage = Number(value);
+
+    if (!audio || !Number.isFinite(audio.duration) ||
+        !Number.isFinite(percentage)) return;
+
+    audio.currentTime =
+      Math.max(0, Math.min(100, percentage)) / 100 * audio.duration;
   }
 
-  function formatTime(sec) {
-    if (isNaN(sec)) return "0:00";
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  }
-
-  // 12. 29 NIYAMS & PDF LIBRARY
-  function renderNiyams(list) {
-    const grid = document.getElementById('niyamGrid');
+  // 12. 29 NIYAMS
+  function renderNiyams(list = niyamsData) {
+    const grid = $("niyamGrid");
     if (!grid) return;
-    grid.innerHTML = '';
 
-    list.forEach(n => {
-      const isRead = readNiyamsSet.has(n.num);
-      const card = document.createElement('div');
-      card.className = `p-4 rounded-2xl border ${isRead ? 'border-emerald-400 bg-emerald-50/20' : 'border-stone-200 bg-white'} shadow-sm space-y-2 flex flex-col justify-between`;
-      card.innerHTML = `
-        <div>
-          <div class="flex items-center justify-between text-xs">
-            <span class="w-6 h-6 rounded-full bg-amber-100 text-forest font-bold flex items-center justify-center">${n.num}</span>
-            <span class="text-stone-500 font-semibold">${n.title}</span>
-          </div>
-          <h4 class="font-yatra text-base text-forest mt-1">${n.rule}</h4>
-          <p class="text-xs text-stone-700 leading-relaxed mt-0.5">${n.desc}</p>
-        </div>
-        <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
-          <button onclick="window.BishnoiApp.shareNiyam(${n.num}, '${encodeURIComponent(n.title)}', '${encodeURIComponent(n.rule)}')" class="text-emerald-700 font-bold hover:underline">साझा करें 📲</button>
-          <button onclick="window.BishnoiApp.toggleNiyamRead(${n.num})" class="text-stone-500 font-semibold">${isRead ? '✓ पठित' : 'पढ़े'}</button>
-        </div>
-      `;
+    grid.replaceChildren();
+
+    if (!list.length) {
+      const empty = document.createElement("p");
+      empty.className = "text-sm text-stone-500 text-center py-6";
+      empty.textContent = "कोई नियम नहीं मिला। कृपया दूसरा शब्द खोजें।";
+      grid.appendChild(empty);
+      return;
+    }
+
+    list.forEach(niyam => {
+      const card = document.createElement("div");
+      const isRead = readNiyamsSet.has(niyam.num);
+
+      card.className =
+        `p-4 rounded-2xl border ${
+          isRead ? "border-emerald-400 bg-emerald-50/20" :
+          "border-stone-200 bg-white"
+        } shadow-sm space-y-2 flex flex-col justify-between`;
+
+      const top = document.createElement("div");
+      top.className = "flex items-center justify-between text-xs";
+
+      const number = document.createElement("span");
+      number.className =
+        "w-6 h-6 rounded-full bg-amber-100 text-forest font-bold flex items-center justify-center";
+      number.textContent = niyam.num;
+
+      const title = document.createElement("span");
+      title.className = "text-stone-500 font-semibold";
+      title.textContent = niyam.title;
+
+      top.append(number, title);
+
+      const rule = document.createElement("h4");
+      rule.className = "font-yatra text-base text-forest mt-1";
+      rule.textContent = niyam.rule;
+
+      const description = document.createElement("p");
+      description.className = "text-xs text-stone-700 leading-relaxed mt-0.5";
+      description.textContent = niyam.desc;
+
+      const body = document.createElement("div");
+      body.append(top, rule, description);
+
+      const footer = document.createElement("div");
+      footer.className =
+        "pt-2 border-t border-stone-100 flex items-center justify-between text-xs";
+
+      const shareButton = document.createElement("button");
+      shareButton.type = "button";
+      shareButton.className = "text-emerald-700 font-bold hover:underline";
+      shareButton.textContent = "साझा करें 📲";
+      shareButton.addEventListener("click", () => shareNiyam(niyam.num));
+
+      const readButton = document.createElement("button");
+      readButton.type = "button";
+      readButton.className = "text-stone-500 font-semibold";
+      readButton.textContent = isRead ? "✓ पठित" : "पढ़े";
+      readButton.addEventListener("click", () => toggleNiyamRead(niyam.num));
+
+      footer.append(shareButton, readButton);
+      card.append(body, footer);
       grid.appendChild(card);
     });
   }
 
-  function toggleNiyamRead(num) {
-    if (readNiyamsSet.has(num)) readNiyamsSet.delete(num);
-    else readNiyamsSet.add(num);
-    localStorage.setItem('bishnoi_read_niyams', JSON.stringify(Array.from(readNiyamsSet)));
+  function toggleNiyamRead(number) {
+    if (!Number.isInteger(number) || number < 1 || number > 29) return;
+
+    if (readNiyamsSet.has(number)) readNiyamsSet.delete(number);
+    else readNiyamsSet.add(number);
+
+    saveLocal("bishnoi_read_niyams", JSON.stringify([...readNiyamsSet]));
     renderNiyams(niyamsData);
   }
 
-  function filterNiyams(q) {
-    const query = (q || '').toLowerCase().trim();
-    const filtered = niyamsData.filter(n =>
-      n.title.toLowerCase().includes(query) ||
-      n.rule.toLowerCase().includes(query) ||
-      n.desc.toLowerCase().includes(query)
+  function filterNiyams(query) {
+    const q = safeText(query, 100).toLowerCase();
+
+    const matches = niyamsData.filter(item =>
+      item.title.toLowerCase().includes(q) ||
+      item.rule.toLowerCase().includes(q) ||
+      item.desc.toLowerCase().includes(q)
     );
-    renderNiyams(filtered);
+
+    renderNiyams(matches);
   }
 
-  function shareNiyam(num, titleEnc, ruleEnc) {
-    const title = decodeURIComponent(titleEnc);
-    const rule = decodeURIComponent(ruleEnc);
-    const text = `🌿 *विश्नोई धर्म नियम ${num} : ${title}*\n"${rule}"\n\nसंपूर्ण २९ नियम पढ़ें:\n${window.location.origin}`;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  function shareNiyam(number) {
+    const item = niyamsData.find(n => n.num === Number(number));
+    if (!item) return;
+
+    const text =
+      `🌿 विश्नोई धर्म नियम ${item.num}: ${item.title}\n` +
+      `${item.rule}\n\nसंपूर्ण २९ नियम पढ़ें:\n${window.location.origin}`;
+
+    openExternal(
+      `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
+    );
   }
 
+  // 13. PDF LIBRARY
   function listenPdfs() {
-    db.collection('pdfs').orderBy('createdAt', 'desc').onSnapshot(snap => {
-      const grid = document.getElementById('pdfGrid');
-      if (!grid) return;
-      grid.innerHTML = `
-        <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-sm flex flex-col justify-between space-y-3">
+    if (pdfListenerStarted) return;
+    pdfListenerStarted = true;
+
+    db.collection("pdfs").orderBy("createdAt", "desc").onSnapshot(
+      snapshot => {
+        const grid = $("pdfGrid");
+        if (!grid) return;
+
+        grid.replaceChildren();
+
+        const builtInCard = document.createElement("div");
+        builtInCard.className =
+          "p-4 rounded-2xl bg-white border border-stone-200 shadow-sm flex flex-col justify-between space-y-3";
+
+        builtInCard.innerHTML = `
           <div>
             <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">पवित्र ग्रंथ</span>
             <h3 class="font-yatra text-forest text-lg mt-1">श्री सबदवाणी (१२० शब्द)</h3>
             <p class="text-xs text-stone-600 mt-1">गुरु जम्भेश्वर भगवान द्वारा उच्चरित पावन १२० शब्दों का संग्रह।</p>
           </div>
           <div class="pt-3 border-t border-stone-100 flex items-center justify-between">
-            <button onclick="window.BishnoiApp.openPdf('श्री सबदवाणी (१२० शब्द)', './shabadwani.pdf')" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-bold rounded-xl shadow">📖 पढ़ें</button>
+            <button type="button" data-action="read" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-bold rounded-xl shadow">📖 पढ़ें</button>
             <a href="./shabadwani.pdf" download class="px-3.5 py-1.5 bg-forest text-white text-xs font-semibold rounded-xl">डाउनलोड</a>
           </div>
-        </div>
-      `;
-
-      snap.forEach(doc => {
-        const d = doc.data();
-        grid.innerHTML += `
-          <div class="p-4 rounded-2xl bg-white border border-stone-200 shadow-sm flex flex-col justify-between space-y-3">
-            <div>
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">${d.tag || 'साहित्य'}</span>
-              <h3 class="font-yatra text-forest text-lg mt-1">${d.title}</h3>
-            </div>
-            <div class="pt-3 border-t border-stone-100 flex items-center justify-between">
-              <button onclick="window.BishnoiApp.openPdf('${encodeURIComponent(d.title)}', '${encodeURIComponent(d.link)}')" class="px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-bold rounded-xl shadow">📖 पढ़ें</button>
-              <a href="${d.link}" target="_blank" download class="px-3.5 py-1.5 bg-forest text-white text-xs font-semibold rounded-xl">डाउनलोड</a>
-            </div>
-          </div>
         `;
-      });
-    });
+
+        builtInCard.querySelector('[data-action="read"]').addEventListener(
+          "click",
+          () => openPdf("श्री सबदवाणी (१२० शब्द)", "./shabadwani.pdf")
+        );
+
+        grid.appendChild(builtInCard);
+
+        snapshot.forEach(documentSnapshot => {
+          const data = documentSnapshot.data() || {};
+          const title = safeText(data.title || "साहित्य", 150);
+          const tag = safeText(data.tag || "साहित्य", 50);
+          const link = safeHttpUrl(data.link);
+
+          const card = document.createElement("div");
+          card.className =
+            "p-4 rounded-2xl bg-white border border-stone-200 shadow-sm flex flex-col justify-between space-y-3";
+
+          const header = document.createElement("div");
+          header.innerHTML = `
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">${escapeHTML(tag)}</span>
+            <h3 class="font-yatra text-forest text-lg mt-1">${escapeHTML(title)}</h3>
+          `;
+
+          const footer = document.createElement("div");
+          footer.className =
+            "pt-3 border-t border-stone-100 flex items-center justify-between";
+
+          const readButton = document.createElement("button");
+          readButton.type = "button";
+          readButton.className =
+            "px-3.5 py-1.5 bg-amber-500 text-stone-950 text-xs font-bold rounded-xl shadow";
+          readButton.textContent = "📖 पढ़ें";
+          readButton.disabled = !link;
+
+          readButton.addEventListener("click", () => {
+            if (link) openPdf(title, link);
+          });
+
+          const downloadLink = document.createElement("a");
+          downloadLink.className =
+            "px-3.5 py-1.5 bg-forest text-white text-xs font-semibold rounded-xl";
+          downloadLink.textContent = "डाउनलोड";
+
+          if (link) {
+            downloadLink.href = link;
+            downloadLink.target = "_blank";
+            downloadLink.rel = "noopener noreferrer";
+          } else {
+            downloadLink.href = "#";
+            downloadLink.setAttribute("aria-disabled", "true");
+            downloadLink.addEventListener("click", e => e.preventDefault());
+          }
+
+          footer.append(readButton, downloadLink);
+          card.append(header, footer);
+          grid.appendChild(card);
+        });
+      },
+      err => {
+        reportFirestoreError("PDF library unavailable:", err);
+      }
+    );
   }
 
-  function openPdf(titleEnc, linkEnc) {
-    const title = decodeURIComponent(titleEnc);
-    const link = decodeURIComponent(linkEnc);
-    const modal = document.getElementById('inbuiltPdfModal');
-    const tEl = document.getElementById('pdfViewerTitle');
-    const frame = document.getElementById('pdfEmbedFrame');
-    const dlBtn = document.getElementById('pdfDirectDownloadLink');
+  function openPdf(title, link) {
+    const safeUrl = safeHttpUrl(link);
 
-    if (tEl) tEl.innerText = title;
-    if (dlBtn) dlBtn.href = link;
-    if (frame) frame.src = link;
+    if (!safeUrl) {
+      showToast("PDF का लिंक मान्य नहीं है।");
+      return;
+    }
 
-    modal?.classList.remove('hidden');
-    modal?.classList.add('flex');
+    const modal = $("inbuiltPdfModal");
+    const frame = $("pdfEmbedFrame");
+
+    if ($("pdfViewerTitle")) {
+      $("pdfViewerTitle").textContent = safeText(title, 150);
+    }
+
+    if ($("pdfDirectDownloadLink")) {
+      $("pdfDirectDownloadLink").href = safeUrl;
+      $("pdfDirectDownloadLink").target = "_blank";
+      $("pdfDirectDownloadLink").rel = "noopener noreferrer";
+    }
+
+    if (frame) {
+      // Prevent scripts inside an embedded PDF page from receiving
+      // unnecessary access to the parent page.
+      frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+      frame.src = safeUrl;
+      frame.title = safeText(title, 150);
+    }
+
+    modal?.classList.remove("hidden");
+    modal?.classList.add("flex");
   }
 
   function closePdfViewer() {
-    const modal = document.getElementById('inbuiltPdfModal');
-    const frame = document.getElementById('pdfEmbedFrame');
+    const frame = $("pdfEmbedFrame");
     if (frame) frame.src = "about:blank";
-    modal?.classList.add('hidden');
-    modal?.classList.remove('flex');
+
+    $("inbuiltPdfModal")?.classList.add("hidden");
+    $("inbuiltPdfModal")?.classList.remove("flex");
   }
 
-  // 13. QUIZ ARENA & ROYAL MERIT CERTIFICATE
-  function initQuizEngine() {
-    db.collection('quiz').onSnapshot(snap => {
-      if (!snap.empty) {
-        quizList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      } else {
-        quizList = [
-          { q: "खेजड़ली गाँव में ३६३ वीरों का महान पर्यावरण बलिदान किस वर्ष हुआ था?", opts: ["1730 ईस्वी", "1485 ईस्वी", "1857 ईस्वी", "1947 ईस्वी"], ans: 0 },
-          { q: "गुरु जम्भेश्वर भगवान द्वारा २९ नियमों का प्रतिपादन किस पवित्र स्थान पर हुआ?", opts: ["मुकाम", "समराथल धोरा", "जांगलू", "लालासर"], ans: 1 },
-          { q: "अमृता देवी विश्नोई का अमर वचन क्या था?", opts: ["सत्यमेव जयते", "सिर साटै रूंख रहै, तो भी सस्तो जाण", "अहिंसा परमो धर्मः", "जय किसान"], ans: 1 }
-        ];
-      }
-    });
+  // 14. QUIZ ENGINE
+  function validQuestion(question) {
+    return Boolean(
+      question &&
+      typeof question.q === "string" &&
+      question.q.trim().length > 0 &&
+      Array.isArray(question.opts) &&
+      question.opts.length >= 2 &&
+      question.opts.length <= 6 &&
+      question.opts.every(option => typeof option === "string") &&
+      Number.isInteger(question.ans) &&
+      question.ans >= 0 &&
+      question.ans < question.opts.length
+    );
+  }
 
-    db.collection('settings').doc('dailyWinners').onSnapshot(doc => {
-      if (doc.exists) {
-        const d = doc.data();
-        const setEl = (id, val) => {
-          const el = document.getElementById(id);
-          if (el) el.textContent = val || '—';
-        };
-        setEl('winner1Name', d.p1Name);
-        setEl('winner1Score', d.p1Score);
-        setEl('winner2Name', d.p2Name);
-        setEl('winner2Score', d.p2Score);
-        setEl('winner3Name', d.p3Name);
-        setEl('winner3Score', d.p3Score);
+  const fallbackQuestions = [
+    {
+      q: "खेजड़ली गाँव में ३६३ लोगों का पर्यावरण बलिदान किस वर्ष हुआ था?",
+      opts: ["1730 ईस्वी", "1485 ईस्वी", "1857 ईस्वी", "1947 ईस्वी"],
+      ans: 0
+    },
+    {
+      q: "गुरु जम्भेश्वर भगवान ने २९ नियमों का उपदेश किस स्थान पर दिया?",
+      opts: ["मुकाम", "समराथल धोरा", "जांगलू", "लालासर"],
+      ans: 1
+    },
+    {
+      q: "अमृता देवी बिश्नोई का प्रसिद्ध वचन किससे संबंधित है?",
+      opts: ["व्यापार", "वृक्ष रक्षा", "युद्ध", "खेती"],
+      ans: 1
+    }
+  ];
+
+  function initQuizEngine() {
+    if (quizListenerStarted) return;
+    quizListenerStarted = true;
+
+    db.collection("quiz").onSnapshot(
+      snapshot => {
+        if (snapshot.empty) {
+          quizList = fallbackQuestions.slice();
+        } else {
+          quizList = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(validQuestion);
+
+          if (!quizList.length) {
+            quizList = fallbackQuestions.slice();
+            showToast("प्रश्न बैंक में समस्या है। अभ्यास प्रश्न दिखाए जा रहे हैं।");
+          }
+        }
+      },
+      err => {
+        console.error("Quiz bank unavailable:", err);
+        quizList = fallbackQuestions.slice();
+        showToast("ऑनलाइन प्रश्न नहीं मिले। अभ्यास प्रश्न उपलब्ध हैं।");
       }
-    });
+    );
+
+    db.collection("settings").doc("dailyWinners").onSnapshot(
+      doc => {
+        if (!doc.exists) return;
+
+        const data = doc.data();
+
+        [
+          ["winner1Name", data.p1Name],
+          ["winner1Score", data.p1Score],
+          ["winner2Name", data.p2Name],
+          ["winner2Score", data.p2Score],
+          ["winner3Name", data.p3Name],
+          ["winner3Score", data.p3Score]
+        ].forEach(([id, value]) => {
+          if ($(id)) $(id).textContent = safeText(value || "—", 100);
+        });
+      },
+      err => console.warn("Quiz winners unavailable:", err)
+    );
   }
 
   function startQuiz() {
-    document.getElementById('quizIntroCard')?.classList.add('hidden');
-    document.getElementById('quizActiveBox')?.classList.remove('hidden');
+    if (!quizList.length) {
+      quizList = fallbackQuestions.slice();
+    }
+
     currentQ = 0;
     qScore = 0;
+    isAnswering = false;
+    quizFinished = false;
+
+    $("quizIntroCard")?.classList.add("hidden");
+    $("quizActiveBox")?.classList.remove("hidden");
+
     renderQuizQuestion();
   }
 
   function renderQuizQuestion() {
-    const box = document.getElementById('quizActiveBox');
-    if (!box || quizList.length === 0) return;
+    const box = $("quizActiveBox");
+    if (!box) return;
 
-    if (currentQ >= quizList.length) {
-      const percentage = Math.round((qScore / quizList.length) * 100);
-      if (currentUser) {
-        db.collection('quizAttempts').add({
-          uid: currentUser.uid,
-          name: currentUser.name,
-          score: qScore,
-          total: quizList.length,
-          percentage: percentage,
-          submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-
-      if (typeof confetti === 'function') confetti({ particleCount: 60, spread: 70 });
-
-      box.innerHTML = `
-        <div class="text-center space-y-4 py-4">
-          <div class="text-5xl">🏆</div>
-          <h3 class="font-yatra text-2xl text-forest">परीक्षा पूर्ण हुई!</h3>
-          <p class="text-sm text-stone-600">आपका स्कोर: <strong class="text-terracotta text-lg">${qScore} / ${quizList.length}</strong> (${percentage}%)</p>
-          <div class="flex justify-center gap-2 pt-2">
-            <button onclick="window.BishnoiQuiz.startQuiz()" class="px-4 py-2 bg-stone-200 text-stone-800 rounded-xl font-bold text-xs">पुनः अभ्यास</button>
-            <button onclick="window.BishnoiQuiz.downloadCertificate('${currentUser ? currentUser.name : 'प्रतिभागी'}', ${percentage})" class="px-4 py-2 bg-terracotta text-white rounded-xl font-bold text-xs shadow">📜 सम्मान-पत्र</button>
-          </div>
-        </div>
-      `;
+    if (!quizList.length) {
+      box.textContent = "प्रश्न अभी उपलब्ध नहीं हैं। कृपया बाद में प्रयास करें।";
       return;
     }
 
-    const q = quizList[currentQ];
-    isAnswering = false;
+    if (currentQ >= quizList.length) {
+      finishQuiz();
+      return;
+    }
 
-    box.innerHTML = `
-      <div class="space-y-4">
-        <div class="flex justify-between items-center text-xs font-bold text-forest">
-          <span>प्रश्न ${currentQ + 1} / ${quizList.length}</span>
-          <span class="px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full">प्राप्तांक: ${qScore}</span>
-        </div>
-        <h4 class="font-bold text-base text-forest">${q.q}</h4>
-        <div class="space-y-2">
-          ${q.opts.map((opt, i) => `
-            <button onclick="window.BishnoiQuiz.chooseOption(${i})" class="opt-btn w-full text-left p-3 text-xs sm:text-sm rounded-xl border border-stone-200 hover:border-forest bg-white font-medium transition flex items-center justify-between">
-              <span><strong>${['A','B','C','D'][i]}.</strong>${opt}</span>
-            </button>
-          `).join('')}
-        </div>
-      </div>
-    `;
+    const question = quizList[currentQ];
+
+    if (!validQuestion(question)) {
+      currentQ++;
+      renderQuizQuestion();
+      return;
+    }
+
+    isAnswering = false;
+    box.replaceChildren();
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "space-y-4";
+
+    const top = document.createElement("div");
+    top.className = "flex justify-between items-center text-xs font-bold text-forest";
+
+    const number = document.createElement("span");
+    number.textContent = `प्रश्न ${currentQ + 1} / ${quizList.length}`;
+
+    const score = document.createElement("span");
+    score.className = "px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full";
+    score.textContent = `प्राप्तांक: ${qScore}`;
+
+    top.append(number, score);
+
+    const heading = document.createElement("h4");
+    heading.className = "font-bold text-base text-forest";
+    heading.textContent = question.q;
+
+    const options = document.createElement("div");
+    options.className = "space-y-2";
+
+    question.opts.forEach((option, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className =
+        "opt-btn w-full text-left p-3 text-xs sm:text-sm rounded-xl border border-stone-200 hover:border-forest bg-white font-medium transition flex items-center justify-between";
+
+      const label = document.createElement("span");
+      label.textContent = `${String.fromCharCode(65 + index)}. ${option}`;
+
+      button.appendChild(label);
+      button.addEventListener("click", () => chooseOption(index));
+      options.appendChild(button);
+    });
+
+    wrapper.append(top, heading, options);
+    box.appendChild(wrapper);
   }
 
-  function chooseOption(idx) {
-    if (isAnswering) return;
+  function chooseOption(index) {
+    if (isAnswering || quizFinished) return;
+
+    const question = quizList[currentQ];
+    if (!validQuestion(question) || !Number.isInteger(index)) return;
+
+    if (index < 0 || index >= question.opts.length) return;
+
     isAnswering = true;
 
-    const q = quizList[currentQ];
-    const btns = document.querySelectorAll('.opt-btn');
+    const buttons = document.querySelectorAll("#quizActiveBox .opt-btn");
 
-    if (idx === q.ans) {
+    buttons.forEach(button => {
+      button.disabled = true;
+    });
+
+    if (index === question.ans) {
       qScore++;
-      btns[idx]?.classList.add('bg-emerald-50', 'border-emerald-500', 'text-emerald-900');
+      buttons[index]?.classList.add(
+        "bg-emerald-50", "border-emerald-500", "text-emerald-900"
+      );
       showToast("✓ सही उत्तर!");
     } else {
-      btns[idx]?.classList.add('bg-rose-50', 'border-rose-500', 'text-rose-900');
-      btns[q.ans]?.classList.add('bg-emerald-50', 'border-emerald-500');
+      buttons[index]?.classList.add(
+        "bg-rose-50", "border-rose-500", "text-rose-900"
+      );
+      buttons[question.ans]?.classList.add(
+        "bg-emerald-50", "border-emerald-500"
+      );
       showToast("✕ उत्तर गलत है!");
     }
 
     setTimeout(() => {
       currentQ++;
       renderQuizQuestion();
-    }, 1000);
+    }, 900);
+  }
+
+  async function finishQuiz() {
+    if (quizFinished) return;
+    quizFinished = true;
+
+    const total = quizList.length;
+    const percentage = total ? Math.round((qScore / total) * 100) : 0;
+    const box = $("quizActiveBox");
+    if (!box) return;
+
+    box.innerHTML = `
+      <div class="text-center space-y-4 py-4">
+        <div class="text-5xl">🏆</div>
+        <h3 class="font-yatra text-2xl text-forest">अभ्यास पूर्ण हुआ!</h3>
+        <p class="text-sm text-stone-600">आपका अभ्यास स्कोर:
+          <strong class="text-terracotta text-lg">${qScore} / ${total}</strong>
+          (${percentage}%)
+        </p>
+        <p class="text-xs text-stone-500">
+          यह अभ्यास स्कोर है; इसे सर्वर द्वारा सत्यापित आधिकारिक परीक्षा परिणाम न मानें।
+        </p>
+        <div class="flex justify-center gap-2 pt-2">
+          <button type="button" id="quizRestartBtn"
+            class="px-4 py-2 bg-stone-200 text-stone-800 rounded-xl font-bold text-xs">
+            पुनः अभ्यास
+          </button>
+          <button type="button" id="quizCertificateBtn"
+            class="px-4 py-2 bg-terracotta text-white rounded-xl font-bold text-xs shadow">
+            📜 अभ्यास प्रमाण-पत्र
+          </button>
+        </div>
+      </div>
+    `;
+
+    $("quizRestartBtn")?.addEventListener("click", startQuiz);
+    $("quizCertificateBtn")?.addEventListener("click", () => {
+      downloadCertificate(currentUser?.name || "प्रतिभागी", percentage);
+    });
+
+    if (typeof window.confetti === "function") {
+      window.confetti({ particleCount: 60, spread: 70 });
+    }
+
+    if (currentUser && auth.currentUser) {
+      try {
+        // This record is for tracking practice only.
+        // Do not use client-written results for official rankings.
+        await db.collection("quizAttempts").add({
+          uid: auth.currentUser.uid,
+          name: safeText(currentUser.name, 80),
+          score: qScore,
+          total,
+          percentage,
+          type: "practice",
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (err) {
+        console.warn("Practice result could not be saved:", err);
+      }
+    }
   }
 
   function downloadCertificate(name, score) {
-    const canvas = document.getElementById('certCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const canvas = $("certCanvas");
+    if (!canvas) return showToast("प्रमाण-पत्र टेम्पलेट उपलब्ध नहीं है।");
 
-    ctx.fillStyle = '#FAF6EE';
-    ctx.fillRect(0, 0, 1000, 720);
+    const safeName = safeText(name || "प्रतिभागी", 60);
+    const safeScore = Math.max(0, Math.min(100, Number(score) || 0));
+    const context = canvas.getContext("2d");
 
-    ctx.strokeStyle = '#143622';
-    ctx.lineWidth = 16;
-    ctx.strokeRect(20, 20, 960, 680);
-    ctx.strokeStyle = '#B34A1B';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(36, 36, 928, 648);
+    if (!context) return showToast("प्रमाण-पत्र तैयार नहीं हो सका।");
 
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#B34A1B';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('॥ ॐ विष्णवे नमः • श्री जम्भेश्वराय नमः ॥', 500, 90);
+    canvas.width = 1000;
+    canvas.height = 720;
 
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillText('विश्नोई समाज डिजिटल ज्ञान परीक्षा', 500, 160);
+    context.fillStyle = "#FAF6EE";
+    context.fillRect(0, 0, 1000, 720);
 
-    ctx.fillStyle = '#B34A1B';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText('★ योग्यता एवं धर्म-संस्कार सम्मान-पत्र ★', 500, 210);
+    context.strokeStyle = "#143622";
+    context.lineWidth = 16;
+    context.strokeRect(20, 20, 960, 680);
 
-    ctx.fillStyle = '#44403C';
-    ctx.font = '18px sans-serif';
-    ctx.fillText('यह सहर्ष प्रमाणित किया जाता है कि समाज प्रतिभागी', 500, 290);
+    context.strokeStyle = "#B34A1B";
+    context.lineWidth = 4;
+    context.strokeRect(36, 36, 928, 648);
 
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 34px sans-serif';
-    ctx.fillText(name, 500, 350);
+    context.textAlign = "center";
+    context.fillStyle = "#B34A1B";
+    context.font = "bold 20px sans-serif";
+    context.fillText("॥ ॐ विष्णवे नमः • श्री जम्भेश्वराय नमः ॥", 500, 90);
 
-    ctx.fillStyle = '#292524';
-    ctx.font = '18px sans-serif';
-    ctx.fillText(`ने २९ नियम आचार संहिता एवं समाज इतिहास परीक्षा में ${score}% अंक प्राप्त किए हैं।`, 500, 420);
+    context.fillStyle = "#143622";
+    context.font = "bold 36px sans-serif";
+    context.fillText("विश्नोई समाज डिजिटल ज्ञान अभ्यास", 500, 160);
 
-    ctx.fillStyle = '#143622';
-    ctx.fillRect(200, 480, 600, 40);
-    ctx.fillStyle = '#FDE68A';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('"जीव दया पालणी, रूंख लीलो नी घावै"', 500, 506);
+    context.fillStyle = "#B34A1B";
+    context.font = "bold 22px sans-serif";
+    context.fillText("★ अभ्यास सम्मान-पत्र ★", 500, 210);
 
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#44403C';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(`दिनांक: ${new Date().toLocaleDateString('hi-IN')}`, 80, 620);
+    context.fillStyle = "#44403C";
+    context.font = "18px sans-serif";
+    context.fillText("यह अभ्यास प्रमाणित करता है कि", 500, 290);
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#143622';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('विश्नोई समाज डिजिटल मंच', 920, 620);
+    context.fillStyle = "#143622";
+    context.font = "bold 34px sans-serif";
+    context.fillText(safeName, 500, 350);
 
-    const link = document.createElement('a');
-    link.download = `Certificate_${name}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast("सम्मान-पत्र डाउनलोड हुआ!");
+    context.fillStyle = "#292524";
+    context.font = "18px sans-serif";
+    context.fillText(`अभ्यास में ${safeScore}% अंक प्राप्त किए।`, 500, 420);
+
+    context.fillStyle = "#143622";
+    context.fillRect(200, 480, 600, 40);
+
+    context.fillStyle = "#FDE68A";
+    context.font = "bold 16px sans-serif";
+    context.fillText('"जीव दया पालणी, रूंख लीलो नी घावै"', 500, 506);
+
+    context.textAlign = "left";
+    context.fillStyle = "#44403C";
+    context.font = "bold 14px sans-serif";
+    context.fillText(
+      `दिनांक: ${new Date().toLocaleDateString("hi-IN")}`,
+      80,
+      620
+    );
+
+    context.textAlign = "right";
+    context.fillStyle = "#143622";
+    context.font = "bold 16px sans-serif";
+    context.fillText("विश्नोई समाज डिजिटल मंच", 920, 620);
+
+    try {
+      const link = document.createElement("a");
+      link.download = "Bishnoi_Practice_Certificate.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      showToast("अभ्यास प्रमाण-पत्र डाउनलोड हुआ!");
+    } catch (err) {
+      console.error("Certificate export failed:", err);
+      showToast("प्रमाण-पत्र डाउनलोड नहीं हो सका।");
+    }
   }
 
-  // 14. COMMUNITY CHAT STREAM (XSS PROTECTED)
+  // 15. COMMUNITY
   function initCommunityChat() {
-    db.collection('posts').orderBy('createdAt', 'desc').limit(40).onSnapshot(snap => {
-      allPosts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      renderCommunityFeed();
-    });
+    if (communityListenerStarted) return;
+    communityListenerStarted = true;
 
-    db.collection('settings').doc('pinnedChat').onSnapshot(doc => {
-      const banner = document.getElementById('pinnedChatBanner');
-      const txt = document.getElementById('pinnedChatText');
-      if (doc.exists && doc.data().content) {
-        if (txt) txt.textContent = `${doc.data().author || 'व्यवस्थापक'}: "${doc.data().content}"`;
-        banner?.classList.remove('hidden');
-      } else {
-        banner?.classList.add('hidden');
-      }
-    });
+    db.collection("posts").orderBy("createdAt", "desc").limit(40).onSnapshot(
+      snapshot => {
+        allPosts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        renderCommunityFeed();
+      },
+      err => reportFirestoreError("Community feed unavailable:", err)
+    );
+
+    db.collection("settings").doc("pinnedChat").onSnapshot(
+      doc => {
+        const banner = $("pinnedChatBanner");
+        const text = $("pinnedChatText");
+
+        if (doc.exists && doc.data().content) {
+          if (text) {
+            text.textContent =
+              `${safeText(doc.data().author || "व्यवस्थापक", 80)}: ` +
+              `"${safeText(doc.data().content, 500)}"`;
+          }
+          banner?.classList.remove("hidden");
+        } else {
+          banner?.classList.add("hidden");
+        }
+      },
+      err => console.warn("Pinned message unavailable:", err)
+    );
   }
 
   function renderCommunityFeed() {
-    const feed = document.getElementById('communityFeed');
+    const feed = $("communityFeed");
     if (!feed) return;
-    feed.innerHTML = '';
 
-    const filtered = currentChatFilter === 'all'
+    feed.replaceChildren();
+
+    const filtered = currentChatFilter === "all"
       ? allPosts
-      : allPosts.filter(p => (p.topic || 'सामान्य चर्चा') === currentChatFilter);
+      : allPosts.filter(post =>
+          (post.topic || "सामान्य चर्चा") === currentChatFilter
+        );
 
-    if (filtered.length === 0) {
-      feed.innerHTML = `<div class="text-center py-6 text-xs text-stone-500">कोई संदेश नहीं मिला। पहला विचार साझा करें!</div>`;
+    if (!filtered.length) {
+      const empty = document.createElement("div");
+      empty.className = "text-center py-6 text-xs text-stone-500";
+      empty.textContent = "कोई संदेश नहीं मिला। पहला विचार साझा करें!";
+      feed.appendChild(empty);
       return;
     }
 
-    filtered.forEach(p => {
-      const card = document.createElement('div');
-      card.className = "p-3 rounded-2xl bg-white border border-stone-200 shadow-sm space-y-1";
+    filtered.forEach(post => {
+      const card = document.createElement("div");
+      card.className =
+        "p-3 rounded-2xl bg-white border border-stone-200 shadow-sm space-y-1";
 
-      const topRow = document.createElement('div');
-      topRow.className = "flex items-center justify-between text-xs";
+      const top = document.createElement("div");
+      top.className = "flex items-center justify-between text-xs";
 
-      const authorSpan = document.createElement('span');
-      authorSpan.className = "font-bold text-forest";
-      authorSpan.textContent = p.author || "धर्मप्रेमी";
+      const author = document.createElement("span");
+      author.className = "font-bold text-forest";
+      author.textContent = safeText(post.author || "धर्मप्रेमी", 80);
 
-      const timeSpan = document.createElement('span');
-      timeSpan.className = "text-[10px] text-stone-400";
-      timeSpan.textContent = p.createdAt ? new Date(p.createdAt.toDate()).toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' }) : "हाल ही में";
+      const time = document.createElement("span");
+      time.className = "text-[10px] text-stone-400";
 
-      topRow.appendChild(authorSpan);
-      topRow.appendChild(timeSpan);
+      let date = null;
 
-      const contentP = document.createElement('p');
-      contentP.className = "text-xs sm:text-sm text-stone-800 break-words leading-relaxed";
-      contentP.textContent = p.content || "";
+      try {
+        if (post.createdAt && typeof post.createdAt.toDate === "function") {
+          date = post.createdAt.toDate();
+        }
+      } catch (_) {}
 
-      card.appendChild(topRow);
-      card.appendChild(contentP);
+      time.textContent = date && Number.isFinite(date.getTime())
+        ? date.toLocaleTimeString("hi-IN", { hour: "2-digit", minute: "2-digit" })
+        : "हाल ही में";
+
+      top.append(author, time);
+
+      const content = document.createElement("p");
+      content.className =
+        "text-xs sm:text-sm text-stone-800 break-words leading-relaxed";
+      content.textContent = safeText(post.content || "", 2000);
+
+      card.append(top, content);
       feed.appendChild(card);
     });
   }
 
   async function submitPost() {
-    if (!currentUser) return openAuthModal();
+    if (!auth.currentUser || !currentUser) return openAuthModal();
 
-    const textEl = document.getElementById('postText');
-    const content = textEl?.value.trim();
+    const input = $("postText");
+    const content = safeText(input?.value || "", 2000);
+
     if (!content) return showToast("कृपया संदेश लिखें!");
+    if (content.length < 2) return showToast("संदेश थोड़ा और स्पष्ट लिखें।");
 
-    if (/(http|www\.|\.com|\.xyz|[6-9]\d{9})/i.test(content)) {
+    if (/(https?:\/\/|www\.|[\w.-]+\.(com|xyz|net|org|in)\b|[6-9]\d{9})/i.test(content)) {
       return showToast("सुरक्षा कारणों से बाहरी लिंक अथवा मोबाइल नंबर भेजना वर्जित है।");
     }
 
-    const now = Date.now();
-    if (now - lastPostTime < 8000) return showToast("कृपया अगले संदेश के लिए कुछ सेकंड प्रतीक्षा करें।");
+    if (Date.now() - lastPostTime < 8000) {
+      return showToast("कृपया अगले संदेश के लिए कुछ सेकंड प्रतीक्षा करें।");
+    }
 
     try {
-      await db.collection('posts').add({
-        author: currentUser.name || "धर्मप्रेमी",
-        uid: currentUser.uid,
-        content: content,
-        topic: 'सामान्य चर्चा',
+      await db.collection("posts").add({
+        uid: auth.currentUser.uid,
+        author: safeText(currentUser.name || "धर्मप्रेमी", 80),
+        content,
+        topic: "सामान्य चर्चा",
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      lastPostTime = now;
-      if (textEl) textEl.value = '';
+
+      lastPostTime = Date.now();
+      if (input) input.value = "";
       showToast("विचार प्रेषित हुआ!");
     } catch (err) {
-      showToast("त्रुटि: " + err.message);
+      reportFirestoreError("Post submission failed:", err);
     }
   }
 
   function filterTopic(topic) {
-    currentChatFilter = topic;
+    const allowed = ["all", "सामान्य चर्चा"];
+    currentChatFilter = allowed.includes(topic) ? topic : "all";
     renderCommunityFeed();
   }
 
-  // 15. HISTORY & KIDS VIEWS
+  // 16. HISTORY AND CHILDREN'S STORIES
   function renderHistoryAndKids() {
-    const hView = document.getElementById('historySubView');
-    const kView = document.getElementById('kidsSubView');
-    if (!hView || !kView) return;
+    const historyView = $("historySubView");
+    const kidsView = $("kidsSubView");
 
-    const hItems = historyItemsList.filter(x => x.type === 'history');
-    const kItems = historyItemsList.filter(x => x.type === 'kids');
+    if (!historyView || !kidsView) return;
 
-    hView.innerHTML = hItems.map(item => `
-      <div class="p-5 rounded-3xl bg-white border border-stone-200 shadow-sm space-y-2">
-        <span class="px-2.5 py-0.5 bg-emerald-50 text-forest border border-emerald-200 rounded-full text-xs font-bold">${item.badge}</span>
-        <h3 class="font-yatra text-lg text-forest">${item.title}</h3>
-        <p class="text-xs text-stone-700 leading-relaxed">${item.content}</p>
-        <div class="p-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold">${item.moral}</div>
-      </div>
-    `).join('');
+    function buildStory(item, isKids) {
+      const card = document.createElement("div");
+      card.className = isKids
+        ? "p-5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-emerald-50 border border-amber-300 shadow-sm space-y-2"
+        : "p-5 rounded-3xl bg-white border border-stone-200 shadow-sm space-y-2";
 
-    kView.innerHTML = kItems.map(item => `
-      <div class="p-5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-emerald-50 border border-amber-300 shadow-sm space-y-2">
-        <span class="px-3 py-0.5 bg-amber-400 text-stone-950 rounded-full text-xs font-bold">${item.badge}</span>
-        <h3 class="font-yatra text-lg text-forest">${item.title}</h3>
-        <p class="text-xs text-stone-800 leading-relaxed">${item.content}</p>
-        <div class="p-2.5 rounded-2xl bg-emerald-900 text-amber-200 text-xs font-bold">${item.moral}</div>
-      </div>
-    `).join('');
+      const badge = document.createElement("span");
+      badge.className = isKids
+        ? "px-3 py-0.5 bg-amber-400 text-stone-950 rounded-full text-xs font-bold"
+        : "px-2.5 py-0.5 bg-emerald-50 text-forest border border-emerald-200 rounded-full text-xs font-bold";
+      badge.textContent = item.badge;
+
+      const heading = document.createElement("h3");
+      heading.className = "font-yatra text-lg text-forest";
+      heading.textContent = item.title;
+
+      const paragraph = document.createElement("p");
+      paragraph.className = "text-xs text-stone-700 leading-relaxed";
+      paragraph.textContent = item.content;
+
+      const moral = document.createElement("div");
+      moral.className = isKids
+        ? "p-2.5 rounded-2xl bg-emerald-900 text-amber-200 text-xs font-bold"
+        : "p-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-semibold";
+      moral.textContent = item.moral;
+
+      card.append(badge, heading, paragraph, moral);
+      return card;
+    }
+
+    historyView.replaceChildren();
+    kidsView.replaceChildren();
+
+    historyItemsList.forEach(item => {
+      if (item.type === "history") {
+        historyView.appendChild(buildStory(item, false));
+      } else if (item.type === "kids") {
+        kidsView.appendChild(buildStory(item, true));
+      }
+    });
   }
 
-  // 16. INITIALIZATION & DUAL-MOUNT NAMESPACE EXPORTS
-  window.addEventListener('DOMContentLoaded', () => {
+  // 17. GLOBAL SEARCH
+  function setupGlobalSearch() {
+    const input = $("globalSearchInput");
+    if (!input || input.dataset.bishnoiSearchBound === "1") return;
+
+    input.dataset.bishnoiSearchBound = "1";
+
+    input.addEventListener("input", () => {
+      const query = safeText(input.value, 100).toLowerCase();
+
+      if (!query) {
+        renderNiyams(niyamsData);
+        return;
+      }
+
+      const matchingNiyams = niyamsData.filter(item =>
+        `${item.title} ${item.rule} ${item.desc}`.toLowerCase().includes(query)
+      );
+
+      const matchingHistory = historyItemsList.filter(item =>
+        `${item.title} ${item.content} ${item.moral}`.toLowerCase().includes(query)
+      );
+
+      if (matchingNiyams.length) {
+        switchTab("library");
+        renderNiyams(matchingNiyams);
+        return;
+      }
+
+      if (matchingHistory.length) {
+        switchTab("history");
+        switchHistorySubTab(
+          matchingHistory.some(item => item.type === "kids")
+            ? "kids"
+            : "full-history"
+        );
+        showToast("इतिहास और बाल-कथा में परिणाम मिले।");
+        return;
+      }
+
+      // Avoid leaving stale results visible.
+      if (currentActiveTab === "library") renderNiyams([]);
+    });
+  }
+
+  // 18. STARTUP
+  function initializeApp() {
     initAuthEngine();
     computeAutoPanchang();
     listenAmavasyaConfig();
@@ -1012,45 +1802,62 @@
     initQuizEngine();
     initCommunityChat();
     renderHistoryAndKids();
+    setupGlobalSearch();
+  }
 
-    const searchInp = document.getElementById('globalSearchInput');
-    searchInp?.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase().trim();
-      if (!q) {
-        renderNiyams(niyamsData);
-        return;
-      }
-      const matched = niyamsData.filter(n => n.rule.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.title.toLowerCase().includes(q));
-      if (matched.length) {
-        switchTab('library');
-        renderNiyams(matched);
-      }
-    });
-  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeApp, { once: true });
+  } else {
+    initializeApp();
+  }
 
-  // Namespace Exports (Matching index.html button bindings)
+  // 19. PUBLIC NAMESPACES — KEEP COMPATIBILITY WITH index.html
   window.BishnoiApp = {
-    showToast, switchTab, switchHistorySubTab, tapMalaBead, resetMala,
-    filterNiyams, shareNiyam, openPdf, closePdfViewer, toggleAudio,
-    seekAudio, cycleAudioSpeed, handleAudioSeek, pledgeTree,
-    shareBannerWhatsApp, openConfirmModal, closeConfirmModal, openProfileOrAuth,
+    showToast,
+    switchTab,
+    switchHistorySubTab,
+    tapMalaBead,
+    resetMala,
+    filterNiyams,
+    shareNiyam,
+    openPdf,
+    closePdfViewer,
+    toggleAudio,
+    seekAudio,
+    cycleAudioSpeed,
+    handleAudioSeek,
+    pledgeTree,
+    shareBannerWhatsApp,
+    openConfirmModal,
+    closeConfirmModal,
+    openProfileOrAuth,
     toggleNiyamRead
   };
 
   window.BishnoiAuth = {
-    handleAuthSubmit, signInWithGoogle, toggleAuthMode, openAuthModal,
-    closeAuthModal, openProfileModal, closeProfileModal, saveProfile, logout
+    handleAuthSubmit,
+    signInWithGoogle,
+    toggleAuthMode,
+    openAuthModal,
+    closeAuthModal,
+    openProfileModal,
+    closeProfileModal,
+    saveProfile,
+    logout
   };
 
   window.BishnoiQuiz = {
-    startQuiz, chooseOption, downloadCertificate
+    startQuiz,
+    chooseOption,
+    downloadCertificate
   };
 
   window.BishnoiCommunity = {
-    submitPost, filterTopic
+    submitPost,
+    filterTopic
   };
 
-  // Direct Global Fallbacks (Guarantees backward compatibility with older click events)
+  // Legacy handlers used by older HTML onclick attributes.
   window.switchTab = switchTab;
   window.tapMalaBead = tapMalaBead;
   window.openAuthModal = openAuthModal;
@@ -1065,4 +1872,5 @@
   window.startQuizNow = startQuiz;
   window.pledgeTree = pledgeTree;
   window.shareBannerWhatsApp = shareBannerWhatsApp;
+
 })();
