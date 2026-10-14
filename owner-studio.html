@@ -1416,7 +1416,17 @@ Ans: B"></textarea>
       let status = decision.value;
       const autoScoreValue = d.score ?? d.correct ?? d.autoScore;
       const autoScore = Number(autoScoreValue);
-      if (status === 'auto') status = autoScoreValue !== null && autoScoreValue !== undefined && Number.isFinite(autoScore) && value === autoScore ? 'published' : 'held';
+      if (status === 'auto') {
+        status = autoScoreValue !== null && autoScoreValue !== undefined && Number.isFinite(autoScore) && value === autoScore
+          ? 'published'
+          : 'held';
+      } else if (status === 'publish') {
+        status = 'published';
+      } else if (status === 'hold') {
+        status = 'held';
+      } else if (status === 'cancel') {
+        status = 'cancelled';
+      }
       const published = status === 'published';
       const saveButton = document.getElementById('currentReviewSave');
       if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'सहेजा जा रहा है…'; }
