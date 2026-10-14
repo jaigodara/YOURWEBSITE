@@ -117,6 +117,8 @@
       beforeUnload: null
     },
     settings: {},
+    maintenance: { globalMode: 'off', message: '', sections: {} },
+    historyItems: [],
     mala: { count: 0, laps: 0 },
     fontSize: 16,
     quizQuestions: [],
@@ -525,6 +527,24 @@
     );
 
     subscribe(
+      collection('settings').doc('maintenance'),
+      snap => {
+        state.maintenance = snap.exists ? snap.data() : { globalMode: 'off', message: '', sections: {} };
+        applyMaintenanceSettings();
+      },
+      'Maintenance settings'
+    );
+
+    subscribe(
+      collection('historyItems').orderBy('createdAt', 'desc').limit(100),
+      snap => {
+        state.historyItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderHistoryItems();
+      },
+      'History and culture updates'
+    );
+
+    subscribe(
       collection('posts').orderBy('createdAt', 'desc').limit(50),
       snap => renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'Community'
@@ -554,22 +574,60 @@
 
   function applyPortalSettings() {
     const s = state.settings || {};
-
     const banner = s.dailySandesh || 'जीव दया पालणी, रूंख लीलो नी घावै';
     setText('dailySandesh', banner);
-    if (byId('dailyBannerText') && !byId('dailyBannerText').textContent.trim()) {
-      setText('dailyBannerText', banner);
-    }
-    setVisible('maintenanceBanner', !!s.maintenanceMode);
-
+    if (byId('dailyBannerText') && !byId('dailyBannerText').textContent.trim()) setText('dailyBannerText', banner);
     const progress = Math.max(0, Math.min(100, Number(s.maintenanceProgress) || 0));
     setText('maintenanceProgress', `${progress}%`);
-
     const bar = byId('maintenanceProgressBar');
     if (bar) bar.style.width = `${progress}%`;
-
-    // Maintenance is a banner, not a blanket block: other portal tabs remain usable.
     renderExamVisibility();
+  }
+
+  function applyMaintenanceSettings() {
+    const m = state.maintenance || {};
+    const mode = m.globalMode || 'off';
+    const message = m.message || 'इस भाग में नए अपडेट जोड़े जा रहे हैं। कृपया कुछ समय बाद फिर देखें।';
+    const banner = byId('maintenanceBanner');
+    if (banner) {
+      const active = mode !== 'off';
+      banner.hidden = !active;
+      banner.classList.toggle('hidden', !active);
+      setText('maintenanceMessage', message);
+      setText('maintenanceModeLabel', mode === 'both' ? 'पूरे मंच पर रखरखाव' : mode === 'web_only' ? 'वेबसाइट रखरखाव' : mode === 'phone_only' ? 'मोबाइल/ऐप रखरखाव' : '');
+    }
+    const sectionLabels = {
+      mala: ['tab-mala', '📿 डिजिटल जप माला'],
+      library: ['tab-library', '📚 साहित्य'],
+      quiz: ['tab-quiz', '🏆 परीक्षा'],
+      community: ['tab-community', '💬 संवाद'],
+      history: ['tab-history', '📜 इतिहास व संस्कार']
+    };
+    Object.entries(sectionLabels).forEach(([key, [sectionId, label]]) => {
+      const section = byId(sectionId);
+      if (!section) return;
+      let notice = byId(`maintenance-notice-${key}`);
+      const locked = (m.sections || {})[key] === 'both';
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = `maintenance-notice-${key}`;
+        notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
+        section.prepend(notice);
+      }
+      notice.hidden = !locked;
+      notice.classList.toggle('hidden', !locked);
+      notice.innerHTML = locked ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(message)}</p>` : '';
+    });
+  }
+
+  function renderHistoryItems() {
+    const historyHost = byId('historySubView');
+    const kidsHost = byId('kidsSubView');
+    const history = (state.historyItems || []).filter(x => x.category !== 'kids');
+    const kids = (state.historyItems || []).filter(x => x.category === 'kids');
+    const card = x => `<article class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm space-y-2"><h3 class="font-yatra text-base text-forest">${escapeHtml(x.title || 'इतिहास व संस्कार')}</h3><p class="text-xs leading-relaxed text-stone-700 whitespace-pre-wrap">${escapeHtml(x.content || '')}</p><p class="text-[10px] text-stone-400">${escapeHtml(x.dateLabel || '')}</p></article>`;
+    if (historyHost) historyHost.innerHTML = history.length ? history.map(card).join('') : '<div class="rounded-2xl border border-dashed border-stone-300 p-5 text-center text-xs text-stone-500">इतिहास की नई जानकारी Owner Studio से जोड़ी जा सकती है।</div>';
+    if (kidsHost) kidsHost.innerHTML = kids.length ? kids.map(card).join('') : '<div class="rounded-2xl border border-dashed border-stone-300 p-5 text-center text-xs text-stone-500">बाल संस्कार की सामग्री जल्द यहाँ दिखाई जाएगी।</div>';
   }
 
   function renderExamVisibility() {
@@ -696,26 +754,22 @@
     setText('malaCount', state.mala.count);
     setText('malaLapCount', state.mala.laps);
     setText('malaProgress', `${Math.round(state.mala.count / 108 * 100)}%`);
-
+    setText('currentBeadDisplay', state.mala.count);
+    setText('malaTotalDisplay', state.mala.laps * 108 + state.mala.count);
+    setText('malaLapsDisplay', state.mala.laps);
     const p = byId('malaProgressBar');
     if (p) p.style.width = `${state.mala.count / 108 * 100}%`;
-
-    $$('.mala-bead').forEach((b, i) => {
-      b.classList.toggle('bead-done', i < state.mala.count);
-    });
+    $('.mala-bead').forEach((b, i) => b.classList.toggle('bead-done', i < state.mala.count));
   }
 
   window.tapHomeMalaBead = function () {
     state.mala.count++;
-
     if (state.mala.count >= 108) {
       state.mala.count = 0;
       state.mala.laps++;
-      notify(`One mala complete! Total laps: ${state.mala.laps}`, 'success');
+      notify('एक माला पूरी हुई! साधना के लिए धन्यवाद।', 'success');
     }
-
     if (navigator.vibrate && byId('hapticToggle')?.checked) navigator.vibrate(25);
-
     saveMala();
     renderMala();
   };
@@ -1479,8 +1533,10 @@
         const email = state.user.email || state.user.phoneNumber || 'Google / अन्य लॉगिन खाता';
         const nameInput = byId('profEditName');
         const locationInput = byId('profEditLocation');
+        const phoneInput = byId('profEditPhone');
         if (nameInput) nameInput.value = displayName;
         if (locationInput) locationInput.value = profile.location || '';
+        if (phoneInput) phoneInput.value = profile.phone || state.user.phoneNumber || '';
         setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
         setText('profileEmailDisplay', email);
         setText('profileAccountStatus', state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता • अपनी जानकारी अपडेट करें');
@@ -1566,26 +1622,23 @@
       item.hidden = !!term && !item.textContent.toLocaleLowerCase().includes(term);
     });
   };
-  app.tapMalaBead = function () {
-    state.mala.count = Math.max(0, Number(state.mala.count || 0)) + 1;
-    saveMala();
-    renderMala();
-  };
+  app.tapMalaBead = window.tapHomeMalaBead;
+  app.tapHomeMalaBead = window.tapHomeMalaBead;
   app.resetMala = function () {
     state.mala.count = 0;
     saveMala();
     renderMala();
   };
   app.switchHistorySubTab = function (name) {
-    const ids = ['full-history', 'kids-corner'];
-    ids.forEach(function (id) {
-      const panel = byId(id);
-      if (panel) panel.classList.toggle('hidden', id !== name);
-    });
+    const isKids = name === 'kids-corner';
+    const historyPanel = byId('historySubView');
+    const kidsPanel = byId('kidsSubView');
+    if (historyPanel) historyPanel.classList.toggle('hidden', isKids);
+    if (kidsPanel) kidsPanel.classList.toggle('hidden', !isKids);
     const historyButton = byId('sub-history-btn');
     const kidsButton = byId('sub-kids-btn');
-    if (historyButton) historyButton.classList.toggle('bg-forest', name === 'full-history');
-    if (kidsButton) kidsButton.classList.toggle('bg-forest', name === 'kids-corner');
+    if (historyButton) { historyButton.classList.toggle('bg-forest', !isKids); historyButton.classList.toggle('text-white', !isKids); }
+    if (kidsButton) { kidsButton.classList.toggle('bg-forest', isKids); kidsButton.classList.toggle('text-white', isKids); }
   };
   app.closePdfViewer = function () {
     const modal = byId('inbuiltPdfModal');
@@ -1659,7 +1712,18 @@
     try {
       const register = !!byId('nameRow') && !byId('nameRow').classList.contains('hidden');
       if (register) {
-        await state.auth.createUserWithEmailAndPassword(email, password);
+        const displayName = (byId('loginName')?.value || '').trim();
+        const phone = (byId('registerPhone')?.value || '').trim();
+        if (!displayName) return notify('पंजीकरण के लिए अपना पूरा नाम दर्ज करें।', 'error');
+        if (!/^\+?[0-9\s()-]{10,16}$/.test(phone)) return notify('सही मोबाइल नंबर दर्ज करें। उदाहरण: +91 9876543210', 'error');
+        const credential = await state.auth.createUserWithEmailAndPassword(email, password);
+        if (credential.user && displayName) await credential.user.updateProfile({ displayName });
+        await state.db.collection('users').doc(credential.user.uid).set({
+          displayName, phone, phoneVerified: false, email,
+          verificationStatus: 'unverified',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
       } else {
         await state.auth.signInWithEmailAndPassword(email, password);
       }
@@ -1744,15 +1808,16 @@
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();
     const location = (byId('profEditLocation')?.value || '').trim();
+    const phone = (byId('profEditPhone')?.value || '').trim();
     try {
       const displayName = name || state.profile?.displayName || state.user.displayName || '';
       await state.db.collection('users').doc(state.user.uid).set({
-        displayName,
-        location,
+        displayName, location, phone,
+        phoneVerified: state.profile?.phoneVerified === true,
         email: state.user.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
-      state.profile = { ...(state.profile || {}), displayName, location };
+      state.profile = { ...(state.profile || {}), displayName, location, phone };
       setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {
