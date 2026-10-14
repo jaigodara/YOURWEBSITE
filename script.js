@@ -1,4 +1,48 @@
+// FIX: Prevent "Cannot read properties of undefined (reading 'switchTab')"
+(function () {
+  "use strict";
 
+  function safeSwitchTab(id) {
+    id = String(id || "home").replace(/^tab-/, "");
+
+    const aliases = {
+      home: "tab-home",
+      mala: "tab-mala",
+      niyams: "tab-niyams",
+      library: "tab-library",
+      sahitya: "tab-library",
+      community: "tab-community",
+      quiz: "tab-quiz",
+      pariksha: "tab-pariksha",
+      history: "tab-history",
+      admin: "tab-admin",
+      profile: "tab-profile"
+    };
+
+    const target = aliases[id] || ("tab-" + id);
+    const panels = document.querySelectorAll('[id^="tab-"]');
+
+    panels.forEach(function (panel) {
+      const active =
+        panel.id === target ||
+        (id === "pariksha" && panel.id === "tab-quiz");
+
+      panel.hidden = !active;
+      panel.setAttribute("aria-hidden", String(!active));
+    });
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  window.switchTab = safeSwitchTab;
+  window.switchPortalTab = safeSwitchTab;
+
+  window.BishnoiPortal = window.BishnoiPortal || {};
+  window.BishnoiPortal.switchTab = safeSwitchTab;
+
+  window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
+  window.Bishnoi.switchTab = safeSwitchTab;
+})();
 /* ============================================================================
  * BISHNOISM DIGITAL PLATFORM — script.js
  * Compatible with Firebase v10 COMPAT SDK and the existing forest/cream UI.
