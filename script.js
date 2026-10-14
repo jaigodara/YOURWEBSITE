@@ -141,6 +141,14 @@
 
   const now = () => Date.now();
 
+  function timestampMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.toDate === 'function') return value.toDate().getTime();
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
   const localDateKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
