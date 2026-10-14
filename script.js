@@ -1498,8 +1498,8 @@
   };
   authApi.sendPhoneCode = async function () {
     if (!state.auth || !window.firebase?.auth) return notify('Authentication is unavailable.', 'error');
-    const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\\s()-]/g, '');
-    if (!/^\\+[1-9]\\d{7,14}$/.test(phone)) {
+    const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\s()-]/g, '');
+    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
       return notify('देश कोड सहित सही मोबाइल नंबर दर्ज करें, जैसे +919876543210।', 'error');
     }
     try {
@@ -1521,7 +1521,7 @@
   authApi.verifyPhoneCode = async function () {
     const code = (byId('phoneLoginCode')?.value || '').trim();
     if (!phoneConfirmation) return notify('पहले OTP भेजें।', 'error');
-    if (!/^\\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
+    if (!/^\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
     try {
       await phoneConfirmation.confirm(code);
       phoneConfirmation = null;
@@ -1537,14 +1537,25 @@
       return notify('Google login is unavailable.', 'error');
     }
     try {
-      // Persist the Firebase session across the provider round-trip.
+      // A popup avoids the redirect round-trip that can lose auth state in
+      // browsers with strict third-party storage/privacy protections.
       await state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await state.auth.signInWithRedirect(provider);
+      const result = await state.auth.signInWithPopup(provider);
+      if (result && result.user) {
+        authApi.closeAuthModal();
+        notify('Google sign-in successful.', 'success');
+      }
     } catch (error) {
       console.error('Google sign-in failed:', error);
-      notify(authErrorMessage(error), 'error');
+      if (error.code === 'auth/popup-blocked') {
+        notify('Google login popup was blocked. Allow popups for this website and try again.', 'error');
+      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        notify('Google login was cancelled. Click Google login and finish selecting your account.', 'info');
+      } else {
+        notify(authErrorMessage(error), 'error');
+      }
     }
   };
   authApi.toggleAuthMode = function () {
