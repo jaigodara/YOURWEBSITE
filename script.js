@@ -1843,16 +1843,18 @@ function renderExamVisibility() {
         persistActiveExam();
         renderExamQuestion();
         setText('examResult', 'बार-बार टैब बदलने के कारण परीक्षा अस्थायी रूप से लॉक है। उत्तर सुरक्षित हैं; Owner पुनः प्रवेश दे सकता है।');
-      } else if (status === 'active' && state.exam.kicked && sessionData.reentryGrantedAt) {
+      } else if (
+        status === 'active' &&
+        state.exam.kicked &&
+        sessionData.reentryGrantedAt &&
+        timestampMillis(sessionData.reentryGrantedAt) > timestampMillis(sessionData.reentryGrantConsumedAt)
+      ) {
         state.exam.kicked = false;
         persistActiveExam();
         renderExamQuestion();
         setText('examResult', 'Owner ने पुनः प्रवेश की अनुमति दे दी है। जारी रखें।');
         notify('परीक्षा में पुनः प्रवेश की अनुमति मिल गई।', 'success');
-        updateExamSession('active', {
-          reentryGrantedAt: firebase.firestore.FieldValue.delete(),
-          reentryGrantedBy: firebase.firestore.FieldValue.delete()
-        });
+        updateExamSession('active', { reentryGrantConsumedAt: serverTimestamp() });
       } else if (status === 'denied' && state.exam.kicked) {
         setText('examResult', 'Owner ने पुनः प्रवेश की अनुमति नहीं दी है। समय पूरा होने पर ही प्रयास जमा होगा।');
       }
@@ -2157,8 +2159,7 @@ function renderExamVisibility() {
       attachExamSessionListener();
       updateExamSession('active', {
         startedAt: serverTimestamp(),
-        reentryGrantedAt: firebase.firestore.FieldValue.delete(),
-        reentryGrantedBy: firebase.firestore.FieldValue.delete(),
+        reentryGrantConsumedAt: serverTimestamp(),
         lateEntryRequested: false
       });
 
