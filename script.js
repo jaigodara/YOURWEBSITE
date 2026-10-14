@@ -28,6 +28,7 @@
         (raw === 'sahitya' && panel.id === 'tab-library') ||
         (raw === 'pariksha' && panel.id === 'tab-quiz');
       panel.hidden = !active;
+      panel.classList.toggle('hidden', !active);
       panel.setAttribute('aria-hidden', String(!active));
       if (active) found = true;
     });
@@ -240,7 +241,10 @@
         (raw === 'sahitya' && el.id === 'tab-library') ||
         (raw === 'pariksha' && el.id === 'tab-quiz');
 
+      // Both the HTML hidden attribute and Tailwind's .hidden class must be
+      // updated. Changing only el.hidden leaves display:none applied by Tailwind.
       el.hidden = !active;
+      el.classList.toggle('hidden', !active);
       el.classList.toggle('active', active);
       el.setAttribute('aria-hidden', String(!active));
     });
