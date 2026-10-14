@@ -270,6 +270,12 @@
   window.switchTab = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
+    const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile', 'history']);
+    if (!state.user && restrictedTabs.has(raw)) {
+      window.BishnoiAuth?.openAuthModal?.();
+      notify('इस अनुभाग का उपयोग करने के लिए पहले लॉगिन करें।', 'error');
+      return false;
+    }
     const aliases = new Set([target, `tab-${raw}`]);
 
     const tabs = $$('[id^="tab-"]');
@@ -303,9 +309,11 @@
       }
     });
 
+    try { sessionStorage.setItem('bishnoi_active_tab_v1', raw); } catch (_) {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (['admin', 'profile'].includes(raw)) renderOwnerStudio();
+    return true;
   };
 
   window.switchPortalTab = window.switchTab;
@@ -434,6 +442,10 @@
       initPersonalNotificationsForUser();
       initPublicNotifications();
       renderNotificationCenter();
+      try {
+        const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
+        if (savedTab) window.switchTab(savedTab);
+      } catch (_) {}
       state.myResults = [];
       renderMyResults();
       state.isOwner = false;
@@ -2238,11 +2250,7 @@ function renderExamVisibility() {
       loadShabadRepository();
     }
 
-    // Restore the last section on refresh rather than always returning home.
-    try {
-      const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
-      if (savedTab) window.switchTab(savedTab);
-    } catch (_) {}
+    // The last active section is restored after Firebase reports the auth state.
 
     // The navigation function is now exposed globally.
     window.BishnoiPortal = window.BishnoiPortal || {};
