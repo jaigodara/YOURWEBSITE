@@ -371,13 +371,12 @@
       ...(typeof roleData.role === 'string' ? [roleData.role] : []),
       ...(Array.isArray(roleData.roles) ? roleData.roles : [])
     ];
-    state.isOwner = user.uid === CONFIG.ownerUid ||
-      user.uid === CONFIG.legacyOwnerUid ||
-      state.profile.role === 'owner' ||
-      state.profile.isOwner === true ||
-      state.roles.includes('owner') ||
-      roleData.role === 'owner' ||
-      roleData.role === 'editor';
+   state.isOwner = user.uid === CONFIG.ownerUid ||
+  user.uid === CONFIG.legacyOwnerUid ||
+  state.profile.role === 'owner' ||
+  state.profile.isOwner === true ||
+  state.roles.includes('owner') ||
+  roleData.role === 'owner';
 
     if (CONFIG.ownerEmailAllowlist.length &&
         CONFIG.ownerEmailAllowlist.includes((user.email || '').toLowerCase())) {
