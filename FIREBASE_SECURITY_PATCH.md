@@ -203,7 +203,7 @@ Add this match block to let students create/update only their own session metada
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
           'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt',
-          'lateEntryRequested', 'requestedAt'
+          'lateEntryRequested', 'requestedAt', 'reentryGrantConsumedAt'
         ]) &&
         (
           request.resource.data.status == resource.data.status ||
