@@ -1070,9 +1070,6 @@ Ans: B"></textarea>
             text: question.q.trim(),
             opts: question.opts.map(x => String(x).trim()),
             options: question.opts.map(x => String(x).trim()),
-            ans: Number(question.ans),
-            correctAnswer: Number(question.ans),
-            answerIndex: Number(question.ans),
             examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
             status: 'draft',
             published: false,
@@ -1082,6 +1079,23 @@ Ans: B"></textarea>
           if (!question.id) {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             data.createdBy = auth.currentUser?.uid || null;
+          }
+          if (target === 'quiz') {
+            // Daily quiz keeps instant client-side scoring; high-stakes main/mock
+            // exams store answer keys in an owner-only collection instead.
+            data.ans = Number(question.ans);
+            data.correctAnswer = Number(question.ans);
+            data.answerIndex = Number(question.ans);
+          } else {
+            data.ans = firebase.firestore.FieldValue.delete();
+            data.correctAnswer = firebase.firestore.FieldValue.delete();
+            data.answerIndex = firebase.firestore.FieldValue.delete();
+            const keyRef = db.collection('examAnswerKeys').doc(target).collection('items').doc(ref.id);
+            batch.set(keyRef, {
+              answerIndex: Number(question.ans),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedBy: auth.currentUser?.uid || null
+            }, { merge: true });
           }
           batch.set(ref, data, { merge: true });
         });
@@ -1106,11 +1120,17 @@ Ans: B"></textarea>
         const options = Array.isArray(d.options) ? d.options : Array.isArray(d.opts) ? d.opts : [];
         if (options.length !== 4) return showToast('इस प्रश्न में चार विकल्प नहीं हैं; पहले डेटा सुधारें।');
         document.getElementById('bulkQuestionTarget').value = target;
+        let storedAnswer = d.correctAnswer ?? d.answerIndex ?? d.ans;
+        if (target !== 'quiz') {
+          const keySnap = await db.collection('examAnswerKeys').doc(target).collection('items').doc(id).get();
+          if (keySnap.exists) storedAnswer = keySnap.data()?.answerIndex;
+        }
+        if (storedAnswer === undefined || storedAnswer === null) return showToast('इस प्रश्न की सही उत्तर-कुंजी नहीं मिली। इसे प्रकाशित करने से पहले उत्तर-कुंजी ठीक करें।');
         bulkQuestionDrafts = [{
           id,
           q: String(d.question || d.text || d.q || ''),
           opts: options.map(option => String(typeof option === 'object' ? (option.text || option.label || option.value || '') : option)),
-          ans: Number(d.correctAnswer ?? d.answerIndex ?? d.ans ?? 0)
+          ans: Number(storedAnswer)
         }];
         bulkEditingQuestionId = id;
         renderBulkQuestionPreview();
@@ -1122,14 +1142,38 @@ Ans: B"></textarea>
 
     async function publishQuestionDoc(target, id, publish) {
       try {
-        await db.collection(target).doc(id).set({
+        const questionRef = db.collection(target).doc(id);
+        const questionSnap = await questionRef.get();
+        if (!questionSnap.exists) return showToast('प्रश्न नहीं मिला।');
+        const data = questionSnap.data() || {};
+        const update = {
           status: publish ? 'published' : 'draft',
           published: !!publish,
           ...(publish ? { publishedAt: firebase.firestore.FieldValue.serverTimestamp(), publishedBy: auth.currentUser?.uid || null } : {}),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: auth.currentUser?.uid || null
-        }, { merge: true });
-        showToast(publish ? 'प्रश्न प्रकाशित हो गया। परीक्षा का समय शुरू होने से पहले छात्र प्रवेश नहीं कर पाएँगे।' : 'प्रश्न वापस Draft में कर दिया गया।');
+        };
+        const batch = db.batch();
+        if (publish && target !== 'quiz') {
+          const keyRef = db.collection('examAnswerKeys').doc(target).collection('items').doc(id);
+          const keySnap = await keyRef.get();
+          const legacyAnswer = data.correctAnswer ?? data.answerIndex ?? data.ans;
+          const answerIndex = keySnap.exists ? keySnap.data()?.answerIndex : legacyAnswer;
+          if (answerIndex === undefined || answerIndex === null || !Number.isInteger(Number(answerIndex)) || Number(answerIndex) < 0 || Number(answerIndex) > 3) {
+            return showToast('प्रकाशित नहीं हुआ: सही उत्तर-कुंजी A/B/C/D में से चुनकर सहेजें।');
+          }
+          batch.set(keyRef, {
+            answerIndex: Number(answerIndex),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: auth.currentUser?.uid || null
+          }, { merge: true });
+          update.ans = firebase.firestore.FieldValue.delete();
+          update.correctAnswer = firebase.firestore.FieldValue.delete();
+          update.answerIndex = firebase.firestore.FieldValue.delete();
+        }
+        batch.set(questionRef, update, { merge: true });
+        await batch.commit();
+        showToast(publish ? 'प्रश्न प्रकाशित हो गया। मुख्य/मॉक परीक्षा की उत्तर-कुंजी निजी संग्रह में रखी गई है।' : 'प्रश्न वापस Draft में कर दिया गया।');
         listenQuizQuestions();
       } catch (error) {
         showToast('प्रकाशन असफल: ' + error.message);
@@ -1773,6 +1817,14 @@ Ans: B"></textarea>
             questionSnap.forEach(questionDoc => {
               examReviewQuestionLookup[questionDoc.id] = { id: questionDoc.id, ...questionDoc.data() };
             });
+            if (questionCollection !== 'quiz') {
+              const keysSnap = await db.collection('examAnswerKeys').doc(questionCollection).collection('items').get();
+              keysSnap.forEach(keyDoc => {
+                if (examReviewQuestionLookup[keyDoc.id]) {
+                  examReviewQuestionLookup[keyDoc.id].answerIndex = keyDoc.data()?.answerIndex;
+                }
+              });
+            }
           } catch (questionError) {
             console.warn('Question text could not be loaded from ' + questionCollection, questionError);
           }
