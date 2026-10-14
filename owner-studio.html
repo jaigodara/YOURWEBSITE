@@ -117,7 +117,7 @@
           <span class="text-[10px] opacity-75">साहित्य एवं ऑडियो</span>
         </button>
 
-        <button onclick="switchStudioPane('pane_exam');" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
+        <button onclick="switchStudioPane('pane_exam'); document.getElementById('manualExamReviewSection')?.scrollIntoView({behavior:'smooth',block:'start'});" class="p-3.5 rounded-2xl bg-white/10 hover:bg-amber-400 hover:text-stone-950 border border-white/15 text-left transition group">
           <span class="text-2xl block">📷</span>
           <span class="font-bold text-xs sm:text-sm block mt-1">परीक्षा व कैमरा</span>
           <span class="text-[10px] opacity-75">फोटो प्रोक्टरिंग ऑन/ऑफ</span>
@@ -381,7 +381,7 @@ Ans: B"></textarea>
       </div>
 
       <!-- MANUAL EXAM REVIEW / SCORE VERIFICATION -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+      <div id="manualExamReviewSection" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
         <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
