@@ -639,7 +639,7 @@
       const section = byId(sectionId);
       if (!section) return;
       let notice = byId(`maintenance-notice-${key}`);
-      const locked = (m.sections || {})[key] === 'both';
+      const locked = (m.sections || {})[key] === 'both' && !(m.vipBypass !== false && state.isOwner);
       if (!notice) {
         notice = document.createElement('div');
         notice.id = `maintenance-notice-${key}`;
@@ -653,7 +653,7 @@
         if (child === notice) return;
         if (locked) {
           if (!child.hasAttribute('data-maintenance-was-hidden')) {
-            child.setAttribute('data-maintenance-was-hidden', child.hidden ? 'yes' : 'no');
+            child.setAttribute('data-maintenance-was-hidden', (child.hidden || child.classList.contains('hidden')) ? 'yes' : 'no');
           }
           child.hidden = true;
           child.classList.add('hidden');
@@ -667,7 +667,7 @@
     });
     const globalOverlay = byId('globalMaintenanceOverlay');
     if (globalOverlay) {
-      const blockWebsite = mode === 'web_only' || mode === 'both';
+      const blockWebsite = (mode === 'web_only' || mode === 'both') && !(m.vipBypass !== false && state.isOwner);
       globalOverlay.hidden = !blockWebsite;
       globalOverlay.classList.toggle('hidden', !blockWebsite);
       setText('globalMaintenanceMessage', message);
