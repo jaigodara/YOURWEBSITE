@@ -2124,8 +2124,16 @@ Ans: B"></textarea>
       if (status) status.textContent = 'डेटा लोड हो रहा है…';
       try {
         const names = ['examEnrolledStudents', 'users', 'quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions'];
-        const snapshots = await Promise.all(names.map(name => db.collection(name).limit(300).get()));
-        const data = Object.fromEntries(names.map((name, index) => [name, snapshots[index].docs.map(doc => ({ id: doc.id, ...doc.data() }))]));
+        const fetched = await Promise.all(names.map(async name => {
+          try {
+            const snap = await db.collection(name).limit(300).get();
+            return [name, { rows: snap.docs.map(doc => ({ id: doc.id, ...doc.data() })), error: null }];
+          } catch (error) {
+            return [name, { rows: [], error: error.message || String(error) }];
+          }
+        }));
+        const data = Object.fromEntries(fetched.map(([name, value]) => [name, value.rows]));
+        const errors = fetched.filter(([, value]) => value.error).map(([name, value]) => name + ': ' + value.error);
         const enrolled = data.examEnrolledStudents.sort((a,b) => String(a.rollNumber || '').localeCompare(String(b.rollNumber || ''), undefined, { numeric:true }));
         const recent = data.users.sort((a,b) => ownerDashboardMillis(b.lastSeenAt || b.lastLoginAt) - ownerDashboardMillis(a.lastSeenAt || a.lastLoginAt));
         const onlineCutoff = Date.now() - 3 * 60 * 1000;
@@ -2165,7 +2173,7 @@ Ans: B"></textarea>
         renderOwnerDashboardRows('ownerQuizResultsList', data.quizAttempts.sort((a,b) => ownerDashboardMillis(b.submittedAt) - ownerDashboardMillis(a.submittedAt)).slice(0,100), resultLine, 'क्विज़ प्रयास नहीं मिले।');
         renderOwnerDashboardRows('ownerMockResultsList', data.mockExamSubmissions.sort((a,b) => ownerDashboardMillis(b.submittedAt) - ownerDashboardMillis(a.submittedAt)).slice(0,100), resultLine, 'मॉक परीक्षा सबमिशन नहीं मिले।');
         renderOwnerDashboardRows('ownerMainResultsList', data.mainExamSubmissions.sort((a,b) => ownerDashboardMillis(b.submittedAt) - ownerDashboardMillis(a.submittedAt)).slice(0,100), resultLine, 'मुख्य परीक्षा सबमिशन नहीं मिले।');
-        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 100 रिकॉर्ड दिखाए गए हैं।';
+        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 100 रिकॉर्ड दिखाए गए हैं।' + (errors.length ? ' · जिन collections का access नहीं मिला: ' + errors.join(' | ') : '');
       } catch (error) {
         if (status) status.textContent = 'रिपोर्ट लोड नहीं हुई: ' + error.message + ' · Firestore rules और collection access जाँचें।';
       }
