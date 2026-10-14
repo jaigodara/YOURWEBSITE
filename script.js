@@ -1660,6 +1660,27 @@ function renderExamVisibility() {
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
 
+    // The main examination is restricted to students whose enrollment has been
+    // confirmed by the owner. Client checks improve UX; Firestore rules/backend
+    // must enforce the same eligibility for production-grade security.
+    if (mode === 'main') {
+      try {
+        const enrollmentSnap = await collection('examEnrolledStudents').doc(state.user.uid).get();
+        const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
+        if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
+          notify('मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
+          switchTab('quiz');
+          const enrollmentSection = byId('enrollmentSection');
+          if (enrollmentSection) enrollmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+      } catch (eligibilityError) {
+        console.error('Main exam eligibility check failed:', eligibilityError);
+        notify('पंजीकरण की पुष्टि नहीं हो सकी। कृपया दोबारा प्रयास करें।', 'error');
+        return;
+      }
+    }
+
     // Match the visible cards with the actual start handlers, so hidden exams
     // cannot still be launched by an old button or a direct JavaScript call.
     const config = state.examConfig || {};
@@ -1699,6 +1720,13 @@ function renderExamVisibility() {
         id: doc.id,
         ...doc.data()
       }));
+
+      // Give each attempt its own randomized question order. Do not mutate the
+      // Firestore order, so different devices/attempts need not see the same series.
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]];
+      }
 
       if (!questions.length) {
         const message = 'अभी mainExamQuestions संग्रह में कोई प्रश्न उपलब्ध नहीं है। Owner Studio में प्रश्न जोड़ें।';
@@ -1815,6 +1843,7 @@ function renderExamVisibility() {
       }
     });
 
+    const instantResult = exam.mode === 'quiz';
     const result = {
       uid: state.user.uid,
       name: state.profile?.displayName || state.user.displayName || state.user.email || 'प्रतिभागी',
@@ -1824,25 +1853,29 @@ function renderExamVisibility() {
       totalQuestions: exam.questions.length,
       rollNumber: state.profile?.rollNumber || null,
       attempted,
-      correct,
-      score: correct,
-      finalScore: exam.mode === 'quiz' ? correct : null,
-      resultPublished: exam.mode === 'quiz',
+      // Scores are intentionally stored only for daily quizzes. Main/mock exam
+      // results stay unpublished until the owner completes manual verification.
+      ...(instantResult ? { correct, score: correct, finalScore: correct } : {}),
+      resultPublished: instantResult,
       answers: { ...exam.answers },
       review: { ...exam.review },
       submittedAt: serverTimestamp(),
       automatic,
-      manualReviewStatus: 'pending'
+      manualReviewStatus: instantResult ? 'published' : 'pending'
     };
 
     try {
       await collection(CONFIG.submissionCollections[exam.mode]).add(result);
-      setText('examResult', `Result: ${correct}/${exam.questions.length}. Attempted: ${attempted}.`);
+      setText('examResult', instantResult
+        ? `दैनिक क्विज़ परिणाम: ${correct}/${exam.questions.length}. Attempted: ${attempted}.`
+        : 'आपके उत्तर जमा हो गए हैं। परिणाम Owner द्वारा जाँच और घोषित किए जाने के बाद ही दिखेगा।');
       notify('Exam submitted successfully.', 'success');
     } catch (e) {
       console.error(e);
-      setText('examResult', `Exam ended. Score calculated locally: ${correct}/${exam.questions.length}. Saving failed.`);
-      notify('Exam ended, but the result could not be saved.', 'error');
+      setText('examResult', instantResult
+        ? 'क्विज़ समाप्त हुआ, लेकिन परिणाम सहेजा नहीं जा सका।'
+        : 'परीक्षा समाप्त हुई, लेकिन उत्तर-पत्र सहेजा नहीं जा सका। कृपया व्यवस्थापक से संपर्क करें।');
+      notify('Exam ended, but the submission could not be saved.', 'error');
     }
 
     setVisible('previousQuestionBtn', false);
