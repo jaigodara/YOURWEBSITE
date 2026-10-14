@@ -2,46 +2,31 @@
 <html lang="hi" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#143622">
-  <title>विश्नोई समाज आधिकारिक डिजिटल मंच एवं राष्ट्रीय परीक्षा पोर्टल</title>
-  <meta name="description" content="गुरु जम्भेश्वर भगवान के २९ नियम, सबदवाणी, जप माला, राष्ट्रीय परीक्षा इंजन एवं समाज संवाद मंच।">
-
-  <!-- INLINE TREE EMBLEM FAVICON -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌳</text></svg>">
-
-  <!-- PWA Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
-    }
-  </script>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>विश्नोई समाज डिजिटल मंच | Bishnoi Community Platform</title>
+  <meta name="description" content="विश्नोई समाज आचार संहिता, २९ नियम, इतिहास दर्शन, बाल संस्कार, सबदवाणी पाठ, संवाद मंच एवं ज्ञान परीक्षा।">
+  
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Google Fonts: Plus Jakarta Sans & Yatra One -->
+  
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Yatra+One&display=swap" rel="stylesheet">
-
-  <!-- Production Client Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Yatra+One&display=swap" rel="stylesheet">
+  
+  <!-- Confetti Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <!-- jsPDF & AutoTable for PDF Reports -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <!-- Firebase v10 Compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
-  <!-- Tailwind Theme Definition -->
   <script>
     tailwind.config = {
       theme: {
@@ -51,6 +36,7 @@
             terracotta: '#B34A1B',
             leaf: '#2D6A4F',
             sand: '#FAF6EE',
+            cardBg: '#FFFFFF',
             ink: '#231B15'
           },
           fontFamily: {
@@ -61,705 +47,387 @@
       }
     };
   </script>
-
-  <!-- External Stylesheet Reference -->
-  <link rel="stylesheet" href="style.css">
-
   <style>
-    body { background-color: #FAF6EE; color: #231B15; font-family: 'Plus Jakarta Sans', sans-serif; }
-    .bnav-active { color: #143622 !important; font-weight: 800 !important; }
-    .bnav-active span.bnav-icon { transform: translateY(-2px) scale(1.1); background: #FEF3C7; border-color: #F59E0B; }
-    .karaoke-active-line { color: #F59E0B; font-weight: 800; transform: scale(1.03); text-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-thumb { background: #A89C87; border-radius: 4px; }
-    .elevate-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-    .elevate-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -8px rgba(20, 54, 34, 0.15); }
-    .admin-subtab-active { background-color: #143622 !important; color: #ffffff !important; border-color: #143622 !important; }
+    body { background-color: #FAF6EE !important; padding-bottom: 84px !important; }
+    .bnav-item-active {
+      color: #143622 !important;
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
+      border-color: #F59E0B !important;
+      font-weight: 800 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased pb-24 md:pb-12 select-none">
 
-  <!-- TOAST NOTIFICATION CONTAINER -->
-  <div id="toastNotification" class="fixed top-4 right-4 z-[9999] transform -translate-y-24 opacity-0 transition-all duration-300 pointer-events-none max-w-sm w-full">
-    <div class="bg-forest text-amber-200 border border-amber-500/50 px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between text-xs sm:text-sm font-semibold">
+<body class="min-h-screen flex flex-col antialiased text-[#231B15]">
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastNotification" class="fixed top-4 right-4 z-[9999] transform -translate-y-20 opacity-0 transition-all duration-300 pointer-events-none max-w-sm w-full">
+    <div class="bg-forest text-amber-200 border border-amber-600/40 px-4 py-3 rounded-xl shadow-xl flex items-center justify-between text-xs sm:text-sm font-medium">
       <span id="toastMsg">सूचना</span>
       <span class="ml-2 text-amber-400">✓</span>
     </div>
   </div>
 
   <!-- CONFIRMATION MODAL -->
-  <div id="customConfirmModal" class="fixed inset-0 bg-black/60 z-[9998] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-2xl text-center border-2 border-forest">
-      <h3 class="font-yatra text-lg text-forest" id="confirmTitle">क्या आप सुनिश्चित हैं?</h3>
-      <p class="text-xs text-stone-600 font-medium" id="confirmMsg">इस क्रिया को वापस नहीं लिया जा सकेगा।</p>
-      <div class="flex items-center justify-center gap-3 pt-2">
-        <button onclick="closeConfirmModal(false)" class="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 rounded-xl text-xs font-bold text-stone-700 transition">रद्द करें</button>
-        <button onclick="closeConfirmModal(true)" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-xs font-bold text-white shadow transition">स्वीकारें</button>
+  <div id="customConfirmModal" class="fixed inset-0 bg-black/60 z-[9995] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl text-center">
+      <h3 class="font-bold text-sm text-forest" id="confirmTitle">क्या आप सुनिश्चित हैं?</h3>
+      <p class="text-xs text-stone-600" id="confirmMsg">इस क्रिया को वापस नहीं लिया जा सकेगा।</p>
+      <div class="flex items-center justify-center gap-2 pt-2">
+        <button onclick="closeConfirmModal(false)" class="px-4 py-2 bg-stone-200 hover:bg-stone-300 rounded-lg text-xs font-semibold text-stone-700">रद्द करें</button>
+        <button onclick="closeConfirmModal(true)" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 rounded-lg text-xs font-semibold text-white">स्वीकारें</button>
       </div>
     </div>
   </div>
 
-  <!-- TOP DAILY BANNER WITH 1-TAP WHATSAPP SHARE -->
-  <div class="bg-forest text-amber-200 text-xs py-2 px-3 sm:px-6 border-b border-amber-950/20 flex items-center justify-between gap-2 z-40 relative">
+  <!-- TOP DAILY BANNER WITH 1-TAP WHATSAPP -->
+  <div class="bg-forest text-amber-200 text-xs py-2 px-3 sm:px-6 border-b border-amber-950/20 flex items-center justify-between gap-2">
     <div class="flex items-center gap-2 overflow-hidden truncate">
       <span class="font-yatra text-amber-400 text-sm hidden sm:inline">पावन संदेश :</span>
       <span id="dailyBannerText" class="truncate font-medium text-amber-100">"जीव दया पालणी, रूंख लीलो नी घावै" — प्रकृति एवं सभी मूक जीवों के प्रति करुणा रखें।</span>
     </div>
-    <button type="button" onclick="shareBannerWhatsApp()" class="flex-shrink-0 bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition">
-      <span>WhatsApp</span> 📲
+    <button onclick="shareBannerWhatsApp()" class="flex-shrink-0 bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 shadow-sm transition">
+      <span>WhatsApp साझा करें</span> 📲
     </button>
   </div>
 
-  <!-- MAIN BRAND HEADER -->
-  <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-sm">
+  <!-- MAIN HEADER -->
+  <header class="bg-white border-b border-stone-200 sticky top-0 z-40 shadow-sm">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-      <div onclick="switchTab('home')" class="flex items-center gap-2.5 cursor-pointer flex-shrink-0">
-        <div class="w-10 h-10 rounded-xl bg-forest text-amber-300 flex items-center justify-center font-bold text-xl shadow-md">🌳</div>
-        <div>
-          <span class="font-yatra text-lg sm:text-xl text-forest block leading-none">विश्नोई समाज</span>
-          <span class="text-[10px] tracking-wider uppercase font-extrabold text-terracotta">२९ नियम • ज्ञान परीक्षा एवं संस्कार मंच</span>
+      
+      <!-- LOGO -->
+      <a href="#" onclick="switchTab('home')" class="flex items-center gap-2.5 flex-shrink-0">
+        <div class="w-9 h-9 rounded-lg bg-forest text-amber-300 flex items-center justify-center font-bold text-xl shadow-sm">
+          🌳
         </div>
+        <div>
+          <span class="font-yatra text-xl text-forest block leading-none">विश्नोई समाज</span>
+          <span class="text-[10px] tracking-wider uppercase font-semibold text-terracotta">डिजिटल मंच • २९ नियम</span>
+        </div>
+      </a>
+
+      <!-- GLOBAL SEARCH BAR -->
+      <div class="relative flex-grow max-w-xs hidden sm:block">
+        <input type="text" id="globalSearchInput" placeholder="नियम, साहित्य, प्रश्न खोजें..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-forest">
+        <span class="absolute left-2.5 top-1.5 text-stone-400 text-xs">🔍</span>
       </div>
 
-      <!-- SMART INSTANT SEARCH -->
-      <div class="relative flex-grow max-w-sm hidden md:block" id="smartSearchWrapper">
-        <input type="text" id="globalSearchInput" placeholder="नियम, साखी, इतिहास या प्रश्न खोजें..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-stone-300 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-forest transition">
-        <span class="absolute left-3 top-2 text-stone-400 text-sm">🔍</span>
-        <div id="instantSearchDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-stone-200 z-[999] max-h-64 overflow-y-auto divide-y divide-stone-100 text-xs"></div>
-      </div>
-
+      <!-- AUTH & OWNER STUDIO BUTTON -->
       <div class="flex items-center gap-2 flex-shrink-0">
-        <button type="button" onclick="openNotificationModal()" class="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-forest border border-amber-300 shadow-sm transition relative" title="सूचनाएं">
-          🔔 <span id="notifBadgeDot" class="hidden absolute top-1 right-1 w-2 h-2 bg-rose-600 rounded-full animate-pulse"></span>
-        </button>
+        <!-- Owner Studio Button (Appears only for Owner/Editor) -->
+        <a href="admin.html" id="ownerStudioPortalBtn" class="hidden px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
+          <span>🛡️ ओनर स्टूडियो</span>
+        </a>
         <div id="authActionsContainer">
-          <button type="button" onclick="openAuthModal()" class="px-4 py-2 rounded-xl bg-forest text-white text-xs font-bold shadow-sm transition">लॉगिन</button>
+          <button onclick="openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
+            लॉगिन करें
+          </button>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- MAIN TABBED VIEWPORT -->
-  <main class="flex-grow max-w-5xl w-full mx-auto px-3 sm:px-4 py-5">
+  <!-- 5 FIXED BOTTOM NAVIGATION BAR -->
+  <nav id="standardMobileBottomNav" class="fixed bottom-0 left-0 right-0 z-[95] bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-2xl px-3 py-1.5">
+    <div class="max-w-xl mx-auto grid grid-cols-5 gap-1.5">
+      <button onclick="switchTab('home')" id="bnav-home" class="bnav-item-active flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] text-stone-600 transition-all">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span class="truncate">मुखपृष्ठ</span>
+      </button>
 
-    <!-- ========================================== -->
-    <!-- TAB 1: HOME (मुखपृष्ठ) -->
-    <!-- ========================================== -->
-    <section id="tab-home" class="space-y-5">
-      <!-- HERO LANDING SECTION (INJECTED VIA JS OR HARDCODED HERE) -->
-      <div id="cleanHeroLandingSection" class="space-y-4 mb-5">
-        <div class="bg-white rounded-3xl p-4 sm:p-5 border border-stone-200 shadow-sm space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-[11px] font-extrabold text-white bg-[#143622] px-2.5 py-0.5 rounded-full shadow-sm">आधिकारिक पोर्टल</span>
-              <h2 class="font-yatra text-base sm:text-lg text-forest">मुख्य अध्ययन एवं साधना केंद्र</h2>
-            </div>
-            <div class="flex items-center gap-2.5 text-xs font-bold text-stone-600 bg-[#FAF7EE] px-3 py-1.5 rounded-xl border border-amber-300/60 shadow-inner">
-              <span>नियम: <strong id="progNiyamsCount" class="text-forest">0/29</strong></span><span>•</span>
-              <span>परीक्षा: <strong id="progQuizScore" class="text-terracotta">0%</strong></span><span>•</span>
-              <span>माला: <strong id="progMalaLaps" class="text-emerald-700">0</strong></span>
-            </div>
-          </div>
+      <button onclick="switchTab('library')" id="bnav-library" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        <span class="truncate">साहित्य</span>
+      </button>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button onclick="switchTab('niyams')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-100/60 border border-amber-300 text-left flex items-start gap-3 shadow-sm">
-              <div class="w-11 h-11 rounded-xl bg-[#143622] text-amber-300 flex items-center justify-center text-xl shrink-0 shadow">📜</div>
-              <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded">आचार संहिता</span>
-                <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">२९ नियम संहिता</h3>
-                <p class="text-xs text-stone-600 mt-0.5 font-medium">गुरु जम्भेश्वर भगवान के २९ नियमों का सरल हिंदी अर्थ पढ़ें।</p>
-              </div>
-            </button>
-            <button onclick="switchTab('mala')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-100/60 border border-emerald-300 text-left flex items-start gap-3 shadow-sm">
-              <div class="w-11 h-11 rounded-xl bg-[#143622] text-emerald-300 flex items-center justify-center text-xl shrink-0 shadow">📿</div>
-              <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 bg-emerald-200/70 px-2 py-0.5 rounded">दैनिक साधना</span>
-                <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">डिजिटल जप माला</h3>
-                <p class="text-xs text-stone-600 mt-0.5 font-medium">१०८ मनकों की डिजिटल माला के साथ ॐ विष्णवे नमः का जाप करें।</p>
-              </div>
-            </button>
-            <button onclick="switchTab('history')" class="elevate-card p-4 rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 border border-orange-300 text-left flex items-start gap-3 shadow-sm">
-              <div class="w-11 h-11 rounded-xl bg-terracotta text-white flex items-center justify-center text-xl shrink-0 shadow">🌳</div>
-              <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-200/70 px-2 py-0.5 rounded">गौरवगाथा व संस्कार</span>
-                <h3 class="font-yatra text-base sm:text-lg text-forest mt-1">इतिहास व बाल संस्कार</h3>
-                <p class="text-xs text-stone-600 mt-0.5 font-medium">खेजड़ली के ३६३ शहीदों का इतिहास एवं बच्चों की प्रेरक कहानियाँ।</p>
-              </div>
-            </button>
-          </div>
+      <button onclick="switchTab('community')" id="bnav-community" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+        <span class="truncate">संवाद</span>
+      </button>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
-            <button onclick="switchTab('sahitya')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center transition"><span class="font-yatra text-xs sm:text-sm text-forest block">📚 सबदवाणी PDF</span></button>
-            <button onclick="switchTab('pariksha')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 text-center transition"><span class="font-yatra text-xs sm:text-sm text-forest block">🏆 ज्ञान परीक्षा</span></button>
-            <button onclick="switchTab('community')" class="elevate-card py-2.5 px-3 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 text-center transition"><span class="font-yatra text-xs sm:text-sm text-forest block">💬 संवाद लाइव</span></button>
-            <button onclick="openFeedbackModal(false)" class="elevate-card py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-center transition"><span class="font-yatra text-xs sm:text-sm text-amber-900 block">⭐ सुझाव (Feedback)</span></button>
-          </div>
+      <button onclick="switchTab('quiz')" id="bnav-quiz" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        <span class="truncate">परीक्षा</span>
+      </button>
+
+      <button onclick="openProfileModal()" id="bnav-profile" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <span id="bnavProfileLabel" class="truncate">प्रोफ़ाइल</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN VIEWPORT CONTENT -->
+  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6 mb-12">
+
+    <!-- TAB 1: मुखपृष्ठ (HOME) -->
+    <section id="tab-home" class="space-y-6">
+      <div class="bg-forest text-amber-50 rounded-2xl p-6 sm:p-10 shadow-sm border border-emerald-950/20">
+        <span class="inline-block px-3 py-1 bg-amber-400/20 text-amber-300 rounded-full text-xs font-semibold mb-3">
+          संवत १५४२ • समराथल धोरा
+        </span>
+        <h1 class="text-2xl sm:text-4xl font-yatra text-white leading-tight">
+          प्रकृति एवं पर्यावरण संरक्षण की गौरवशाली संस्कृति
+        </h1>
+        <p class="text-xs sm:text-sm text-stone-200 mt-3 leading-relaxed max-w-2xl">
+          गुरु जम्भेश्वर भगवान द्वारा प्रतिपादित २९ पावन नियमों के आधार पर जीव दया, वृक्ष रक्षा और सात्विक जीवन शैली का संवाहक मंच।
+        </p>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <button onclick="switchTab('mala')" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-forest text-xs sm:text-sm font-bold rounded-lg shadow-sm transition">
+            📿 डिजिटल जप माला
+          </button>
+          <button onclick="switchTab('quiz')" class="px-4 py-2 bg-white/15 hover:bg-white/25 text-amber-200 text-xs sm:text-sm font-semibold rounded-lg transition">
+            दैनिक ज्ञान परीक्षा
+          </button>
         </div>
       </div>
 
-      <!-- AUTO-PANCHANG & AMAVASYA COUNTDOWN WIDGET -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-2 elevate-card">
+        <div class="bg-amber-50 p-4 rounded-xl border border-amber-200/80 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] font-extrabold text-terracotta uppercase bg-orange-50 px-2 py-0.5 rounded">दैनिक वैदिक पंचांग</span>
-            <span class="text-xl">📅</span>
+            <span class="text-xs font-bold text-terracotta uppercase">दैनिक पंचांग (Auto-Updated)</span>
+            <span class="text-base">📅</span>
           </div>
-          <h3 class="font-yatra text-lg text-forest" id="autoPanchangDate">आज का पंचांग</h3>
-          <p class="text-xs font-bold text-stone-700 bg-stone-50 p-2 rounded-lg border border-stone-100" id="autoPanchangDetails">गणना जारी है...</p>
+          <h3 class="font-yatra text-base text-forest" id="autoPanchangDate">आज का पंचांग</h3>
+          <p class="text-xs text-stone-700 leading-relaxed" id="autoPanchangDetails">तिथि गणना जारी है...</p>
         </div>
 
-        <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-200 shadow-sm space-y-2 elevate-card">
+        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200/80 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] font-extrabold text-forest uppercase bg-emerald-100 px-2 py-0.5 rounded">नियम १६ • पावन अमावस्या</span>
-            <span class="text-xl">🌑</span>
+            <span class="text-xs font-bold text-forest uppercase">नियम १६ • पावन अमावस्या</span>
+            <span class="text-base">🌑</span>
           </div>
-          <h3 class="font-yatra text-lg text-forest" id="amavasyaTitleDisplay">आगामी अमावस्या</h3>
-          <div id="amavasyaCountdownBox" class="text-xs font-bold text-terracotta font-mono bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm inline-block">
+          <h3 class="font-yatra text-base text-forest" id="amavasyaTitleDisplay">आगामी अमावस्या</h3>
+          <div id="amavasyaCountdownBox" class="text-xs font-semibold text-terracotta font-mono bg-white/80 p-2 rounded-lg border border-emerald-200">
             गणना जारी है...
           </div>
-          <p class="text-[11px] font-semibold text-stone-600" id="amavasyaFastingNote">उपवास, ध्यान साधना, हवन एवं आत्म-चिंतन का संकल्प।</p>
+          <p class="text-[11px] text-stone-500" id="amavasyaFastingNote">उपवास, ध्यान साधना, हवन एवं आत्म-चिंतन का संकल्प।</p>
         </div>
       </div>
 
-      <!-- CUSTOM AUDIO MUSIC BOX -->
-      <div id="standardCustomMusicBoxWrapper" class="elevate-card bg-gradient-to-r from-[#143622] via-[#1b432c] to-[#143622] text-white p-5 rounded-3xl shadow-lg border border-amber-400/40 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-3">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-12 h-12 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center text-xl shrink-0 shadow-md">🎵</div>
-            <div class="min-w-0">
-              <span class="text-[10px] uppercase tracking-wider text-amber-300 font-extrabold block">सबदवाणी, आरती एवं भजन स्ट्रीम</span>
-              <h4 id="customNowPlayingTitle" class="font-yatra text-lg sm:text-xl text-white truncate">श्री जम्भेश्वर आरती एवं भजन</h4>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-            <select id="customPlaylistDropdown" onchange="selectCustomTrackByIndex(this.value)" class="flex-1 sm:flex-initial p-2 rounded-xl bg-black/40 text-amber-200 border border-amber-400/40 text-xs font-bold max-w-full sm:max-w-[210px] truncate focus:outline-none focus:ring-1 focus:ring-amber-400">
-              <option value="0">1. श्री जम्भेश्वर आरती एवं भजन</option>
-            </select>
-            <button onclick="cycleCustomAudioSpeed()" id="customAudioSpeedBtn" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-amber-300 text-xs font-extrabold border border-amber-400/30 transition">1x</button>
-          </div>
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-4 pt-1">
-          <div class="flex items-center justify-center gap-4 shrink-0">
-            <button onclick="skipCustomTrack(-1)" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">⏮️</button>
-            <button onclick="toggleCustomMusicPlay()" id="customPlayBtn" class="w-12 h-12 rounded-full bg-amber-400 hover:bg-amber-300 text-stone-950 flex items-center justify-center shadow-lg font-extrabold text-lg transition transform active:scale-95">▶</button>
-            <button onclick="skipCustomTrack(1)" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">⏭️</button>
-          </div>
-          <div class="flex-1 flex items-center gap-3">
-            <span id="customCurTime" class="text-xs font-mono font-bold text-amber-200 w-10 text-right">0:00</span>
-            <input type="range" id="customSeekSlider" value="0" min="0" max="100" oninput="seekCustomMusic(this.value)" class="flex-1 h-2.5 bg-white/20 rounded-lg cursor-pointer accent-amber-400">
-            <span id="customDurTime" class="text-xs font-mono font-bold text-stone-300 w-10">0:00</span>
-          </div>
-        </div>
-        <audio id="audioPlayer" class="hidden"><source id="audioSource" src="./bhajan1.mp3" type="audio/mpeg"></audio>
+      <!-- Standalone Audio Box -->
+      <div id="audioPlayerContainer" class="bg-gradient-to-r from-[#143622] via-[#1b432c] to-[#143622] text-white p-4 sm:p-5 rounded-2xl shadow-lg border border-amber-400/40">
+        <audio id="audioPlayer" class="hidden"><source id="audioSource" src="./bhajan1.mp3" type="audio/mp3"></audio>
       </div>
 
-      <!-- TREE PLEDGE CARD -->
-      <div class="bg-emerald-900/95 text-white rounded-3xl p-6 border border-emerald-700 flex flex-col sm:flex-row items-center justify-between gap-5 shadow-lg elevate-card relative overflow-hidden">
-        <div class="absolute -right-4 -bottom-4 text-8xl opacity-10">🌳</div>
-        <div class="space-y-1.5 text-center sm:text-left relative z-10">
-          <span class="text-[11px] font-extrabold tracking-widest uppercase text-amber-300 bg-black/20 px-2.5 py-0.5 rounded-full">हरित धरोहर महासंकल्प</span>
-          <h3 class="font-yatra text-xl sm:text-2xl pt-1">"जीव रक्षा व प्रकृति संवर्धन हेतु समर्पित पौधरोपण"</h3>
-          <p class="text-xs text-emerald-100 font-medium max-w-md">समाज बन्धुओं द्वारा दर्ज किए गए कुल वृक्ष संरक्षण संकल्प। एक पेड़ विश्वास का लगाएं।</p>
+      <div class="bg-emerald-900/90 text-white rounded-2xl p-5 border border-emerald-700/50 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+        <div class="space-y-1 text-center sm:text-left">
+          <span class="text-[11px] font-bold tracking-wider uppercase text-amber-300">हरित धरोहर महासंकल्प</span>
+          <h3 class="font-yatra text-lg sm:text-xl">"जीव रक्षा व प्रकृति संवर्धन हेतु समर्पित पौधरोपण"</h3>
         </div>
-        <div class="flex items-center gap-3 relative z-10 shrink-0">
-          <div class="text-center px-4 py-2.5 bg-black/40 rounded-2xl border border-emerald-500/30 backdrop-blur-sm">
-            <span id="treeCounterDisplay" class="font-bold text-3xl text-amber-400 font-mono drop-shadow">1485</span>
-            <span class="block text-[10px] text-emerald-200 font-bold uppercase tracking-wide">संकल्प संख्या</span>
+        <div class="flex items-center gap-3">
+          <div class="text-center px-4 py-2 bg-black/30 rounded-xl border border-white/10">
+            <span id="treeCounterDisplay" class="font-bold text-2xl text-amber-300 font-mono">1485</span>
+            <span class="block text-[10px] text-stone-300">संकल्प संख्या</span>
           </div>
-          <button onclick="pledgeTree()" class="px-5 py-3.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-2xl shadow-xl transition transform active:scale-95 text-xs sm:text-sm">
+          <button onclick="pledgeTree()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-forest font-bold rounded-xl text-xs sm:text-sm shadow transition">
             🌱 मैंने पौधरोपण किया
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ========================================== -->
-    <!-- TAB 2: SAHITYA / LITERATURE (PDFs & KARAOKE) -->
-    <!-- ========================================== -->
-    <section id="tab-sahitya" class="hidden space-y-6">
-      <!-- KARAOKE SYNCHRONIZED PLAYER -->
-      <div class="bg-gradient-to-br from-[#143622] via-[#1a442b] to-[#0f291a] text-white p-5 sm:p-6 rounded-3xl shadow-xl border border-amber-400/40 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center text-2xl font-bold shadow-md">🎵</div>
-            <div>
-              <span class="text-[10px] uppercase font-extrabold text-amber-300 tracking-wider">लाइव स्वर-सिंक कराओके प्लेयर</span>
-              <h3 id="karaokeTrackTitle" class="font-yatra text-base sm:text-xl text-white mt-0.5">श्री जम्भेश्वर आरती एवं सबद पाठ</h3>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="seekKaraokeBy(-10)" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition">⏪ -10s</button>
-            <button onclick="toggleKaraokePlayback()" id="karaokePlayBtn" class="px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs shadow-lg transition transform active:scale-95">▶ प्ले करें</button>
-            <button onclick="seekKaraokeBy(10)" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition">+10s ⏩</button>
-          </div>
-        </div>
-        <div class="space-y-1.5">
-          <input type="range" id="karaokeSeekBar" min="0" max="100" value="0" oninput="handleKaraokeSeek(this.value)" class="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-400">
-          <div class="flex justify-between items-center text-[11px] text-stone-300 font-mono font-bold">
-            <span id="karaokeTimerDisp">00:00 / 00:00</span>
-            <button onclick="cycleAudioPlaybackSpeed()" id="audioSpeedBtn" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-amber-300 transition">1.0x</button>
-          </div>
-        </div>
-        <div class="bg-black/40 rounded-2xl p-4 border border-white/10 shadow-inner">
-          <div class="text-[10px] text-amber-200 font-bold mb-2 flex items-center justify-between">
-            <span>कराओके बोल (Real-time Synced Lyrics):</span>
-            <span class="text-stone-400">स्वरानुसार स्वतः स्क्रॉल</span>
-          </div>
-          <div id="karaokeLyricsBox" class="max-h-48 overflow-y-auto space-y-3 text-center text-sm sm:text-base font-semibold text-stone-300 scroll-smooth px-2 pb-4"></div>
-        </div>
-        <audio id="karaokeAudioPlayer" src="./bhajan1.mp3" class="hidden"></audio>
+    <!-- TAB 2: साहित्य (LIBRARY, MALA & NIYAMS) -->
+    <section id="tab-library" class="hidden space-y-6">
+      <div class="border-b border-stone-200 pb-3">
+        <h2 class="text-2xl font-yatra text-forest">विश्नोई साहित्य व ग्रंथ (PDFs & Niyams)</h2>
+        <p class="text-xs text-stone-600">सत्यापित ग्रंथ, शब्दवाणी एवं २९ नियम</p>
       </div>
-
-      <!-- 120 SHABADWANI & PDF LIBRARY -->
-      <div class="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200 shadow-sm space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-3">
-          <div>
-            <h3 class="font-yatra text-xl text-forest">श्री सबदवाणी एवं प्रमाणित साहित्य (PDFs)</h3>
-            <p class="text-xs font-medium text-stone-500 mt-0.5">गुरु मुख से उच्चारित पावन १२० सबद एवं अध्ययन ग्रंथ</p>
-          </div>
-          <div class="relative w-full sm:w-64">
-            <input type="text" id="shabadSearchInput" oninput="filterShabadRepo(this.value)" placeholder="सबद संख्या या शब्द खोजें..." class="w-full pl-9 pr-3 py-2 border border-stone-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-forest bg-stone-50 transition">
-            <span class="absolute left-3 top-2 text-stone-400">🔍</span>
-          </div>
-        </div>
-        <div id="pdfRepoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
-      </div>
-    </section>
-
-    <!-- ========================================== -->
-    <!-- TAB 3: PARIKSHA (राष्ट्रीय परीक्षा कक्ष) -->
-    <!-- ========================================== -->
-    <section id="tab-pariksha" class="hidden space-y-6">
+      <div id="pdfGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       
-      <!-- 1. EXAM CLOSED NOTICE -->
-      <div id="examClosedNoticeBox" class="hidden p-6 rounded-3xl bg-amber-50 border border-amber-300 text-center space-y-2 shadow-sm">
-        <span class="text-4xl">⏳</span>
-        <h3 class="font-yatra text-xl text-forest">परीक्षा कक्ष वर्तमान में बंद है</h3>
-        <p class="text-xs font-semibold text-stone-600">व्यवस्थापक द्वारा आगामी परीक्षा तिथि एवं समय घोषित होने पर यह सक्रिय होगा।</p>
+      <!-- 29 Niyams Preview inside Library/Sahitya or separate -->
+      <div class="pt-6 border-t border-stone-200">
+        <h3 class="font-yatra text-xl text-forest mb-3">२९ नियम संहिता</h3>
+        <div id="niyamGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: संवाद (COMMUNITY CHAT) -->
+    <section id="tab-community" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद मंच (Live Community Chat)</h2>
+          <p class="text-xs text-stone-500">विचार, नियम चर्चा एवं समाज संवाद</p>
+        </div>
+        <select id="chatTopicFilter" class="p-2 text-xs rounded-lg border border-stone-300 bg-stone-50 font-semibold text-stone-700">
+          <option value="all">📋 सभी विषय</option>
+          <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
+          <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
+          <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
+        </select>
       </div>
 
-      <!-- 2. STUDENT ENROLLMENT BOX -->
-      <div id="examEnrollmentBox" class="bg-white p-5 sm:p-6 rounded-3xl border-2 border-forest shadow-md space-y-4">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
-          <div>
-            <span class="text-[10px] font-extrabold text-terracotta uppercase bg-orange-50 px-2 py-0.5 rounded">राष्ट्रीय परीक्षा पंजीकरण</span>
-            <h3 class="font-yatra text-xl sm:text-2xl text-forest mt-1">परीक्षार्थी नामांकन (Enrollment)</h3>
-          </div>
-          <span class="text-3xl drop-shadow-sm">🎫</span>
-        </div>
-        <form onsubmit="handleCandidateEnrollment(event)" class="space-y-3.5 text-xs">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label class="font-bold text-stone-700 block mb-1">परीक्षार्थी का पूरा नाम *</label>
-              <input type="text" id="enrollName" required placeholder="पूरा नाम" class="w-full p-3 rounded-xl border border-stone-300 font-semibold bg-stone-50 focus:bg-white focus:border-forest transition">
-            </div>
-            <div>
-              <label class="font-bold text-stone-700 block mb-1">पिता / अभिभावक का नाम *</label>
-              <input type="text" id="enrollFatherName" required placeholder="पिता का नाम" class="w-full p-3 rounded-xl border border-stone-300 font-semibold bg-stone-50 focus:bg-white focus:border-forest transition">
-            </div>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <div>
-              <label class="font-bold text-stone-700 block mb-1">जन्मतिथि (DOB) *</label>
-              <input type="date" id="enrollDob" required class="w-full p-3 rounded-xl border border-stone-300 font-semibold bg-stone-50 focus:bg-white focus:border-forest transition">
-            </div>
-            <div>
-              <label class="font-bold text-stone-700 block mb-1">मोबाइल नंबर (१० अंक) *</label>
-              <input type="tel" id="enrollPhone" maxlength="10" required pattern="[0-9]{10}" placeholder="१० अंकों का नंबर" class="w-full p-3 rounded-xl border border-stone-300 font-semibold bg-stone-50 focus:bg-white focus:border-forest transition">
-            </div>
-            <div>
-              <label class="font-bold text-stone-700 block mb-1">गाँव / ज़िला / राज्य *</label>
-              <input type="text" id="enrollLocation" required placeholder="उदा: हिसार, हरियाणा" class="w-full p-3 rounded-xl border border-stone-300 font-semibold bg-stone-50 focus:bg-white focus:border-forest transition">
-            </div>
-          </div>
-          <div class="p-3 bg-stone-50 rounded-xl border border-stone-200">
-            <label class="font-bold text-stone-700 block mb-1.5">पासपोर्ट साइज फोटो (Admit Card हेतु) *</label>
-            <input type="file" id="enrollPhotoFile" accept="image/*" required class="w-full text-xs font-semibold file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-forest file:text-white hover:file:bg-emerald-950 transition">
-          </div>
-          <button type="submit" class="w-full py-3.5 bg-forest hover:bg-emerald-950 text-white font-extrabold rounded-xl shadow-md transition transform active:scale-[0.99] text-sm">
-            🎫 नामांकन पूर्ण करें एवं रोल नंबर प्राप्त करें
-          </button>
-        </form>
-        <div class="pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <span class="text-stone-600 font-semibold">पूर्व में नामांकित छात्र अपना ई-प्रवेश पत्र यहाँ से डाउनलोड करें:</span>
-          <button onclick="downloadCandidateAdmitCard()" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-xl shadow-sm transition">
-            📥 प्रवेश पत्र डाउनलोड करें
-          </button>
+      <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm flex items-start justify-between gap-3">
+        <div class="text-xs space-y-0.5">
+          <div class="font-bold text-amber-900">📌 पिन किया गया संदेश</div>
+          <p id="pinnedChatText" class="text-stone-700 font-medium"></p>
         </div>
       </div>
 
-      <!-- 3. MOCK TESTS HUB -->
-      <div id="mockTestsHub" class="bg-gradient-to-r from-emerald-950 via-forest to-emerald-950 text-white p-5 sm:p-6 rounded-3xl shadow-lg space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <span class="text-[10px] text-amber-300 font-extrabold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded">नियमित अभ्यास</span>
-            <h3 class="font-yatra text-xl text-white mt-1">मॉक टेस्ट श्रृंखला (Mock Test Hub)</h3>
-          </div>
-          <span class="text-3xl drop-shadow">📝</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-          <button onclick="initiateExamSession('mock_1')" class="p-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-left transition flex items-center justify-between group shadow-sm">
-            <div>
-              <span class="font-bold text-sm sm:text-base text-amber-300 block">मॉक टेस्ट - ०१</span>
-              <span class="text-[11px] font-medium text-stone-300 mt-0.5 block">६० मिनट • वस्तुनिष्ठ प्रश्न</span>
-            </div>
-            <span class="text-xs font-bold bg-amber-400 text-stone-950 px-3.5 py-1.5 rounded-xl group-hover:scale-105 transition transform">प्रारंभ ➤</span>
-          </button>
-          <button onclick="initiateExamSession('mock_2')" class="p-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl text-left transition flex items-center justify-between group shadow-sm">
-            <div>
-              <span class="font-bold text-sm sm:text-base text-amber-300 block">मॉक टेस्ट - ०२</span>
-              <span class="text-[11px] font-medium text-stone-300 mt-0.5 block">६० मिनट • मॉडल पेपर</span>
-            </div>
-            <span class="text-xs font-bold bg-amber-400 text-stone-950 px-3.5 py-1.5 rounded-xl group-hover:scale-105 transition transform">प्रारंभ ➤</span>
-          </button>
-        </div>
+      <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-xl border border-stone-200"></div>
+
+      <div id="postAuthPrompt" class="bg-white p-4 rounded-xl border border-stone-200 text-center space-y-2">
+        <p class="text-xs text-stone-600">संवाद मंच में संदेश भेजने के लिए कृपया लॉगिन करें।</p>
+        <button onclick="openAuthModal()" class="px-4 py-2 bg-forest text-white text-xs font-semibold rounded-lg">लॉगिन करें</button>
       </div>
 
-      <!-- 4. MAIN EXAM LAUNCH BOX (COUNTDOWN) -->
-      <div id="mainExamLaunchBox" class="bg-white p-6 sm:p-8 rounded-3xl border-2 border-terracotta shadow-xl space-y-4 text-center relative overflow-hidden">
-        <div class="absolute top-0 left-0 w-full h-1.5 bg-terracotta"></div>
-        <span class="px-3 py-1 bg-amber-100 text-amber-900 font-extrabold rounded-full text-[11px] uppercase tracking-wider border border-amber-300">राष्ट्रीय मुख्य परीक्षा</span>
-        <h3 class="font-yatra text-2xl sm:text-3xl text-forest mt-2">अखिल भारतीय जम्भवाणी ज्ञान परीक्षा २०२६</h3>
-        <div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 max-w-sm mx-auto shadow-inner">
-          <span class="text-xs text-stone-500 font-bold block mb-1 uppercase tracking-wide">परीक्षा प्रारंभ होने में शेष समय</span>
-          <span id="examCountdownDisplay" class="font-mono text-3xl font-extrabold text-terracotta drop-shadow-sm">00:00:00</span>
+      <div id="postEditor" class="hidden bg-white p-3.5 rounded-xl border-2 border-emerald-800/20 shadow-md space-y-2.5">
+        <div id="replyPreviewBar" class="hidden bg-stone-100 p-2 rounded-lg border-l-4 border-forest flex items-center justify-between text-xs">
+          <div class="truncate pr-2"><span class="font-bold text-forest" id="replyToAuthor"></span>: <span class="text-stone-600" id="replyToText"></span></div>
+          <button onclick="cancelChatReply()" class="text-stone-500 font-bold px-1">✕</button>
         </div>
-        <p class="text-xs font-semibold text-stone-600 max-w-md mx-auto">प्रवेश समय समाप्त होने के ५ मिनट बाद हॉल स्वतः लॉक हो जाएगा।</p>
-        <button id="startMainExamBtn" onclick="triggerMainExamHallEntry()" class="px-8 py-3.5 bg-forest hover:bg-emerald-950 text-white font-extrabold rounded-2xl shadow-xl transition transform active:scale-[0.98] text-sm opacity-50 pointer-events-none mt-2">
-          🚀 मुख्य परीक्षा कक्ष में प्रवेश करें
-        </button>
-      </div>
-
-      <!-- 5. ACTIVE EXAM RUNTIME ARENA -->
-      <div id="quizActiveBox" class="hidden bg-white p-4 sm:p-6 rounded-3xl border-2 border-forest shadow-2xl space-y-5">
-        <div class="flex flex-wrap items-center justify-between border-b border-stone-200 pb-3 gap-2">
-          <div>
-            <span id="examCandidateRoll" class="text-xs font-extrabold text-forest block bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200 mb-1 inline-block">रोल: JAMBH-2026</span>
-            <span class="text-[10px] text-stone-500 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> एंटी-चीटिंग व रिफ्रेश-सेफ मोड सक्रिय</span>
-          </div>
-          <div class="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
-            <span class="text-[11px] font-extrabold text-stone-600 uppercase tracking-wide">शेष समय</span>
-            <span id="examTimerClock" class="px-3 py-1 bg-terracotta text-white font-mono text-base font-extrabold rounded-lg shadow-inner">120:00</span>
-          </div>
-        </div>
-
-        <!-- OMR Palette -->
-        <div class="bg-stone-50 p-3 rounded-2xl border border-stone-200">
-          <div class="flex justify-between items-center mb-2.5 text-[11px] font-extrabold text-stone-600">
-            <span class="uppercase tracking-wide">ओएमआर प्रश्न पैलेट (OMR Grid):</span>
-            <div class="flex gap-2.5 text-[10px]">
-              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-600 shadow-sm inline-block"></span> हल किया</span>
-              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-600 shadow-sm inline-block"></span> समीक्षा</span>
-              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-white border border-stone-300 inline-block"></span> शेष</span>
-            </div>
-          </div>
-          <div id="questionGridPills" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 scroll-smooth"></div>
-        </div>
-
-        <!-- Question View -->
-        <div id="examQuestionArea" class="py-2 min-h-[200px]"></div>
-
-        <!-- Exam Controls -->
-        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-stone-200">
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <button onclick="navigateActiveExam(-1)" class="flex-1 sm:flex-initial px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-extrabold text-xs rounded-xl transition">← पिछला</button>
-            <button onclick="navigateActiveExam(1)" class="flex-1 sm:flex-initial px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-extrabold text-xs rounded-xl transition">अगला →</button>
-            <button onclick="toggleMarkCurrentForReview()" id="examReviewBtn" class="px-4 py-2.5 bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs rounded-xl border border-purple-300 transition shrink-0">
-              🟣 समीक्षा
-            </button>
-          </div>
-          <button onclick="confirmFinalExamSubmission()" class="w-full sm:w-auto px-6 py-2.5 bg-forest hover:bg-emerald-950 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
-            ✓ परीक्षा समाप्त करें (Submit)
-          </button>
-        </div>
-      </div>
-
-      <!-- 6. RESULT CHECK DESK -->
-      <div id="examResultCheckDesk" class="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200 shadow-sm space-y-4">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
-          <div>
-            <span class="text-[10px] font-extrabold text-forest uppercase bg-emerald-50 px-2 py-0.5 rounded">अंक तालिका एवं प्रमाण पत्र</span>
-            <h3 class="font-yatra text-lg sm:text-xl text-forest mt-1">परिणाम खोज केंद्र (Result Desk)</h3>
-          </div>
-          <span class="text-3xl drop-shadow-sm">🎓</span>
-        </div>
-        <form onsubmit="handleResultLookup(event)" class="space-y-3.5 text-xs">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <input type="text" id="resRollInput" required placeholder="रोल नंबर (उदा: JAMBH-2026-10042)" class="p-3 rounded-xl border border-stone-300 font-bold uppercase bg-stone-50 focus:bg-white focus:border-forest transition">
-            <input type="date" id="resDobInput" required class="p-3 rounded-xl border border-stone-300 font-semibold bg-stone-50 focus:bg-white focus:border-forest transition">
-          </div>
-          <button type="submit" class="w-full py-3 bg-forest hover:bg-emerald-950 text-white font-extrabold rounded-xl shadow-md transition text-sm">
-            🔍 परिणाम एवं मार्कशीट देखें
-          </button>
-        </form>
-        <div id="studentPersonalResultDisplay" class="hidden mt-4 transition-all"></div>
-
-        <!-- SECURE AI SAHAYAK (BOTTOM OF RESULT DESK) -->
-        <div id="aiSahayakResultBottomBox" class="mt-6 p-5 rounded-2xl bg-gradient-to-br from-emerald-900 to-[#0a1e12] text-white space-y-3 border border-amber-400/30 shadow-inner">
-          <div class="flex items-center gap-3 border-b border-white/10 pb-2">
-            <span class="text-2xl bg-white/10 w-10 h-10 rounded-xl flex items-center justify-center shadow">🤖</span>
-            <div>
-              <h4 class="font-yatra text-amber-300 text-base">AI सहायक (जम्भवाणी एवं शंका समाधान)</h4>
-              <p class="text-[10px] font-medium text-stone-300">सर्वर-सुरक्षित AI इंजन (Gemini 1.5 Pro)</p>
-            </div>
-          </div>
-          <p class="text-[11px] font-semibold text-stone-200">अपने परीक्षा प्रश्नों अथवा २९ नियमों के ग्रंथ संदर्भ पर कोई भी प्रश्न पूछें:</p>
-          <div class="flex gap-2">
-            <input type="text" id="aiSahayakQueryInput" placeholder="उदा: खेजड़ली बलिदान का संवत क्या है?" class="flex-1 p-2.5 rounded-xl text-stone-900 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400">
-            <button onclick="askAiSahayak()" class="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition">पूछें</button>
-          </div>
-          <div id="aiSahayakAnswerOut" class="hidden p-3.5 bg-black/40 rounded-xl text-xs sm:text-sm text-amber-100 font-medium mt-3 border border-white/10 leading-relaxed"></div>
+        <div class="flex gap-2">
+          <textarea id="postText" rows="2" maxlength="300" placeholder="यहाँ अपना संदेश लिखें..." class="flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none resize-none"></textarea>
+          <button id="postSubmitBtn" onclick="submitChaupalPost()" class="px-4 bg-forest text-white font-bold text-xs rounded-xl shadow">भेजें ➤</button>
         </div>
       </div>
     </section>
 
-    <!-- ========================================== -->
-    <!-- TAB 4: SAMVAD (संवाद मंच - Live Chat) -->
-    <!-- ========================================== -->
-    <section id="tab-community" class="hidden space-y-5">
-      <div class="bg-gradient-to-r from-leaf to-forest text-white p-5 sm:p-6 rounded-3xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 elevate-card relative overflow-hidden">
-        <div class="absolute -right-4 -bottom-4 text-7xl opacity-10">🌱</div>
-        <div class="relative z-10 text-center sm:text-left">
-          <span class="text-[10px] font-extrabold uppercase tracking-widest text-amber-300 bg-black/20 px-2 py-0.5 rounded-full">पर्यावरण महासंकल्प</span>
-          <h3 class="font-yatra text-xl mt-1.5">"रूंख लीलो नी घावै — गौरव पट्ट"</h3>
-          <p class="text-xs font-medium text-stone-200 mt-1 max-w-sm">अपने द्वारा रोपे गए पौधे की जानकारी साझा करें और संकल्प दर्ज करें।</p>
+    <!-- TAB 4: परीक्षा (QUIZ & EXAM HUB) -->
+    <section id="tab-quiz" class="hidden max-w-2xl mx-auto space-y-6">
+      <div id="quizIntroCard" class="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 p-6 rounded-2xl border border-amber-300 text-center space-y-4 shadow-sm">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-terracotta">दैनिक ज्ञान प्रतियोगिता</span>
+        <h3 class="font-yatra text-2xl text-forest">🏆 आज के शीर्ष प्रतिभागी</h3>
+        
+        <div class="grid grid-cols-3 gap-2 pt-2">
+          <div class="bg-white p-3 rounded-xl border border-amber-200 shadow-sm flex flex-col items-center">
+            <span class="text-2xl">🥈</span>
+            <span class="text-[10px] text-stone-400 font-bold">द्वितीय</span>
+            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner2Name">—</h4>
+            <span class="text-[10px] text-terracotta font-semibold" id="winner2Score">-</span>
+          </div>
+          <div class="bg-white p-3 rounded-xl border-2 border-amber-400 shadow-md flex flex-col items-center transform -translate-y-1">
+            <span class="text-3xl">🥇</span>
+            <span class="text-[10px] text-amber-600 font-bold uppercase">प्रथम</span>
+            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner1Name">—</h4>
+            <span class="text-[10px] text-terracotta font-semibold" id="winner1Score">-</span>
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-amber-200 shadow-sm flex flex-col items-center">
+            <span class="text-2xl">🥉</span>
+            <span class="text-[10px] text-stone-400 font-bold">तृतीय</span>
+            <h4 class="font-bold text-xs text-forest mt-1 truncate w-full" id="winner3Name">—</h4>
+            <span class="text-[10px] text-terracotta font-semibold" id="winner3Score">-</span>
+          </div>
         </div>
-        <button onclick="pledgeTree()" class="relative z-10 px-5 py-3 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shrink-0 transition transform active:scale-95">
-          🌱 पौधा संकल्प दर्ज करें
-        </button>
+
+        <div class="pt-4 border-t border-amber-200/60 space-y-2">
+          <button onclick="startQuizNow()" id="mainStartQuizBtn" class="px-6 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-xl text-sm font-bold shadow-md transition">
+            🎯 ज्ञान परीक्षा शुरू करें
+          </button>
+        </div>
       </div>
+      <div id="quizActiveBox" class="hidden bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4"></div>
+      <canvas id="certCanvas" width="1000" height="720" class="hidden"></canvas>
+    </section>
 
-      <div class="bg-white p-4 sm:p-5 rounded-3xl border border-stone-200 shadow-sm space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
-          <div>
-            <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद लाइव मंच</h2>
-            <p class="text-xs font-semibold text-stone-500 mt-0.5">विचार, नियम चर्चा एवं समाज संवाद (High-Density Stream)</p>
-          </div>
-          <select id="chatTopicFilter" onchange="renderFilteredChat()" class="p-2 text-xs rounded-xl border border-stone-300 bg-stone-50 font-bold text-forest focus:outline-none w-full sm:w-auto">
-            <option value="all">📋 सभी विषय (All Topics)</option>
-            <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
-            <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
-            <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
-            <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
-          </select>
+    <!-- EXTRA TAB FOR DIGITAL MALA / JAPMALA -->
+    <section id="tab-mala" class="hidden max-w-md mx-auto space-y-6">
+      <div class="text-center space-y-1">
+        <h2 class="text-2xl font-yatra text-forest">डिजिटल जप माला (108 मनके)</h2>
+        <p class="text-xs text-stone-600">पवित्र नाम स्मरण • स्पर्श एवं स्पंदन अनुभव</p>
+      </div>
+      <div class="bg-white p-6 rounded-3xl border border-stone-200 shadow-lg text-center space-y-6">
+        <div class="flex justify-around items-center bg-stone-50 p-3 rounded-2xl border border-stone-200">
+          <div><span class="block text-[11px] text-stone-400">कुल माला</span><span id="malaLapsDisplay" class="text-2xl font-bold font-mono text-terracotta">0</span></div>
+          <div class="h-8 w-px bg-stone-200"></div>
+          <div><span class="block text-[11px] text-stone-400">कुल जप</span><span id="malaTotalDisplay" class="text-2xl font-bold font-mono text-forest">0</span></div>
         </div>
-
-        <!-- Admin Pinned Message -->
-        <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-xl shadow-sm flex items-start justify-between gap-3">
-          <div class="text-xs space-y-1">
-            <div class="font-extrabold text-amber-900 flex items-center gap-1.5">📌 पिन किया गया संदेश <span class="bg-amber-200 text-[9px] px-1.5 rounded">Owner</span></div>
-            <p id="pinnedChatText" class="text-stone-800 font-semibold leading-relaxed"></p>
-          </div>
-          <button id="unpinChatBtn" onclick="unpinChatMessage()" class="hidden text-[10px] text-red-600 font-bold hover:underline shrink-0 bg-red-50 px-2 py-1 rounded">हटाएं ✕</button>
-        </div>
-
-        <!-- Chat Stream -->
-        <div id="communityFeed" class="space-y-0 max-h-[60vh] overflow-y-auto bg-white rounded-xl border border-stone-200 shadow-inner"></div>
-
-        <!-- Login Prompt -->
-        <div id="postAuthPrompt" class="bg-stone-50 p-5 rounded-2xl border border-stone-200 text-center space-y-3">
-          <p class="text-xs font-semibold text-stone-600">संवाद मंच में संदेश भेजने व जुड़ने के लिए कृपया लॉगिन करें।</p>
-          <button onclick="openAuthModal()" class="px-5 py-2.5 bg-forest hover:bg-emerald-950 text-white text-xs font-bold rounded-xl shadow transition">लॉगिन / शामिल हों</button>
-        </div>
-
-        <!-- Post Editor -->
-        <div id="postEditor" class="hidden bg-stone-50 p-4 rounded-2xl border border-stone-200 shadow-inner space-y-3">
-          <!-- Reply Preview -->
-          <div id="replyPreviewBar" class="hidden bg-white p-2.5 rounded-xl border-l-4 border-forest flex items-center justify-between text-xs shadow-sm">
-            <div class="truncate pr-2">
-              <span class="font-extrabold text-forest" id="replyToAuthor"></span>: <span class="text-stone-600 font-medium" id="replyToText"></span>
-            </div>
-            <button onclick="cancelChatReply()" class="text-stone-400 hover:text-red-600 font-bold px-2 text-sm transition">✕</button>
-          </div>
-
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <select id="postTopicSelect" class="p-2 text-xs rounded-xl border border-stone-300 bg-white font-bold text-forest shadow-sm">
-              <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
-              <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
-              <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
-              <option value="प्रश्नोत्तरी">🏆 प्रश्नोत्तरी</option>
-            </select>
-            <span id="charCountDisplay" class="text-[11px] font-bold text-stone-400 bg-white px-2 py-1 rounded-md border border-stone-200">0 / 300</span>
-          </div>
-
-          <div class="flex gap-2">
-            <textarea id="postText" rows="2" maxlength="300" oninput="updateCharCount()" placeholder="यहाँ अपना सात्विक संदेश लिखें..." class="flex-1 p-3 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest resize-none shadow-sm"></textarea>
-            <button id="postSubmitBtn" onclick="submitChaupalPost()" class="px-5 bg-forest hover:bg-emerald-950 text-white font-extrabold text-sm rounded-xl shadow transition flex items-center justify-center shrink-0">
-              भेजें ➤
-            </button>
-          </div>
+        <div class="flex flex-col items-center justify-center py-2">
+          <button onclick="tapMalaBead()" class="w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-gradient-to-tr from-forest via-emerald-800 to-forest text-white shadow-2xl flex flex-col items-center justify-center transform active:scale-95 transition border-4 border-amber-300/40">
+            <span class="text-xs font-semibold text-amber-300">ॐ विष्णवे नमः</span>
+            <span id="currentBeadDisplay" class="text-5xl font-extrabold font-mono text-white mt-1">0</span>
+            <span class="text-[11px] uppercase tracking-wider text-stone-300 mt-1">/ 108 मनके</span>
+          </button>
         </div>
       </div>
     </section>
 
-    <!-- ========================================== -->
-    <!-- TAB 5: PROFILE & OWNER STUDIO -->
-    <!-- ========================================== -->
-    <section id="tab-profile" class="hidden space-y-5">
-      <div class="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-sm space-y-5">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-4">
-          <div class="flex items-center gap-4">
-            <!-- Profile Photo Upload UI -->
-            <label class="relative cursor-pointer group shrink-0" title="अपनी फोटो बदलें">
-              <img id="profPhotoPreview" src="" class="hidden w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-md">
-              <div id="profAvatarCircle" class="w-16 h-16 rounded-2xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow-md border-2 border-white">बि</div>
-              <span class="absolute -bottom-1.5 -right-1.5 bg-white text-forest text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shadow border border-stone-200">📷 Edit</span>
-              <input type="file" accept="image/*" onchange="handleProfilePhotoUpload(event)" class="hidden">
-            </label>
-            <div>
-              <span id="profRoleBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-forest uppercase tracking-wide border border-emerald-200">पंजीकृत साधक</span>
-              <h3 id="profNameDisplay" class="font-yatra text-xl sm:text-2xl text-forest mt-1">साधक प्रोफ़ाइल</h3>
-              <p id="profPhoneDisplay" class="text-xs font-semibold text-stone-500 mt-0.5"></p>
-            </div>
-          </div>
-          <button onclick="logoutPortalUser()" class="px-3.5 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 font-bold text-xs rounded-xl border border-rose-200 transition">
-            लॉगआउट
-          </button>
-        </div>
-
-        <!-- 2 CLEAN STATS BOXES -->
-        <div class="grid grid-cols-2 gap-3 text-center">
-          <div class="p-4 bg-amber-50 rounded-2xl border border-amber-200 shadow-sm">
-            <span class="text-[10px] font-bold text-amber-800 uppercase tracking-wide block mb-1">कुल मंत्र जप</span>
-            <span id="statMalaTotal" class="font-extrabold text-2xl text-forest font-mono">0</span>
-          </div>
-          <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm">
-            <span class="text-[10px] font-bold text-emerald-800 uppercase tracking-wide block mb-1">पूर्ण मालाएं</span>
-            <span id="statMalaLaps" class="font-extrabold text-2xl text-forest font-mono">0</span>
-          </div>
-        </div>
-
-        <!-- EDITABLE FIELDS -->
-        <div class="space-y-3 text-xs bg-stone-50 p-4 rounded-2xl border border-stone-200">
-          <div>
-            <label class="font-bold text-stone-700 block mb-1.5">आपका शुभ नाम (Name):</label>
-            <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold focus:outline-none focus:border-forest" placeholder="अपना नाम लिखें">
-          </div>
-          <div>
-            <label class="font-bold text-stone-700 block mb-1.5">गाँव / ज़िला (Location):</label>
-            <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold focus:outline-none focus:border-forest" placeholder="उदा: हिसार, हरियाणा">
-          </div>
-          <button onclick="saveUserProfileChanges()" class="w-full py-3 bg-forest hover:bg-emerald-950 text-white font-extrabold rounded-xl shadow transition text-sm mt-2">
-            💾 प्रोफ़ाइल जानकारी सहेजें
-          </button>
-        </div>
-
-        <!-- HIGH-CONTRAST BOOKMARKS -->
-        <div class="space-y-2.5 pt-3">
-          <div class="flex items-center justify-between border-b border-stone-100 pb-2">
-            <h4 class="font-bold text-sm text-forest flex items-center gap-1">⭐ सहेजे गए प्रश्न (Bookmarks)</h4>
-            <button onclick="clearUserBookmarks()" class="text-[10px] px-2 py-1 bg-rose-50 text-rose-600 rounded font-bold hover:bg-rose-100 transition">सभी साफ़ करें</button>
-          </div>
-          <div id="userBookmarksList" class="max-h-56 overflow-y-auto space-y-2.5 p-1 scroll-smooth"></div>
-        </div>
-
-        <!-- OWNER / EDITOR STUDIO TOGGLE BUTTON -->
-        <div id="ownerStudioInsideProfile" class="hidden pt-4 border-t border-stone-200">
-          <button onclick="openOwnerStudioSubTab('adm_overview')" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-extrabold text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-            🛡️ व्यवस्थापक / संपादक स्टूडियो खोलें ➤
-          </button>
-        </div>
+    <!-- EXTRA TAB FOR HISTORY & KIDS -->
+    <section id="tab-history" class="hidden max-w-3xl mx-auto space-y-6">
+      <div class="flex items-center justify-center p-1 bg-stone-200/70 rounded-xl gap-1 max-w-sm mx-auto">
+        <button onclick="switchHistorySubTab('full-history')" id="sub-history-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-forest text-white shadow-sm">📜 इतिहास दर्शन</button>
+        <button onclick="switchHistorySubTab('kids-corner')" id="sub-kids-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-stone-600">🧸 बाल संस्कार</button>
       </div>
-
-      <!-- OWNER STUDIO (VISIBLE ONLY FOR OWNER/EDITOR) -->
-      <div id="ownerStudioSection" class="hidden bg-white rounded-3xl p-4 sm:p-6 border-2 border-amber-400 shadow-2xl space-y-5 relative overflow-hidden">
-        <!-- Will be populated by JS organizeStandardOwnerConsole() -->
-      </div>
+      <div id="historySubView" class="space-y-4"></div>
+      <div id="kidsSubView" class="hidden space-y-4"></div>
     </section>
 
   </main>
 
-  <!-- BOTTOM 5-ICON NAVIGATION BAR (FIXED) -->
-  <nav class="fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] px-2 py-1.5 pb-[max(env(safe-area-inset-bottom),0.375rem)]">
-    <div class="max-w-md mx-auto grid grid-cols-5 gap-1.5">
-      <button onclick="switchTab('home')" id="bnav-home" class="bnav-active flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-500 transition-all">
-        <span class="bnav-icon w-8 h-8 rounded-xl flex items-center justify-center text-lg mb-0.5 border border-transparent transition">🏠</span>
-        <span class="truncate">मुखपृष्ठ</span>
-      </button>
-
-      <button onclick="switchTab('sahitya')" id="bnav-sahitya" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-500 transition-all">
-        <span class="bnav-icon w-8 h-8 rounded-xl flex items-center justify-center text-lg mb-0.5 border border-transparent transition">📖</span>
-        <span class="truncate">साहित्य</span>
-      </button>
-
-      <button onclick="switchTab('pariksha')" id="bnav-pariksha" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-bold text-forest transition-all">
-        <span class="bnav-icon w-10 h-10 rounded-[18px] bg-amber-400 text-stone-950 flex items-center justify-center text-xl mb-0.5 shadow-lg transform -translate-y-1">🛡️</span>
-        <span class="truncate mt-0.5">परीक्षा</span>
-      </button>
-
-      <button onclick="switchTab('community')" id="bnav-community" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-500 transition-all">
-        <span class="bnav-icon w-8 h-8 rounded-xl flex items-center justify-center text-lg mb-0.5 border border-transparent transition">💬</span>
-        <span class="truncate">संवाद</span>
-      </button>
-
-      <button onclick="switchTab('profile')" id="bnav-profile" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-500 transition-all">
-        <span class="bnav-icon w-8 h-8 rounded-xl flex items-center justify-center text-lg mb-0.5 border border-transparent transition">👤</span>
-        <span id="bnavProfileLabel" class="truncate">प्रोफ़ाइल</span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- AUTHENTICATION MODAL (LOGIN / REGISTER) -->
-  <div id="authModal" class="fixed inset-0 z-[99980] bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-stone-200 relative">
-      <button onclick="closeAuthModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-stone-100 hover:bg-stone-200 rounded-full text-stone-500 font-bold transition">✕</button>
-      <div class="text-center space-y-1">
-        <div class="w-12 h-12 mx-auto bg-emerald-100 text-forest rounded-full flex items-center justify-center text-2xl mb-2">🔐</div>
-        <h3 id="authModalTitle" class="font-yatra text-2xl text-forest">साधक लॉगिन</h3>
-        <p class="text-xs font-medium text-stone-500">अपने ईमेल एवं पासवर्ड द्वारा सुरक्षित प्रवेश करें</p>
+  <!-- AUTH MODAL -->
+  <div id="authModal" class="fixed inset-0 bg-black/50 z-[9990] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-5 space-y-3 shadow-xl">
+      <div class="flex justify-between items-center border-b border-stone-200 pb-2">
+        <h3 class="font-bold text-sm text-forest" id="authTitle">लॉगिन (Sign In)</h3>
+        <button onclick="closeAuthModal()" class="text-stone-400 hover:text-black">✕</button>
       </div>
-      <form onsubmit="handleAuthSubmit(event)" class="space-y-3.5 text-xs">
-        <div id="registerNameRow" class="hidden space-y-1">
-          <label class="font-bold text-stone-700 ml-1">पूरा नाम *</label>
-          <input type="text" id="authNameInput" placeholder="अपना नाम लिखें" class="w-full p-3 rounded-xl border border-stone-300 font-semibold focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest bg-stone-50 transition">
+      <form onsubmit="handleAuthSubmit(event)" class="space-y-2.5" autocomplete="off">
+        <div id="nameRow" class="hidden">
+          <label class="block text-[11px] font-semibold text-stone-600">पूरा नाम</label>
+          <input type="text" id="loginName" placeholder="अपना नाम दर्ज करें" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
-        <div class="space-y-1">
-          <label class="font-bold text-stone-700 ml-1">ईमेल पता *</label>
-          <input type="email" id="authEmailInput" required placeholder="name@domain.com" class="w-full p-3 rounded-xl border border-stone-300 font-semibold focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest bg-stone-50 transition">
+        <div>
+          <label class="block text-[11px] font-semibold text-stone-600">मोबाइल नंबर (10 अंक)</label>
+          <input type="tel" id="loginPhone" required maxlength="10" placeholder="10 अंकों का नंबर" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
-        <div class="space-y-1">
-          <label class="font-bold text-stone-700 ml-1">पासवर्ड *</label>
-          <input type="password" id="authPasswordInput" required minlength="6" placeholder="••••••••" class="w-full p-3 rounded-xl border border-stone-300 font-semibold focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest bg-stone-50 transition">
+        <div>
+          <label class="block text-[11px] font-semibold text-stone-600">पासवर्ड</label>
+          <input type="password" id="loginPass" required minlength="4" placeholder="पासवर्ड" class="w-full p-2 text-xs border border-stone-300 rounded-lg">
         </div>
-        <button type="submit" id="authSubmitBtn" class="w-full py-3.5 mt-2 bg-forest hover:bg-emerald-950 text-white font-extrabold text-sm rounded-xl shadow-md transition transform active:scale-[0.98]">
+        <button type="submit" id="authSubmitBtn" class="w-full py-2 bg-forest text-white rounded-lg text-xs font-semibold hover:bg-emerald-950 transition">
           लॉगिन करें
         </button>
       </form>
-      <div class="pt-4 border-t border-stone-100 flex flex-col items-center gap-3 text-[11px] font-bold">
-        <button onclick="toggleAuthMode()" id="authToggleModeBtn" class="text-forest hover:underline">
-          खाता नहीं है? नया पंजीकरण (Register) करें
-        </button>
-        <button onclick="handlePasswordReset()" class="text-terracotta hover:underline">
-          पासवर्ड भूल गए? (Reset Password)
-        </button>
+      <div class="pt-2 border-t border-stone-200 space-y-2 text-center">
+        <button type="button" onclick="signInOrVerifyWithGoogle()" class="w-full py-2 bg-white text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm">🌐 Google से 1-Click लॉगिन</button>
+        <button onclick="toggleAuthMode()" id="authToggleBtn" class="text-xs text-terracotta underline font-semibold">नए सदस्य हैं? रजिस्टर करें</button>
       </div>
     </div>
   </div>
 
-  <!-- ONE-TIME MANDATORY USER PRIVACY CONSENT MODAL -->
-  <div id="privacyConsentModal" class="fixed inset-0 z-[99990] bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border-2 border-forest text-center">
-      <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-forest flex items-center justify-center text-3xl mx-auto shadow-sm">🛡️</div>
-      <h3 class="font-yatra text-xl sm:text-2xl text-forest">गोपनीयता एवं परीक्षा सुरक्षा सहमति</h3>
-      <div class="text-xs text-stone-600 space-y-2.5 max-h-48 overflow-y-auto p-4 bg-stone-50 rounded-2xl border border-stone-200 leading-relaxed text-left">
-        <p><b class="text-forest">१. निष्पक्ष परीक्षा सुरक्षा:</b> परीक्षा के दौरान अनुचित साधन रोकथाम हेतु स्क्रीन एवं टैब परिवर्तन को मॉनिटर किया जाता है। ३ बार टैब बदलने पर उत्तर-पुस्तिका स्वतः जमा हो जाएगी।</p>
-        <p><b class="text-forest">२. गोपनीयता सुरक्षा:</b> आपका डेटा पूर्णतः सुरक्षित है और किसी तृतीय पक्ष (Third-party) को साझा या विज्ञापनों हेतु प्रयोग नहीं किया जाएगा।</p>
-        <p><b class="text-forest">३. मंच आचार संहिता:</b> संवाद मंच पर अभद्र भाषा या स्पैम वर्जित है। AI गार्ड द्वारा स्वतः मॉनिटरिंग की जाती है।</p>
+  <!-- PROFILE MODAL -->
+  <div id="userProfileModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto z-[9980]">
+    <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
+      <div class="bg-gradient-to-r from-[#143622] to-[#0f291a] text-white p-5 relative">
+        <button onclick="closeProfileModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center">✕</button>
+        <div class="flex items-center gap-3.5">
+          <div id="profAvatarCircle" class="w-16 h-16 rounded-2xl bg-amber-400 text-stone-950 font-yatra text-2xl flex items-center justify-center shadow-lg border-2 border-white">बि</div>
+          <div>
+            <span id="profileRoleBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-stone-950 uppercase">सदस्य</span>
+            <h3 id="profHeaderNameDisplay" class="font-yatra text-xl text-white mt-1">मेरी प्रोफ़ाइल</h3>
+          </div>
+        </div>
       </div>
-      <button onclick="acceptPrivacyConsent()" class="w-full py-3.5 bg-forest hover:bg-emerald-950 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
-        मैं सभी शर्तों से सहमत हूँ (Accept & Proceed)
-      </button>
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-3 text-center">
+          <div class="p-3 rounded-2xl bg-amber-50 border border-amber-200"><div id="statMalaTotal" class="font-extrabold text-lg text-forest">0</div><div class="text-xs text-stone-600">मंत्र जप</div></div>
+          <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200"><div id="statMalaLaps" class="font-extrabold text-lg text-forest">0</div><div class="text-xs text-stone-600">पूर्ण माला</div></div>
+        </div>
+        <div class="space-y-2.5 text-xs">
+          <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold" placeholder="नाम">
+          <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="गाँव / ज़िला">
+          <button onclick="saveUserProfileChanges()" class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">💾 प्रोफ़ाइल सहेजें</button>
+          <button onclick="closeProfileModal(); logoutUser();" class="w-full py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200">लॉगआउट</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- HIDDEN ASSET HOOKS FOR QR & CANVAS PROCESSING -->
-  <div class="hidden">
-    <video id="proctorWebcamVideo" autoplay playsinline width="320" height="240"></video>
-    <canvas id="proctorSnapshotCanvas" width="320" height="240"></canvas>
-    <!-- Fallback canvas if logic needs it, though we dynamically create it in JS now -->
+  <!-- PDF READER MODAL -->
+  <div id="inbuiltPdfModal" class="fixed inset-0 z-[9990] bg-stone-950 hidden flex-col select-none">
+    <div class="bg-[#143622] text-white px-3 py-2.5 flex items-center justify-between gap-2 border-b border-amber-500/40 shrink-0">
+      <h3 id="pdfViewerTitle" class="font-yatra text-sm text-amber-300 truncate">साहित्य पाठक</h3>
+      <button onclick="closeInbuiltPdfViewer()" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold">✕ बंद करें</button>
+    </div>
+    <div id="pdfSinglePageViewport" class="flex-1 overflow-auto flex items-center justify-center p-4 bg-stone-900">
+      <div id="pdfLoadingSpinner" class="text-amber-300 text-sm font-bold animate-pulse">लोड हो रहा है...</div>
+      <canvas id="pdfSinglePageCanvas" class="bg-white rounded shadow-2xl max-w-full h-auto hidden"></canvas>
+    </div>
   </div>
 
-  <!-- SCRIPT ENGINE REFERENCE -->
+  <!-- SHARED SCRIPT PLACEHOLDER (Wait for user instruction for script.js) -->
   <script src="script.js"></script>
 </body>
 </html>
