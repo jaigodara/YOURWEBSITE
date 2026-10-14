@@ -587,7 +587,7 @@
     if (!worker || !worker.scriptURL) return false;
     try {
       const url = new URL(worker.scriptURL, window.location.href);
-      return url.origin === window.location.origin && url.pathname.replace(/\\/$/, '') === '/sw.js';
+      return url.origin === window.location.origin && url.pathname.replace(/\/$/, '') === '/sw.js';
     } catch (_) { return false; }
   };
   navigator.serviceWorker.getRegistrations().then(registrations => {
