@@ -161,6 +161,9 @@ In Firebase Console → Storage → Rules, merge the following path rules into y
         function canSendNotifications() {
           return examOwner() || editorHasPermission('notifications');
         }
+        function canManageMedia() {
+          return examOwner() || editorHasPermission('media');
+        }
         function validAttachment() {
           return request.resource.size <= 10 * 1024 * 1024 &&
             (
@@ -268,7 +271,7 @@ Owner Studio changes a session to active and adds reentryGrantedAt/reentryGrante
 
 Owner Studio now saves selected permissions in roles/{uid}.permissions. Use the helpers in section 1 in the existing rules instead of giving every editor the full owner() role:
 
-- For media/PDF/audio collections, replace editor-wide owner() write access with examOwner() or canManageMedia().
+- For media/PDF/audio collections and their Storage upload paths, replace editor-wide owner() write access with examOwner() or canManageMedia().
 - The quiz collection rules above allow an editor with quizDrafts permission to read questions and create/update only unpublished Draft documents. Editors cannot publish or delete questions.
 - For exam answer keys, canReviewExam() can read keys for manual checking, but only examOwner() may write answer keys.
 - For main/mock/quiz submission collections, canReviewExam() may read/update reviews; students must still only read their own submissions.
