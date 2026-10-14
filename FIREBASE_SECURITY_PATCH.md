@@ -230,7 +230,8 @@ Replace the existing create rules for the three submission collections with the 
         examStarted('quizStartAt');
       allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if canReviewExam();
+      allow update: if canReviewExam();
+      allow delete: if examOwner();
     }
 
     match /mockExamSubmissions/{attemptId} {
@@ -242,7 +243,8 @@ Replace the existing create rules for the three submission collections with the 
         );
       allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if canReviewExam();
+      allow update: if canReviewExam();
+      allow delete: if examOwner();
     }
 
     match /mainExamSubmissions/{attemptId} {
@@ -253,7 +255,8 @@ Replace the existing create rules for the three submission collections with the 
         sessionDeadlineReached('main');
       allow read: if canReviewExam() ||
         (signedIn() && resource.data.uid == request.auth.uid);
-      allow update, delete: if canReviewExam();
+      allow update: if canReviewExam();
+      allow delete: if examOwner();
     }
 
 These examples must replace the corresponding existing collection rules rather than be added beside permissive rules. The code still needs backend-side duplicate-attempt enforcement if each student may submit only once.
