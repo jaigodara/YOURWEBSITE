@@ -905,7 +905,7 @@
             verificationStatus: old.verificationStatus || 'pending',
             // Firebase Auth UIDs are unique; preserving the full UID makes this
             // generated roll number unique without a manual counter or race.
-            rollNumber: old.rollNumber || ('BIS-' + state.user.uid),
+            rollNumber: 'BIS-' + state.user.uid,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           };
           if (!existing.exists) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
