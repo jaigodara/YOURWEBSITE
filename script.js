@@ -270,7 +270,7 @@
   window.switchTab = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
-    const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile', 'history']);
+    const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
     if (!state.user && restrictedTabs.has(raw)) {
       window.BishnoiAuth?.openAuthModal?.();
       notify('इस अनुभाग का उपयोग करने के लिए पहले लॉगिन करें।', 'error');
