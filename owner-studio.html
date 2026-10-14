@@ -430,6 +430,32 @@ Ans: B"></textarea>
         </div>
       </div>
 
+      <!-- ADMIT CARD SETTINGS AND RELEASE CONTROL -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-emerald-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">🎟️ प्रवेश-पत्र विवरण और रिलीज़ नियंत्रण</h3>
+        <p class="text-xs text-stone-500">अगली परीक्षा के लिए विवरण यहीं बदलें। पुष्टि किए हुए विद्यार्थी भी तब तक प्रवेश-पत्र नहीं देखेंगे, जब तक आप रिलीज़ नहीं करते।</p>
+        <label class="block text-xs font-bold text-stone-700">परीक्षा का नाम
+          <input id="ownerAdmitExamTitle" maxlength="120" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" placeholder="मुख्य परीक्षा">
+        </label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="block text-xs font-bold text-stone-700">परीक्षा दिनांक
+            <input id="ownerAdmitExamDate" type="date" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal">
+          </label>
+          <label class="block text-xs font-bold text-stone-700">परीक्षा समय
+            <input id="ownerAdmitExamTime" type="time" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal">
+          </label>
+        </div>
+        <label class="block text-xs font-bold text-stone-700">परीक्षा केंद्र / ऑनलाइन माध्यम
+          <input id="ownerAdmitExamCenter" maxlength="180" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" placeholder="ऑनलाइन परीक्षा पोर्टल">
+        </label>
+        <label class="block text-xs font-bold text-stone-700">प्रवेश-पत्र पर निर्देश
+          <textarea id="ownerAdmitInstructions" maxlength="1500" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" placeholder="परीक्षा से जुड़े आधिकारिक निर्देश…"></textarea>
+        </label>
+        <p id="ownerAdmitReleaseStatus" class="text-xs text-stone-600" aria-live="polite">रिलीज़ स्थिति लोड हो रही है…</p>
+        <button type="button" onclick="saveAdmitCardSettings()" class="w-full rounded-xl bg-stone-100 px-4 py-3 text-xs font-bold text-stone-800">💾 विवरण सहेजें (अभी रिलीज़ नहीं)</button>
+        <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
+        <button type="button" onclick="revokeAdmitCardRelease()" class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700">रिलीज़ रोकें</button>
+      </div>
 
     </div>
 
@@ -621,6 +647,7 @@ Ans: B"></textarea>
           loadExistingSettings();
           loadMaintenanceSettings();
           loadExamVisibilitySettings();
+          loadAdmitCardSettings();
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
           window.location.href = "index.html";
@@ -1223,6 +1250,106 @@ Ans: B"></textarea>
         });
       } catch (e) {
         showToast('परीक्षा सेटिंग्स पढ़ने में त्रुटि: ' + e.message);
+      }
+    }
+
+    async function loadAdmitCardSettings() {
+      try {
+        const snap = await db.collection('examConfig').doc('current').get();
+        const data = snap.exists ? snap.data() || {} : {};
+        const fields = [
+          ['ownerAdmitExamTitle', data.admitCardTitle || 'मुख्य परीक्षा'],
+          ['ownerAdmitExamDate', data.admitCardDate || ''],
+          ['ownerAdmitExamTime', data.admitCardTime || ''],
+          ['ownerAdmitExamCenter', data.admitCardCenter || 'ऑनलाइन परीक्षा पोर्टल'],
+          ['ownerAdmitInstructions', data.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।']
+        ];
+        fields.forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.value = value; });
+        const status = document.getElementById('ownerAdmitReleaseStatus');
+        if (status) status.textContent = data.admitCardReleased === true
+          ? 'स्थिति: प्रवेश-पत्र रिलीज़ हैं। विद्यार्थी अपने लॉगिन में डाउनलोड कर सकते हैं।'
+          : 'स्थिति: प्रवेश-पत्र अभी रिलीज़ नहीं किए गए हैं।';
+        window.ownerAdmitCardSettings = data;
+      } catch (error) {
+        showToast('प्रवेश-पत्र सेटिंग्स लोड नहीं हुईं: ' + error.message);
+      }
+    }
+
+    function readAdmitCardSettings(released) {
+      return {
+        admitCardTitle: document.getElementById('ownerAdmitExamTitle')?.value.trim() || 'मुख्य परीक्षा',
+        admitCardDate: document.getElementById('ownerAdmitExamDate')?.value || '',
+        admitCardTime: document.getElementById('ownerAdmitExamTime')?.value || '',
+        admitCardCenter: document.getElementById('ownerAdmitExamCenter')?.value.trim() || 'ऑनलाइन परीक्षा पोर्टल',
+        admitCardInstructions: document.getElementById('ownerAdmitInstructions')?.value.trim() || '',
+        admitCardReleased: !!released,
+        admitCardUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        admitCardUpdatedBy: auth.currentUser?.uid || null
+      };
+    }
+
+    async function saveAdmitCardSettings() {
+      try {
+        const snap = await db.collection('examConfig').doc('current').get();
+        const released = snap.exists && snap.data()?.admitCardReleased === true;
+        await db.collection('examConfig').doc('current').set(readAdmitCardSettings(released), { merge: true });
+        await loadAdmitCardSettings();
+        showToast('प्रवेश-पत्र विवरण सहेज दिए गए। रिलीज़ स्थिति नहीं बदली।');
+      } catch (error) {
+        showToast('प्रवेश-पत्र विवरण सहेज नहीं सके: ' + error.message);
+      }
+    }
+
+    async function releaseAdmitCards() {
+      if (!confirm('क्या आप सभी पुष्टि किए हुए विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? उन्हें निजी सूचना भेजी जाएगी।')) return;
+      const status = document.getElementById('ownerAdmitReleaseStatus');
+      try {
+        const studentsSnap = await db.collection('examEnrolledStudents').where('verificationStatus', '==', 'confirmed').limit(450).get();
+        const configRef = db.collection('examConfig').doc('current');
+        const configSnap = await configRef.get();
+        const configData = configSnap.exists ? configSnap.data() || {} : {};
+        const settings = readAdmitCardSettings(true);
+        const batch = db.batch();
+        batch.set(configRef, settings, { merge: true });
+        const title = settings.admitCardTitle || 'मुख्य परीक्षा';
+        studentsSnap.docs.forEach(studentDoc => {
+          const student = studentDoc.data() || {};
+          const uid = student.uid || studentDoc.id;
+          const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc();
+          batch.set(notificationRef, {
+            title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
+            message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
+            type: 'admit-card',
+            admitCardReady: true,
+            recipientUid: uid,
+            active: true,
+            audience: 'private',
+            createdBy: auth.currentUser?.uid || null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        await batch.commit();
+        window.ownerAdmitCardSettings = { ...configData, ...settings };
+        if (status) status.textContent = 'रिलीज़ सफल: ' + studentsSnap.size + ' पुष्टि किए विद्यार्थियों को निजी सूचना भेजी गई।';
+        showToast(studentsSnap.size + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
+      } catch (error) {
+        if (status) status.textContent = 'रिलीज़ नहीं हो सका: ' + error.message + ' — userNotifications rules जाँचें।';
+        showToast('प्रवेश-पत्र रिलीज़ असफल: ' + error.message);
+      }
+    }
+
+    async function revokeAdmitCardRelease() {
+      if (!confirm('क्या आप विद्यार्थी लॉगिन में प्रवेश-पत्र दिखना रोकना चाहते हैं?')) return;
+      try {
+        await db.collection('examConfig').doc('current').set({
+          admitCardReleased: false,
+          admitCardUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          admitCardUpdatedBy: auth.currentUser?.uid || null
+        }, { merge: true });
+        await loadAdmitCardSettings();
+        showToast('प्रवेश-पत्र रिलीज़ रोक दी गई।');
+      } catch (error) {
+        showToast('रिलीज़ रोक नहीं सके: ' + error.message);
       }
     }
 
