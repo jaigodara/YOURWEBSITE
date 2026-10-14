@@ -1993,6 +1993,9 @@ Ans: B"></textarea>
       const isOwner = currentAdminUser?.role === 'owner' || currentAdminUser?.uid === SUPER_OWNER_UID || currentAdminUser?.uid === RECOVERED_OWNER_UID;
       if (!isOwner) return showToast('केवल Owner परीक्षा में पुनः प्रवेश नियंत्रित कर सकता है।');
       try {
+        const sessionRef = db.collection('examSessions').doc(sessionId);
+        const sessionSnap = await sessionRef.get();
+        const currentSession = sessionSnap.exists ? sessionSnap.data() || {} : {};
         const update = {
           status,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -2001,11 +2004,18 @@ Ans: B"></textarea>
         if (status === 'active') {
           update.reentryGrantedAt = firebase.firestore.FieldValue.serverTimestamp();
           update.reentryGrantedBy = auth.currentUser?.uid || null;
+          if (currentSession.status === 'late_request') {
+            const configSnap = await db.collection('examConfig').doc('current').get();
+            const durationMinutes = Math.max(1, Number(configSnap.data()?.durationMinutes) || 120);
+            const extendedEndAtMs = Date.now() + durationMinutes * 60 * 1000;
+            update.endAtMs = extendedEndAtMs;
+            update.endAt = firebase.firestore.Timestamp.fromMillis(extendedEndAtMs);
+          }
         } else if (status === 'denied') {
           update.deniedAt = firebase.firestore.FieldValue.serverTimestamp();
           update.deniedBy = auth.currentUser?.uid || null;
         }
-        await db.collection('examSessions').doc(sessionId).set(update, { merge: true });
+        await sessionRef.set(update, { merge: true });
         showToast(status === 'active' ? 'पुनः प्रवेश की अनुमति भेज दी गई।' : 'पुनः प्रवेश अस्वीकार कर दिया गया।');
         await loadExamSessionQueue();
       } catch (error) {
