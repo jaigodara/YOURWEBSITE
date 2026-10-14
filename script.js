@@ -489,6 +489,7 @@
     // Guests see the login prompt; signed-in users see the message composer.
     setVisible('postAuthPrompt', !state.user);
     setVisible('postEditor', !!state.user);
+    refreshEnrollmentStatus();
 
     setVisible('ownerStudioPortalBtn', !!state.isOwner);
     setVisible('profileOwnerStudioLink', !!state.isOwner);
@@ -701,6 +702,177 @@
       globalOverlay.classList.toggle('hidden', !blockWebsite);
       setText('globalMaintenanceMessage', message);
     }
+  }
+
+  // Enrollment and student-side admit-card workflow.
+  function ensureEnrollmentStatusHost() {
+    const form = byId('examEnrollmentForm');
+    if (!form) return null;
+    let host = byId('enrollmentStudentStatus');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'enrollmentStudentStatus';
+      host.className = 'sm:col-span-2 mt-3 rounded-xl border border-stone-200 bg-white p-3 text-xs text-stone-700 space-y-2';
+      form.insertAdjacentElement('afterend', host);
+    }
+    return host;
+  }
+
+  function renderEnrollmentStatus(record) {
+    const host = ensureEnrollmentStatusHost();
+    const notice = byId('enrollmentAccountNotice');
+    if (!host) return;
+    if (!state.user) {
+      if (notice) notice.textContent = 'पंजीकरण और प्रवेश-पत्र देखने के लिए पहले लॉगिन करें।';
+      host.innerHTML = '<p>पंजीकरण की स्थिति देखने के लिए अपने खाते से लॉगिन करें।</p>';
+      return;
+    }
+    if (notice) notice.textContent = 'लॉगिन खाता: ' + (state.profile?.displayName || state.user.displayName || state.user.email || 'सदस्य');
+    if (record === undefined) {
+      host.textContent = 'आपका पंजीकरण रिकॉर्ड जाँचा जा रहा है…';
+      return;
+    }
+    if (!record) {
+      host.innerHTML = '<p>अभी इस खाते से कोई परीक्षा पंजीकरण नहीं मिला। ऊपर फॉर्म भरकर पंजीकरण भेजें।</p>';
+      return;
+    }
+    const status = record.verificationStatus || 'pending';
+    const statusText = status === 'confirmed' ? 'पंजीकरण स्वीकृत' : status === 'rejected' ? 'पंजीकरण अस्वीकृत' : 'पंजीकरण समीक्षा की प्रतीक्षा में';
+    const roll = record.rollNumber || '';
+    host.replaceChildren();
+    const heading = document.createElement('strong');
+    heading.textContent = 'आपका पंजीकरण: ' + statusText;
+    host.appendChild(heading);
+    const detail = document.createElement('p');
+    detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'अभी आवंटित नहीं');
+    host.appendChild(detail);
+    if (status === 'confirmed' && roll) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
+      button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड / PDF में सेव करें';
+      button.addEventListener('click', () => printStudentAdmitCard(record));
+      host.appendChild(button);
+      const hint = document.createElement('p');
+      hint.className = 'text-stone-500';
+      hint.textContent = 'खुलने वाली विंडो में “प्रिंट / PDF में सेव करें” चुनें।';
+      host.appendChild(hint);
+    } else if (status === 'rejected') {
+      const hint = document.createElement('p');
+      hint.textContent = 'यदि आपको लगता है कि यह गलती है, तो व्यवस्थापक से संपर्क करें।';
+      host.appendChild(hint);
+    } else {
+      const hint = document.createElement('p');
+      hint.textContent = 'व्यवस्थापक द्वारा पुष्टि और रोल नंबर आवंटित होने के बाद यहीं प्रवेश-पत्र का बटन दिखेगा।';
+      host.appendChild(hint);
+    }
+  }
+
+  async function refreshEnrollmentStatus() {
+    if (!state.user || !state.db) {
+      renderEnrollmentStatus(null);
+      return;
+    }
+    const uid = state.user.uid;
+    renderEnrollmentStatus(undefined);
+    try {
+      const snap = await state.db.collection('examEnrolledStudents').doc(uid).get();
+      if (state.user?.uid !== uid) return;
+      renderEnrollmentStatus(snap.exists ? snap.data() : null);
+    } catch (error) {
+      console.warn('Enrollment status could not be loaded:', error);
+      if (state.user?.uid === uid) {
+        const host = ensureEnrollmentStatusHost();
+        if (host) host.textContent = 'पंजीकरण की स्थिति लोड नहीं हुई। Firestore permissions जाँचें और फिर रिफ्रेश करें।';
+      }
+    }
+  }
+
+  function printStudentAdmitCard(record) {
+    if (!state.user || !record || record.uid !== state.user.uid) {
+      notify('अपने खाते का वैध पंजीकरण उपलब्ध नहीं है।', 'error');
+      return;
+    }
+    if (record.verificationStatus !== 'confirmed' || !record.rollNumber) {
+      notify('प्रवेश-पत्र के लिए व्यवस्थापक की पुष्टि और रोल नंबर आवश्यक हैं।', 'error');
+      return;
+    }
+    const popup = window.open('', '_blank', 'width=900,height=700');
+    if (!popup) {
+      notify('प्रवेश-पत्र खोलने के लिए इस वेबसाइट के pop-ups की अनुमति दें।', 'error');
+      return;
+    }
+    const esc = escapeHtml;
+    const name = esc(record.fullName || record.name || state.profile?.displayName || state.user.displayName || 'विद्यार्थी');
+    const roll = esc(record.rollNumber);
+    const exam = esc(record.examName || record.examTitle || 'मुख्य परीक्षा');
+    const date = esc(record.examDate || record.date || 'आधिकारिक सूचना के अनुसार');
+    const venue = esc(record.examCenter || record.center || 'ऑनलाइन परीक्षा पोर्टल');
+    const regId = esc(record.registrationNumber || record.uid || state.user.uid);
+    popup.document.open();
+    popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>परीक्षा प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:18px;overflow:hidden}.head{background:#173b29;color:white;padding:24px;text-align:center}.head h1{margin:0}.body{padding:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}.field{border:1px solid #ddd;border-radius:10px;padding:12px}.label{font-size:10px;color:#68766b}.value{font-weight:bold;margin-top:5px;overflow-wrap:anywhere}.notice{margin-top:20px;padding:12px;background:#fff8dc;border-radius:10px;font-size:12px;line-height:1.7}.print{display:block;margin:20px auto;padding:12px 20px;background:#173b29;color:white;border:0;border-radius:9px;font-weight:bold}@media(max-width:540px){.grid{grid-template-columns:1fr}}@media print{body{padding:0;background:#fff}.print{display:none}.card{border-radius:0}}</style></head><body><article class="card"><header class="head"><div style="font-size:32px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><strong>पंजीकरण सत्यापित</strong><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+regId+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>1. प्रवेश-पत्र सुरक्षित रखें।<br>2. आधिकारिक परीक्षा समय और निर्देशों का पालन करें।<br>3. विवरण गलत होने पर परीक्षा से पहले व्यवस्थापक से संपर्क करें।</div></main></article><button class="print" onclick="window.print()">प्रिंट / PDF में सेव करें</button></body></html>');
+    popup.document.close();
+  }
+
+  function initEnrollmentUI() {
+    const form = byId('examEnrollmentForm');
+    const login = byId('enrollmentLoginButton');
+    if (login && !login.dataset.bound) {
+      login.dataset.bound = '1';
+      login.addEventListener('click', () => window.BishnoiAuth?.openAuthModal?.());
+    }
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = '1';
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const status = byId('enrollmentSubmitStatus');
+        const button = byId('enrollmentSubmitButton');
+        if (!state.user || !state.db) {
+          if (status) status.textContent = 'पहले लॉगिन करें, फिर पंजीकरण भेजें।';
+          window.BishnoiAuth?.openAuthModal?.();
+          return;
+        }
+        const fullName = (byId('enrollmentName')?.value || '').trim();
+        const phone = (byId('enrollmentPhone')?.value || '').trim();
+        const examName = (byId('enrollmentExam')?.value || 'मुख्य परीक्षा').trim();
+        const location = (byId('enrollmentLocation')?.value || '').trim();
+        if (fullName.length < 2 || !/^[+()\d\s-]{10,20}$/.test(phone)) {
+          if (status) status.textContent = 'कृपया सही पूरा नाम और मोबाइल नंबर दर्ज करें।';
+          return;
+        }
+        if (button) button.disabled = true;
+        if (status) status.textContent = 'पंजीकरण सहेजा जा रहा है…';
+        try {
+          const ref = state.db.collection('examEnrolledStudents').doc(state.user.uid);
+          const existing = await ref.get();
+          const old = existing.exists ? existing.data() : {};
+          const data = {
+            uid: state.user.uid,
+            fullName,
+            name: fullName,
+            phone,
+            examName,
+            location,
+            verificationStatus: old.verificationStatus || 'pending',
+            rollNumber: old.rollNumber || '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+          if (!existing.exists) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+          await ref.set(data, { merge: true });
+          if (status) status.textContent = 'पंजीकरण भेज दिया गया। व्यवस्थापक की पुष्टि और रोल नंबर मिलने के बाद प्रवेश-पत्र यहीं दिखेगा।';
+          await refreshEnrollmentStatus();
+          notify('परीक्षा पंजीकरण सहेज दिया गया।', 'success');
+        } catch (error) {
+          console.error('Enrollment submit failed:', error);
+          if (status) status.textContent = 'पंजीकरण सहेजा नहीं जा सका। Firebase Firestore rules में examEnrolledStudents की अनुमति जाँचें।';
+          notify('पंजीकरण सहेजने में समस्या आई।', 'error');
+        } finally {
+          if (button) button.disabled = false;
+        }
+      });
+    }
+    ensureEnrollmentStatusHost();
+    renderEnrollmentStatus(state.user ? undefined : null);
   }
 
   function renderMyResults() {
@@ -1622,6 +1794,7 @@ function renderExamVisibility() {
     state.initialized = true;
 
     renderDailyMessage();
+    initEnrollmentUI();
     renderPanchangEstimate();
     renderExamCountdowns();
     window.setInterval(renderExamCountdowns, 1000);
