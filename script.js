@@ -1701,7 +1701,9 @@ function renderExamVisibility() {
       }));
 
       if (!questions.length) {
-        notify('No questions have been added to this exam yet.');
+        const message = 'अभी mainExamQuestions संग्रह में कोई प्रश्न उपलब्ध नहीं है। Owner Studio में प्रश्न जोड़ें।';
+        setText('mainExamCountdown', '⚠️ ' + message);
+        notify(message, 'error');
         return;
       }
 
@@ -1765,8 +1767,12 @@ function renderExamVisibility() {
 
       notify('Exam started.', 'success');
     } catch (e) {
-      console.error(e);
-      notify('Could not load exam questions. Check Firestore permissions.', 'error');
+      console.error('Exam question loading failed:', e);
+      const message = e && e.code === 'permission-denied'
+        ? 'प्रश्न पढ़ने की अनुमति नहीं मिली। Firestore Rules में mainExamQuestions के read access की जाँच करें।'
+        : 'प्रश्न लोड नहीं हो सके। इंटरनेट कनेक्शन और Firestore Console जाँचें।';
+      setText('mainExamCountdown', '⚠️ ' + message);
+      notify(message, 'error');
     }
   };
 
