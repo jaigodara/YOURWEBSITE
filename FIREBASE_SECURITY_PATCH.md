@@ -208,7 +208,7 @@ Add this match block to let students create/update only their own session metada
         (
           request.resource.data.status == resource.data.status ||
           (resource.data.status == 'active' && request.resource.data.status == 'kicked') ||
-          (request.resource.data.status == 'submitted' && resource.data.status == 'submitted') ||
+          ((resource.data.status == 'active' || resource.data.status == 'kicked') && request.resource.data.status == 'submitted') ||
           (request.resource.data.status == 'late_request' && request.resource.data.lateEntryRequested == true)
         )
       );
