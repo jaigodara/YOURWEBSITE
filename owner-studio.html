@@ -249,6 +249,14 @@
         </div>
 
       </div>
+              <div class="pt-4 border-t border-stone-100 space-y-2">
+          <h4 class="font-yatra text-sm text-forest">📜 इतिहास व संस्कार सामग्री प्रकाशित करें</h4>
+          <input id="historyItemTitle" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="शीर्षक, जैसे खेजड़ली इतिहास">
+          <select id="historyItemCategory" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs"><option value="history">📜 इतिहास व संस्कार</option><option value="kids">🧸 बाल संस्कार</option></select>
+          <textarea id="historyItemContent" rows="4" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="जानकारी / इतिहास का पाठ लिखें"></textarea>
+          <input id="historyItemDate" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="दिनांक / स्रोत (वैकल्पिक)">
+          <button onclick="publishHistoryItem()" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold">📜 इतिहास/संस्कार वेबसाइट पर प्रकाशित करें</button>
+        </div>
     </div>
 
     <!-- PANE 3: QUESTION BANK & LEADERBOARD WINNERS -->
@@ -478,14 +486,7 @@ Ans: B"></textarea>
           <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">➕ UID नियुक्त करें</button>
         </div>
         <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
-        <div class="pt-4 border-t border-stone-100 space-y-2">
-          <h4 class="font-yatra text-sm text-forest">📜 इतिहास व संस्कार सामग्री प्रकाशित करें</h4>
-          <input id="historyItemTitle" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="शीर्षक, जैसे खेजड़ली इतिहास">
-          <select id="historyItemCategory" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs"><option value="history">📜 इतिहास व संस्कार</option><option value="kids">🧸 बाल संस्कार</option></select>
-          <textarea id="historyItemContent" rows="4" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="जानकारी / इतिहास का पाठ लिखें"></textarea>
-          <input id="historyItemDate" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs" placeholder="दिनांक / स्रोत (वैकल्पिक)">
-          <button onclick="publishHistoryItem()" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold">📜 इतिहास/संस्कार वेबसाइट पर प्रकाशित करें</button>
-        </div>
+
       </div>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
