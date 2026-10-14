@@ -432,6 +432,7 @@
       state.user = user;
       state.profile = null;
       initPersonalNotificationsForUser();
+      initPublicNotifications();
       renderNotificationCenter();
       state.myResults = [];
       renderMyResults();
