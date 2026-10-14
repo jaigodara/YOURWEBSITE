@@ -573,6 +573,14 @@
   function startLiveListeners() {
     if (!state.db) return;
 
+    // Start the public counter at zero and update it from actual Firestore records.
+    // Each document represents a unique account that has recorded a pledge.
+    subscribe(
+      collection('treePledges').limit(5000),
+      snap => setText('treeCounterDisplay', snap.size.toLocaleString('hi-IN')),
+      'Tree pledge counter'
+    );
+
     // Settings are read from Firestore, never silently overwritten by stale local settings.
     subscribe(
       collection('settings').doc('portal'),
