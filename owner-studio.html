@@ -792,6 +792,7 @@ Ans: B"></textarea>
 
     // 3. DAILY BANNER & AMAVASYA MANAGER
     async function saveAdminBanner() {
+      if (!isPrimaryOwner()) return showToast('यह सेटिंग केवल Owner बदल सकता है।');
       const txt = document.getElementById('adminBannerInput')?.value.trim();
       if (!txt) return showToast("कृपया सुविचार लिखें!");
 
@@ -805,6 +806,7 @@ Ans: B"></textarea>
     }
 
     async function saveAdminAmavasya() {
+      if (!isPrimaryOwner()) return showToast('यह सेटिंग केवल Owner बदल सकता है।');
       const name = document.getElementById('adminAmavasyaName')?.value.trim();
       const date = document.getElementById('adminAmavasyaDate')?.value;
       const desc = document.getElementById('adminAmavasyaDesc')?.value.trim();
@@ -852,6 +854,7 @@ Ans: B"></textarea>
 
     // 4. LITERATURE & AUDIO
     async function saveAdminPdf() {
+      if (!isPrimaryOwner()) return showToast('PDF लाइब्रेरी केवल Owner बदल सकता है।');
       const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
       const title = document.getElementById('adminPdfTitle')?.value.trim();
       const link = document.getElementById('adminPdfLink')?.value.trim();
@@ -871,6 +874,7 @@ Ans: B"></textarea>
     }
 
     async function saveAdminAudio() {
+      if (!isPrimaryOwner()) return showToast('ऑडियो लाइब्रेरी केवल Owner बदल सकता है।');
       const title = document.getElementById('adminAudioTitle')?.value.trim();
       const link = document.getElementById('adminAudioLink')?.value.trim();
       if (!title || !link) return showToast("कृपया शीर्षक और ऑडियो लिंक दर्ज करें!");
@@ -919,6 +923,7 @@ Ans: B"></textarea>
     }
 
     async function deleteDocItem(col, id) {
+      if (!isPrimaryOwner()) return showToast('रिकॉर्ड हटाने का अधिकार केवल Owner को है।');
       if (!confirm("क्या आप इसे हटाना चाहते हैं?")) return;
       try {
         await db.collection(col).doc(id).delete();
@@ -930,6 +935,7 @@ Ans: B"></textarea>
 
     // 5. BULK QUESTION BANK & WINNERS
     async function saveDailyWinners() {
+      if (!isPrimaryOwner()) return showToast('विजेता सूची केवल Owner बदल सकता है।');
       try {
         await db.collection('settings').doc('dailyWinners').set({
           p1Name: document.getElementById('win1Name')?.value.trim() || '—',
@@ -946,6 +952,7 @@ Ans: B"></textarea>
     }
 
     async function clearDailyWinnersToBlank() {
+      if (!isPrimaryOwner()) return showToast('विजेता सूची केवल Owner बदल सकता है।');
       try {
         await db.collection('settings').doc('dailyWinners').set({
           p1Name: '—', p1Score: '—',
@@ -1246,6 +1253,7 @@ Ans: B"></textarea>
     }
 
     async function clearAllQuizQuestions() {
+      if (!isPrimaryOwner()) return showToast('प्रश्न हटाने का अधिकार केवल Owner को है।');
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
       if (!confirm("क्या आप " + target + " के सभी प्रश्न हटाना चाहते हैं? यह कार्रवाई वापस नहीं होगी।")) return;
       try {
@@ -1278,6 +1286,7 @@ Ans: B"></textarea>
     }
 
     async function toggleExamProctoring(val) {
+      if (!isPrimaryOwner()) return showToast('प्रोक्टरिंग सेटिंग केवल Owner बदल सकता है।');
       try {
         await db.collection('settings').doc('examConfig').set({
           proctoringEnabled: val
@@ -2031,6 +2040,7 @@ Ans: B"></textarea>
     }
 
     async function loadRegistrationReviews() {
+      if (!isPrimaryOwner()) return showToast('विद्यार्थी पंजीकरण रिकॉर्ड केवल Owner देख सकता है।');
       const list = document.getElementById('registrationReviewList');
       if (!list) return;
       const collectionName = document.getElementById('registrationCollection')?.value || 'examEnrolledStudents';
@@ -2181,6 +2191,7 @@ Ans: B"></textarea>
     }
 
     async function saveMaintenanceSettings() {
+      if (!isPrimaryOwner()) return showToast('मेंटेनेंस सेटिंग केवल Owner बदल सकता है।');
       const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
       const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
       const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
@@ -2202,6 +2213,7 @@ Ans: B"></textarea>
     }
 
     async function publishHistoryItem() {
+      if (!isPrimaryOwner()) return showToast('साहित्य/इतिहास सामग्री केवल Owner प्रकाशित कर सकता है।');
       const title = document.getElementById('historyItemTitle')?.value.trim();
       const content = document.getElementById('historyItemContent')?.value.trim();
       const category = document.getElementById('historyItemCategory')?.value || 'history';
