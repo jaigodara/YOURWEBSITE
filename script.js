@@ -755,7 +755,7 @@
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'अभी आवंटित नहीं');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll) {
+    if (status === 'confirmed' && roll && state.examConfig?.admitCardReleased === true) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
@@ -765,6 +765,11 @@
       const hint = document.createElement('p');
       hint.className = 'text-stone-500';
       hint.textContent = 'खुलने वाली विंडो में “प्रिंट / PDF में सेव करें” चुनें।';
+      host.appendChild(hint);
+    } else if (status === 'confirmed' && roll) {
+      const hint = document.createElement('p');
+      hint.className = 'text-amber-800';
+      hint.textContent = 'आपका पंजीकरण स्वीकृत है। प्रवेश-पत्र Owner द्वारा रिलीज़ किए जाने पर यहीं उपलब्ध होगा।';
       host.appendChild(hint);
     } else if (status === 'rejected') {
       const hint = document.createElement('p');
@@ -798,6 +803,10 @@
   }
 
   function printStudentAdmitCard(record) {
+    if (state.examConfig?.admitCardReleased !== true) {
+      notify('प्रवेश-पत्र अभी Owner द्वारा रिलीज़ नहीं किया गया है।', 'error');
+      return;
+    }
     if (!state.user || !record || record.uid !== state.user.uid) {
       notify('अपने खाते का वैध पंजीकरण उपलब्ध नहीं है।', 'error');
       return;
@@ -812,14 +821,16 @@
       return;
     }
     const esc = escapeHtml;
+    const admitSettings = state.examConfig || {};
     const name = esc(record.fullName || record.name || state.profile?.displayName || state.user.displayName || 'विद्यार्थी');
     const roll = esc(record.rollNumber);
-    const exam = esc(record.examName || record.examTitle || 'मुख्य परीक्षा');
-    const date = esc(record.examDate || record.date || 'आधिकारिक सूचना के अनुसार');
-    const venue = esc(record.examCenter || record.center || 'ऑनलाइन परीक्षा पोर्टल');
+    const exam = esc(admitSettings.admitCardTitle || record.examName || record.examTitle || 'मुख्य परीक्षा');
+    const date = esc([admitSettings.admitCardDate || record.examDate || record.date || 'आधिकारिक सूचना के अनुसार', admitSettings.admitCardTime].filter(Boolean).join(' • '));
+    const venue = esc(admitSettings.admitCardCenter || record.examCenter || record.center || 'ऑनलाइन परीक्षा पोर्टल');
+    const instructions = esc(admitSettings.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें। आधिकारिक परीक्षा समय और निर्देशों का पालन करें। विवरण गलत होने पर परीक्षा से पहले व्यवस्थापक से संपर्क करें।');
     const regId = esc(record.registrationNumber || record.uid || state.user.uid);
     popup.document.open();
-    popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>परीक्षा प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:18px;overflow:hidden}.head{background:#173b29;color:white;padding:24px;text-align:center}.head h1{margin:0}.body{padding:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}.field{border:1px solid #ddd;border-radius:10px;padding:12px}.label{font-size:10px;color:#68766b}.value{font-weight:bold;margin-top:5px;overflow-wrap:anywhere}.notice{margin-top:20px;padding:12px;background:#fff8dc;border-radius:10px;font-size:12px;line-height:1.7}.print{display:block;margin:20px auto;padding:12px 20px;background:#173b29;color:white;border:0;border-radius:9px;font-weight:bold}@media(max-width:540px){.grid{grid-template-columns:1fr}}@media print{body{padding:0;background:#fff}.print{display:none}.card{border-radius:0}}</style></head><body><article class="card"><header class="head"><div style="font-size:32px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><strong>पंजीकरण सत्यापित</strong><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+regId+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>1. प्रवेश-पत्र सुरक्षित रखें।<br>2. आधिकारिक परीक्षा समय और निर्देशों का पालन करें।<br>3. विवरण गलत होने पर परीक्षा से पहले व्यवस्थापक से संपर्क करें।</div></main></article><button class="print" onclick="window.print()">प्रिंट / PDF में सेव करें</button></body></html>');
+    popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>परीक्षा प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:18px;overflow:hidden}.head{background:#173b29;color:white;padding:24px;text-align:center}.head h1{margin:0}.body{padding:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}.field{border:1px solid #ddd;border-radius:10px;padding:12px}.label{font-size:10px;color:#68766b}.value{font-weight:bold;margin-top:5px;overflow-wrap:anywhere}.notice{margin-top:20px;padding:12px;background:#fff8dc;border-radius:10px;font-size:12px;line-height:1.7}.print{display:block;margin:20px auto;padding:12px 20px;background:#173b29;color:white;border:0;border-radius:9px;font-weight:bold}@media(max-width:540px){.grid{grid-template-columns:1fr}}@media print{body{padding:0;background:#fff}.print{display:none}.card{border-radius:0}}</style></head><body><article class="card"><header class="head"><div style="font-size:32px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><strong>पंजीकरण सत्यापित</strong><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+regId+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>'+instructions+'</div></main></article><button class="print" onclick="window.print()">प्रिंट / PDF में सेव करें</button></body></html>');
     popup.document.close();
   }
 
