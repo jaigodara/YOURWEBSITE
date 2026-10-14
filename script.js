@@ -424,7 +424,7 @@
 
     setText('bnavProfileLabel', state.user ? 'खाता' : 'प्रोफ़ाइल');
 
-    $('[data-owner-only]').forEach(el => {
+    $$('[data-owner-only]').forEach(el => {
       el.hidden = !state.isOwner;
     });
   }
