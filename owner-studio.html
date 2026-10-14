@@ -572,9 +572,11 @@ Ans: B"></textarea>
           listenDraftQueue();
           listenPdfAndAudio();
           listenQuizQuestions();
+          document.getElementById('bulkQuestionTarget')?.addEventListener('change', listenQuizQuestions);
           listenTrustedEditors();
           listenProctoringConfig();
           loadExistingSettings();
+          loadMaintenanceSettings();
           loadExamVisibilitySettings();
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
@@ -900,7 +902,9 @@ Ans: B"></textarea>
     }
 
     function listenQuizQuestions() {
-      db.collection('quiz').orderBy('createdAt', 'desc').onSnapshot(snap => {
+      if (window.__quizQuestionListener) window.__quizQuestionListener();
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').onSnapshot(snap => {
         const box = document.getElementById('adminQuizList');
         if (!box) return;
         box.innerHTML = '';
@@ -908,7 +912,7 @@ Ans: B"></textarea>
           box.innerHTML += `
             <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border border-stone-200">
               <span class="truncate pr-2">${doc.data().q}</span>
-              <button onclick="deleteDocItem('quiz', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">हटाएं</button>
+              <button onclick="deleteDocItem('${target}', '${doc.id}')" class="text-red-600 font-bold hover:underline shrink-0">हटाएं</button>
             </div>
           `;
         });
@@ -916,13 +920,14 @@ Ans: B"></textarea>
     }
 
     async function clearAllQuizQuestions() {
-      if (!confirm("क्या आप वास्तव में सभी प्रश्न बैंक हटाना चाहते हैं?")) return;
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      if (!confirm("क्या आप " + target + " के सभी प्रश्न हटाना चाहते हैं? यह कार्रवाई वापस नहीं होगी।")) return;
       try {
-        const snap = await db.collection('quiz').get();
+        const snap = await db.collection(target).get();
         const batch = db.batch();
         snap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
-        showToast("सभी प्रश्न हटा दिए गए।");
+        showToast(target + " के सभी प्रश्न हटा दिए गए।");
       } catch (err) {
         showToast("त्रुटि: " + err.message);
       }
@@ -1223,26 +1228,63 @@ Ans: B"></textarea>
     }
 
     // 7. MAINTENANCE CONTROLS & TRUSTED EDITORS
+    async function loadMaintenanceSettings() {
+      try {
+        const snap = await db.collection('settings').doc('maintenance').get();
+        if (!snap.exists) return;
+        const data = snap.data();
+        const mode = document.getElementById('adminGlobalMaintMode');
+        const message = document.getElementById('adminMaintMessage');
+        const bypass = document.getElementById('adminVipBypassToggle');
+        if (mode) mode.value = data.globalMode || 'off';
+        if (message) message.value = data.message || '';
+        if (bypass) bypass.checked = data.vipBypass !== false;
+        const sections = data.sections || {};
+        Object.entries({mala:'lock_mala', library:'lock_library', quiz:'lock_quiz', community:'lock_community', history:'lock_history'}).forEach(([key,id]) => {
+          const el = document.getElementById(id);
+          if (el) el.value = sections[key] || 'off';
+        });
+      } catch (e) { showToast('मेंटेनेंस सेटिंग्स लोड नहीं हुईं: ' + e.message); }
+    }
+
     async function saveMaintenanceSettings() {
       const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
       const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
       const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
-
       const sections = {
         mala: document.getElementById('lock_mala')?.value || 'off',
         library: document.getElementById('lock_library')?.value || 'off',
         quiz: document.getElementById('lock_quiz')?.value || 'off',
-        community: document.getElementById('lock_community')?.value || 'off'
+        community: document.getElementById('lock_community')?.value || 'off',
+        history: document.getElementById('lock_history')?.value || 'off'
       };
-
       try {
         await db.collection('settings').doc('maintenance').set({
-          globalMode, message, vipBypass, sections
+          globalMode, message, vipBypass, sections,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.currentUser?.uid || null
         }, { merge: true });
-        showToast("✅ मेंटेनेंस सेटिंग्स सफलतापूर्वक लागू की गईं!");
-      } catch (e) {
-        showToast("त्रुटि: " + e.message);
-      }
+        showToast('मेंटेनेंस सेटिंग्स लागू कर दी गईं। मुख्य वेबसाइट पर रिफ्रेश करके जाँचें।');
+      } catch (e) { showToast('त्रुटि: ' + e.message); }
+    }
+
+    async function publishHistoryItem() {
+      const title = document.getElementById('historyItemTitle')?.value.trim();
+      const content = document.getElementById('historyItemContent')?.value.trim();
+      const category = document.getElementById('historyItemCategory')?.value || 'history';
+      const dateLabel = document.getElementById('historyItemDate')?.value.trim() || '';
+      if (!title || !content) return showToast('इतिहास सामग्री का शीर्षक और विवरण दोनों भरें।');
+      try {
+        await db.collection('historyItems').add({
+          title, content, category, dateLabel, published: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.currentUser?.uid || null
+        });
+        document.getElementById('historyItemTitle').value = '';
+        document.getElementById('historyItemContent').value = '';
+        document.getElementById('historyItemDate').value = '';
+        showToast('इतिहास/संस्कार सामग्री मुख्य वेबसाइट पर प्रकाशित हो गई।');
+      } catch (e) { showToast('प्रकाशित नहीं हुआ: ' + e.message + ' — Firestore rules में historyItems write जाँचें।'); }
     }
 
     function listenTrustedEditors() {
