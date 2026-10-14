@@ -1006,7 +1006,7 @@
     // The bell remains stationary; animation is reserved for a newly arriving notice.
     if (bell) bell.classList.remove('animate-bounce');
     renderNotificationCards(list, items.slice(0, 30));
-    renderNotificationCards(popupList, items.slice(0, 5));
+    renderNotificationCards(popupList, unseen.length ? unseen.slice(0, 5) : items.slice(0, 5));
 
     // Show a popup for new items without marking them read until the user dismisses
     // the popup or opens the notification center.
@@ -1056,11 +1056,16 @@
 
   window.dismissNotificationPopup = function () {
     setVisible('notificationPopup', false);
-    const items = [
+    const allItems = [
       ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
       ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
-    ].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5);
-    markNotificationsRead(items);
+    ].sort((a, b) => notificationTime(b) - notificationTime(a));
+    const key = 'bishnoi_seen_notifications_v2_' + state.user.uid;
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
+    if (!Array.isArray(seen)) seen = [];
+    const unread = allItems.filter(item => !seen.includes(item._key));
+    markNotificationsRead((unread.length ? unread : allItems).slice(0, 5));
   };
 
   function initPersonalNotificationsForUser() {
