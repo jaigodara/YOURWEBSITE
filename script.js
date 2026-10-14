@@ -617,6 +617,29 @@
       notice.hidden = !locked;
       notice.classList.toggle('hidden', !locked);
       notice.innerHTML = locked ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(message)}</p>` : '';
+      Array.from(section.children).forEach(child => {
+        if (child === notice) return;
+        if (locked) {
+          if (!child.hasAttribute('data-maintenance-was-hidden')) {
+            child.setAttribute('data-maintenance-was-hidden', child.hidden ? 'yes' : 'no');
+          }
+          child.hidden = true;
+          child.classList.add('hidden');
+        } else if (child.hasAttribute('data-maintenance-was-hidden')) {
+          const wasHidden = child.getAttribute('data-maintenance-was-hidden') === 'yes';
+          child.hidden = wasHidden;
+          child.classList.toggle('hidden', wasHidden);
+          child.removeAttribute('data-maintenance-was-hidden');
+        }
+      });
+    });
+    const globalOverlay = byId('globalMaintenanceOverlay');
+    if (globalOverlay) {
+      const blockWebsite = mode === 'web_only' || mode === 'both';
+      globalOverlay.hidden = !blockWebsite;
+      globalOverlay.classList.toggle('hidden', !blockWebsite);
+      setText('globalMaintenanceMessage', message);
+    }
     });
   }
 
