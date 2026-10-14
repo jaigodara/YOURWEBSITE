@@ -2111,14 +2111,20 @@ Ans: B"></textarea>
 
       try {
         let fileUrl = '';
+        let filePath = '';
         let fileName = '';
         let fileType = '';
         if (file) {
           if (!firebase.storage) throw new Error('Firebase Storage SDK उपलब्ध नहीं है।');
           const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-100) || 'attachment';
-          const storagePath = 'notificationUploads/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
+          const storagePath = recipientUid
+            ? 'notificationUploads/private/' + recipientUid + '/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName
+            : 'notificationUploads/broadcast/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
+          filePath = storagePath;
           const upload = await firebase.storage().ref().child(storagePath).put(file, { contentType: file.type });
-          fileUrl = await upload.ref.getDownloadURL();
+          // Private attachments keep only the Storage path in Firestore. The
+          // recipient must be authenticated and pass Storage rules to resolve it.
+          fileUrl = recipientUid ? '' : await upload.ref.getDownloadURL();
           fileName = file.name;
           fileType = file.type;
         }
@@ -2127,6 +2133,7 @@ Ans: B"></textarea>
           title,
           message,
           fileUrl: fileUrl || null,
+          filePath: filePath || null,
           fileName: fileName || null,
           fileType: fileType || null,
           active: true,
