@@ -66,7 +66,15 @@ Add this match block inside the existing Firestore service block:
 
     match /userNotifications/{uid}/items/{notificationId} {
       allow read: if signedIn() && request.auth.uid == uid;
-      allow create: if examOwner() && request.resource.data.recipientUid == uid;
+      allow create: if (
+        examOwner() && request.resource.data.recipientUid == uid
+      ) || (
+        signedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.recipientUid == uid &&
+        request.resource.data.type == 'quiz-result' &&
+        request.resource.data.active == true
+      );
       allow update, delete: if examOwner();
     }
 
