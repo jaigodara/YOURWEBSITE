@@ -892,6 +892,12 @@ Ans: B"></textarea>
           const ref = db.collection(target).doc();
           batch.set(ref, {
             ...question,
+            // Keep both the older Owner Studio fields and the exam engine's canonical schema.
+            question: question.q,
+            text: question.q,
+            options: question.opts,
+            correctAnswer: question.ans,
+            answerIndex: question.ans,
             examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: auth.currentUser?.uid || null
