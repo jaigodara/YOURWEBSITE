@@ -736,15 +736,15 @@
 function renderExamVisibility() {
   const c = state.examConfig || {};
 
+  // Use real container IDs. The daily quiz container includes both
+  // its introduction and active attempt UI; results have their own panel.
   const features = [
     ['enrollmentSection', c.enrollmentVisible !== false],
     ['mockHub', c.mockVisible !== false],
     ['mockExam1Card', c.mock1Visible !== false],
     ['mockExam2Card', c.mock2Visible !== false],
     ['mainExamSection', c.mainExamVisible !== false],
-    ['quizIntroCard', c.dailyQuizVisible !== false],
     ['dailyQuizSection', c.dailyQuizVisible !== false],
-    ['resultsDesk', c.resultsVisible !== false],
     ['myResultsPanel', c.resultsVisible !== false]
   ];
 
