@@ -966,32 +966,45 @@
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
     const items = [...personalItems, ...globalItems].sort((a, b) => notificationTime(b) - notificationTime(a));
-    const count = items.length;
-    const badge = byId('notificationUnreadCount');
-    if (badge) {
-      badge.textContent = count > 99 ? '99+' : String(count);
-      setVisible('notificationUnreadCount', count > 0);
-    }
-    if (bell) bell.classList.toggle('animate-bounce', count > 0);
-    renderNotificationCards(list, items.slice(0, 30));
-    renderNotificationCards(popupList, items.slice(0, 5));
-
-    // Remember which notifications have already triggered a popup on this
-    // browser, separated by account. New notifications trigger a fresh popup.
+    const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
-    const seenKey = 'bishnoi_seen_notifications_v1_' + state.user.uid;
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
     if (!Array.isArray(seen)) seen = [];
     const unseen = items.filter(item => !seen.includes(item._key));
+    const badge = byId('notificationUnreadCount');
+    if (badge) {
+      badge.textContent = unseen.length > 99 ? '99+' : String(unseen.length);
+      setVisible('notificationUnreadCount', unseen.length > 0);
+    }
+    // The bell remains stationary; animation is reserved for a newly arriving notice.
+    if (bell) bell.classList.remove('animate-bounce');
+    renderNotificationCards(list, items.slice(0, 30));
+    renderNotificationCards(popupList, items.slice(0, 5));
+
+    // Show a popup for new items without marking them read until the user dismisses
+    // the popup or opens the notification center.
     if (unseen.length && popup && popup.classList.contains('hidden')) {
       setVisible('notificationPopup', true);
-      const nextSeen = [...new Set([...seen, ...items.map(item => item._key)])].slice(-500);
-      try { localStorage.setItem(seenKey, JSON.stringify(nextSeen)); } catch (_) {}
-      if (bell) {
-        bell.classList.add('animate-bounce');
-        window.setTimeout(() => bell.classList.remove('animate-bounce'), 2600);
+      if (bell && !bell.dataset.noticePulsePlayed) {
+        bell.dataset.noticePulsePlayed = '1';
+        bell.classList.add('notification-bell-arrival');
+        window.setTimeout(() => {
+          bell.classList.remove('notification-bell-arrival');
+          delete bell.dataset.noticePulsePlayed;
+        }, 700);
       }
     }
+  }
+
+  function markNotificationsRead(itemsToMark) {
+    if (!state.user) return;
+    const key = 'bishnoi_seen_notifications_v2_' + state.user.uid;
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
+    if (!Array.isArray(seen)) seen = [];
+    const merged = [...new Set([...seen, ...(itemsToMark || []).map(item => item._key).filter(Boolean)])].slice(-1000);
+    try { localStorage.setItem(key, JSON.stringify(merged)); } catch (_) {}
+    renderNotificationCenter();
   }
 
   window.toggleNotificationPanel = function (forceOpen) {
@@ -1005,10 +1018,22 @@
       ? forceOpen
       : section.hidden || section.classList.contains('hidden');
     setVisible('publicNotificationsSection', shouldOpen);
+    if (shouldOpen) {
+      const items = [
+        ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
+        ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
+      ];
+      markNotificationsRead(items);
+    }
   };
 
   window.dismissNotificationPopup = function () {
     setVisible('notificationPopup', false);
+    const items = [
+      ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
+      ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
+    ].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5);
+    markNotificationsRead(items);
   };
 
   function initPersonalNotificationsForUser() {
