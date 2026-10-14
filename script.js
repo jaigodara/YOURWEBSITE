@@ -18,30 +18,44 @@
 // Publish navigation immediately so existing HTML inline onclick handlers such
 // as BishnoiPortal.switchTab('home') never see an undefined namespace.
 (function exposeEarlyNavigation() {
-  const fallbackSwitchTab = function (id) {
+  window.switchTab = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
-    const target = raw.startsWith('tab-') ? raw : `tab-${raw}`;
-    const panels = document.querySelectorAll('[id^="tab-"]');
+    const aliases = { sahitya: 'library', pariksha: 'quiz' };
+    const key = aliases[raw] || raw;
+    const target = 'tab-' + key;
+    const panels = document.querySelectorAll('main [id^="tab-"]');
     let found = false;
     panels.forEach(panel => {
       const active = panel.id === target ||
-        (raw === 'sahitya' && panel.id === 'tab-library') ||
-        (raw === 'pariksha' && panel.id === 'tab-quiz');
+        (key === 'library' && panel.id === 'tab-sahitya') ||
+        (key === 'quiz' && panel.id === 'tab-pariksha');
       panel.hidden = !active;
       panel.classList.toggle('hidden', !active);
       panel.setAttribute('aria-hidden', String(!active));
       if (active) found = true;
     });
-    if (!found) console.warn('Navigation panel not found for tab:', id);
+    if (!found) {
+      console.warn('Navigation panel not found:', id, 'expected', target);
+      return false;
+    }
+    document.querySelectorAll('[id^="bnav-"]').forEach(button => {
+      const active = button.id === 'bnav-' + key ||
+        (key === 'library' && button.id === 'bnav-sahitya') ||
+        (key === 'quiz' && button.id === 'bnav-pariksha');
+      button.classList.toggle('bnav-active', active);
+      button.setAttribute('aria-current', active ? 'page' : 'false');
+    });
     if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+    return true;
   };
-  window.switchTab = window.switchTab || fallbackSwitchTab;
-  window.switchPortalTab = window.switchPortalTab || window.switchTab;
+  window.switchPortalTab = window.switchTab;
   window.BishnoiPortal = window.BishnoiPortal || {};
   window.BishnoiPortal.switchTab = window.switchTab;
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
   window.Bishnoi.switchTab = window.switchTab;
-})();
+  window.BishnoiApp = window.BishnoiApp || {};
+  window.BishnoiApp.switchTab = window.switchTab;
+})();;
 
 (() => {
   const CONFIG = Object.freeze({
