@@ -1096,6 +1096,21 @@ Ans: B"></textarea>
           const text = [d.name, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
           return !queryText || text.includes(queryText);
         });
+        const questionCollections = collectionName === 'mainExamSubmissions'
+          ? ['mainExamQuestions']
+          : collectionName === 'mockExamSubmissions'
+            ? [...new Set(filtered.map(d => d.mode === 'mock1' ? 'mockExam_1' : d.mode === 'mock2' ? 'mockExam_2' : '').filter(Boolean))]
+            : ['quiz'];
+        if (collectionName === 'mockExamSubmissions' && !questionCollections.length) questionCollections.push('mockExam_1', 'mockExam_2');
+        const questionLookup = {};
+        for (const questionCollection of questionCollections) {
+          try {
+            const questionSnap = await db.collection(questionCollection).get();
+            questionSnap.forEach(questionDoc => { questionLookup[questionDoc.id] = { id: questionDoc.id, ...questionDoc.data() }; });
+          } catch (questionError) {
+            console.warn('Question text could not be loaded from ' + questionCollection, questionError);
+          }
+        }
         list.innerHTML = '';
         if (!filtered.length) {
           list.innerHTML = '<div class="text-stone-400 text-xs p-3">इस खोज में कोई रिकॉर्ड नहीं मिला। Collection का नाम और Firestore permissions जाँचें।</div>';
@@ -1120,10 +1135,25 @@ Ans: B"></textarea>
           summary.textContent = 'उत्तर / सबमिशन विवरण देखें';
           const pre = document.createElement('pre');
           pre.className = 'mt-2 whitespace-pre-wrap break-words bg-white border rounded-lg p-2 max-h-40 overflow-auto';
+          const answers = d.answers || {};
+          const answerSheet = Object.entries(answers).map(([questionId, answer]) => {
+            const q = questionLookup[questionId] || {};
+            const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : [];
+            const correct = q.correctAnswer ?? q.answerIndex ?? q.ans;
+            const letter = index => Number.isInteger(Number(index)) && Number(index) >= 0 && Number(index) < 26 ? String.fromCharCode(65 + Number(index)) : String(index);
+            return {
+              question: q.question || q.text || q.q || ('Question ID: ' + questionId),
+              selectedAnswer: options[Number(answer)] ?? answer,
+              selectedOption: letter(answer),
+              correctAnswer: correct == null ? 'प्रश्न बैंक में उपलब्ध नहीं' : (options[Number(correct)] ?? correct),
+              correctOption: correct == null ? '—' : letter(correct),
+              isCorrect: correct == null ? null : String(answer) === String(correct)
+            };
+          });
           const safeDetails = {
             uid: d.uid || null, rollNumber: d.rollNumber || null,
             attempted: d.attempted ?? null, correct: d.correct ?? null,
-            answers: d.answers || null, answerDetails: d.answerDetails || null,
+            answerSheet,
             manualScore: d.manualScore ?? null, manualFeedback: d.manualFeedback || null
           };
           pre.textContent = JSON.stringify(safeDetails, null, 2);
