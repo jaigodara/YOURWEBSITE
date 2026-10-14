@@ -1006,7 +1006,7 @@
     // The bell remains stationary; animation is reserved for a newly arriving notice.
     if (bell) bell.classList.remove('animate-bounce');
     renderNotificationCards(list, items.slice(0, 30));
-    renderNotificationCards(popupList, unseen.length ? unseen.slice(0, 5) : items.slice(0, 5));
+    renderNotificationCards(popupList, unseen.length ? unseen.slice(0, 30) : items.slice(0, 5));
 
     // Show a popup for new items without marking them read until the user dismisses
     // the popup or opens the notification center.
@@ -1065,7 +1065,7 @@
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
     const unread = allItems.filter(item => !seen.includes(item._key));
-    markNotificationsRead((unread.length ? unread : allItems).slice(0, 5));
+    markNotificationsRead(unread.length ? unread : allItems.slice(0, 5));
   };
 
   function initPersonalNotificationsForUser() {
