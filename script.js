@@ -740,7 +740,8 @@
       // The actual daily quiz/leaderboard container in index.html is quizIntroCard.
       ['quizIntroCard', c.dailyQuizVisible !== false],
       ['dailyQuizSection', c.dailyQuizVisible !== false],
-      ['resultsDesk', c.resultsVisible !== false]
+      ['resultsDesk', c.resultsVisible !== false],
+      ['myResultsPanel', c.resultsVisible !== false]
     ];
 
     map.forEach(([id, visible]) => setVisible(id, visible));
@@ -758,6 +759,7 @@
       if (c.mockVisible === false || c.mock1Visible === false) updates.push('Mock Exam 1 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
       if (c.mockVisible === false || c.mock2Visible === false) updates.push('Mock Exam 2 के लिए नए प्रश्न और अपडेट तैयार किए जा रहे हैं।');
       if (c.mainExamVisible === false) updates.push('Main Exam की जानकारी जल्द प्रकाशित की जाएगी।');
+      if (c.resultsVisible === false) updates.push('परिणाम घोषणा अनुभाग में अपडेट जारी हैं।');
       notice.hidden = updates.length === 0;
       notice.classList.toggle('hidden', updates.length === 0);
       notice.innerHTML = updates.length ? '<strong>📢 परीक्षा अनुभाग अपडेट</strong><ul class="mt-2 list-disc pl-5 text-xs leading-relaxed">' + updates.map(escapeHtml).map(x => '<li>' + x + '</li>').join('') + '</ul>' : '';
