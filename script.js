@@ -1799,8 +1799,14 @@
     const row = byId('nameRow');
     const title = byId('authTitle');
     const toggle = byId('authToggleBtn');
+    const phoneRow = byId('registerPhoneRow');
     const register = !!row && row.classList.contains('hidden');
     if (row) row.classList.toggle('hidden', !register);
+    if (phoneRow) phoneRow.classList.toggle('hidden', !register);
+    const phoneInput = byId('registerPhone');
+    if (phoneInput) phoneInput.required = register;
+    const nameInput = byId('loginName');
+    if (nameInput) nameInput.required = register;
     if (title) title.textContent = register ? 'पंजीकरण (Sign Up)' : 'लॉगिन (Sign In)';
     if (toggle) toggle.textContent = register ? 'पहले से सदस्य हैं? लॉगिन करें' : 'नए सदस्य हैं? पंजीकरण करें';
   };
