@@ -2299,16 +2299,36 @@ Ans: B"></textarea>
         box.innerHTML = '';
         snapshot.forEach(doc => {
           const row = document.createElement('div');
-          row.className = 'flex items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200';
+          row.className = 'flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200';
+          const data = doc.data() || {};
+          const permissions = data.permissions || {};
+          const enabled = [
+            permissions.media ? 'मीडिया' : '',
+            permissions.quizDrafts ? 'क्विज़ Draft' : '',
+            permissions.examReview ? 'परीक्षा जाँच' : '',
+            permissions.notifications ? 'सूचनाएँ' : ''
+          ].filter(Boolean);
           const label = document.createElement('span');
-          label.className = 'font-bold text-forest break-all';
-          label.textContent = '✍️ Editor UID: ' + doc.id;
+          label.className = 'min-w-0 flex-1 font-bold text-forest break-all';
+          label.textContent = '✍️ UID: ' + doc.id + ' · अनुमति: ' + (enabled.join(', ') || 'केवल Overview/Drafts');
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'rounded-lg border border-emerald-300 bg-white px-2 py-1 text-[10px] font-bold text-emerald-900';
+          edit.textContent = 'अधिकार बदलें';
+          edit.addEventListener('click', () => {
+            document.getElementById('newEditorUidInput').value = doc.id;
+            document.getElementById('editorPermissionMedia').checked = permissions.media === true;
+            document.getElementById('editorPermissionQuizDrafts').checked = permissions.quizDrafts === true;
+            document.getElementById('editorPermissionExamReview').checked = permissions.examReview === true;
+            document.getElementById('editorPermissionNotifications').checked = permissions.notifications === true;
+            document.getElementById('newEditorUidInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
           const remove = document.createElement('button');
           remove.type = 'button';
           remove.className = 'text-red-600 font-bold hover:underline shrink-0';
           remove.textContent = 'हटाएं';
           remove.addEventListener('click', () => removeTrustedEditor(doc.id));
-          row.append(label, remove);
+          row.append(label, edit, remove);
           box.appendChild(row);
         });
       }, error => showToast('Editor सूची नहीं पढ़ी जा सकी: ' + error.message + ' — roles rules जाँचें।'));
