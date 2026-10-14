@@ -1230,300 +1230,211 @@
     ? { uid: state.user.uid, email: state.user.email || null }
     : null;
 
-})();
-```javascript
-/* =========================================================
-   PART 4 — WEBSITE COMPATIBILITY & RECOVERY PATCH
-   Place this AFTER Part 3 in script.js, or in a separate
-   JavaScript file loaded after Part 3.
-   ========================================================= */
 
-(function () {
-  'use strict';
+  // Compatibility API for the current index.html markup.
+  // Keep this bridge inside the main closure so it can use the
+  // portal's private state and Firebase auth/database objects.
+  window.BishnoiApp = window.BishnoiApp || {};
+  const app = window.BishnoiApp;
 
-  const portal = window.BishnoiPortal =
-    window.BishnoiPortal || {};
-
-  // -------------------------------------------------------
-  // 1. Safe element helpers
-  // -------------------------------------------------------
-
-  function getElement(id) {
-    return document.getElementById(id);
-  }
-
-  function showElement(id) {
-    const element = getElement(id);
-    if (element) element.style.display = '';
-    return element;
-  }
-
-  function hideElement(id) {
-    const element = getElement(id);
-    if (element) element.style.display = 'none';
-    return element;
-  }
-
-  function showNotice(message) {
-    if (typeof window.notify === 'function') {
-      window.notify(message, 'info');
-    } else {
-      console.info('[Bishnoi Portal]', message);
-    }
-  }
-
-  // -------------------------------------------------------
-  // 2. Navigation recovery
-  // -------------------------------------------------------
-
-  function findTabTarget(tabName) {
-    if (!tabName) return null;
-
-    const name = String(tabName).trim();
-    const candidates = [
-      name,
-      name + 'Tab',
-      name + '-tab',
-      name + '-section'
-    ];
-
-    for (const id of candidates) {
-      const element = getElement(id);
-      if (element) return element;
-    }
-
-    return null;
-  }
-
-  function fallbackSwitchTab(tabName) {
-    const target = findTabTarget(tabName);
-
-    if (!target) {
-      console.warn(
-        'Navigation target not found:',
-        tabName
-      );
-      return false;
-    }
-
-    const panels = document.querySelectorAll(
-      '[data-tab-panel], .tab-content, .tab-pane'
-    );
-
-    panels.forEach(function (panel) {
-      panel.style.display = 'none';
-      panel.classList.remove('active');
-    });
-
-    target.style.display = '';
-    target.classList.add('active');
-
-    document.querySelectorAll(
-      '[data-tab], [data-tab-target], .tab-button'
-    ).forEach(function (button) {
-      const buttonTarget =
-        button.getAttribute('data-tab') ||
-        button.getAttribute('data-tab-target');
-
-      button.classList.toggle(
-        'active',
-        buttonTarget === tabName
-      );
-    });
-
-    return true;
-  }
-
-  // Preserve the existing switchTab implementation when present.
-  if (typeof window.switchTab !== 'function') {
-    window.switchTab = fallbackSwitchTab;
-  }
-
-  portal.switchTab = function (tabName) {
-    try {
-      return window.switchTab(tabName);
-    } catch (error) {
-      console.error('Navigation error:', error);
-      return fallbackSwitchTab(tabName);
-    }
-  };
-
-  // Compatibility with HTML onclick attributes.
-  window.Bishnoi = window.Bishnoi || portal;
-  window.Bishnoi.switchTab = portal.switchTab;
-
-  // -------------------------------------------------------
-  // 3. Navigation button compatibility
-  // -------------------------------------------------------
-
-  function bindNavigationButtons() {
-    document.querySelectorAll(
-      '[data-tab], [data-tab-target]'
-    ).forEach(function (button) {
-      if (button.dataset.portalNavigationBound === 'true') {
-        return;
-      }
-
-      button.dataset.portalNavigationBound = 'true';
-
-      button.addEventListener('click', function (event) {
-        const tabName =
-          button.getAttribute('data-tab') ||
-          button.getAttribute('data-tab-target');
-
-        if (!tabName) return;
-
-        event.preventDefault();
-        portal.switchTab(tabName);
-      });
-    });
-  }
-
-  // -------------------------------------------------------
-  // 4. Audio recovery
-  // -------------------------------------------------------
-
-  function repairAudioPlayers() {
-    document.querySelectorAll('audio').forEach(function (audio) {
-      audio.addEventListener('error', function () {
-        console.warn(
-          'Audio could not be loaded:',
-          audio.currentSrc || audio.src
-        );
-      });
-
-      // Do not assign a made-up audio URL. Audio records should
-      // receive their real URL when uploaded through Owner Studio.
-      if (
-        audio.getAttribute('src') === 'bhajan1.mp3' ||
-        audio.getAttribute('src') === '/bhajan1.mp3'
-      ) {
-        audio.removeAttribute('src');
-        audio.load();
-      }
-    });
-
-    document.querySelectorAll(
-      'source[src="bhajan1.mp3"], source[src="/bhajan1.mp3"]'
-    ).forEach(function (source) {
-      source.removeAttribute('src');
-      const audio = source.closest('audio');
-      if (audio) audio.load();
-    });
-  }
-
-  // -------------------------------------------------------
-  // 5. Existing feature aliases
-  // -------------------------------------------------------
-
-  const aliases = {
-    startQuiz: 'startPortalExam',
-    logout: 'logoutPortalUser',
-    createPost: 'createCommunityPost',
-    treePledge: 'pledgeTree',
-    resetMalaCounter: 'resetMala'
-  };
-
-  Object.entries(aliases).forEach(function (entry) {
-    const aliasName = entry[0];
-    const originalName = entry[1];
-
-    if (
-      typeof window[aliasName] !== 'function' &&
-      typeof window[originalName] === 'function'
-    ) {
-      window[aliasName] = function () {
-        return window[originalName].apply(window, arguments);
-      };
-    }
-  });
-
-  // -------------------------------------------------------
-  // 6. Prevent optional missing-button errors
-  // -------------------------------------------------------
-
-  function bindSafeButton(id, handlerName) {
-    const button = getElement(id);
-    const handler = window[handlerName];
-
-    if (
-      !button ||
-      typeof handler !== 'function' ||
-      button.dataset.portalSafeBound === 'true'
-    ) {
+  app.switchTab = window.switchTab;
+  app.openProfileOrAuth = function () {
+    if (state.user) {
+      window.switchTab('profile');
+      const profile = byId('userProfileModal');
+      if (profile) profile.classList.remove('hidden');
       return;
     }
+    const modal = byId('authModal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      return;
+    }
+    window.promptUserLogin();
+  };
+  app.shareBannerWhatsApp = window.shareBannerWhatsApp || function () {
+    const message = (byId('dailyBannerText')?.textContent || 'विश्नोई समाज डिजिटल मंच').trim();
+    const url = 'https://wa.me/?text=' + encodeURIComponent(message);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  app.closeConfirmModal = function (confirmed) {
+    const modal = byId('customConfirmModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+    if (typeof window.onPortalConfirm === 'function') {
+      const callback = window.onPortalConfirm;
+      window.onPortalConfirm = null;
+      if (confirmed) callback();
+    }
+  };
+  app.cycleAudioSpeed = function () {
+    const audio = byId('audioElement');
+    if (!audio) return;
+    const speeds = [1, 1.25, 1.5, 1.75, 2, 0.75];
+    const current = speeds.indexOf(Number(audio.playbackRate));
+    audio.playbackRate = speeds[(current + 1) % speeds.length];
+    const label = byId('audioSpeedBtn');
+    if (label) label.textContent = audio.playbackRate + 'x';
+  };
+  app.seekAudio = function (seconds) {
+    const audio = byId('audioElement');
+    if (audio && Number.isFinite(audio.duration)) {
+      audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + Number(seconds || 0)));
+    }
+  };
+  app.toggleAudio = async function () {
+    const audio = byId('audioElement');
+    if (!audio || !audio.currentSrc && !audio.getAttribute('src')) {
+      notify('अभी कोई भजन उपलब्ध नहीं है। ओनर स्टूडियो से भजन जोड़ें।', 'info');
+      return;
+    }
+    try {
+      if (audio.paused) await audio.play();
+      else audio.pause();
+      const button = byId('audioPlayBtn');
+      if (button) button.textContent = audio.paused ? '▶' : 'Ⅱ';
+    } catch (error) {
+      console.warn('Audio playback failed:', error);
+      notify('भजन चल नहीं सका। कृपया उपलब्ध ऑडियो चुनें।', 'error');
+    }
+  };
+  app.handleAudioSeek = function (value) {
+    const audio = byId('audioElement');
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    const percentage = Math.max(0, Math.min(100, Number(value) || 0));
+    audio.currentTime = audio.duration * percentage / 100;
+  };
+  app.pledgeTree = window.pledgeTree;
+  app.filterNiyams = function (query) {
+    const term = String(query || '').trim().toLocaleLowerCase();
+    const container = byId('niyamsList') || byId('niyamList') || byId('niyamsContainer');
+    if (!container) return;
+    container.querySelectorAll('[data-niyam], article, li, .niyam-card').forEach(function (item) {
+      item.hidden = !!term && !item.textContent.toLocaleLowerCase().includes(term);
+    });
+  };
+  app.tapMalaBead = function () {
+    state.mala.count = Math.max(0, Number(state.mala.count || 0)) + 1;
+    saveMala();
+    renderMala();
+  };
+  app.resetMala = function () {
+    state.mala.count = 0;
+    saveMala();
+    renderMala();
+  };
+  app.switchHistorySubTab = function (name) {
+    const ids = ['full-history', 'kids-corner'];
+    ids.forEach(function (id) {
+      const panel = byId(id);
+      if (panel) panel.classList.toggle('hidden', id !== name);
+    });
+    const historyButton = byId('sub-history-btn');
+    const kidsButton = byId('sub-kids-btn');
+    if (historyButton) historyButton.classList.toggle('bg-forest', name === 'full-history');
+    if (kidsButton) kidsButton.classList.toggle('bg-forest', name === 'kids-corner');
+  };
+  app.closePdfViewer = function () {
+    const modal = byId('inbuiltPdfModal');
+    const frame = byId('pdfEmbedFrame');
+    if (frame) frame.src = 'about:blank';
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+  };
 
-    button.dataset.portalSafeBound = 'true';
-
-    button.addEventListener('click', function (event) {
-      try {
-        const result = handler.call(window, event);
-
-        if (result && typeof result.catch === 'function') {
-          result.catch(function (error) {
-            console.error(
-              'Button action failed:',
-              handlerName,
-              error
-            );
-            showNotice('This action could not be completed.');
-          });
-        }
-      } catch (error) {
-        console.error(
-          'Button action failed:',
-          handlerName,
-          error
-        );
-        showNotice('This action could not be completed.');
+  // The older HTML calls this namespace for its authentication modal.
+  window.BishnoiAuth = window.BishnoiAuth || {};
+  const authApi = window.BishnoiAuth;
+  authApi.openAuthModal = function () {
+    const modal = byId('authModal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    } else {
+      window.promptUserLogin();
+    }
+  };
+  authApi.closeAuthModal = function () {
+    const modal = byId('authModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+  };
+  authApi.openProfileOrAuth = app.openProfileOrAuth;
+  authApi.closeProfileModal = function () {
+    const modal = byId('userProfileModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+  };
+  authApi.handleAuthSubmit = async function (event) {
+    if (event) event.preventDefault();
+    const email = (byId('loginIdentifier')?.value || '').trim();
+    const password = byId('loginPass')?.value || '';
+    if (!state.auth) return notify('Authentication is unavailable.', 'error');
+    if (!email || !password) return notify('ईमेल और पासवर्ड दर्ज करें।', 'error');
+    try {
+      const register = !!byId('nameRow') && !byId('nameRow').classList.contains('hidden');
+      if (register) {
+        await state.auth.createUserWithEmailAndPassword(email, password);
+      } else {
+        await state.auth.signInWithEmailAndPassword(email, password);
       }
-    });
-  }
+      authApi.closeAuthModal();
+    } catch (error) {
+      console.error('Authentication failed:', error);
+      notify(authErrorMessage(error), 'error');
+    }
+  };
+  authApi.signInWithGoogle = async function () {
+    if (!state.auth || !window.firebase?.auth) {
+      return notify('Google login is unavailable.', 'error');
+    }
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await state.auth.signInWithPopup(provider);
+      authApi.closeAuthModal();
+    } catch (error) {
+      console.error('Google sign-in failed:', error);
+      notify(authErrorMessage(error), 'error');
+    }
+  };
+  authApi.toggleAuthMode = function () {
+    const row = byId('nameRow');
+    const title = byId('authTitle');
+    const toggle = byId('authToggleBtn');
+    const register = !!row && row.classList.contains('hidden');
+    if (row) row.classList.toggle('hidden', !register);
+    if (title) title.textContent = register ? 'पंजीकरण (Sign Up)' : 'लॉगिन (Sign In)';
+    if (toggle) toggle.textContent = register ? 'पहले से सदस्य हैं? लॉगिन करें' : 'नए सदस्य हैं? पंजीकरण करें';
+  };
+  authApi.saveProfile = async function () {
+    if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
+    const name = (byId('profEditName')?.value || '').trim();
+    const location = (byId('profEditLocation')?.value || '').trim();
+    try {
+      await state.db.collection('users').doc(state.user.uid).set({
+        displayName: name || state.profile?.displayName || '',
+        location: location,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      notify('प्रोफ़ाइल सहेजी गई।', 'success');
+    } catch (error) {
+      console.error('Profile save failed:', error);
+      notify('प्रोफ़ाइल सहेजी नहीं जा सकी।', 'error');
+    }
+  };
+  authApi.logout = window.logoutPortalUser;
 
-  function bindFeatureButtons() {
-    [
-      ['createPostBtn', 'createCommunityPost'],
-      ['pledgeTreeBtn', 'pledgeTree'],
-      ['resetMalaBtn', 'resetMala'],
-      ['logoutButton', 'logoutPortalUser'],
-      ['addAudioBtn', 'addAudioRecord'],
-      ['startQuizBtn', 'startQuiz'],
-      ['startMock1Btn', 'startMockExam1'],
-      ['startMock2Btn', 'startMockExam2'],
-      ['startMainExamBtn', 'startMainExam'],
-      ['nextQuestionBtn', 'nextExamQuestion'],
-      ['previousQuestionBtn', 'previousExamQuestion']
-    ].forEach(function (binding) {
-      bindSafeButton(binding[0], binding[1]);
-    });
-  }
-
-  // -------------------------------------------------------
-  // 7. Startup
-  // -------------------------------------------------------
-
-  function runCompatibilityPatch() {
-    bindNavigationButtons();
-    repairAudioPlayers();
-    bindFeatureButtons();
-
-    portal.version = portal.version || '1.0.1';
-
-    console.info(
-      'Bishnoi Portal Part 4 compatibility patch loaded.'
-    );
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener(
-      'DOMContentLoaded',
-      runCompatibilityPatch,
-      { once: true }
-    );
-  } else {
-    runCompatibilityPatch();
-  }
+  // Keep the public aliases available to inline HTML event handlers.
+  window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
+  window.Bishnoi.switchTab = window.switchTab;
 
 })();
-```
