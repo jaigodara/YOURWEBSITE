@@ -726,22 +726,28 @@
     if (kidsHost) kidsHost.innerHTML = kids.length ? kids.map(card).join('') : '<div class="rounded-2xl border border-dashed border-stone-300 p-5 text-center text-xs text-stone-500">बाल संस्कार की सामग्री जल्द यहाँ दिखाई जाएगी।</div>';
   }
 
-  function renderExamVisibility() {
-    const c = state.examConfig || {};
+function renderExamVisibility() {
+  const c = state.examConfig || {};
 
-    const map = [
-      ['enrollmentSection', c.enrollmentVisible !== false],
-      ['mockHub', c.mockVisible !== false],
-      ['mockExam1Card', c.mock1Visible !== false],
-      ['mockExam2Card', c.mock2Visible !== false],
-      ['mainExamSection', c.mainExamVisible !== false],
-      // The actual daily quiz/leaderboard container in index.html is quizIntroCard.
-      ['quizIntroCard', c.dailyQuizVisible !== false],
-      ['dailyQuizSection', c.dailyQuizVisible !== false],
-      ['resultsDesk', c.resultsVisible !== false],
-      ['myResultsPanel', c.resultsVisible !== false]
-    ];
+  // Feature visibility is separate from maintenance mode.
+  // Hiding an exam must not generate an automatic maintenance announcement.
+  const map = [
+    ['enrollmentSection', c.enrollmentVisible !== false],
+    ['mockHub', c.mockVisible !== false],
+    ['mockExam1Card', c.mock1Visible !== false],
+    ['mockExam2Card', c.mock2Visible !== false],
+    ['mainExamSection', c.mainExamVisible !== false],
+    ['quizIntroCard', c.dailyQuizVisible !== false],
+    ['dailyQuizSection', c.dailyQuizVisible !== false],
+    ['resultsDesk', c.resultsVisible !== false],
+    ['myResultsPanel', c.resultsVisible !== false]
+  ];
 
+  map.forEach(([id, visible]) => setVisible(id, visible));
+
+  // Keep countdowns independent of feature visibility announcements.
+  renderExamCountdowns();
+}
     map.forEach(([id, visible]) => setVisible(id, visible));
     const quizTab = byId('tab-quiz');
     if (quizTab) {
