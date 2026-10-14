@@ -1849,6 +1849,10 @@ function renderExamVisibility() {
         renderExamQuestion();
         setText('examResult', 'Owner ने पुनः प्रवेश की अनुमति दे दी है। जारी रखें।');
         notify('परीक्षा में पुनः प्रवेश की अनुमति मिल गई।', 'success');
+        updateExamSession('active', {
+          reentryGrantedAt: firebase.firestore.FieldValue.delete(),
+          reentryGrantedBy: firebase.firestore.FieldValue.delete()
+        });
       } else if (status === 'denied' && state.exam.kicked) {
         setText('examResult', 'Owner ने पुनः प्रवेश की अनुमति नहीं दी है। समय पूरा होने पर ही प्रयास जमा होगा।');
       }
@@ -2151,7 +2155,12 @@ function renderExamVisibility() {
       };
       persistActiveExam();
       attachExamSessionListener();
-      updateExamSession('active', { startedAt: serverTimestamp() });
+      updateExamSession('active', {
+        startedAt: serverTimestamp(),
+        reentryGrantedAt: firebase.firestore.FieldValue.delete(),
+        reentryGrantedBy: firebase.firestore.FieldValue.delete(),
+        lateEntryRequested: false
+      });
 
       ensureExamWorkspace(mode);
       setVisible('portalExamWorkspace', true);
