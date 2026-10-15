@@ -1332,6 +1332,9 @@ Ans: B"></textarea>
         }
         batch.set(questionRef, update, { merge: true });
         await batch.commit();
+        if (publish && target === 'quiz') {
+          await pushNotification('ALL', { title: 'दैनिक ज्ञान क्विज़ प्रकाशित', body: 'नई दैनिक ज्ञान क्विज़ उपलब्ध है। परीक्षा अनुभाग खोलें।', type: 'quiz-published', important: true, pinnedByOwner: true });
+        }
         showToast(publish ? 'प्रश्न प्रकाशित हो गया। मुख्य/मॉक परीक्षा की उत्तर-कुंजी निजी संग्रह में रखी गई है।' : 'प्रश्न वापस Draft में कर दिया गया।');
         listenQuizQuestions();
       } catch (error) {
@@ -1664,13 +1667,13 @@ Ans: B"></textarea>
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       if (uid === 'ALL' || !uid) {
-        const ref = db.collection('notifications').doc(data.id || undefined);
+        const ref = data.id ? db.collection('notifications').doc(data.id) : db.collection('notifications').doc();
         const allPayload = { ...payload, audience: 'all' };
         if (batch) batch.set(ref, allPayload);
         else await ref.set(allPayload);
         return ref;
       }
-      const ref = db.collection('userNotifications').doc(uid).collection('items').doc(data.id || undefined);
+      const ref = data.id ? db.collection('userNotifications').doc(uid).collection('items').doc(data.id) : db.collection('userNotifications').doc(uid).collection('items').doc();
       const personalPayload = { ...payload, recipientUid: uid, audience: 'private' };
       if (batch) batch.set(ref, personalPayload);
       else await ref.set(personalPayload);
@@ -1915,13 +1918,9 @@ Ans: B"></textarea>
         }
         for (const [title, message] of notices) {
           try {
-            await db.collection('notifications').add({
-              title, message, active: true, audience: 'all', type: 'exam-announcement',
-              createdBy: auth.currentUser?.uid || null,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            await pushNotification('ALL', { title, body: message, type: 'exam-announcement', important: true, pinnedByOwner: true });
           } catch (notificationError) {
-            console.warn('Exam settings saved but automatic notification failed:', notificationError);
+            console.warn('परीक्षा सेटिंग्स सहेजी गईं, पर सूचना नहीं भेजी गई:', notificationError);
           }
         }
         showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (notices.length ? notices.length + ' स्वचालित सूचना भेजी गईं।' : 'कोई नई सूचना आवश्यक नहीं थी।'));
@@ -2012,6 +2011,10 @@ Ans: B"></textarea>
           batch.delete(resultRef);
         }
         await batch.commit();
+        if (published && d.uid) {
+          try { await pushNotification(d.uid, { title: 'परीक्षा परिणाम प्रकाशित', body: 'आपका परिणाम प्रकाशित हो गया है। वेबसाइट के परीक्षा अनुभाग में देखें।', type: 'result-published', important: true, pinnedByOwner: true }); }
+          catch (noticeError) { console.warn('परिणाम सूचना नहीं भेजी गई:', noticeError); }
+        }
 
         d.manualScore = value;
         d.finalScore = published ? value : null;
