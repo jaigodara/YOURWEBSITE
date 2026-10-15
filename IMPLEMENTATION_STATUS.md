@@ -10,15 +10,15 @@ This file deliberately distinguishes implemented code from items that still need
 | A2 JAMBH-2026 counter / migrate legacy BIS rolls | Partly | Owner approval now allocates `JAMBH-2026-00001`-style five-digit rolls transactionally through `settings/rollCounter`, preserves valid existing rolls, and limits counter access to exam owners. Legacy migration is still not a separate paginated/confirmed tool; allocation scans existing enrollments and has not been emulator/live verified. |
 | A3 profile mobile/village and admit-card button | Partly | Not changed in this patch; profile schema needs a separate UI/data mapping pass. |
 | A4 resubmission regression | Done (test added) | Test asserts assigned roll and approval cannot be changed by a student. CI result is pending. |
-| B1-B6 notification schema, real-time combined feed, unread/pin/pagination, event notifications and composer | Partly | Existing public and personal listeners now avoid `orderBy(createdAt)` and query limits, which can hide documents or fail without an index; history is no longer cut off at 100 rendered cards, and important/pinned items sort first. The current composer still writes legacy `notifications` / nested `userNotifications/{uid}/items`; flat schema, `notificationReads/{uid_notificationId}`, event hooks, explicit “और दिखाएँ” paging and end-to-end tests remain incomplete. |
-| C1-C4 browser-generated admit card and release workflow | Partly | Existing print flow remains. Batch release, PDF generation with embedded Hindi-capable rendering, progress/failure summary and roll-number send flow are not implemented here. |
+| B1-B6 notification schema, real-time combined feed, unread/pin/pagination, event notifications and composer | Partly | Added `pushNotification` hooks for exam-start announcements, quiz publication, enrollment approval, result publication and admit-card release; student feed now has “और दिखाएँ” pagination. Existing legacy collections remain for compatibility. The new flat schema/read-marker migration and end-to-end live validation remain incomplete. |
+| C1-C4 browser-generated admit card and release workflow | Partly (CI pending) | Added exam-type selector, 400-record cursor pages with safe 200-student Firestore write batches, per-student release fields and pinned notifications, single-roll release, browser HTML-to-canvas/jsPDF Hindi PDF, and download buttons in notification, profile and enrollment status. Automated workflow/live UI verification is pending. |
 | D1-D4 mobile/password + Google linking and recovery | Not done | Requires auth UI, provider configuration and careful account-linking migration; not safe to implement as a hidden-email-only change without a complete account recovery design. |
 | E1-E5 readable Excel/CSV/PDF, filters, complete backup inventory, owner checks | Not done | Existing export functions remain. No claim is made that exports are fixed. |
 | F question bank pagination/search/duplicate/bulk controls | Not done | Existing question-bank UI remains. |
 | G manual review and answers field compatibility | Partly | Early submission rule is fixed and a rules regression test is added. Submission payloads, legacy answer mapping, review UI, deduplication and query pagination are not changed. |
 | H late student creation by mobile/email | Not done | Existing manual enrollment workflow remains. |
 | I1 private daily quiz answer key | Partly | Existing private `examAnswerKeys` rule remains; publishing-time migration of daily quiz keys and server-side grading are not implemented. A student-read denial test is added for the existing private path. |
-| I2 enrollment, early submit, notification marker, delete and answer-key rules tests | Partly | Emulator tests added for these cases; results have not yet run in this environment. Rules are proposed only and are not deployed. |
+| I2 enrollment, early submit, notification marker, delete, answer-key and admit-card release rules tests | Partly | Added a regression test that students cannot set their own `admitCardReleased` field. Latest branch workflow still needs to complete successfully. Rules are proposed only and are not deployed. |
 | I3 old audio/PDF records and playback loading/errors | Not done | Existing media behavior remains. |
 | I4 camera proctoring truthfulness | Done (label only) | Owner UI now says “कैमरा निगरानी: उपलब्ध नहीं” and disables the misleading toggle; no camera capture is claimed. |
 | I5 service-worker cleanup / no offline claim | Not changed | Existing cleanup is retained. No offline-support claim is made. |
@@ -26,6 +26,13 @@ This file deliberately distinguishes implemented code from items that still need
 | CHANGELOG | Done | Added `CHANGELOG.md` with changes and manual regression steps. |
 
 ## Latest incremental changes
+
+- Admit-card release is selectable by exam type and paginates through the full enrollment collection in 400-record cursor pages. Since each student requires two writes (enrollment release state + notification), writes are committed in groups of 200 students to stay under Firestore's 500-write batch limit.
+- The browser generates a Hindi admit-card PDF using html2canvas and jsPDF; notification, profile and enrollment surfaces expose download actions only when that student's release flag is set.
+- Added a single-student release action by roll number, preserving the existing PDF-upload option.
+- Added `pushNotification` calls for exam announcements/start scheduling, quiz publication, enrollment approval, result publication and admit-card release. Notification list now shows 20 items initially and offers “और दिखाएँ”.
+- These changes remain marked Partly until the latest workflow completes; no live-site test is claimed.
+
 
 - Owner roll allocation now uses `settings/rollCounter`, generates five digits, requires confirmed enrollment, and never replaces a valid existing roll. The old `counters/rollNumbers` path is no longer used by this allocator.
 - Camera toggle is disabled and clearly marked unavailable because the site does not implement real capture.
