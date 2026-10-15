@@ -55,4 +55,4 @@
 
 ### Verification status
 
-- Latest-head GitHub Actions is pending. Real-browser PDF rendering is not covered by the Firestore Emulator; no claim is made that it has been tested live.
+- GitHub Actions Quality checks run #28 passed on application-code commit `6bda28e`: syntax check, CSS build, lint, and 10/10 emulator tests passed. The status/changelog documentation commits came afterward without changing application code. Real-browser PDF rendering is not covered by the Firestore Emulator and remains unverified live.
