@@ -100,6 +100,15 @@ test("Firestore security rules regression suite", async (t) => {
       await assertFails(deleteDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
     });
 
+    await t.test("विद्यार्थी अपने खाते में परीक्षा शुरू सूचना लिख सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "exam-start-1"), {
+        recipientUid: STUDENT, title: "परीक्षा शुरू हुई", message: "मुख्य परीक्षा शुरू की गई।",
+        type: "exam-start", active: true, audience: "private", createdAt: serverTimestamp(),
+      }));
+    });
+
     await t.test("विद्यार्थी अपने notification read marker को लिख सकता है", async () => {
       await reset();
       const db = env.authenticatedContext(STUDENT).firestore();
