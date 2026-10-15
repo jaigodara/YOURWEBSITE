@@ -130,6 +130,8 @@
     initialized: false,
     publicNotificationsUnsubscribe: null,
     personalNotificationsUnsubscribe: null,
+    notificationReadsUnsubscribe: null,
+    notificationReadKeys: [],
     notifications: [],
     personalNotifications: []
   };
@@ -679,18 +681,19 @@
     );
 
     if (state.user) {
-      Object.entries(CONFIG.submissionCollections).forEach(([mode, collectionName]) => {
-        subscribe(
-          collection(collectionName).where('uid', '==', state.user.uid).limit(50),
-          snap => {
-            const others = state.myResults.filter(x => x.mode !== mode);
-            const rows = snap.docs.map(d => ({ id: d.id, mode, collectionName, ...d.data() }));
-            state.myResults = [...others, ...rows].sort((a,b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt));
-            renderMyResults();
-          },
-          'My exam results'
-        );
-      });
+      // Student results come only from the dedicated publishedResults collection.
+      // Submission documents may contain answers and must not be the results API.
+      subscribe(
+        collection('publishedResults').where('uid', '==', state.user.uid).limit(100),
+        snap => {
+          state.myResults = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(row => row.status === 'published')
+            .sort((a, b) => timestampMillis(b.publishedAt) - timestampMillis(a.publishedAt));
+          renderMyResults();
+        },
+        'Published student results'
+      );
     }
   }
 
@@ -997,6 +1000,7 @@
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
     if (!Array.isArray(seen)) seen = [];
+    seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
     const unseen = items.filter(item => !seen.includes(item._key));
     const badge = byId('notificationUnreadCount');
     if (badge) {
@@ -1025,12 +1029,27 @@
 
   function markNotificationsRead(itemsToMark) {
     if (!state.user) return;
-    const key = 'bishnoi_seen_notifications_v2_' + state.user.uid;
+    const uid = state.user.uid;
+    const key = 'bishnoi_seen_notifications_v2_' + uid;
+    const keysToMark = (itemsToMark || []).map(item => item._key).filter(Boolean);
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
-    const merged = [...new Set([...seen, ...(itemsToMark || []).map(item => item._key).filter(Boolean)])].slice(-1000);
+    const merged = [...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])].slice(-1000);
     try { localStorage.setItem(key, JSON.stringify(merged)); } catch (_) {}
+    // Persist read state to Firestore so it follows the signed-in student across devices.
+    if (state.db && keysToMark.length) {
+      const batch = state.db.batch();
+      keysToMark.forEach(notificationKey => {
+        const documentId = notificationKey.replace(/[^A-Za-z0-9_-]/g, '_');
+        batch.set(state.db.collection('userNotificationReads').doc(uid).collection('items').doc(documentId), {
+          key: notificationKey,
+          readAt: serverTimestamp()
+        }, { merge: true });
+      });
+      batch.commit().catch(error => console.warn('Notification read state was saved locally but not synced:', error));
+    }
+    state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []), ...keysToMark])];
     renderNotificationCenter();
   }
 
@@ -1064,6 +1083,7 @@
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
+    seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
     const unread = allItems.filter(item => !seen.includes(item._key));
     markNotificationsRead(unread.length ? unread : allItems.slice(0, 5));
   };
@@ -1073,12 +1093,26 @@
       state.personalNotificationsUnsubscribe();
       state.personalNotificationsUnsubscribe = null;
     }
+    if (state.notificationReadsUnsubscribe) {
+      state.notificationReadsUnsubscribe();
+      state.notificationReadsUnsubscribe = null;
+    }
     state.personalNotifications = [];
+    state.notificationReadKeys = [];
     if (!state.user || !state.db) {
       renderNotificationCenter();
       return;
     }
     const uid = state.user.uid;
+    state.notificationReadsUnsubscribe = state.db
+      .collection('userNotificationReads').doc(uid).collection('items').limit(1000)
+      .onSnapshot(snapshot => {
+        if (state.user?.uid !== uid) return;
+        state.notificationReadKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
+        renderNotificationCenter();
+      }, error => {
+        console.warn('Cross-device notification read state could not load; local state remains available:', error);
+      });
     state.personalNotificationsUnsubscribe = state.db
       .collection('userNotifications').doc(uid).collection('items')
       .orderBy('createdAt', 'desc').limit(30)
@@ -1184,23 +1218,21 @@
     if (!host) return;
     const rows = state.myResults || [];
     if (!rows.length) {
-      host.innerHTML = '<p class="text-xs text-stone-500">आपके जमा किए गए परीक्षा प्रयास यहाँ दिखाई देंगे।</p>';
+      host.innerHTML = '<p class="text-xs text-stone-500">आपके लिए परिणाम प्रकाशित होने पर वे यहाँ दिखाई देंगे। जाँच के दौरान अंक इस सूची में उपलब्ध नहीं होंगे।</p>';
       return;
     }
     const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'Mock Exam 1', mock2: 'Mock Exam 2', main: 'Main Exam' };
     host.innerHTML = rows.map(row => {
-      const published = row.resultPublished === true || row.manualReviewStatus === 'published' || (row.mode === 'quiz' && row.resultPublished !== false);
-      const held = row.manualReviewStatus === 'held';
-      const cancelled = row.manualReviewStatus === 'cancelled';
-      const score = row.finalScore ?? row.manualScore ?? row.score;
-      const scoreVisible = published && (row.mode === 'quiz' || state.resultsIdentityVerified === true);
-      const status = published
-        ? (scoreVisible ? 'परिणाम घोषित' : 'परिणाम घोषित · पहचान जाँचें')
-        : held ? 'जाँच के लिए रोका गया' : cancelled ? 'परिणाम रद्द' : 'जाँच जारी है';
+      const score = row.score;
+      const scoreVisible = row.mode === 'quiz' || state.resultsIdentityVerified === true;
       const scoreText = scoreVisible
-        ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? row.totalQuestions ?? '—')
-        : published ? 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।' : 'अंतिम अंक परिणाम घोषित होने पर दिखेंगे।';
-      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold ' + (published ? 'text-emerald-700' : 'text-amber-700') + '">' + status + '</span></div><p class="text-[11px] text-stone-600">' + scoreText + '</p><p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(row.submittedAt?.toDate ? row.submittedAt.toDate().toLocaleString('hi-IN') : '') + '</p></article>';
+        ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? '—')
+        : 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।';
+      const feedback = scoreVisible && row.feedback
+        ? '<p class="text-[11px] text-stone-600">टिप्पणी: ' + escapeHtml(row.feedback) + '</p>'
+        : '';
+      const publishedAt = row.publishedAt?.toDate ? row.publishedAt.toDate().toLocaleString('hi-IN') : '';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold text-emerald-700">परिणाम घोषित</span></div><p class="text-[11px] text-stone-600">' + scoreText + '</p>' + feedback + '<p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(publishedAt) + '</p></article>';
     }).join('');
   }
 
@@ -2364,19 +2396,35 @@ function renderExamVisibility() {
       totalQuestions: exam.questions.length,
       rollNumber: state.profile?.rollNumber || null,
       attempted,
-      // Scores are intentionally stored only for daily quizzes. Main/mock exam
-      // results stay unpublished until the owner completes manual verification.
-      ...(instantResult ? { correct, score: correct, finalScore: correct } : {}),
-      resultPublished: instantResult,
+      // Keep all attempts free of result/mark fields. The student-visible score,
+      // when available, is written to publishedResults in the same atomic batch.
       answers: { ...exam.answers },
       review: { ...exam.review },
       submittedAt: serverTimestamp(),
-      automatic,
-      manualReviewStatus: instantResult ? 'published' : 'pending'
+      automatic
     };
 
     try {
-      await collection(CONFIG.submissionCollections[exam.mode]).add(result);
+      const submissionRef = collection(CONFIG.submissionCollections[exam.mode]).doc();
+      const writeBatch = state.db.batch();
+      writeBatch.set(submissionRef, result);
+      if (instantResult) {
+        writeBatch.set(collection('publishedResults').doc('quizAttempts_' + submissionRef.id), {
+          uid: state.user.uid,
+          sourceCollection: CONFIG.submissionCollections[exam.mode],
+          sourceSubmissionId: submissionRef.id,
+          mode: exam.mode,
+          name: result.name,
+          rollNumber: result.rollNumber,
+          score: correct,
+          total: exam.questions.length,
+          status: 'published',
+          feedback: '',
+          publishedAt: serverTimestamp(),
+          publishedBy: 'system'
+        });
+      }
+      await writeBatch.commit();
       exam.submitting = false;
       exam.submitted = true;
       exam.active = false;
