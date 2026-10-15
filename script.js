@@ -679,18 +679,19 @@
     );
 
     if (state.user) {
-      Object.entries(CONFIG.submissionCollections).forEach(([mode, collectionName]) => {
-        subscribe(
-          collection(collectionName).where('uid', '==', state.user.uid).limit(50),
-          snap => {
-            const others = state.myResults.filter(x => x.mode !== mode);
-            const rows = snap.docs.map(d => ({ id: d.id, mode, collectionName, ...d.data() }));
-            state.myResults = [...others, ...rows].sort((a,b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt));
-            renderMyResults();
-          },
-          'My exam results'
-        );
-      });
+      // Student results come only from the dedicated publishedResults collection.
+      // Submission documents may contain answers and must not be the results API.
+      subscribe(
+        collection('publishedResults').where('uid', '==', state.user.uid).limit(100),
+        snap => {
+          state.myResults = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(row => row.status === 'published')
+            .sort((a, b) => timestampMillis(b.publishedAt) - timestampMillis(a.publishedAt));
+          renderMyResults();
+        },
+        'Published student results'
+      );
     }
   }
 
@@ -1184,23 +1185,21 @@
     if (!host) return;
     const rows = state.myResults || [];
     if (!rows.length) {
-      host.innerHTML = '<p class="text-xs text-stone-500">आपके जमा किए गए परीक्षा प्रयास यहाँ दिखाई देंगे।</p>';
+      host.innerHTML = '<p class="text-xs text-stone-500">आपके लिए परिणाम प्रकाशित होने पर वे यहाँ दिखाई देंगे। जाँच के दौरान अंक इस सूची में उपलब्ध नहीं होंगे।</p>';
       return;
     }
     const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'Mock Exam 1', mock2: 'Mock Exam 2', main: 'Main Exam' };
     host.innerHTML = rows.map(row => {
-      const published = row.resultPublished === true || row.manualReviewStatus === 'published' || (row.mode === 'quiz' && row.resultPublished !== false);
-      const held = row.manualReviewStatus === 'held';
-      const cancelled = row.manualReviewStatus === 'cancelled';
-      const score = row.finalScore ?? row.manualScore ?? row.score;
-      const scoreVisible = published && (row.mode === 'quiz' || state.resultsIdentityVerified === true);
-      const status = published
-        ? (scoreVisible ? 'परिणाम घोषित' : 'परिणाम घोषित · पहचान जाँचें')
-        : held ? 'जाँच के लिए रोका गया' : cancelled ? 'परिणाम रद्द' : 'जाँच जारी है';
+      const score = row.score;
+      const scoreVisible = row.mode === 'quiz' || state.resultsIdentityVerified === true;
       const scoreText = scoreVisible
-        ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? row.totalQuestions ?? '—')
-        : published ? 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।' : 'अंतिम अंक परिणाम घोषित होने पर दिखेंगे।';
-      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold ' + (published ? 'text-emerald-700' : 'text-amber-700') + '">' + status + '</span></div><p class="text-[11px] text-stone-600">' + scoreText + '</p><p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(row.submittedAt?.toDate ? row.submittedAt.toDate().toLocaleString('hi-IN') : '') + '</p></article>';
+        ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? '—')
+        : 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।';
+      const feedback = scoreVisible && row.feedback
+        ? '<p class="text-[11px] text-stone-600">टिप्पणी: ' + escapeHtml(row.feedback) + '</p>'
+        : '';
+      const publishedAt = row.publishedAt?.toDate ? row.publishedAt.toDate().toLocaleString('hi-IN') : '';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold text-emerald-700">परिणाम घोषित</span></div><p class="text-[11px] text-stone-600">' + scoreText + '</p>' + feedback + '<p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(publishedAt) + '</p></article>';
     }).join('');
   }
 
