@@ -505,7 +505,7 @@ Ans: B"></textarea>
         <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">📎 किसी एक विद्यार्थी को Admit Card PDF भेजें</h4>
-          <p class="text-[11px] text-stone-600">यह PDF केवल दिए गए UID वाले विद्यार्थी के निजी Notification Centre में भेजी जाएगी। PDF अधिकतम 10 MB; Firebase Storage/Firestore rules अनुमति देना आवश्यक है।</p>
+          <p class="text-[11px] text-stone-600">यह PDF रोल नंबर से विद्यार्थी खोजकर उसके निजी Notification Centre में भेजी जाएगी। PDF अधिकतम 10 MB; Firebase Storage/Firestore rules अनुमति देना आवश्यक है।</p>
           <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे BIS-…)">
           <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
           <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">⬆️ निजी Notification में Admit Card PDF अपलोड करें</button>
@@ -516,7 +516,7 @@ Ans: B"></textarea>
         <div class="mt-4 border-t border-stone-200 pt-4 space-y-3">
           <h4 class="font-bold text-sm text-forest">➕ बंद पंजीकरण के बाद विद्यार्थी जोड़ें</h4>
           <p class="text-[11px] text-stone-500">यह सुविधा मौजूदा Firebase खाते के UID के लिए है; यह नया लॉगिन खाता नहीं बनाती।</p>
-          <input id="ownerManualStudentUid" maxlength="128" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="विद्यार्थी का पंजीकृत मोबाइल नंबर">
+          <input id="ownerManualStudentUid" maxlength="128" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="विद्यार्थी का पंजीकृत मोबाइल नंबर (खाता खोजने के लिए)">
           <input id="ownerManualStudentName" maxlength="100" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="विद्यार्थी का पूरा नाम">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input id="ownerManualStudentDob" type="date" class="w-full rounded-xl border border-stone-300 p-3 text-sm" aria-label="विद्यार्थी जन्म तिथि">
@@ -1475,18 +1475,29 @@ Ans: B"></textarea>
         if (status) status.textContent = 'यह कार्य केवल Owner कर सकता है।';
         return;
       }
-      const uid = (document.getElementById('ownerManualStudentUid')?.value || '').trim();
+      const accountPhone = (document.getElementById('ownerManualStudentUid')?.value || '').trim().replace(/[^0-9+]/g, '');
       const fullName = (document.getElementById('ownerManualStudentName')?.value || '').trim();
       const dateOfBirth = (document.getElementById('ownerManualStudentDob')?.value || '').trim();
       const phone = (document.getElementById('ownerManualStudentPhone')?.value || '').trim();
       const examName = (document.getElementById('ownerManualStudentExam')?.value || 'मुख्य परीक्षा').trim();
       const enteredRoll = (document.getElementById('ownerManualStudentRoll')?.value || '').trim();
-      if (!/^[A-Za-z0-9_-]{10,128}$/.test(uid) || fullName.length < 2 || !dateOfBirth) {
-        if (status) status.textContent = 'सही Firebase UID, पूरा नाम और जन्म तिथि भरें।';
+      if (accountPhone.replace(/\D/g, '').length < 10 || fullName.length < 2 || !dateOfBirth) {
+        if (status) status.textContent = 'खाते से जुड़ा सही मोबाइल नंबर, पूरा नाम और जन्म तिथि भरें।';
         return;
       }
       try {
-        if (status) status.textContent = 'विद्यार्थी रिकॉर्ड सहेजा जा रहा है…';
+        if (status) status.textContent = 'मोबाइल नंबर से विद्यार्थी का खाता खोजा जा रहा है…';
+        let accountSnap = await db.collection('users').where('phone', '==', accountPhone).limit(2).get();
+        if (accountSnap.empty) accountSnap = await db.collection('users').where('phoneNumber', '==', accountPhone).limit(2).get();
+        if (accountSnap.empty) {
+          if (status) status.textContent = 'इस मोबाइल नंबर से कोई खाता नहीं मिला। पहले विद्यार्थी से वेबसाइट पर लॉगिन/पंजीकरण करवाएँ और प्रोफ़ाइल में वही नंबर सहेजें।';
+          return;
+        }
+        if (accountSnap.size !== 1) {
+          if (status) status.textContent = 'इस मोबाइल नंबर से एक से अधिक खाते मिले। सुरक्षा के लिए नामांकन रोक दिया गया; Owner से खाते की जाँच करें।';
+          return;
+        }
+        const uid = accountSnap.docs[0].id;
         const ref = db.collection('examEnrolledStudents').doc(uid);
         const existing = await ref.get();
         const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -1647,10 +1658,17 @@ Ans: B"></textarea>
 
     async function releaseAdmitCards() {
       if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ करने का अधिकार केवल Owner को है।');
-      if (!confirm('क्या आप सभी पुष्टि किए हुए विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? उन्हें निजी सूचना भेजी जाएगी।')) return;
+      if (!confirm('क्या आप सभी लिंक किए हुए नामांकित विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? पुराने रिकॉर्ड भी शामिल होंगे। उन्हें निजी सूचना भेजी जाएगी।')) return;
       const status = document.getElementById('ownerAdmitReleaseStatus');
       try {
-        const studentsSnap = await db.collection('examEnrolledStudents').where('verificationStatus', '==', 'confirmed').limit(450).get();
+        // Do not filter solely on verificationStatus == 'confirmed': older valid enrollments
+        // may use pending/approved/verified or omit the field. Include linked accounts only.
+        const studentsSnap = await db.collection('examEnrolledStudents').limit(5000).get();
+        const eligibleStudents = studentsSnap.docs.filter(doc => {
+          const student = doc.data() || {};
+          const uid = student.uid || doc.id;
+          return !!uid && uid.length >= 5 && !!(student.rollNumber || student.phone || student.fullName || student.name);
+        });
         const configRef = db.collection('examConfig').doc('current');
         const configSnap = await configRef.get();
         const configData = configSnap.exists ? configSnap.data() || {} : {};
@@ -1658,10 +1676,11 @@ Ans: B"></textarea>
         const batch = db.batch();
         batch.set(configRef, settings, { merge: true });
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
-        studentsSnap.docs.forEach(studentDoc => {
+        eligibleStudents.forEach(studentDoc => {
           const student = studentDoc.data() || {};
           const uid = student.uid || studentDoc.id;
-          const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc();
+          const notificationKey = 'admit-card-' + String(title + '-' + (settings.admitCardDate || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+          const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc(notificationKey);
           batch.set(notificationRef, {
             title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
             message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
@@ -1676,8 +1695,8 @@ Ans: B"></textarea>
         });
         await batch.commit();
         window.ownerAdmitCardSettings = { ...configData, ...settings };
-        if (status) status.textContent = 'रिलीज़ सफल: ' + studentsSnap.size + ' पुष्टि किए विद्यार्थियों को निजी सूचना भेजी गई।';
-        showToast(studentsSnap.size + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
+        if (status) status.textContent = 'रिलीज़ सफल: ' + eligibleStudents.length + ' लिंक किए नामांकित विद्यार्थियों को सूचना भेजी गई।' + (studentsSnap.size >= 5000 ? ' · 5,000 रिकॉर्ड की सीमा पहुँची—अगले बैच की जाँच करें।' : '');
+        showToast(eligibleStudents.length + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
       } catch (error) {
         if (status) status.textContent = 'रिलीज़ नहीं हो सका: ' + error.message + ' — userNotifications rules जाँचें।';
         showToast('प्रवेश-पत्र रिलीज़ असफल: ' + error.message);
