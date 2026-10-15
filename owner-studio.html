@@ -2302,9 +2302,9 @@ Ans: B"></textarea>
             summary.appendChild(tile);
           });
         }
-        renderOwnerDashboardRows('ownerEnrolledStudentsList', enrolled.slice(0,100), row =>
+        renderOwnerDashboardRows('ownerEnrolledStudentsList', enrolled.slice(0,10), row =>
           (row.fullName || row.name || row.displayName || 'विद्यार्थी') + ' · रोल: ' + (row.rollNumber || ('BIS-' + (row.uid || row.id))) + ' · स्थिति: ' + (row.verificationStatus || 'pending'), 'अभी नामांकन रिकॉर्ड नहीं मिले।');
-        renderOwnerDashboardRows('ownerRecentLoginList', recent.slice(0,100), row =>
+        renderOwnerDashboardRows('ownerRecentLoginList', recent.slice(0,10), row =>
           (row.displayName || row.name || row.email || row.uid || row.id) + ' · ' + (row.email || 'ईमेल नहीं') + ' · ' +
           (row.presenceStatus === 'online' && ownerDashboardMillis(row.lastSeenAt) >= onlineCutoff ? 'हाल में ऑनलाइन' : 'अंतिम गतिविधि: ' +
           (ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt) ? new Date(ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt)).toLocaleString('hi-IN') : 'समय उपलब्ध नहीं')), 'users collection में खाते नहीं मिले।');
@@ -2315,10 +2315,10 @@ Ans: B"></textarea>
           .filter(row => mode === 'mock' ? ['mock1', 'mock2'].includes(row.mode) : row.mode === mode)
           .sort((a,b) => ownerDashboardMillis(b.publishedAt) - ownerDashboardMillis(a.publishedAt))
           .slice(0,100);
-        renderOwnerDashboardRows('ownerQuizResultsList', byMode('quiz'), resultLine, 'अभी कोई क्विज़ परिणाम प्रकाशित नहीं हुआ।');
-        renderOwnerDashboardRows('ownerMockResultsList', byMode('mock'), resultLine, 'अभी कोई मॉक परिणाम प्रकाशित नहीं हुआ।');
-        renderOwnerDashboardRows('ownerMainResultsList', byMode('main'), resultLine, 'अभी कोई मुख्य परीक्षा परिणाम प्रकाशित नहीं हुआ।');
-        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 100 रिकॉर्ड दिखाए गए हैं।' + (errors.length ? ' · जिन collections का access नहीं मिला: ' + errors.join(' | ') : '');
+        renderOwnerDashboardRows('ownerQuizResultsList', byMode('quiz').slice(0,10), resultLine, 'अभी कोई क्विज़ परिणाम प्रकाशित नहीं हुआ।');
+        renderOwnerDashboardRows('ownerMockResultsList', byMode('mock').slice(0,10), resultLine, 'अभी कोई मॉक परिणाम प्रकाशित नहीं हुआ।');
+        renderOwnerDashboardRows('ownerMainResultsList', byMode('main').slice(0,10), resultLine, 'अभी कोई मुख्य परीक्षा परिणाम प्रकाशित नहीं हुआ।');
+        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 10 रिकॉर्ड दिखते हैं; अभी हर संग्रह से अधिकतम 300 रिकॉर्ड गिने गए हैं।' + (errors.length ? ' · Firebase अनुमति बाकी: ' + errors.join(' | ') + ' · publishedResults/reviews rules ठीक किए बिना परिणाम-जाँच उपलब्ध नहीं होगी।' : '');
       } catch (error) {
         if (status) status.textContent = 'रिपोर्ट लोड नहीं हुई: ' + error.message + ' · Firestore rules और collection access जाँचें।';
       }
