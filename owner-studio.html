@@ -1796,23 +1796,59 @@ Ans: B"></textarea>
       const saveButton = document.getElementById('currentReviewSave');
       if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'सहेजा जा रहा है…'; }
       try {
-        await db.collection(examReviewCollection).doc(d.id).set({
+        // Never write marks/review metadata back into the student-readable submission.
+        // Keep the private review and the student-visible published result separate.
+        const reviewerUid = auth.currentUser?.uid || null;
+        const resultId = examReviewCollection + '_' + d.id;
+        const reviewRef = db.collection('reviews').doc(resultId);
+        const resultRef = db.collection('publishedResults').doc(resultId);
+        const batch = db.batch();
+        batch.set(reviewRef, {
+          uid: d.uid || null,
+          submissionId: d.id,
+          sourceCollection: examReviewCollection,
+          mode: d.mode || (examReviewCollection === 'quizAttempts' ? 'quiz' : examReviewCollection === 'mainExamSubmissions' ? 'main' : 'mock'),
+          name: d.name || d.fullName || null,
+          rollNumber: d.rollNumber || null,
           manualScore: value,
-          finalScore: published ? value : null,
-          resultPublished: published,
-          manualFeedback: feedback.value.trim(),
-          manualReviewStatus: status,
-          manualReviewedBy: auth.currentUser?.uid || null,
-          manualReviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+          total,
+          feedback: feedback.value.trim(),
+          status,
+          reviewedBy: reviewerUid,
+          reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+
+        if (published) {
+          batch.set(resultRef, {
+            uid: d.uid || null,
+            sourceCollection: examReviewCollection,
+            sourceSubmissionId: d.id,
+            mode: d.mode || (examReviewCollection === 'quizAttempts' ? 'quiz' : examReviewCollection === 'mainExamSubmissions' ? 'main' : 'mock'),
+            name: d.name || d.fullName || null,
+            rollNumber: d.rollNumber || null,
+            score: value,
+            total,
+            feedback: feedback.value.trim(),
+            status: 'published',
+            publishedBy: reviewerUid,
+            publishedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        } else {
+          // A held/cancelled review must not leave an older result visible.
+          batch.delete(resultRef);
+        }
+        await batch.commit();
+
         d.manualScore = value;
         d.finalScore = published ? value : null;
         d.resultPublished = published;
         d.manualFeedback = feedback.value.trim();
         d.manualReviewStatus = status;
+
         if (published && d.uid) {
           try {
-            await db.collection('userNotifications').doc(d.uid).collection('items').add({
+            // Deterministic ID prevents duplicate notices when a result is republished.
+            await db.collection('userNotifications').doc(d.uid).collection('items').doc(resultId + '_result_published').set({
               title: '📣 आपका परीक्षा परिणाम घोषित हो गया',
               message: (d.mode || examReviewCollection) + ' · अंतिम अंक: ' + value + '/' + total +
                 (feedback.value.trim() ? ' · टिप्पणी: ' + feedback.value.trim() : ''),
@@ -1822,20 +1858,20 @@ Ans: B"></textarea>
               recipientUid: d.uid,
               active: true,
               audience: 'private',
-              createdBy: auth.currentUser?.uid || null,
+              createdBy: reviewerUid,
               createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            }, { merge: true });
           } catch (notificationError) {
             console.warn('Result saved but private result notification failed:', notificationError);
           }
         }
         if (showMessage) {
-          showToast(published ? 'परिणाम प्रकाशित कर दिया गया।' :
-            status === 'held' ? 'जाँच सहेजी गई; परिणाम रोक दिया गया है।' : 'जाँच सहेजी गई; परिणाम रद्द कर दिया गया।');
+          showToast(published ? 'परिणाम अलग सुरक्षित संग्रह में प्रकाशित कर दिया गया।' :
+            status === 'held' ? 'निजी जाँच सहेजी गई; परिणाम प्रकाशित नहीं है।' : 'निजी जाँच सहेजी गई; प्रकाशित परिणाम हटाया गया।');
         }
         return true;
       } catch (e) {
-        showToast('जाँच सहेज नहीं सकी: ' + e.message);
+        showToast('जाँच सहेज नहीं सकी: ' + e.message + ' · reviews/publishedResults Firestore rules जाँचें।');
         return false;
       } finally {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = '✓ जाँच सहेजें'; }
