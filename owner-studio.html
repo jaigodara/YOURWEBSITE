@@ -2477,6 +2477,30 @@ Ans: B"></textarea>
       popup.document.close();
     }
 
+    async function assignRealEnrollmentRoll(enrollmentRef, existingRoll) {
+      const current = String(existingRoll || '').trim();
+      if (current && !current.startsWith('BIS-')) return current;
+      const counterRef = db.collection('counters').doc('rollNumbers');
+      const all = await db.collection('examEnrolledStudents').limit(5000).get();
+      const highestExisting = all.docs.reduce((max, snap) => {
+        const match = /^JAMBH-2026-(\d+)$/.exec(String(snap.data()?.rollNumber || ''));
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
+      return db.runTransaction(async tx => {
+        const counterSnap = await tx.get(counterRef);
+        const enrollmentSnap = await tx.get(enrollmentRef);
+        if (!enrollmentSnap.exists) throw new Error('नामांकन रिकॉर्ड नहीं मिला।');
+        const latestRoll = String(enrollmentSnap.data()?.rollNumber || '').trim();
+        if (latestRoll && !latestRoll.startsWith('BIS-')) return latestRoll;
+        const previous = counterSnap.exists ? Number(counterSnap.data()?.n || 0) : highestExisting;
+        const next = Math.max(previous, highestExisting) + 1;
+        const rollNumber = 'JAMBH-2026-' + String(next).padStart(4, '0');
+        tx.set(counterRef, { n: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        tx.set(enrollmentRef, { rollNumber, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        return rollNumber;
+      });
+    }
+
     async function loadRegistrationReviews() {
       if (!isPrimaryOwner()) return showToast('विद्यार्थी पंजीकरण रिकॉर्ड केवल Owner देख सकता है।');
       const list = document.getElementById('registrationReviewList');
@@ -2512,7 +2536,7 @@ Ans: B"></textarea>
           rollInput.maxLength = 40;
           rollInput.placeholder = 'रोल नंबर';
           rollInput.value = d.rollNumber || '';
-          if (collectionName === 'examEnrolledStudents') { rollInput.readOnly = true; rollInput.title = 'यह रोल नंबर UID से अपने-आप बनाया गया है'; rollInput.classList.add('bg-stone-100'); }
+          if (collectionName === 'examEnrolledStudents') { rollInput.readOnly = true; rollInput.title = 'पुष्टि करते समय BIS-UID placeholder की जगह JAMBH-2026 का क्रमिक रोल नंबर अपने-आप मिलेगा'; rollInput.classList.add('bg-stone-100'); }
           rollInput.className = 'p-2 rounded-lg border border-stone-300 text-xs w-28';
           const status = document.createElement('select');
           status.className = 'p-2 rounded-lg border border-stone-300 text-xs';
@@ -2536,13 +2560,17 @@ Ans: B"></textarea>
           save.addEventListener('click', async () => {
             save.disabled = true;
             try {
-              const rollNumber = collectionName === 'examEnrolledStudents' ? (d.rollNumber || ('BIS-' + (d.uid || d.id))) : rollInput.value.trim();
+              const recordRef = db.collection(collectionName).doc(d.id);
+              let rollNumber = collectionName === 'examEnrolledStudents' ? (d.rollNumber || '') : rollInput.value.trim();
+              if (status.value === 'confirmed' && collectionName === 'examEnrolledStudents') {
+                rollNumber = await assignRealEnrollmentRoll(recordRef, rollNumber);
+              }
               if (status.value === 'confirmed' && !rollNumber) {
                 showToast('पुष्टि से पहले विद्यार्थी का रोल नंबर दर्ज करें।');
                 save.disabled = false;
                 return;
               }
-              await db.collection(collectionName).doc(d.id).set({
+              await recordRef.set({
                 rollNumber,
                 verificationStatus: status.value,
                 verifiedBy: auth.currentUser?.uid || null,
