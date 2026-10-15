@@ -643,6 +643,33 @@ Ans: B"></textarea>
             <span>पंजीकृत सदस्य शीट (Excel .xlsx)</span> 📋
           </button>
         </div>
+        <div class="mt-3 border-t border-stone-200 pt-3 space-y-2">
+          <h4 class="text-xs font-bold text-forest">🗄️ चयनित संग्रह का JSON / CSV बैकअप</h4>
+          <p class="text-[11px] text-stone-500">केवल Owner उपयोग कर सकता है। प्रत्येक डाउनलोड में अधिकतम 1,000 दस्तावेज़ होंगे; उप-संग्रह और Firebase Storage फ़ाइलें इसमें शामिल नहीं हैं।</p>
+          <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+            <select id="backupCollectionSelect" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+              <option value="examEnrolledStudents">विद्यार्थी नामांकन</option>
+              <option value="users">उपयोगकर्ता प्रोफ़ाइल</option>
+              <option value="publishedResults">प्रकाशित परिणाम</option>
+              <option value="reviews">निजी समीक्षा रिकॉर्ड</option>
+              <option value="quizAttempts">क्विज़ प्रयास</option>
+              <option value="mockExamSubmissions">मॉक परीक्षा उत्तर-पत्र</option>
+              <option value="mainExamSubmissions">मुख्य परीक्षा उत्तर-पत्र</option>
+              <option value="notifications">सार्वजनिक सूचनाएँ</option>
+              <option value="draftQueue">Draft Queue</option>
+              <option value="posts">समुदाय पोस्ट</option>
+              <option value="roles">भूमिका रिकॉर्ड</option>
+              <option value="settings">सेटिंग्स</option>
+              <option value="quiz">क्विज़ प्रश्न बैंक</option>
+              <option value="mainExamQuestions">मुख्य परीक्षा प्रश्न</option>
+              <option value="mockExam_1">मॉक परीक्षा 1 प्रश्न</option>
+              <option value="mockExam_2">मॉक परीक्षा 2 प्रश्न</option>
+            </select>
+            <button type="button" onclick="exportCollectionBackup('json')" class="px-4 py-2.5 rounded-xl bg-forest text-white text-xs font-bold">JSON डाउनलोड</button>
+            <button type="button" onclick="exportCollectionBackup('csv')" class="px-4 py-2.5 rounded-xl bg-emerald-800 text-white text-xs font-bold">CSV डाउनलोड</button>
+          </div>
+          <p id="backupExportStatus" class="text-[11px] text-stone-500" aria-live="polite"></p>
+        </div>
       </div>
 
     </div>
@@ -2677,6 +2704,71 @@ Ans: B"></textarea>
         showToast('Editor role हटा दिया गया।');
       } catch (e) { showToast('Editor role नहीं हटाया गया: ' + e.message); }
     }
+
+    // Owner-only JSON/CSV backup for selected top-level collections.
+    async function exportCollectionBackup(format) {
+      const status = document.getElementById('backupExportStatus');
+      const select = document.getElementById('backupCollectionSelect');
+      if (!isPrimaryOwner()) {
+        if (status) status.textContent = 'बैकअप डाउनलोड केवल Owner कर सकता है।';
+        return showToast('बैकअप डाउनलोड केवल Owner कर सकता है।');
+      }
+      const allowed = new Set([
+        'examEnrolledStudents', 'users', 'publishedResults', 'reviews',
+        'quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions',
+        'notifications', 'draftQueue', 'posts', 'roles', 'settings',
+        'quiz', 'mainExamQuestions', 'mockExam_1', 'mockExam_2'
+      ]);
+      const collectionName = select?.value || '';
+      if (!allowed.has(collectionName) || !['json', 'csv'].includes(format)) {
+        if (status) status.textContent = 'अमान्य संग्रह या फ़ाइल प्रकार।';
+        return;
+      }
+      try {
+        if (status) status.textContent = collectionName + ' लोड हो रहा है…';
+        const snap = await db.collection(collectionName).limit(1000).get();
+        if (snap.empty) {
+          if (status) status.textContent = 'इस संग्रह में कोई रिकॉर्ड नहीं मिला।';
+          return showToast('इस संग्रह में कोई रिकॉर्ड नहीं मिला।');
+        }
+        const rows = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+        let content, mime, extension;
+        if (format === 'json') {
+          content = JSON.stringify(rows, (key, value) => {
+            if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
+            return value;
+          }, 2);
+          mime = 'application/json;charset=utf-8';
+          extension = 'json';
+        } else {
+          const keys = [...new Set(rows.flatMap(row => Object.keys(row)))];
+          const cell = value => {
+            if (value === null || value === undefined) return '';
+            if (value && typeof value.toDate === 'function') value = value.toDate().toISOString();
+            else if (typeof value === 'object') value = JSON.stringify(value);
+            return '"' + String(value).replace(/"/g, '""') + '"';
+          };
+          content = '\uFEFF' + [keys.map(cell).join(','), ...rows.map(row => keys.map(key => cell(row[key])).join(','))].join('\r\n');
+          mime = 'text/csv;charset=utf-8';
+          extension = 'csv';
+        }
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'bishnoism-' + collectionName + '-' + new Date().toISOString().slice(0, 10) + '.' + extension;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (status) status.textContent = rows.length + ' रिकॉर्ड डाउनलोड किए गए' + (snap.size === 1000 ? ' · सीमा 1,000 तक पहुँची; शेष रिकॉर्ड अलग बैच में डाउनलोड करें।' : '') + '।';
+      } catch (error) {
+        console.error('Collection backup export failed:', error);
+        if (status) status.textContent = 'डाउनलोड विफल: ' + (error.message || String(error));
+        showToast('बैकअप डाउनलोड नहीं हुआ: ' + (error.message || String(error)));
+      }
+    }
+    window.exportCollectionBackup = exportCollectionBackup;
 
     // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
     async function exportQuizResultsPdf() {
