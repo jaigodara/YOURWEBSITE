@@ -370,7 +370,7 @@ Ans: B"></textarea>
             <h4 class="font-bold text-xs text-forest">वर्तमान प्रश्न बैंक सूची:</h4>
             <button onclick="clearAllQuizQuestions()" class="text-xs text-red-600 font-bold hover:underline">सभी प्रश्न हटाएं</button>
           </div>
-          <div id="adminQuizList" class="space-y-1.5 text-xs max-h-48 overflow-y-auto custom-scroll"></div>
+          <label class="block text-xs text-stone-600">प्रश्न खोजें<input id="adminQuizSearch" type="search" oninput="filterAdminQuestionList()" placeholder="प्रश्न के शब्द लिखें…" class="mt-1 w-full rounded-lg border border-stone-300 p-2.5 text-xs"></label><p id="adminQuizListStatus" class="text-[11px] text-stone-500">प्रश्न सूची लोड हो रही है…</p><div id="adminQuizList" class="space-y-1.5 text-xs max-h-80 overflow-y-auto custom-scroll"></div>
         </div>
       </div>
 
@@ -403,7 +403,7 @@ Ans: B"></textarea>
             <option value="mockExamSubmissions">मॉक परीक्षा 1/2 — mockExamSubmissions</option>
             <option value="quizAttempts">दैनिक क्विज़ — quizAttempts</option>
           </select>
-          <input id="reviewSubmissionSearch" type="search" placeholder="नाम / UID / रोल नंबर खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+          <input id="reviewSubmissionSearch" type="search" placeholder="रोल नंबर / नाम / मोबाइल खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
           <button type="button" onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 मुख्य परीक्षा के उत्तर-पत्र लाएँ</button>
         </div>
         <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
@@ -471,7 +471,7 @@ Ans: B"></textarea>
             <option value="studentRegistrations">studentRegistrations</option>
             <option value="registrations">registrations</option>
           </select>
-          <input id="registrationSearch" type="search" placeholder="नाम / रोल नंबर / UID खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+          <input id="registrationSearch" type="search" placeholder="नाम / रोल नंबर / मोबाइल खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
           <button onclick="loadRegistrationReviews()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">रिकॉर्ड लाएँ</button>
         </div>
         <div id="registrationReviewList" class="space-y-2 max-h-72 overflow-y-auto custom-scroll">
@@ -505,8 +505,8 @@ Ans: B"></textarea>
         <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">📎 किसी एक विद्यार्थी को Admit Card PDF भेजें</h4>
-          <p class="text-[11px] text-stone-600">यह PDF केवल दिए गए UID वाले विद्यार्थी के निजी Notification Centre में भेजी जाएगी। PDF अधिकतम 10 MB; Firebase Storage/Firestore rules अनुमति देना आवश्यक है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का Firebase UID">
+          <p class="text-[11px] text-stone-600">यह PDF रोल नंबर से विद्यार्थी खोजकर उसके निजी Notification Centre में भेजी जाएगी। PDF अधिकतम 10 MB; Firebase Storage/Firestore rules अनुमति देना आवश्यक है।</p>
+          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे BIS-…)">
           <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
           <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">⬆️ निजी Notification में Admit Card PDF अपलोड करें</button>
           <p id="individualAdmitCardUploadStatus" class="text-[11px] text-stone-600" aria-live="polite"></p>
@@ -516,7 +516,7 @@ Ans: B"></textarea>
         <div class="mt-4 border-t border-stone-200 pt-4 space-y-3">
           <h4 class="font-bold text-sm text-forest">➕ बंद पंजीकरण के बाद विद्यार्थी जोड़ें</h4>
           <p class="text-[11px] text-stone-500">यह सुविधा मौजूदा Firebase खाते के UID के लिए है; यह नया लॉगिन खाता नहीं बनाती।</p>
-          <input id="ownerManualStudentUid" maxlength="128" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="विद्यार्थी Firebase UID (आवश्यक)">
+          <input id="ownerManualStudentUid" maxlength="128" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="विद्यार्थी का पंजीकृत मोबाइल नंबर (खाता खोजने के लिए)">
           <input id="ownerManualStudentName" maxlength="100" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="विद्यार्थी का पूरा नाम">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input id="ownerManualStudentDob" type="date" class="w-full rounded-xl border border-stone-300 p-3 text-sm" aria-label="विद्यार्थी जन्म तिथि">
@@ -643,33 +643,7 @@ Ans: B"></textarea>
             <span>पंजीकृत सदस्य शीट (Excel .xlsx)</span> 📋
           </button>
         </div>
-        <div class="mt-3 border-t border-stone-200 pt-3 space-y-2">
-          <h4 class="text-xs font-bold text-forest">🗄️ चयनित संग्रह का JSON / CSV बैकअप</h4>
-          <p class="text-[11px] text-stone-500">केवल Owner उपयोग कर सकता है। प्रत्येक डाउनलोड में अधिकतम 1,000 दस्तावेज़ होंगे; उप-संग्रह और Firebase Storage फ़ाइलें इसमें शामिल नहीं हैं।</p>
-          <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
-            <select id="backupCollectionSelect" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-              <option value="examEnrolledStudents">विद्यार्थी नामांकन</option>
-              <option value="users">उपयोगकर्ता प्रोफ़ाइल</option>
-              <option value="publishedResults">प्रकाशित परिणाम</option>
-              <option value="reviews">निजी समीक्षा रिकॉर्ड</option>
-              <option value="quizAttempts">क्विज़ प्रयास</option>
-              <option value="mockExamSubmissions">मॉक परीक्षा उत्तर-पत्र</option>
-              <option value="mainExamSubmissions">मुख्य परीक्षा उत्तर-पत्र</option>
-              <option value="notifications">सार्वजनिक सूचनाएँ</option>
-              <option value="draftQueue">Draft Queue</option>
-              <option value="posts">समुदाय पोस्ट</option>
-              <option value="roles">भूमिका रिकॉर्ड</option>
-              <option value="settings">सेटिंग्स</option>
-              <option value="quiz">क्विज़ प्रश्न बैंक</option>
-              <option value="mainExamQuestions">मुख्य परीक्षा प्रश्न</option>
-              <option value="mockExam_1">मॉक परीक्षा 1 प्रश्न</option>
-              <option value="mockExam_2">मॉक परीक्षा 2 प्रश्न</option>
-            </select>
-            <button type="button" onclick="exportCollectionBackup('json')" class="px-4 py-2.5 rounded-xl bg-forest text-white text-xs font-bold">JSON डाउनलोड</button>
-            <button type="button" onclick="exportCollectionBackup('csv')" class="px-4 py-2.5 rounded-xl bg-emerald-800 text-white text-xs font-bold">CSV डाउनलोड</button>
-          </div>
-          <p id="backupExportStatus" class="text-[11px] text-stone-500" aria-live="polite"></p>
-        </div>
+
       </div>
 
     </div>
@@ -1345,16 +1319,48 @@ Ans: B"></textarea>
     window.saveBulkQuestionDrafts = saveBulkQuestionDrafts;
     window.importBulkQuestions = importBulkQuestions;
 
+    let adminQuestionRows = [];
+    let adminQuestionVisibleLimit = 40;
+
+    function filterAdminQuestionList() {
+      const box = document.getElementById('adminQuizList');
+      const status = document.getElementById('adminQuizListStatus');
+      if (!box) return;
+      const query = (document.getElementById('adminQuizSearch')?.value || '').trim().toLowerCase();
+      const filtered = adminQuestionRows.filter(row => !query || String(row.data.question || row.data.text || row.data.q || '').toLowerCase().includes(query) || row.id.toLowerCase().includes(query));
+      box.querySelectorAll('[data-question-row]').forEach(node => {
+        const index = filtered.findIndex(row => row.id === node.dataset.questionRow);
+        node.hidden = index < 0 || (!query && index >= adminQuestionVisibleLimit);
+      });
+      let more = document.getElementById('adminQuestionLoadMore');
+      if (!more && box.parentElement) {
+        more = document.createElement('button');
+        more.id = 'adminQuestionLoadMore';
+        more.type = 'button';
+        more.className = 'mt-2 w-full rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-xs font-bold text-emerald-900';
+        more.textContent = 'अगले 40 प्रश्न दिखाएँ';
+        more.addEventListener('click', () => { adminQuestionVisibleLimit += 40; filterAdminQuestionList(); });
+        box.insertAdjacentElement('afterend', more);
+      }
+      if (more) {
+        more.hidden = !!query || filtered.length <= adminQuestionVisibleLimit;
+        more.textContent = 'अगले 40 प्रश्न दिखाएँ (' + Math.min(40, Math.max(0, filtered.length - adminQuestionVisibleLimit)) + ' और)';
+      }
+      if (status) status.textContent = (query ? filtered.length : Math.min(filtered.length, adminQuestionVisibleLimit)) + ' दिख रहे हैं · ' + filtered.length + ' मिले · सूची में ' + adminQuestionRows.length + ' तक रिकॉर्ड लोड हुए। खोजने के लिए शब्द लिखें।';
+    }
+
     function listenQuizQuestions() {
       if (window.__quizQuestionListener) window.__quizQuestionListener();
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
-      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').onSnapshot(snap => {
+      adminQuestionVisibleLimit = 40;
+      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').limit(1000).onSnapshot(snap => {
         const box = document.getElementById('adminQuizList');
         if (!box) return;
         box.innerHTML = '';
-        snap.forEach(doc => {
-          const d = doc.data() || {};
+        adminQuestionRows = snap.docs.map(doc => ({ id: doc.id, data: doc.data() || {} }));
+        adminQuestionRows.forEach(({id, data:d}) => {
           const row = document.createElement('div');
+          row.dataset.questionRow = id;
           row.className = 'flex flex-wrap items-center gap-2 p-2 rounded-xl bg-stone-50 border border-stone-200';
           const title = document.createElement('span');
           title.className = 'min-w-0 flex-1 text-xs';
@@ -1366,24 +1372,25 @@ Ans: B"></textarea>
           edit.type = 'button';
           edit.className = 'rounded-lg border px-2 py-1 text-[10px] font-bold';
           edit.textContent = '✏️ संपादित करें';
-          edit.addEventListener('click', () => editQuestionDoc(target, doc.id));
+          edit.addEventListener('click', () => editQuestionDoc(target, id));
           const publish = document.createElement('button');
           publish.type = 'button';
           publish.className = 'rounded-lg border px-2 py-1 text-[10px] font-bold ' + (d.published === true && d.status !== 'draft' ? 'border-amber-300 text-amber-800' : 'border-emerald-300 text-emerald-800');
           publish.textContent = d.published === true && d.status !== 'draft' ? 'Draft में वापस' : 'प्रकाशित करें';
-          publish.addEventListener('click', () => publishQuestionDoc(target, doc.id, !(d.published === true && d.status !== 'draft')));
+          publish.addEventListener('click', () => publishQuestionDoc(target, id, !(d.published === true && d.status !== 'draft')));
           const remove = document.createElement('button');
           remove.type = 'button';
           remove.className = 'rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-700';
           remove.textContent = 'हटाएँ';
-          remove.addEventListener('click', () => deleteDocItem(target, doc.id));
-          if (!isPrimaryOwner()) {
-            publish.classList.add('hidden');
-            remove.classList.add('hidden');
-          }
+          remove.addEventListener('click', () => deleteDocItem(target, id));
+          if (!isPrimaryOwner()) { publish.classList.add('hidden'); remove.classList.add('hidden'); }
           row.append(title, status, edit, publish, remove);
           box.appendChild(row);
         });
+        filterAdminQuestionList();
+      }, error => {
+        const status = document.getElementById('adminQuizListStatus');
+        if (status) status.textContent = 'प्रश्न सूची लोड नहीं हुई: ' + error.message;
       });
     }
 
@@ -1487,18 +1494,29 @@ Ans: B"></textarea>
         if (status) status.textContent = 'यह कार्य केवल Owner कर सकता है।';
         return;
       }
-      const uid = (document.getElementById('ownerManualStudentUid')?.value || '').trim();
+      const accountPhone = (document.getElementById('ownerManualStudentUid')?.value || '').trim().replace(/[^0-9+]/g, '');
       const fullName = (document.getElementById('ownerManualStudentName')?.value || '').trim();
       const dateOfBirth = (document.getElementById('ownerManualStudentDob')?.value || '').trim();
       const phone = (document.getElementById('ownerManualStudentPhone')?.value || '').trim();
       const examName = (document.getElementById('ownerManualStudentExam')?.value || 'मुख्य परीक्षा').trim();
       const enteredRoll = (document.getElementById('ownerManualStudentRoll')?.value || '').trim();
-      if (!/^[A-Za-z0-9_-]{10,128}$/.test(uid) || fullName.length < 2 || !dateOfBirth) {
-        if (status) status.textContent = 'सही Firebase UID, पूरा नाम और जन्म तिथि भरें।';
+      if (accountPhone.replace(/\D/g, '').length < 10 || fullName.length < 2 || !dateOfBirth) {
+        if (status) status.textContent = 'खाते से जुड़ा सही मोबाइल नंबर, पूरा नाम और जन्म तिथि भरें।';
         return;
       }
       try {
-        if (status) status.textContent = 'विद्यार्थी रिकॉर्ड सहेजा जा रहा है…';
+        if (status) status.textContent = 'मोबाइल नंबर से विद्यार्थी का खाता खोजा जा रहा है…';
+        let accountSnap = await db.collection('users').where('phone', '==', accountPhone).limit(2).get();
+        if (accountSnap.empty) accountSnap = await db.collection('users').where('phoneNumber', '==', accountPhone).limit(2).get();
+        if (accountSnap.empty) {
+          if (status) status.textContent = 'इस मोबाइल नंबर से कोई खाता नहीं मिला। पहले विद्यार्थी से वेबसाइट पर लॉगिन/पंजीकरण करवाएँ और प्रोफ़ाइल में वही नंबर सहेजें।';
+          return;
+        }
+        if (accountSnap.size !== 1) {
+          if (status) status.textContent = 'इस मोबाइल नंबर से एक से अधिक खाते मिले। सुरक्षा के लिए नामांकन रोक दिया गया; Owner से खाते की जाँच करें।';
+          return;
+        }
+        const uid = accountSnap.docs[0].id;
         const ref = db.collection('examEnrolledStudents').doc(uid);
         const existing = await ref.get();
         const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -1542,10 +1560,10 @@ Ans: B"></textarea>
       const fileInput = document.getElementById('individualAdmitCardPdf');
       const status = document.getElementById('individualAdmitCardUploadStatus');
       const button = document.getElementById('uploadIndividualAdmitCardButton');
-      const uid = (uidInput?.value || '').trim();
+      const rollNumber = (uidInput?.value || '').trim();
       const file = fileInput?.files?.[0];
-      if (!/^[A-Za-z0-9_-]{10,128}$/.test(uid)) {
-        if (status) status.textContent = 'सही Firebase UID दर्ज करें।';
+      if (rollNumber.length < 3 || rollNumber.length > 64) {
+        if (status) status.textContent = 'सही विद्यार्थी रोल नंबर दर्ज करें।';
         return;
       }
       if (!file || (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name))) {
@@ -1563,6 +1581,22 @@ Ans: B"></textarea>
       if (button) { button.disabled = true; button.textContent = 'PDF अपलोड हो रही है…'; }
       if (status) status.textContent = 'पहले PDF सुरक्षित Storage में अपलोड होगी, फिर निजी सूचना भेजी जाएगी…';
       try {
+        const matches = await db.collection('examEnrolledStudents').where('rollNumber', '==', rollNumber).limit(2).get();
+        if (matches.empty) {
+          if (status) status.textContent = 'इस रोल नंबर से कोई नामांकित विद्यार्थी नहीं मिला। पहले नामांकन सूची में रोल नंबर जाँचें।';
+          return;
+        }
+        if (matches.size > 1) {
+          if (status) status.textContent = 'यह रोल नंबर एक से अधिक रिकॉर्ड में है। सुरक्षा के लिए PDF नहीं भेजी गई।';
+          return;
+        }
+        const studentDoc = matches.docs[0];
+        const studentData = studentDoc.data() || {};
+        const uid = studentData.uid || studentDoc.id;
+        if (!uid || uid.length < 5) {
+          if (status) status.textContent = 'इस नामांकन में खाता लिंक नहीं है। विद्यार्थी को नामांकन खाते से जोड़ें।';
+          return;
+        }
         const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-90) || 'admit-card.pdf';
         const path = 'notificationUploads/private/' + uid + '/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
         const upload = await firebase.storage().ref().child(path).put(file, { contentType: 'application/pdf' });
@@ -1643,37 +1677,48 @@ Ans: B"></textarea>
 
     async function releaseAdmitCards() {
       if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ करने का अधिकार केवल Owner को है।');
-      if (!confirm('क्या आप सभी पुष्टि किए हुए विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? उन्हें निजी सूचना भेजी जाएगी।')) return;
+      if (!confirm('क्या आप सभी लिंक किए हुए नामांकित विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? पुराने रिकॉर्ड भी शामिल होंगे। उन्हें निजी सूचना भेजी जाएगी।')) return;
       const status = document.getElementById('ownerAdmitReleaseStatus');
       try {
-        const studentsSnap = await db.collection('examEnrolledStudents').where('verificationStatus', '==', 'confirmed').limit(450).get();
+        // Do not filter solely on verificationStatus == 'confirmed': older valid enrollments
+        // may use pending/approved/verified or omit the field. Include linked accounts only.
+        const studentsSnap = await db.collection('examEnrolledStudents').limit(5000).get();
+        const eligibleStudents = studentsSnap.docs.filter(doc => {
+          const student = doc.data() || {};
+          const uid = student.uid || doc.id;
+          return !!uid && uid.length >= 5 && !!(student.rollNumber || student.phone || student.fullName || student.name);
+        });
         const configRef = db.collection('examConfig').doc('current');
         const configSnap = await configRef.get();
         const configData = configSnap.exists ? configSnap.data() || {} : {};
         const settings = readAdmitCardSettings(true);
-        const batch = db.batch();
-        batch.set(configRef, settings, { merge: true });
+        await configRef.set(settings, { merge: true });
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
-        studentsSnap.docs.forEach(studentDoc => {
-          const student = studentDoc.data() || {};
-          const uid = student.uid || studentDoc.id;
-          const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc();
-          batch.set(notificationRef, {
-            title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-            message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
-            type: 'admit-card',
-            admitCardReady: true,
-            recipientUid: uid,
-            active: true,
-            audience: 'private',
-            createdBy: auth.currentUser?.uid || null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        const notificationKey = 'admit-card-' + String(title + '-' + (settings.admitCardDate || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        // Firestore batches are limited to 500 writes. Chunk so 2,000+ students work.
+        for (let offset = 0; offset < eligibleStudents.length; offset += 400) {
+          const batch = db.batch();
+          eligibleStudents.slice(offset, offset + 400).forEach(studentDoc => {
+            const student = studentDoc.data() || {};
+            const uid = student.uid || studentDoc.id;
+            const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc(notificationKey);
+            batch.set(notificationRef, {
+              title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
+              message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
+              type: 'admit-card',
+              admitCardReady: true,
+              recipientUid: uid,
+              active: true,
+              audience: 'private',
+              createdBy: auth.currentUser?.uid || null,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
           });
-        });
-        await batch.commit();
+          await batch.commit();
+        }
         window.ownerAdmitCardSettings = { ...configData, ...settings };
-        if (status) status.textContent = 'रिलीज़ सफल: ' + studentsSnap.size + ' पुष्टि किए विद्यार्थियों को निजी सूचना भेजी गई।';
-        showToast(studentsSnap.size + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
+        if (status) status.textContent = 'रिलीज़ सफल: ' + eligibleStudents.length + ' लिंक किए नामांकित विद्यार्थियों को सूचना भेजी गई।' + (studentsSnap.size >= 5000 ? ' · 5,000 रिकॉर्ड की सीमा पहुँची—अगले बैच की जाँच करें।' : '');
+        showToast(eligibleStudents.length + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
       } catch (error) {
         if (status) status.textContent = 'रिलीज़ नहीं हो सका: ' + error.message + ' — userNotifications rules जाँचें।';
         showToast('प्रवेश-पत्र रिलीज़ असफल: ' + error.message);
@@ -2298,9 +2343,9 @@ Ans: B"></textarea>
             summary.appendChild(tile);
           });
         }
-        renderOwnerDashboardRows('ownerEnrolledStudentsList', enrolled.slice(0,100), row =>
+        renderOwnerDashboardRows('ownerEnrolledStudentsList', enrolled.slice(0,10), row =>
           (row.fullName || row.name || row.displayName || 'विद्यार्थी') + ' · रोल: ' + (row.rollNumber || ('BIS-' + (row.uid || row.id))) + ' · स्थिति: ' + (row.verificationStatus || 'pending'), 'अभी नामांकन रिकॉर्ड नहीं मिले।');
-        renderOwnerDashboardRows('ownerRecentLoginList', recent.slice(0,100), row =>
+        renderOwnerDashboardRows('ownerRecentLoginList', recent.slice(0,10), row =>
           (row.displayName || row.name || row.email || row.uid || row.id) + ' · ' + (row.email || 'ईमेल नहीं') + ' · ' +
           (row.presenceStatus === 'online' && ownerDashboardMillis(row.lastSeenAt) >= onlineCutoff ? 'हाल में ऑनलाइन' : 'अंतिम गतिविधि: ' +
           (ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt) ? new Date(ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt)).toLocaleString('hi-IN') : 'समय उपलब्ध नहीं')), 'users collection में खाते नहीं मिले।');
@@ -2311,10 +2356,10 @@ Ans: B"></textarea>
           .filter(row => mode === 'mock' ? ['mock1', 'mock2'].includes(row.mode) : row.mode === mode)
           .sort((a,b) => ownerDashboardMillis(b.publishedAt) - ownerDashboardMillis(a.publishedAt))
           .slice(0,100);
-        renderOwnerDashboardRows('ownerQuizResultsList', byMode('quiz'), resultLine, 'अभी कोई क्विज़ परिणाम प्रकाशित नहीं हुआ।');
-        renderOwnerDashboardRows('ownerMockResultsList', byMode('mock'), resultLine, 'अभी कोई मॉक परिणाम प्रकाशित नहीं हुआ।');
-        renderOwnerDashboardRows('ownerMainResultsList', byMode('main'), resultLine, 'अभी कोई मुख्य परीक्षा परिणाम प्रकाशित नहीं हुआ।');
-        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 100 रिकॉर्ड दिखाए गए हैं।' + (errors.length ? ' · जिन collections का access नहीं मिला: ' + errors.join(' | ') : '');
+        renderOwnerDashboardRows('ownerQuizResultsList', byMode('quiz').slice(0,10), resultLine, 'अभी कोई क्विज़ परिणाम प्रकाशित नहीं हुआ।');
+        renderOwnerDashboardRows('ownerMockResultsList', byMode('mock').slice(0,10), resultLine, 'अभी कोई मॉक परिणाम प्रकाशित नहीं हुआ।');
+        renderOwnerDashboardRows('ownerMainResultsList', byMode('main').slice(0,10), resultLine, 'अभी कोई मुख्य परीक्षा परिणाम प्रकाशित नहीं हुआ।');
+        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 10 रिकॉर्ड दिखते हैं; अभी हर संग्रह से अधिकतम 300 रिकॉर्ड गिने गए हैं।' + (errors.length ? ' · Firebase अनुमति बाकी: ' + errors.join(' | ') + ' · publishedResults/reviews rules ठीक किए बिना परिणाम-जाँच उपलब्ध नहीं होगी।' : '');
       } catch (error) {
         if (status) status.textContent = 'रिपोर्ट लोड नहीं हुई: ' + error.message + ' · Firestore rules और collection access जाँचें।';
       }
@@ -2441,22 +2486,7 @@ Ans: B"></textarea>
       list.innerHTML = '<div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लोड हो रहे हैं...</div>';
       try {
         const snap = await db.collection(collectionName).limit(100).get();
-        // Repair legacy enrollment records to the same deterministic unique UID-based roll number.
-        if (collectionName === 'examEnrolledStudents' && !snap.empty) {
-          const repairBatch = db.batch();
-          let repairCount = 0;
-          snap.docs.forEach(doc => {
-            const data = doc.data() || {};
-            const uid = data.uid || doc.id;
-            const uniqueRoll = 'BIS-' + uid;
-            if (data.rollNumber !== uniqueRoll) {
-              repairBatch.set(doc.ref, { uid, rollNumber: uniqueRoll }, { merge: true });
-              repairCount++;
-            }
-          });
-          if (repairCount) await repairBatch.commit();
-        }
-        const rows = snap.docs.map(doc => { const data = doc.data() || {}; const uid = data.uid || doc.id; return { id: doc.id, ...data, uid, ...(collectionName === 'examEnrolledStudents' ? { rollNumber: 'BIS-' + uid } : {}) }; }).filter(d => {
+        const rows = snap.docs.map(doc => { const data = doc.data() || {}; const uid = data.uid || doc.id; return { id: doc.id, ...data, uid }; }).filter(d => {
           const haystack = [d.name, d.displayName, d.fullName, d.rollNumber, d.uid, d.email, d.phone, d.mobile].join(' ').toLowerCase();
           return !queryText || haystack.includes(queryText);
         });
@@ -2704,71 +2734,6 @@ Ans: B"></textarea>
         showToast('Editor role हटा दिया गया।');
       } catch (e) { showToast('Editor role नहीं हटाया गया: ' + e.message); }
     }
-
-    // Owner-only JSON/CSV backup for selected top-level collections.
-    async function exportCollectionBackup(format) {
-      const status = document.getElementById('backupExportStatus');
-      const select = document.getElementById('backupCollectionSelect');
-      if (!isPrimaryOwner()) {
-        if (status) status.textContent = 'बैकअप डाउनलोड केवल Owner कर सकता है।';
-        return showToast('बैकअप डाउनलोड केवल Owner कर सकता है।');
-      }
-      const allowed = new Set([
-        'examEnrolledStudents', 'users', 'publishedResults', 'reviews',
-        'quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions',
-        'notifications', 'draftQueue', 'posts', 'roles', 'settings',
-        'quiz', 'mainExamQuestions', 'mockExam_1', 'mockExam_2'
-      ]);
-      const collectionName = select?.value || '';
-      if (!allowed.has(collectionName) || !['json', 'csv'].includes(format)) {
-        if (status) status.textContent = 'अमान्य संग्रह या फ़ाइल प्रकार।';
-        return;
-      }
-      try {
-        if (status) status.textContent = collectionName + ' लोड हो रहा है…';
-        const snap = await db.collection(collectionName).limit(1000).get();
-        if (snap.empty) {
-          if (status) status.textContent = 'इस संग्रह में कोई रिकॉर्ड नहीं मिला।';
-          return showToast('इस संग्रह में कोई रिकॉर्ड नहीं मिला।');
-        }
-        const rows = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-        let content, mime, extension;
-        if (format === 'json') {
-          content = JSON.stringify(rows, (key, value) => {
-            if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
-            return value;
-          }, 2);
-          mime = 'application/json;charset=utf-8';
-          extension = 'json';
-        } else {
-          const keys = [...new Set(rows.flatMap(row => Object.keys(row)))];
-          const cell = value => {
-            if (value === null || value === undefined) return '';
-            if (value && typeof value.toDate === 'function') value = value.toDate().toISOString();
-            else if (typeof value === 'object') value = JSON.stringify(value);
-            return '"' + String(value).replace(/"/g, '""') + '"';
-          };
-          content = '\uFEFF' + [keys.map(cell).join(','), ...rows.map(row => keys.map(key => cell(row[key])).join(','))].join('\r\n');
-          mime = 'text/csv;charset=utf-8';
-          extension = 'csv';
-        }
-        const blob = new Blob([content], { type: mime });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'bishnoism-' + collectionName + '-' + new Date().toISOString().slice(0, 10) + '.' + extension;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-        if (status) status.textContent = rows.length + ' रिकॉर्ड डाउनलोड किए गए' + (snap.size === 1000 ? ' · सीमा 1,000 तक पहुँची; शेष रिकॉर्ड अलग बैच में डाउनलोड करें।' : '') + '।';
-      } catch (error) {
-        console.error('Collection backup export failed:', error);
-        if (status) status.textContent = 'डाउनलोड विफल: ' + (error.message || String(error));
-        showToast('बैकअप डाउनलोड नहीं हुआ: ' + (error.message || String(error)));
-      }
-    }
-    window.exportCollectionBackup = exportCollectionBackup;
 
     // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
     async function exportQuizResultsPdf() {

@@ -1007,24 +1007,28 @@
       badge.textContent = unseen.length > 99 ? '99+' : String(unseen.length);
       setVisible('notificationUnreadCount', unseen.length > 0);
     }
-    // The bell remains stationary; animation is reserved for a newly arriving notice.
-    if (bell) bell.classList.remove('animate-bounce');
-    renderNotificationCards(list, items.slice(0, 30));
-    renderNotificationCards(popupList, unseen.length ? unseen.slice(0, 30) : items.slice(0, 5));
-
-    // Show a popup for new items without marking them read until the user dismisses
-    // the popup or opens the notification center.
-    if (unseen.length && popup && popup.classList.contains('hidden')) {
-      setVisible('notificationPopup', true);
-      if (bell && !bell.dataset.noticePulsePlayed) {
-        bell.dataset.noticePulsePlayed = '1';
-        bell.classList.add('notification-bell-arrival');
-        window.setTimeout(() => {
-          bell.classList.remove('notification-bell-arrival');
-          delete bell.dataset.noticePulsePlayed;
-        }, 700);
-      }
+    // No repeated reminder popup or bell animation: the badge alone shows unread count.
+    if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
+    if (popup) setVisible('notificationPopup', false);
+    if (popupList) popupList.replaceChildren();
+    renderNotificationCards(list, unseen.slice(0, 100));
+    let readAll = byId('markAllNotificationsRead');
+    if (section && !readAll) {
+      readAll = document.createElement('button');
+      readAll.id = 'markAllNotificationsRead';
+      readAll.type = 'button';
+      readAll.className = 'mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
+      readAll.textContent = 'सभी पढ़ें / Mark all as read';
+      readAll.addEventListener('click', () => {
+        const current = [
+          ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
+          ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
+        ];
+        markNotificationsRead(current);
+      });
+      section.insertBefore(readAll, list || section.firstChild);
     }
+    if (readAll) setVisible(readAll.id, unseen.length > 0);
   }
 
   function markNotificationsRead(itemsToMark) {
@@ -1064,13 +1068,7 @@
       ? forceOpen
       : section.hidden || section.classList.contains('hidden');
     setVisible('publicNotificationsSection', shouldOpen);
-    if (shouldOpen) {
-      const items = [
-        ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
-        ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
-      ];
-      markNotificationsRead(items);
-    }
+    // Opening the center does not silently mark messages read; use Mark all as read.
   };
 
   window.dismissNotificationPopup = function () {
