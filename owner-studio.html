@@ -508,6 +508,14 @@ Ans: B"></textarea>
         <label class="block text-xs font-bold text-stone-700">परीक्षा का नाम
           <input id="ownerAdmitExamTitle" maxlength="120" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" placeholder="मुख्य परीक्षा">
         </label>
+        <label class="block text-xs font-bold text-stone-700">परीक्षा का प्रकार
+          <select id="ownerAdmitExamType" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
+            <option value="मुख्य परीक्षा">मुख्य परीक्षा</option>
+            <option value="मॉक परीक्षा 1">मॉक परीक्षा 1</option>
+            <option value="मॉक परीक्षा 2">मॉक परीक्षा 2</option>
+            <option value="दैनिक ज्ञान क्विज़">दैनिक ज्ञान क्विज़</option>
+          </select>
+        </label>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label class="block text-xs font-bold text-stone-700">परीक्षा दिनांक
             <input id="ownerAdmitExamDate" type="date" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal">
@@ -1687,6 +1695,7 @@ Ans: B"></textarea>
         const data = snap.exists ? snap.data() || {} : {};
         const fields = [
           ['ownerAdmitExamTitle', data.admitCardTitle || 'मुख्य परीक्षा'],
+          ['ownerAdmitExamType', data.admitCardExamType || 'मुख्य परीक्षा'],
           ['ownerAdmitExamDate', data.admitCardDate || ''],
           ['ownerAdmitExamTime', data.admitCardTime || ''],
           ['ownerAdmitExamCenter', data.admitCardCenter || 'ऑनलाइन परीक्षा पोर्टल'],
@@ -1706,6 +1715,7 @@ Ans: B"></textarea>
     function readAdmitCardSettings(released) {
       return {
         admitCardTitle: document.getElementById('ownerAdmitExamTitle')?.value.trim() || 'मुख्य परीक्षा',
+        admitCardExamType: document.getElementById('ownerAdmitExamType')?.value || 'मुख्य परीक्षा',
         admitCardDate: document.getElementById('ownerAdmitExamDate')?.value || '',
         admitCardTime: document.getElementById('ownerAdmitExamTime')?.value || '',
         admitCardCenter: document.getElementById('ownerAdmitExamCenter')?.value.trim() || 'ऑनलाइन परीक्षा पोर्टल',
@@ -1741,7 +1751,7 @@ Ans: B"></textarea>
         const settings = readAdmitCardSettings(true);
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
         const dateKey = settings.admitCardDate || 'no-date';
-        const notificationId = 'admit-card-' + String(title + '-' + dateKey).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        const notificationId = 'admit-card-' + String((settings.admitCardExamType || 'मुख्य परीक्षा') + '-' + title + '-' + dateKey).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
         await configRef.set(settings, { merge: true });
         while (true) {
           let query = db.collection('examEnrolledStudents').orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
@@ -1751,7 +1761,7 @@ Ans: B"></textarea>
           scanned += page.size;
           const eligible = page.docs.filter(doc => {
             const d = doc.data() || {};
-            return d.verificationStatus === 'confirmed' && !!d.rollNumber && /^JAMBH-2026-\d{5}$/.test(String(d.rollNumber)) && String(d.uid || doc.id).length >= 5;
+            return d.verificationStatus === 'confirmed' && !!d.rollNumber && /^JAMBH-2026-\d{5}$/.test(String(d.rollNumber)) && String(d.uid || doc.id).length >= 5 && String(d.examName || 'मुख्य परीक्षा') === String(settings.admitCardExamType || 'मुख्य परीक्षा');
           });
           skipped += page.size - eligible.length;
           for (let offset = 0; offset < eligible.length; offset += 200) {
@@ -1764,6 +1774,8 @@ Ans: B"></textarea>
                 admitCardReleased: true,
                 admitCardReleasedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 admitCardExamTitle: title,
+                admitCardExamType: settings.admitCardExamType || 'मुख्य परीक्षा',
+                admitCardSettings: { admitCardTitle: settings.admitCardTitle, admitCardExamType: settings.admitCardExamType, admitCardDate: settings.admitCardDate, admitCardTime: settings.admitCardTime, admitCardCenter: settings.admitCardCenter, admitCardInstructions: settings.admitCardInstructions },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
               }, { merge: true });
               pushNotification(uid, {
@@ -1807,12 +1819,14 @@ Ans: B"></textarea>
         if (matches.size !== 1) throw new Error('यह रोल नंबर एक से अधिक रिकॉर्ड में है; सुरक्षा के लिए रोक दिया गया।');
         const studentDoc = matches.docs[0], student = studentDoc.data() || {};
         if (student.verificationStatus !== 'confirmed') throw new Error('पहले विद्यार्थी का पंजीकरण पुष्टि करें।');
+        const selectedExamType = document.getElementById('ownerAdmitExamType')?.value || 'मुख्य परीक्षा';
+        if (String(student.examName || 'मुख्य परीक्षा') !== selectedExamType) throw new Error('यह विद्यार्थी चुनी गई परीक्षा (' + selectedExamType + ') में नामांकित नहीं है।');
         const configSnap = await db.collection('examConfig').doc('current').get();
         const cfg = configSnap.exists ? configSnap.data() || {} : {};
         const title = document.getElementById('ownerAdmitExamTitle')?.value.trim() || cfg.admitCardTitle || 'मुख्य परीक्षा';
-        const notificationId = 'admit-card-' + String(title + '-' + (document.getElementById('ownerAdmitExamDate')?.value || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        const notificationId = 'admit-card-' + String((document.getElementById('ownerAdmitExamType')?.value || 'मुख्य परीक्षा') + '-' + title + '-' + (document.getElementById('ownerAdmitExamDate')?.value || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
         const batch = db.batch();
-        batch.set(studentDoc.ref, { admitCardReleased: true, admitCardReleasedAt: firebase.firestore.FieldValue.serverTimestamp(), admitCardExamTitle: title, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        batch.set(studentDoc.ref, { admitCardReleased: true, admitCardReleasedAt: firebase.firestore.FieldValue.serverTimestamp(), admitCardExamTitle: title, admitCardExamType: selectedExamType, admitCardSettings: { admitCardTitle: title, admitCardExamType: selectedExamType, admitCardDate: document.getElementById('ownerAdmitExamDate')?.value || '', admitCardTime: document.getElementById('ownerAdmitExamTime')?.value || '', admitCardCenter: document.getElementById('ownerAdmitExamCenter')?.value.trim() || 'ऑनलाइन परीक्षा पोर्टल', admitCardInstructions: document.getElementById('ownerAdmitInstructions')?.value.trim() || '' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         pushNotification(student.uid || studentDoc.id, {
           id: notificationId, title: '🎟️ प्रवेश-पत्र जारी हो गया',
           body: title + ' का प्रवेश-पत्र अब डाउनलोड कर सकते हैं। रोल नंबर: ' + student.rollNumber,
