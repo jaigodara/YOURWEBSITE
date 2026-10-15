@@ -904,7 +904,9 @@
     }
     items.forEach(item => {
       const card = document.createElement('article');
-      card.className = 'rounded-xl border border-amber-200 bg-white p-3 space-y-2';
+      card.className = item._isRead
+        ? 'rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-2 opacity-70'
+        : 'rounded-xl border border-amber-200 bg-white p-3 space-y-2';
       const title = document.createElement('h3');
       title.className = 'font-bold text-forest text-sm';
       title.textContent = item.title || 'नई सूचना';
@@ -969,6 +971,19 @@
         time.textContent = item.createdAt.toDate().toLocaleString('hi-IN');
         card.appendChild(time);
       }
+      if (item._key && !item._isRead) {
+        const readButton = document.createElement('button');
+        readButton.type = 'button';
+        readButton.className = 'rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-bold text-stone-700';
+        readButton.textContent = '✓ पढ़ लिया';
+        readButton.addEventListener('click', () => markNotificationsRead([item]));
+        card.appendChild(readButton);
+      } else if (item._isRead) {
+        const readLabel = document.createElement('p');
+        readLabel.className = 'text-[10px] font-semibold text-stone-500';
+        readLabel.textContent = '✓ पढ़ा गया';
+        card.appendChild(readLabel);
+      }
       host.appendChild(card);
     });
   }
@@ -1011,14 +1026,14 @@
     if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
-    renderNotificationCards(list, unseen.slice(0, 100));
+    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.slice(0, 100).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
       readAll = document.createElement('button');
       readAll.id = 'markAllNotificationsRead';
       readAll.type = 'button';
       readAll.className = 'mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
-      readAll.textContent = 'सभी पढ़ें / Mark all as read';
+      readAll.textContent = '✓ सभी सूचनाएँ पढ़ी हुई चिह्नित करें / Mark all as read';
       readAll.addEventListener('click', () => {
         const current = [
           ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
@@ -1071,19 +1086,9 @@
     // Opening the center does not silently mark messages read; use Mark all as read.
   };
 
+  // Compatibility handler only: closing the legacy dialog must not mark messages read.
   window.dismissNotificationPopup = function () {
     setVisible('notificationPopup', false);
-    const allItems = [
-      ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
-      ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
-    ].sort((a, b) => notificationTime(b) - notificationTime(a));
-    const key = 'bishnoi_seen_notifications_v2_' + state.user.uid;
-    let seen = [];
-    try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
-    if (!Array.isArray(seen)) seen = [];
-    seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
-    const unread = allItems.filter(item => !seen.includes(item._key));
-    markNotificationsRead(unread.length ? unread : allItems.slice(0, 5));
   };
 
   function initPersonalNotificationsForUser() {
