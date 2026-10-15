@@ -1910,6 +1910,8 @@ Ans: B"></textarea>
         const notices = [];
         if (config.enrollmentVisible && previous.enrollmentVisible !== true) {
           notices.push(['मुख्य परीक्षा पंजीकरण शुरू', 'मुख्य परीक्षा के लिए विद्यार्थी पंजीकरण शुरू हो गया है। लॉगिन करके परीक्षा अनुभाग में अपना पंजीकरण भेजें।']);
+        } else if (!config.enrollmentVisible && previous.enrollmentVisible === true) {
+          notices.push(['मुख्य परीक्षा पंजीकरण बंद', 'मुख्य परीक्षा के लिए नया पंजीकरण बंद कर दिया गया है। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।']);
         }
         if (config.dailyQuizVisible && (previous.dailyQuizVisible !== true || previous.quizStartAtMs !== config.quizStartAtMs)) {
           notices.push(['दैनिक ज्ञान क्विज़ की सूचना', 'दैनिक ज्ञान क्विज़ की निर्धारित शुरुआत: ' + scheduledText(config.quizStartAtMs) + '। पंजीकरण की पुष्टि और निर्धारित समय के बाद प्रवेश करें।']);
@@ -1928,6 +1930,18 @@ Ans: B"></textarea>
             await pushNotification('ALL', { id: 'exam-announcement-' + String(title).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 60) + '-' + Date.now(), title, body: message, type: 'exam-announcement' });
           } catch (notificationError) {
             console.warn('Exam settings saved but automatic notification failed:', notificationError);
+          }
+        }
+        const startEvents = [
+          ['quiz', config.quizStartAtMs, previous.quizStartAtMs, 'दैनिक ज्ञान परीक्षा शुरू हो गई', 'दैनिक ज्ञान परीक्षा का निर्धारित समय शुरू हो गया है।'],
+          ['mock1', config.mock1StartAtMs, previous.mock1StartAtMs, 'मॉक परीक्षा 1 शुरू हो गई', 'मॉक परीक्षा 1 का निर्धारित समय शुरू हो गया है।'],
+          ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, 'मॉक परीक्षा 2 शुरू हो गई', 'मॉक परीक्षा 2 का निर्धारित समय शुरू हो गया है।'],
+          ['main', config.mainStartAtMs, previous.mainStartAtMs, 'मुख्य परीक्षा शुरू हो गई', 'मुख्य परीक्षा का निर्धारित समय शुरू हो गया है।']
+        ];
+        for (const [mode, startAt, oldStartAt, title, body] of startEvents) {
+          if (startAt && startAt <= Date.now() && (!oldStartAt || oldStartAt > Date.now())) {
+            try { await pushNotification('ALL', { id: 'exam-start-' + mode + '-' + startAt, title: '⏱️ ' + title, body, type: 'exam-start' }); }
+            catch (notificationError) { console.warn('Exam-start notification failed:', notificationError); }
           }
         }
         showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (notices.length ? notices.length + ' स्वचालित सूचना भेजी गईं।' : 'कोई नई सूचना आवश्यक नहीं थी।'));
