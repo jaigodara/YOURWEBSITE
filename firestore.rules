@@ -164,23 +164,23 @@ service cloud.firestore {
 
     match /examEnrolledStudents/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      // Students create pending records only. A roll number is owner-assigned.
       allow create: if examOwner()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
-          && request.resource.data.get('rollNumber', '') == 'BIS-' + uid
           && request.resource.data.get('verificationStatus', '') == 'pending'
+          && !('rollNumber' in request.resource.data)
         );
+      // Editing enrollment details must never change approval or assigned roll.
       allow update: if examOwner()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
-          && request.resource.data.get('rollNumber', '') == resource.data.get('rollNumber', '')
-          && request.resource.data.get('verificationStatus', '') == resource.data.get('verificationStatus', '')
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'updatedAt'
+            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
           ])
         );
       allow delete: if examOwner();
