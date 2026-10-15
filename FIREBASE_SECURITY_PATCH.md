@@ -228,8 +228,8 @@ Replace the existing create rules for the three submission collections with the 
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.mode == 'quiz' &&
         examStarted('quizStartAt');
-      allow read: if canReviewExam() ||
-        (signedIn() && resource.data.uid == request.auth.uid);
+      // Student results are served from publishedResults, never from answer-sheet docs.
+      allow read: if canReviewExam();
       allow update: if canReviewExam();
       allow delete: if examOwner();
     }
@@ -241,8 +241,8 @@ Replace the existing create rules for the three submission collections with the 
           (request.resource.data.mode == 'mock1' && examStarted('mock1StartAt') && sessionDeadlineReached('mock1')) ||
           (request.resource.data.mode == 'mock2' && examStarted('mock2StartAt') && sessionDeadlineReached('mock2'))
         );
-      allow read: if canReviewExam() ||
-        (signedIn() && resource.data.uid == request.auth.uid);
+      // Student results are served from publishedResults, never from answer-sheet docs.
+      allow read: if canReviewExam();
       allow update: if canReviewExam();
       allow delete: if examOwner();
     }
@@ -253,8 +253,8 @@ Replace the existing create rules for the three submission collections with the 
         request.resource.data.mode == 'main' &&
         examStarted('mainStartAt') &&
         sessionDeadlineReached('main');
-      allow read: if canReviewExam() ||
-        (signedIn() && resource.data.uid == request.auth.uid);
+      // Student results are served from publishedResults, never from answer-sheet docs.
+      allow read: if canReviewExam();
       allow update: if canReviewExam();
       allow delete: if examOwner();
     }
@@ -311,3 +311,42 @@ Owner Studio now saves selected permissions in roles/{uid}.permissions. Use the 
 - Main exam schedule, student enrollment management, admit-card release, role management, and live-session allow/deny remain Owner-only.
 
 Do not leave a broad existing editor rule such as allow write: if owner() on these sensitive collections. Firestore combines overlapping allows with OR logic, so the old broad rule must be replaced, not supplemented.
+
+
+## 10. Keep private marking separate from student-visible results
+
+The updated Owner Studio writes manual marks/feedback to `reviews/{sourceCollection}_{submissionId}` and writes a separate document to `publishedResults/{sourceCollection}_{submissionId}` only when the result is published. The student portal reads only `publishedResults` filtered by the signed-in UID. Do not add marks back to the original submission documents.
+
+Add these match blocks inside the existing Firestore service block, after checking for and replacing any overlapping permissive rules:
+
+    match /reviews/{reviewId} {
+      allow read, create, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /publishedResults/{resultId} {
+      allow read: if examOwner() ||
+        (signedIn() && resource.data.uid == request.auth.uid);
+      // Manual main/mock/owner-reviewed results are written by authorized reviewers.
+      // Daily quiz results are client-calculated; this rule validates ownership/shape,
+      // not the truth of the score. Use a trusted backend if quiz scores must be tamper-proof.
+      allow create: if canReviewExam() || (
+        signedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.mode == 'quiz' &&
+        request.resource.data.status == 'published' &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'sourceCollection', 'sourceSubmissionId', 'mode', 'name',
+          'rollNumber', 'score', 'total', 'status', 'feedback', 'publishedAt', 'publishedBy'
+        ])
+      );
+      allow update, delete: if canReviewExam();
+    }
+
+Important migration notes:
+
+- The three submission collections above now grant read access only to `canReviewExam()`. This matches the portal code, which no longer reads submissions to populate student results. Verify no other deployed client depends on students reading their own submission documents before publishing these rules.
+- Existing legacy submission documents may already contain `score`, `finalScore`, `manualScore`, `resultPublished`, or feedback fields. Removing student read access prevents those fields being fetched by students; do not assume hiding fields in the UI is enough.
+- Existing results in legacy submission documents will not automatically appear in `publishedResults`. Migrate them using a trusted owner-only script after validating each record and identity. Do not expose a public migration endpoint.
+- Firestore rules are OR-combined across matching blocks. Replace old permissive rules instead of simply adding these snippets. Test with owner, authorized editor, and two student accounts in a non-production Firebase project.
+- GitHub/Vercel deployment does not deploy these Firebase rules. Publish the reviewed rules separately in Firebase Console.
