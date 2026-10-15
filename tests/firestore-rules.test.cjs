@@ -69,6 +69,10 @@ test("Firestore security rules regression suite", async (t) => {
       }));
       await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { rollNumber: "JAMBH-2026-00002" }));
       await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { verificationStatus: "pending" }));
+      const afterResubmit = await getDoc(doc(db, "examEnrolledStudents", STUDENT));
+      if (afterResubmit.data().rollNumber !== "JAMBH-2026-00001" || afterResubmit.data().verificationStatus !== "confirmed") {
+        throw new Error("Enrollment resubmission changed owner-assigned roll/approval.");
+      }
     });
 
     await t.test("परीक्षा शुरू होने के बाद deadline से पहले main submission स्वीकार होता है", async () => {
@@ -97,6 +101,36 @@ test("Firestore security rules regression suite", async (t) => {
       const db = env.authenticatedContext(STUDENT).firestore();
       await assertSucceeds(setDoc(doc(db, "userNotificationReads", STUDENT, "items", "notice-1"), {
         read: true, readAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("Owner प्रवेश-पत्र रिलीज़ flag और pinned per-student notification लिख सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true,
+        admitCardReleasedAt: serverTimestamp(),
+        admitCardExamType: "मुख्य परीक्षा",
+      }));
+      await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "admit-card-test"), {
+        recipientUid: STUDENT,
+        title: "🎟️ प्रवेश-पत्र जारी",
+        message: "हिंदी नाम वाला विद्यार्थी",
+        type: "admit-card",
+        important: true,
+        pinnedByOwner: true,
+        active: true,
+        audience: "private",
+        createdAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("विद्यार्थी स्वयं प्रवेश-पत्र जारी नहीं कर सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true,
+        admitCardReleasedAt: serverTimestamp(),
       }));
     });
   } finally {

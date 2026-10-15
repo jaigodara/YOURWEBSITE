@@ -504,6 +504,14 @@ Ans: B"></textarea>
       <div id="ownerAdmitCardSettingsPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ प्रवेश-पत्र विवरण और रिलीज़ नियंत्रण</h3>
         <p class="text-xs text-stone-500">अगली परीक्षा के लिए विवरण यहीं बदलें। पुष्टि किए हुए विद्यार्थी भी तब तक प्रवेश-पत्र नहीं देखेंगे, जब तक आप रिलीज़ नहीं करते।</p>
+        <label class="block text-xs font-bold text-stone-700">परीक्षा का प्रकार
+          <select id="ownerAdmitExamType" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal">
+            <option value="main">मुख्य परीक्षा</option>
+            <option value="mock1">मॉक परीक्षा 1</option>
+            <option value="mock2">मॉक परीक्षा 2</option>
+            <option value="quiz">दैनिक ज्ञान परीक्षा</option>
+          </select>
+        </label>
         <label class="block text-xs font-bold text-stone-700">परीक्षा का नाम
           <input id="ownerAdmitExamTitle" maxlength="120" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" placeholder="मुख्य परीक्षा">
         </label>
@@ -526,10 +534,15 @@ Ans: B"></textarea>
         <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">📎 किसी एक विद्यार्थी को Admit Card PDF भेजें</h4>
-          <p class="text-[11px] text-stone-600">यह PDF रोल नंबर से विद्यार्थी खोजकर उसके निजी Notification Centre में भेजी जाएगी। PDF अधिकतम 10 MB; Firebase Storage/Firestore rules अनुमति देना आवश्यक है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे BIS-…)">
-          <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
-          <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">⬆️ निजी Notification में Admit Card PDF अपलोड करें</button>
+          <p class="text-[11px] text-stone-600">रोल नंबर से विद्यार्थी खोजकर प्रवेश-पत्र ब्राउज़र में PDF बनाया जाएगा। Firebase Storage पर अपलोड की आवश्यकता नहीं है।</p>
+          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे JAMBH-2026-00001)">
+          <button id="releaseAdmitCardByRollButton" type="button" onclick="releaseAdmitCardToRollNumber()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">🎟️ रोल नंबर से प्रवेश-पत्र जारी करें</button>
+          <details class="rounded-lg border border-stone-200 bg-white p-3">
+            <summary class="cursor-pointer text-xs font-bold text-stone-600">उन्नत विकल्प: पुराना PDF अपलोड</summary>
+            <p class="mt-2 text-[11px] text-stone-500">पुराना Storage-आधारित अपलोड विकल्प संगतता के लिए रखा गया है। नई विधि की सिफारिश की जाती है।</p>
+            <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="mt-2 w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
+            <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="mt-2 w-full rounded-lg border border-stone-300 px-3 py-2.5 text-xs font-bold text-stone-700">⬆️ पुराना PDF अपलोड करें</button>
+          </details>
           <p id="individualAdmitCardUploadStatus" class="text-[11px] text-stone-600" aria-live="polite"></p>
         </div>
         <button type="button" onclick="revokeAdmitCardRelease()" class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700">रिलीज़ रोकें</button>
@@ -1330,6 +1343,7 @@ Ans: B"></textarea>
         }
         batch.set(questionRef, update, { merge: true });
         await batch.commit();
+        if (publish && target === 'quiz') await pushNotification('ALL', { id: 'quiz-published-' + id, title: '📚 दैनिक ज्ञान परीक्षा प्रकाशित', body: 'नई दैनिक ज्ञान परीक्षा उपलब्ध है। परीक्षा अनुभाग में जाकर प्रयास करें।', type: 'quiz-published' });
         showToast(publish ? 'प्रश्न प्रकाशित हो गया। मुख्य/मॉक परीक्षा की उत्तर-कुंजी निजी संग्रह में रखी गई है।' : 'प्रश्न वापस Draft में कर दिया गया।');
         listenQuizQuestions();
       } catch (error) {
@@ -1655,6 +1669,7 @@ Ans: B"></textarea>
         const data = snap.exists ? snap.data() || {} : {};
         const fields = [
           ['ownerAdmitExamTitle', data.admitCardTitle || 'मुख्य परीक्षा'],
+          ['ownerAdmitExamType', data.admitCardExamType || 'main'],
           ['ownerAdmitExamDate', data.admitCardDate || ''],
           ['ownerAdmitExamTime', data.admitCardTime || ''],
           ['ownerAdmitExamCenter', data.admitCardCenter || 'ऑनलाइन परीक्षा पोर्टल'],
@@ -1674,6 +1689,7 @@ Ans: B"></textarea>
     function readAdmitCardSettings(released) {
       return {
         admitCardTitle: document.getElementById('ownerAdmitExamTitle')?.value.trim() || 'मुख्य परीक्षा',
+        admitCardExamType: document.getElementById('ownerAdmitExamType')?.value || 'main',
         admitCardDate: document.getElementById('ownerAdmitExamDate')?.value || '',
         admitCardTime: document.getElementById('ownerAdmitExamTime')?.value || '',
         admitCardCenter: document.getElementById('ownerAdmitExamCenter')?.value.trim() || 'ऑनलाइन परीक्षा पोर्टल',
@@ -1697,53 +1713,127 @@ Ans: B"></textarea>
       }
     }
 
+    async function pushNotification(uid, data, batch = null) {
+      if (!isPrimaryOwner()) throw new Error('सूचना भेजने का अधिकार केवल Owner को है।');
+      if (!uid || typeof uid !== 'string') throw new Error('सूचना का लक्ष्य UID या ALL होना चाहिए।');
+      const notificationId = String(data.id || (data.type + '-' + Date.now())).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
+      const payload = {
+        title: String(data.title || 'नई सूचना'),
+        message: String(data.body || data.message || ''),
+        type: String(data.type || 'announcement'),
+        important: data.important === true,
+        pinnedByOwner: data.pinnedByOwner === true || data.important === true,
+        admitCardReady: data.type === 'admit-card',
+        recipientUid: uid === 'ALL' ? null : uid,
+        active: true,
+        audience: uid === 'ALL' ? 'all' : 'private',
+        createdBy: auth.currentUser?.uid || null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      const ref = uid === 'ALL'
+        ? db.collection('notifications').doc(notificationId)
+        : db.collection('userNotifications').doc(uid).collection('items').doc(notificationId);
+      if (batch) batch.set(ref, payload, { merge: true });
+      else await ref.set(payload, { merge: true });
+      return notificationId;
+    }
+
+    async function releaseAdmitCardToRollNumber() {
+      if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र जारी करने का अधिकार केवल Owner को है।');
+      const input = document.getElementById('individualAdmitCardUid');
+      const status = document.getElementById('individualAdmitCardUploadStatus');
+      const button = document.getElementById('releaseAdmitCardByRollButton');
+      const roll = (input?.value || '').trim();
+      if (!roll) { if (status) status.textContent = 'कृपया विद्यार्थी का रोल नंबर दर्ज करें।'; return; }
+      if (!confirm('क्या रोल नंबर ' + roll + ' वाले विद्यार्थी को प्रवेश-पत्र जारी करें?')) return;
+      if (button) { button.disabled = true; button.textContent = 'जारी किया जा रहा है…'; }
+      if (status) status.textContent = 'रोल नंबर से विद्यार्थी खोजा जा रहा है…';
+      try {
+        const matches = await db.collection('examEnrolledStudents').where('rollNumber', '==', roll).limit(2).get();
+        if (matches.empty) throw new Error('इस रोल नंबर से कोई नामांकन नहीं मिला।');
+        if (matches.size !== 1) throw new Error('यह रोल नंबर एक से अधिक रिकॉर्ड में मिला; पहले डुप्लिकेट ठीक करें।');
+        const doc = matches.docs[0], student = doc.data() || {}, uid = student.uid || doc.id;
+        if (student.verificationStatus !== 'confirmed' || !uid || String(roll).startsWith('BIS-')) throw new Error('विद्यार्थी का नामांकन स्वीकृत और वैध रोल नंबर वाला होना चाहिए।');
+        const existingConfig = await db.collection('examConfig').doc('current').get();
+        const keepGlobalRelease = existingConfig.exists && existingConfig.data()?.admitCardReleased === true;
+        const settings = readAdmitCardSettings(keepGlobalRelease);
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const batch = db.batch();
+        batch.set(doc.ref, { admitCardReleased: true, admitCardReleasedAt: now, admitCardExamType: settings.admitCardExamType || student.examType || 'main', updatedAt: now }, { merge: true });
+        const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc('admit-card-' + String(settings.admitCardTitle || 'main').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 70));
+        batch.set(notificationRef, { title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', message: (settings.admitCardTitle || 'मुख्य परीक्षा') + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से डाउनलोड करें। रोल नंबर: ' + roll, type: 'admit-card', admitCardReady: true, recipientUid: uid, active: true, audience: 'private', important: true, pinnedByOwner: true, createdBy: auth.currentUser?.uid || null, createdAt: now }, { merge: true });
+        await batch.commit();
+        await db.collection('examConfig').doc('current').set(settings, { merge: true });
+        await pushNotification(uid, { id: notificationRef.id, title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', body: (settings.admitCardTitle || 'मुख्य परीक्षा') + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से डाउनलोड करें। रोल नंबर: ' + roll, type: 'admit-card', important: true, pinnedByOwner: true });
+        if (status) status.textContent = 'प्रवेश-पत्र जारी हुआ: ' + (student.fullName || student.name || 'विद्यार्थी') + ' · ' + roll + '। सूचना भेज दी गई।';
+        showToast('एक विद्यार्थी का प्रवेश-पत्र जारी किया गया।');
+      } catch (error) {
+        if (status) status.textContent = 'प्रवेश-पत्र जारी नहीं हुआ: ' + (error?.message || error);
+        showToast('प्रवेश-पत्र जारी नहीं हुआ: ' + (error?.message || error));
+      } finally {
+        if (button) { button.disabled = false; button.textContent = '🎟️ रोल नंबर से प्रवेश-पत्र जारी करें'; }
+      }
+    }
+
     async function releaseAdmitCards() {
       if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ करने का अधिकार केवल Owner को है।');
-      if (!confirm('क्या आप सभी लिंक किए हुए नामांकित विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? पुराने रिकॉर्ड भी शामिल होंगे। उन्हें निजी सूचना भेजी जाएगी।')) return;
+      if (!confirm('क्या चुनी गई परीक्षा के सभी स्वीकृत विद्यार्थियों के लिए प्रवेश-पत्र जारी करें? यह कार्य पृष्ठांकन के साथ सभी रिकॉर्ड जाँचेगा।')) return;
       const status = document.getElementById('ownerAdmitReleaseStatus');
+      const button = document.querySelector('button[onclick="releaseAdmitCards()"]');
+      if (button) { button.disabled = true; button.textContent = 'रिलीज़ जारी है…'; }
+      let scanned = 0, released = 0, failed = 0, cursor = null;
       try {
-        // Do not filter solely on verificationStatus == 'confirmed': older valid enrollments
-        // may use pending/approved/verified or omit the field. Include linked accounts only.
-        const studentsSnap = await db.collection('examEnrolledStudents').limit(5000).get();
-        const eligibleStudents = studentsSnap.docs.filter(doc => {
-          const student = doc.data() || {};
-          const uid = student.uid || doc.id;
-          return !!uid && uid.length >= 5 && student.verificationStatus === 'confirmed' && !!student.rollNumber && !String(student.rollNumber).startsWith('BIS-');
-        });
-        const configRef = db.collection('examConfig').doc('current');
-        const configSnap = await configRef.get();
-        const configData = configSnap.exists ? configSnap.data() || {} : {};
         const settings = readAdmitCardSettings(true);
+        const configRef = db.collection('examConfig').doc('current');
         await configRef.set(settings, { merge: true });
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
-        const notificationKey = 'admit-card-' + String(title + '-' + (settings.admitCardDate || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
-        // Firestore batches are limited to 500 writes. Chunk so 2,000+ students work.
-        for (let offset = 0; offset < eligibleStudents.length; offset += 400) {
-          const batch = db.batch();
-          eligibleStudents.slice(offset, offset + 400).forEach(studentDoc => {
-            const student = studentDoc.data() || {};
-            const uid = student.uid || studentDoc.id;
-            const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc(notificationKey);
-            batch.set(notificationRef, {
-              title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-              message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
-              type: 'admit-card',
-              admitCardReady: true,
-              recipientUid: uid,
-              active: true,
-              audience: 'private',
-              createdBy: auth.currentUser?.uid || null,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+        const examType = String(settings.admitCardExamType || 'main');
+        const examAliases = { main: ['main', 'मुख्य परीक्षा', 'Main Exam'], mock1: ['mock1', 'मॉक परीक्षा 1', 'Mock Exam 1', 'Mock 1'], mock2: ['mock2', 'मॉक परीक्षा 2', 'Mock Exam 2', 'Mock 2'], quiz: ['quiz', 'दैनिक ज्ञान परीक्षा', 'Daily Quiz'] };
+        const validExamNames = examAliases[examType] || [examType];
+        do {
+          let query = db.collection('examEnrolledStudents').orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
+          if (cursor) query = query.startAfter(cursor);
+          const page = await query.get();
+          if (page.empty) break;
+          cursor = page.docs[page.docs.length - 1];
+          scanned += page.size;
+          const eligible = page.docs.filter(doc => {
+            const d = doc.data() || {};
+            const uid = d.uid || doc.id;
+            const studentExam = String(d.examType || d.examName || d.examTitle || '').trim().toLowerCase();
+            const validExam = !studentExam || validExamNames.concat([title]).some(name => String(name).trim().toLowerCase() === studentExam);
+            return !!uid && d.verificationStatus === 'confirmed' && !!d.rollNumber && !String(d.rollNumber).startsWith('BIS-') && validExam;
           });
-          await batch.commit();
-        }
-        window.ownerAdmitCardSettings = { ...configData, ...settings };
-        if (status) status.textContent = 'रिलीज़ सफल: ' + eligibleStudents.length + ' लिंक किए नामांकित विद्यार्थियों को सूचना भेजी गई।' + (studentsSnap.size >= 5000 ? ' · 5,000 रिकॉर्ड की सीमा पहुँची—अगले बैच की जाँच करें।' : '');
-        showToast(eligibleStudents.length + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
+          // Two writes per student (enrollment + notification): keep each writeBatch <=400 writes.
+          for (let offset = 0; offset < eligible.length; offset += 200) {
+            const batch = db.batch();
+            const chunk = eligible.slice(offset, offset + 200);
+            chunk.forEach(studentDoc => {
+              const student = studentDoc.data() || {}, uid = student.uid || studentDoc.id;
+              const now = firebase.firestore.FieldValue.serverTimestamp();
+              batch.set(studentDoc.ref, { admitCardReleased: true, admitCardReleasedAt: now, admitCardExamType: examType, updatedAt: now }, { merge: true });
+              const notificationId = 'admit-card-' + String(examType + '-' + (settings.admitCardDate || '')).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 100);
+              pushNotification(uid, { id: notificationId, title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', body: title + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से PDF डाउनलोड करें। रोल नंबर: ' + student.rollNumber, type: 'admit-card', important: true, pinnedByOwner: true }, batch);
+            });
+            try {
+              await batch.commit();
+              released += chunk.length;
+            } catch (batchError) {
+              failed += chunk.length;
+              console.error('Admit-card batch failed for ' + chunk.length + ' students:', batchError);
+            }
+            if (status) status.textContent = 'प्रगति: ' + scanned + ' रिकॉर्ड जाँचे · ' + released + ' प्रवेश-पत्र जारी · ' + failed + ' विफल';
+          }
+          if (page.size < 400) break;
+        } while (cursor);
+        window.ownerAdmitCardSettings = settings;
+        if (status) status.textContent = 'पूरा हुआ: ' + released + ' प्रवेश-पत्र जारी · ' + scanned + ' रिकॉर्ड जाँचे · ' + failed + ' विफल।';
+        showToast(released + ' विद्यार्थियों के प्रवेश-पत्र जारी किए गए।');
       } catch (error) {
-        if (status) status.textContent = 'रिलीज़ नहीं हो सका: ' + error.message + ' — userNotifications rules जाँचें।';
-        showToast('प्रवेश-पत्र रिलीज़ असफल: ' + error.message);
+        if (status) status.textContent = 'रिलीज़ अधूरा: ' + released + ' सफल · ' + failed + ' विफल। कारण: ' + (error?.message || error);
+        showToast('प्रवेश-पत्र रिलीज़ असफल: ' + (error?.message || error));
+      } finally {
+        if (button) { button.disabled = false; button.textContent = '📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें'; }
       }
     }
 
@@ -1820,6 +1910,8 @@ Ans: B"></textarea>
         const notices = [];
         if (config.enrollmentVisible && previous.enrollmentVisible !== true) {
           notices.push(['मुख्य परीक्षा पंजीकरण शुरू', 'मुख्य परीक्षा के लिए विद्यार्थी पंजीकरण शुरू हो गया है। लॉगिन करके परीक्षा अनुभाग में अपना पंजीकरण भेजें।']);
+        } else if (!config.enrollmentVisible && previous.enrollmentVisible === true) {
+          notices.push(['मुख्य परीक्षा पंजीकरण बंद', 'मुख्य परीक्षा के लिए नया पंजीकरण बंद कर दिया गया है। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।']);
         }
         if (config.dailyQuizVisible && (previous.dailyQuizVisible !== true || previous.quizStartAtMs !== config.quizStartAtMs)) {
           notices.push(['दैनिक ज्ञान क्विज़ की सूचना', 'दैनिक ज्ञान क्विज़ की निर्धारित शुरुआत: ' + scheduledText(config.quizStartAtMs) + '। पंजीकरण की पुष्टि और निर्धारित समय के बाद प्रवेश करें।']);
@@ -1835,13 +1927,21 @@ Ans: B"></textarea>
         }
         for (const [title, message] of notices) {
           try {
-            await db.collection('notifications').add({
-              title, message, active: true, audience: 'all', type: 'exam-announcement',
-              createdBy: auth.currentUser?.uid || null,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            await pushNotification('ALL', { id: 'exam-announcement-' + String(title).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 60) + '-' + Date.now(), title, body: message, type: 'exam-announcement' });
           } catch (notificationError) {
             console.warn('Exam settings saved but automatic notification failed:', notificationError);
+          }
+        }
+        const startEvents = [
+          ['quiz', config.quizStartAtMs, previous.quizStartAtMs, 'दैनिक ज्ञान परीक्षा शुरू हो गई', 'दैनिक ज्ञान परीक्षा का निर्धारित समय शुरू हो गया है।'],
+          ['mock1', config.mock1StartAtMs, previous.mock1StartAtMs, 'मॉक परीक्षा 1 शुरू हो गई', 'मॉक परीक्षा 1 का निर्धारित समय शुरू हो गया है।'],
+          ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, 'मॉक परीक्षा 2 शुरू हो गई', 'मॉक परीक्षा 2 का निर्धारित समय शुरू हो गया है।'],
+          ['main', config.mainStartAtMs, previous.mainStartAtMs, 'मुख्य परीक्षा शुरू हो गई', 'मुख्य परीक्षा का निर्धारित समय शुरू हो गया है।']
+        ];
+        for (const [mode, startAt, oldStartAt, title, body] of startEvents) {
+          if (startAt && startAt <= Date.now() && (!oldStartAt || oldStartAt > Date.now())) {
+            try { await pushNotification('ALL', { id: 'exam-start-' + mode + '-' + startAt, title: '⏱️ ' + title, body, type: 'exam-start' }); }
+            catch (notificationError) { console.warn('Exam-start notification failed:', notificationError); }
           }
         }
         showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (notices.length ? notices.length + ' स्वचालित सूचना भेजी गईं।' : 'कोई नई सूचना आवश्यक नहीं थी।'));
@@ -1942,19 +2042,12 @@ Ans: B"></textarea>
         if (published && d.uid) {
           try {
             // Deterministic ID prevents duplicate notices when a result is republished.
-            await db.collection('userNotifications').doc(d.uid).collection('items').doc(resultId + '_result_published').set({
+            await pushNotification(d.uid, {
+              id: resultId + '_result_published',
               title: '📣 आपका परीक्षा परिणाम घोषित हो गया',
-              message: (d.mode || examReviewCollection) + ' · अंतिम अंक: ' + value + '/' + total +
-                (feedback.value.trim() ? ' · टिप्पणी: ' + feedback.value.trim() : ''),
-              type: 'exam-result',
-              resultScore: value,
-              resultTotal: total,
-              recipientUid: d.uid,
-              active: true,
-              audience: 'private',
-              createdBy: reviewerUid,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+              body: (d.mode || examReviewCollection) + ' · अंतिम अंक: ' + value + '/' + total + (feedback.value.trim() ? ' · टिप्पणी: ' + feedback.value.trim() : ''),
+              type: 'exam-result'
+            });
           } catch (notificationError) {
             console.warn('Result saved but private result notification failed:', notificationError);
           }
@@ -2724,9 +2817,13 @@ Ans: B"></textarea>
                   }
                 }
               }
+              const wasConfirmed = d.verificationStatus === 'confirmed';
               d.rollNumber = rollNumber;
               sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
               d.verificationStatus = status.value;
+              if (collectionName === 'examEnrolledStudents' && status.value === 'confirmed' && !wasConfirmed) {
+                await pushNotification(d.uid || d.id, { id: 'enrollment-approved-' + rollNumber, title: '✅ आपका पंजीकरण स्वीकृत हुआ', body: 'आपका पंजीकरण स्वीकृत है। रोल नंबर: ' + rollNumber, type: 'enrollment-approved', important: true });
+              }
               admit.disabled = status.value !== 'confirmed' || !rollNumber;
               admit.title = admit.disabled ? 'पुष्टि और रोल नंबर आवश्यक हैं' : 'प्रवेश-पत्र प्रिंट करें';
               showToast('विद्यार्थी / प्रवेश-पत्र स्थिति सहेज दी गई।');
