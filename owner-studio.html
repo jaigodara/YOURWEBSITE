@@ -2597,23 +2597,32 @@ Ans: B"></textarea>
 
     async function assignRealEnrollmentRoll(enrollmentRef, existingRoll) {
       const current = String(existingRoll || '').trim();
-      if (current && !current.startsWith('BIS-')) return current;
-      const counterRef = db.collection('counters').doc('rollNumbers');
-      const all = await db.collection('examEnrolledStudents').limit(5000).get();
+      if (/^JAMBH-2026-\d{5}$/.test(current)) return current;
+      if (current && !current.startsWith('BIS-')) throw new Error('मौजूदा रोल नंबर पहले से दर्ज है; उसे अपने-आप नहीं बदला जाएगा।');
+      const counterRef = db.collection('settings').doc('rollCounter');
+      // Legacy scan is used only to seed/repair a missing counter; the transaction
+      // itself serializes all new allocations and never overwrites a valid roll.
+      const all = await db.collection('examEnrolledStudents').get();
       const highestExisting = all.docs.reduce((max, snap) => {
-        const match = /^JAMBH-2026-(\d+)$/.exec(String(snap.data()?.rollNumber || ''));
+        const match = /^JAMBH-2026-(\d{5})$/.exec(String(snap.data()?.rollNumber || ''));
         return match ? Math.max(max, Number(match[1])) : max;
       }, 0);
       return db.runTransaction(async tx => {
         const counterSnap = await tx.get(counterRef);
         const enrollmentSnap = await tx.get(enrollmentRef);
         if (!enrollmentSnap.exists) throw new Error('नामांकन रिकॉर्ड नहीं मिला।');
-        const latestRoll = String(enrollmentSnap.data()?.rollNumber || '').trim();
-        if (latestRoll && !latestRoll.startsWith('BIS-')) return latestRoll;
-        const previous = counterSnap.exists ? Number(counterSnap.data()?.n || 0) : highestExisting;
+        const record = enrollmentSnap.data() || {};
+        if (record.verificationStatus !== 'confirmed') throw new Error('पहले विद्यार्थी के पंजीकरण की पुष्टि करें।');
+        const latestRoll = String(record.rollNumber || '').trim();
+        if (/^JAMBH-2026-\d{5}$/.test(latestRoll)) return latestRoll;
+        if (latestRoll && !latestRoll.startsWith('BIS-')) throw new Error('मौजूदा रोल नंबर पहले से दर्ज है; उसे अपने-आप नहीं बदला जाएगा।');
+        const previous = counterSnap.exists
+          ? Number(counterSnap.data()?.n || counterSnap.data()?.lastNumber || 0)
+          : highestExisting;
         const next = Math.max(previous, highestExisting) + 1;
-        const rollNumber = 'JAMBH-2026-' + String(next).padStart(4, '0');
-        tx.set(counterRef, { n: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        if (next > 99999) throw new Error('JAMBH-2026 रोल नंबर की सीमा पूरी हो गई है।');
+        const rollNumber = 'JAMBH-2026-' + String(next).padStart(5, '0');
+        tx.set(counterRef, { n: next, lastNumber: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         tx.set(enrollmentRef, { rollNumber, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         return rollNumber;
       });
@@ -2654,7 +2663,7 @@ Ans: B"></textarea>
           rollInput.maxLength = 40;
           rollInput.placeholder = 'रोल नंबर';
           rollInput.value = d.rollNumber || '';
-          if (collectionName === 'examEnrolledStudents') { rollInput.readOnly = true; rollInput.title = 'पुष्टि करते समय BIS-UID placeholder की जगह JAMBH-2026 का क्रमिक रोल नंबर अपने-आप मिलेगा'; rollInput.classList.add('bg-stone-100'); }
+          if (collectionName === 'examEnrolledStudents') { rollInput.readOnly = true; rollInput.title = 'पुष्टि पर JAMBH-2026-XXXXX रोल नंबर मिलेगा; मौजूदा सही रोल नहीं बदलेगा'; rollInput.classList.add('bg-stone-100'); }
           rollInput.className = 'p-2 rounded-lg border border-stone-300 text-xs w-28';
           const status = document.createElement('select');
           status.className = 'p-2 rounded-lg border border-stone-300 text-xs';
