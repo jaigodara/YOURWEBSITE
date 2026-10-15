@@ -504,6 +504,14 @@ Ans: B"></textarea>
       <div id="ownerAdmitCardSettingsPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ प्रवेश-पत्र विवरण और रिलीज़ नियंत्रण</h3>
         <p class="text-xs text-stone-500">अगली परीक्षा के लिए विवरण यहीं बदलें। पुष्टि किए हुए विद्यार्थी भी तब तक प्रवेश-पत्र नहीं देखेंगे, जब तक आप रिलीज़ नहीं करते।</p>
+        <label class="block text-xs font-bold text-stone-700">परीक्षा का प्रकार
+          <select id="ownerAdmitExamType" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal">
+            <option value="main">मुख्य परीक्षा</option>
+            <option value="mock1">मॉक परीक्षा 1</option>
+            <option value="mock2">मॉक परीक्षा 2</option>
+            <option value="quiz">दैनिक ज्ञान परीक्षा</option>
+          </select>
+        </label>
         <label class="block text-xs font-bold text-stone-700">परीक्षा का नाम
           <input id="ownerAdmitExamTitle" maxlength="120" class="mt-1 w-full rounded-xl border border-stone-300 p-3 text-sm font-normal" placeholder="मुख्य परीक्षा">
         </label>
@@ -1661,6 +1669,7 @@ Ans: B"></textarea>
         const data = snap.exists ? snap.data() || {} : {};
         const fields = [
           ['ownerAdmitExamTitle', data.admitCardTitle || 'मुख्य परीक्षा'],
+          ['ownerAdmitExamType', data.admitCardExamType || 'main'],
           ['ownerAdmitExamDate', data.admitCardDate || ''],
           ['ownerAdmitExamTime', data.admitCardTime || ''],
           ['ownerAdmitExamCenter', data.admitCardCenter || 'ऑनलाइन परीक्षा पोर्टल'],
@@ -1680,6 +1689,7 @@ Ans: B"></textarea>
     function readAdmitCardSettings(released) {
       return {
         admitCardTitle: document.getElementById('ownerAdmitExamTitle')?.value.trim() || 'मुख्य परीक्षा',
+        admitCardExamType: document.getElementById('ownerAdmitExamType')?.value || 'main',
         admitCardDate: document.getElementById('ownerAdmitExamDate')?.value || '',
         admitCardTime: document.getElementById('ownerAdmitExamTime')?.value || '',
         admitCardCenter: document.getElementById('ownerAdmitExamCenter')?.value.trim() || 'ऑनलाइन परीक्षा पोर्टल',
@@ -1749,7 +1759,7 @@ Ans: B"></textarea>
         const settings = readAdmitCardSettings(keepGlobalRelease);
         const now = firebase.firestore.FieldValue.serverTimestamp();
         const batch = db.batch();
-        batch.set(doc.ref, { admitCardReleased: true, admitCardReleasedAt: now, admitCardExamType: settings.admitCardTitle || student.examName || 'मुख्य परीक्षा', updatedAt: now }, { merge: true });
+        batch.set(doc.ref, { admitCardReleased: true, admitCardReleasedAt: now, admitCardExamType: settings.admitCardExamType || student.examType || 'main', updatedAt: now }, { merge: true });
         const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc('admit-card-' + String(settings.admitCardTitle || 'main').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 70));
         batch.set(notificationRef, { title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', message: (settings.admitCardTitle || 'मुख्य परीक्षा') + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से डाउनलोड करें। रोल नंबर: ' + roll, type: 'admit-card', admitCardReady: true, recipientUid: uid, active: true, audience: 'private', important: true, pinnedByOwner: true, createdBy: auth.currentUser?.uid || null, createdAt: now }, { merge: true });
         await batch.commit();
@@ -1777,7 +1787,9 @@ Ans: B"></textarea>
         const configRef = db.collection('examConfig').doc('current');
         await configRef.set(settings, { merge: true });
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
-        const examType = String(settings.admitCardTitle || 'मुख्य परीक्षा');
+        const examType = String(settings.admitCardExamType || 'main');
+        const examAliases = { main: ['main', 'मुख्य परीक्षा', 'Main Exam'], mock1: ['mock1', 'मॉक परीक्षा 1', 'Mock Exam 1', 'Mock 1'], mock2: ['mock2', 'मॉक परीक्षा 2', 'Mock Exam 2', 'Mock 2'], quiz: ['quiz', 'दैनिक ज्ञान परीक्षा', 'Daily Quiz'] };
+        const validExamNames = examAliases[examType] || [examType];
         do {
           let query = db.collection('examEnrolledStudents').orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
           if (cursor) query = query.startAfter(cursor);
@@ -1788,7 +1800,8 @@ Ans: B"></textarea>
           const eligible = page.docs.filter(doc => {
             const d = doc.data() || {};
             const uid = d.uid || doc.id;
-            const validExam = !d.examName || d.examName === examType || d.examName === title;
+            const studentExam = String(d.examType || d.examName || d.examTitle || '').trim().toLowerCase();
+            const validExam = !studentExam || validExamNames.concat([title]).some(name => String(name).trim().toLowerCase() === studentExam);
             return !!uid && d.verificationStatus === 'confirmed' && !!d.rollNumber && !String(d.rollNumber).startsWith('BIS-') && validExam;
           });
           // Two writes per student (enrollment + notification): keep each writeBatch <=400 writes.
