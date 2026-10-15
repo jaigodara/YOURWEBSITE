@@ -438,16 +438,16 @@ Ans: B"></textarea>
       <div id="ownerProctoringPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="font-yatra text-base text-forest">📷 परीक्षा फोटो कैप्चरिंग / कैमरा प्रोक्टरिंग</h3>
-            <p class="text-xs text-stone-500">ऑन करने पर परीक्षार्थियों का कैमरा स्नैपशॉट परीक्षा के दौरान सुरक्षित रिकॉर्ड किया जाएगा:</p>
+            <h3 class="font-yatra text-base text-forest">📷 कैमरा निगरानी: उपलब्ध नहीं</h3>
+            <p class="text-xs text-stone-500">इस संस्करण में वास्तविक कैमरा कैप्चर लागू नहीं है। यह विकल्प कैमरा निगरानी शुरू नहीं करता।</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="examProctoringToggle" onchange="toggleExamProctoring(this.checked)" class="sr-only peer">
+            <input type="checkbox" id="examProctoringToggle" disabled aria-label="कैमरा निगरानी उपलब्ध नहीं" class="sr-only peer">
             <div class="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-forest"></div>
           </label>
         </div>
         <div id="proctoringStatusBadge" class="p-2.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold">
-          स्थिति: प्रोक्टरिंग लोड हो रही है...
+          स्थिति: कैमरा निगरानी उपलब्ध नहीं है।
         </div>
       </div>
 
