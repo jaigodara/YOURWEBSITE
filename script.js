@@ -2363,19 +2363,35 @@ function renderExamVisibility() {
       totalQuestions: exam.questions.length,
       rollNumber: state.profile?.rollNumber || null,
       attempted,
-      // Scores are intentionally stored only for daily quizzes. Main/mock exam
-      // results stay unpublished until the owner completes manual verification.
-      ...(instantResult ? { correct, score: correct, finalScore: correct } : {}),
-      resultPublished: instantResult,
+      // Keep all attempts free of result/mark fields. The student-visible score,
+      // when available, is written to publishedResults in the same atomic batch.
       answers: { ...exam.answers },
       review: { ...exam.review },
       submittedAt: serverTimestamp(),
-      automatic,
-      manualReviewStatus: instantResult ? 'published' : 'pending'
+      automatic
     };
 
     try {
-      await collection(CONFIG.submissionCollections[exam.mode]).add(result);
+      const submissionRef = collection(CONFIG.submissionCollections[exam.mode]).doc();
+      const writeBatch = state.db.batch();
+      writeBatch.set(submissionRef, result);
+      if (instantResult) {
+        writeBatch.set(collection('publishedResults').doc('quizAttempts_' + submissionRef.id), {
+          uid: state.user.uid,
+          sourceCollection: CONFIG.submissionCollections[exam.mode],
+          sourceSubmissionId: submissionRef.id,
+          mode: exam.mode,
+          name: result.name,
+          rollNumber: result.rollNumber,
+          score: correct,
+          total: exam.questions.length,
+          status: 'published',
+          feedback: '',
+          publishedAt: serverTimestamp(),
+          publishedBy: 'system'
+        });
+      }
+      await writeBatch.commit();
       exam.submitting = false;
       exam.submitted = true;
       exam.active = false;
