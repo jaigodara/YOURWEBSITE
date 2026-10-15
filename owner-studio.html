@@ -1829,7 +1829,9 @@ Ans: B"></textarea>
         const configSnap = await db.collection('examConfig').doc('current').get();
         const cfg = configSnap.exists ? configSnap.data() || {} : {};
         const title = document.getElementById('ownerAdmitExamTitle')?.value.trim() || cfg.admitCardTitle || 'मुख्य परीक्षा';
-        const notificationId = 'admit-card-' + String((document.getElementById('ownerAdmitExamType')?.value || 'मुख्य परीक्षा') + '-' + title + '-' + (document.getElementById('ownerAdmitExamDate')?.value || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        const dateKey = document.getElementById('ownerAdmitExamDate')?.value || 'no-date';
+        const examKey = ({ 'मुख्य परीक्षा': 'main', 'मॉक परीक्षा 1': 'mock1', 'मॉक परीक्षा 2': 'mock2', 'दैनिक ज्ञान क्विज़': 'quiz' })[selectedExamType] || 'main';
+        const notificationId = 'admit-card-' + examKey + '-' + String(dateKey).replace(/[^0-9-]/g, '');
         const batch = db.batch();
         batch.set(studentDoc.ref, { admitCardReleased: true, admitCardReleasedAt: firebase.firestore.FieldValue.serverTimestamp(), admitCardExamTitle: title, admitCardExamType: selectedExamType, admitCardSettings: { admitCardTitle: title, admitCardExamType: selectedExamType, admitCardDate: document.getElementById('ownerAdmitExamDate')?.value || '', admitCardTime: document.getElementById('ownerAdmitExamTime')?.value || '', admitCardCenter: document.getElementById('ownerAdmitExamCenter')?.value.trim() || 'ऑनलाइन परीक्षा पोर्टल', admitCardInstructions: document.getElementById('ownerAdmitInstructions')?.value.trim() || '' }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         pushNotification(student.uid || studentDoc.id, {
