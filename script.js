@@ -810,7 +810,7 @@
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll && state.examConfig?.admitCardReleased === true && record.admitCardReleased === true) {
+    if (status === 'confirmed' && roll && record.admitCardReleased === true) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
@@ -858,7 +858,7 @@
   }
 
   async function printStudentAdmitCard(record) {
-    if (state.examConfig?.admitCardReleased !== true || record?.admitCardReleased !== true) {
+    if (record?.admitCardReleased !== true) {
       notify('प्रवेश-पत्र अभी जारी नहीं हुआ है।', 'error'); return;
     }
     if (!state.user || !record || (record.uid || state.user.uid) !== state.user.uid) {
@@ -875,7 +875,7 @@
       notify('प्रवेश-पत्र PDF तैयार हो रही है…', 'info');
       surface = document.createElement('div');
       surface.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;padding:30px;background:#fffdf7;color:#143622;font-family:Arial,sans-serif;z-index:-1;';
-      const cfg = state.examConfig || {};
+      const cfg = record.admitCardSettings || state.examConfig || {};
       const esc = escapeHtml;
       const fields = [
         ['विद्यार्थी का नाम', record.fullName || record.name || state.profile?.displayName || state.user.displayName || 'विद्यार्थी'],
@@ -2756,7 +2756,7 @@ function renderExamVisibility() {
         if (state.db) state.db.collection('examEnrolledStudents').doc(state.user.uid).get().then(snap => {
           const enrollment = snap.exists ? snap.data() || {} : {};
           const available = enrollment.verificationStatus === 'confirmed' && !!enrollment.rollNumber &&
-            enrollment.admitCardReleased === true && state.examConfig?.admitCardReleased === true;
+            enrollment.admitCardReleased === true;
           if (profileAdmitButton) profileAdmitButton.classList.toggle('hidden', !available);
         }).catch(error => console.warn('प्रोफ़ाइल प्रवेश-पत्र स्थिति नहीं पढ़ी गई:', error));
         setText('statMalaTotal', state.mala.count || 0);
