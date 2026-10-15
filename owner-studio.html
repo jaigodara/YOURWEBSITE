@@ -1320,28 +1320,47 @@ Ans: B"></textarea>
     window.importBulkQuestions = importBulkQuestions;
 
     let adminQuestionRows = [];
+    let adminQuestionVisibleLimit = 40;
+
     function filterAdminQuestionList() {
       const box = document.getElementById('adminQuizList');
       const status = document.getElementById('adminQuizListStatus');
       if (!box) return;
       const query = (document.getElementById('adminQuizSearch')?.value || '').trim().toLowerCase();
       const filtered = adminQuestionRows.filter(row => !query || String(row.data.question || row.data.text || row.data.q || '').toLowerCase().includes(query) || row.id.toLowerCase().includes(query));
-      box.querySelectorAll('[data-question-row]').forEach(node => node.hidden = !filtered.some(row => row.id === node.dataset.questionRow));
-      if (status) status.textContent = filtered.length + ' प्रश्न मिले · कुल ' + adminQuestionRows.length + '।';
+      box.querySelectorAll('[data-question-row]').forEach(node => {
+        const index = filtered.findIndex(row => row.id === node.dataset.questionRow);
+        node.hidden = index < 0 || (!query && index >= adminQuestionVisibleLimit);
+      });
+      let more = document.getElementById('adminQuestionLoadMore');
+      if (!more && box.parentElement) {
+        more = document.createElement('button');
+        more.id = 'adminQuestionLoadMore';
+        more.type = 'button';
+        more.className = 'mt-2 w-full rounded-lg border border-emerald-300 bg-emerald-50 p-2 text-xs font-bold text-emerald-900';
+        more.textContent = 'अगले 40 प्रश्न दिखाएँ';
+        more.addEventListener('click', () => { adminQuestionVisibleLimit += 40; filterAdminQuestionList(); });
+        box.insertAdjacentElement('afterend', more);
+      }
+      if (more) {
+        more.hidden = !!query || filtered.length <= adminQuestionVisibleLimit;
+        more.textContent = 'अगले 40 प्रश्न दिखाएँ (' + Math.min(40, Math.max(0, filtered.length - adminQuestionVisibleLimit)) + ' और)';
+      }
+      if (status) status.textContent = (query ? filtered.length : Math.min(filtered.length, adminQuestionVisibleLimit)) + ' दिख रहे हैं · ' + filtered.length + ' मिले · सूची में ' + adminQuestionRows.length + ' तक रिकॉर्ड लोड हुए। खोजने के लिए शब्द लिखें।';
     }
 
     function listenQuizQuestions() {
       if (window.__quizQuestionListener) window.__quizQuestionListener();
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
-      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').onSnapshot(snap => {
+      adminQuestionVisibleLimit = 40;
+      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').limit(1000).onSnapshot(snap => {
         const box = document.getElementById('adminQuizList');
         if (!box) return;
         box.innerHTML = '';
         adminQuestionRows = snap.docs.map(doc => ({ id: doc.id, data: doc.data() || {} }));
-        snap.forEach(doc => {
-          const d = doc.data() || {};
+        adminQuestionRows.forEach(({id, data:d}) => {
           const row = document.createElement('div');
-          row.dataset.questionRow = doc.id;
+          row.dataset.questionRow = id;
           row.className = 'flex flex-wrap items-center gap-2 p-2 rounded-xl bg-stone-50 border border-stone-200';
           const title = document.createElement('span');
           title.className = 'min-w-0 flex-1 text-xs';
@@ -1353,25 +1372,25 @@ Ans: B"></textarea>
           edit.type = 'button';
           edit.className = 'rounded-lg border px-2 py-1 text-[10px] font-bold';
           edit.textContent = '✏️ संपादित करें';
-          edit.addEventListener('click', () => editQuestionDoc(target, doc.id));
+          edit.addEventListener('click', () => editQuestionDoc(target, id));
           const publish = document.createElement('button');
           publish.type = 'button';
           publish.className = 'rounded-lg border px-2 py-1 text-[10px] font-bold ' + (d.published === true && d.status !== 'draft' ? 'border-amber-300 text-amber-800' : 'border-emerald-300 text-emerald-800');
           publish.textContent = d.published === true && d.status !== 'draft' ? 'Draft में वापस' : 'प्रकाशित करें';
-          publish.addEventListener('click', () => publishQuestionDoc(target, doc.id, !(d.published === true && d.status !== 'draft')));
+          publish.addEventListener('click', () => publishQuestionDoc(target, id, !(d.published === true && d.status !== 'draft')));
           const remove = document.createElement('button');
           remove.type = 'button';
           remove.className = 'rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-700';
           remove.textContent = 'हटाएँ';
-          remove.addEventListener('click', () => deleteDocItem(target, doc.id));
-          if (!isPrimaryOwner()) {
-            publish.classList.add('hidden');
-            remove.classList.add('hidden');
-          }
+          remove.addEventListener('click', () => deleteDocItem(target, id));
+          if (!isPrimaryOwner()) { publish.classList.add('hidden'); remove.classList.add('hidden'); }
           row.append(title, status, edit, publish, remove);
           box.appendChild(row);
         });
         filterAdminQuestionList();
+      }, error => {
+        const status = document.getElementById('adminQuizListStatus');
+        if (status) status.textContent = 'प्रश्न सूची लोड नहीं हुई: ' + error.message;
       });
     }
 
