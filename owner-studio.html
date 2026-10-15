@@ -1745,6 +1745,7 @@ Ans: B"></textarea>
         batch.set(notificationRef, { title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', message: (settings.admitCardTitle || 'मुख्य परीक्षा') + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से डाउनलोड करें। रोल नंबर: ' + roll, type: 'admit-card', admitCardReady: true, recipientUid: uid, active: true, audience: 'private', important: true, pinnedByOwner: true, createdBy: auth.currentUser?.uid || null, createdAt: now }, { merge: true });
         await batch.commit();
         await db.collection('examConfig').doc('current').set(settings, { merge: true });
+        await pushNotification(uid, { id: notificationRef.id, title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', body: (settings.admitCardTitle || 'मुख्य परीक्षा') + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से डाउनलोड करें। रोल नंबर: ' + roll, type: 'admit-card', important: true, pinnedByOwner: true });
         if (status) status.textContent = 'प्रवेश-पत्र जारी हुआ: ' + (student.fullName || student.name || 'विद्यार्थी') + ' · ' + roll + '। सूचना भेज दी गई।';
         showToast('एक विद्यार्थी का प्रवेश-पत्र जारी किया गया।');
       } catch (error) {
@@ -1790,13 +1791,7 @@ Ans: B"></textarea>
               const now = firebase.firestore.FieldValue.serverTimestamp();
               batch.set(studentDoc.ref, { admitCardReleased: true, admitCardReleasedAt: now, admitCardExamType: examType, updatedAt: now }, { merge: true });
               const notificationId = 'admit-card-' + String(examType + '-' + (settings.admitCardDate || '')).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 100);
-              batch.set(db.collection('userNotifications').doc(uid).collection('items').doc(notificationId), {
-                title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-                message: title + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से PDF डाउनलोड करें। रोल नंबर: ' + student.rollNumber,
-                type: 'admit-card', admitCardReady: true, recipientUid: uid, active: true,
-                audience: 'private', important: true, pinnedByOwner: true,
-                createdBy: auth.currentUser?.uid || null, createdAt: now
-              }, { merge: true });
+              pushNotification(uid, { id: notificationId, title: '🎟️ आपका प्रवेश-पत्र जारी हो गया', body: title + ' का प्रवेश-पत्र जारी हुआ है। प्रोफाइल या पंजीकरण स्थिति से PDF डाउनलोड करें। रोल नंबर: ' + student.rollNumber, type: 'admit-card', important: true, pinnedByOwner: true }, batch);
             });
             await batch.commit();
             released += chunk.length;
