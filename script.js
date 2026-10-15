@@ -807,7 +807,7 @@
     heading.textContent = 'आपका पंजीकरण: ' + statusText;
     host.appendChild(heading);
     const detail = document.createElement('p');
-    detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'अभी आवंटित नहीं');
+    detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
     if (status === 'confirmed' && roll && state.examConfig?.admitCardReleased === true) {
       const button = document.createElement('button');
@@ -1010,7 +1010,7 @@
     const personalItems = (state.personalNotifications || [])
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
-    const items = [...personalItems, ...globalItems].sort((a, b) => notificationTime(b) - notificationTime(a));
+    const items = [...personalItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
@@ -1026,7 +1026,7 @@
     if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
-    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.slice(0, 100).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.map(item => ({ ...item, _isRead: seen.includes(item._key) })));
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
       readAll = document.createElement('button');
@@ -1108,7 +1108,7 @@
     }
     const uid = state.user.uid;
     state.notificationReadsUnsubscribe = state.db
-      .collection('userNotificationReads').doc(uid).collection('items').limit(1000)
+      .collection('userNotificationReads').doc(uid).collection('items')
       .onSnapshot(snapshot => {
         if (state.user?.uid !== uid) return;
         state.notificationReadKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
@@ -1118,7 +1118,6 @@
       });
     state.personalNotificationsUnsubscribe = state.db
       .collection('userNotifications').doc(uid).collection('items')
-      .orderBy('createdAt', 'desc').limit(30)
       .onSnapshot(snapshot => {
         if (state.user?.uid !== uid) return;
         state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
@@ -1133,8 +1132,6 @@
   function initPublicNotifications() {
     if (!state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
-      .orderBy('createdAt', 'desc')
-      .limit(30)
       .onSnapshot(snapshot => {
         state.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'global' }));
         renderNotificationCenter();
@@ -1184,7 +1181,9 @@
           const ref = state.db.collection('examEnrolledStudents').doc(state.user.uid);
           const existing = await ref.get();
           const old = existing.exists ? existing.data() : {};
-          const data = {
+          // Students may edit only their own enrollment details. Roll numbers and
+          // approval state are assigned by an owner and must never be client-controlled.
+          const editable = {
             uid: state.user.uid,
             fullName,
             name: fullName,
@@ -1192,21 +1191,25 @@
             dateOfBirth,
             examName,
             location,
-            verificationStatus: old.verificationStatus || 'pending',
-            // Firebase Auth UIDs are unique; preserving the full UID makes this
-            // generated roll number unique without a manual counter or race.
-            rollNumber: 'BIS-' + state.user.uid,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           };
-          if (!existing.exists) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-          await ref.set(data, { merge: true });
-          if (status) status.textContent = 'पंजीकरण भेज दिया गया। आपका यूनिक रोल नंबर अपने-आप बन गया है; व्यवस्थापक की पुष्टि के बाद प्रवेश-पत्र यहीं मिलेगा।';
+          if (state.user.email) editable.email = state.user.email;
+          if (!existing.exists) {
+            await ref.set({
+              ...editable,
+              verificationStatus: 'pending',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } else {
+            await ref.update(editable);
+          }
+          if (status) status.textContent = 'पंजीकरण सहेज दिया गया है। रोल नंबर Owner की स्वीकृति के बाद जारी होगा।';
           await refreshEnrollmentStatus();
           notify('परीक्षा पंजीकरण सहेज दिया गया।', 'success');
         } catch (error) {
           console.error('Enrollment submit failed:', error);
-          if (status) status.textContent = 'पंजीकरण सहेजा नहीं जा सका। Firebase Firestore rules में examEnrolledStudents की अनुमति जाँचें।';
-          notify('पंजीकरण सहेजने में समस्या आई।', 'error');
+          if (status) status.textContent = 'पंजीकरण सहेजा नहीं जा सका: ' + (error?.code || error?.message || 'अज्ञात Firestore त्रुटि') + '। Firestore Rules और आवश्यक फ़ील्ड जाँचें।';
+          notify('पंजीकरण सहेजा नहीं जा सका: ' + (error?.code || error?.message || 'अज्ञात Firestore त्रुटि'), 'error');
         } finally {
           if (button) button.disabled = false;
         }

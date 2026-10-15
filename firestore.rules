@@ -110,8 +110,8 @@ service cloud.firestore {
     }
 
     match /settings/{id} {
-      allow read: if true;
-      allow write: if owner();
+      allow read: if id != 'rollCounter' || examOwner();
+      allow write: if id == 'rollCounter' ? examOwner() : owner();
     }
 
     match /examConfig/{id} {
@@ -164,23 +164,23 @@ service cloud.firestore {
 
     match /examEnrolledStudents/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      // Students create pending records only. A roll number is owner-assigned.
       allow create: if examOwner()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
-          && request.resource.data.get('rollNumber', '') == 'BIS-' + uid
           && request.resource.data.get('verificationStatus', '') == 'pending'
+          && !('rollNumber' in request.resource.data)
         );
+      // Editing enrollment details must never change approval or assigned roll.
       allow update: if examOwner()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
-          && request.resource.data.get('rollNumber', '') == resource.data.get('rollNumber', '')
-          && request.resource.data.get('verificationStatus', '') == resource.data.get('verificationStatus', '')
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'updatedAt'
+            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
           ])
         );
       allow delete: if examOwner();
@@ -221,8 +221,7 @@ service cloud.firestore {
       allow create: if confirmedExamStudent()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'main'
-        && examStarted('mainStartAt')
-        && sessionDeadlineReached('main');
+        && examStarted('mainStartAt');
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
     }
@@ -232,9 +231,9 @@ service cloud.firestore {
         && request.resource.data.get('uid', '') == request.auth.uid
         && (
           (request.resource.data.get('mode', '') == 'mock1'
-            && examStarted('mock1StartAt') && sessionDeadlineReached('mock1'))
+            && examStarted('mock1StartAt'))
           || (request.resource.data.get('mode', '') == 'mock2'
-            && examStarted('mock2StartAt') && sessionDeadlineReached('mock2'))
+            && examStarted('mock2StartAt'))
         );
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
