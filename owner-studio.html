@@ -1692,27 +1692,30 @@ Ans: B"></textarea>
         const configSnap = await configRef.get();
         const configData = configSnap.exists ? configSnap.data() || {} : {};
         const settings = readAdmitCardSettings(true);
-        const batch = db.batch();
-        batch.set(configRef, settings, { merge: true });
+        await configRef.set(settings, { merge: true });
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
-        eligibleStudents.forEach(studentDoc => {
-          const student = studentDoc.data() || {};
-          const uid = student.uid || studentDoc.id;
-          const notificationKey = 'admit-card-' + String(title + '-' + (settings.admitCardDate || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
-          const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc(notificationKey);
-          batch.set(notificationRef, {
-            title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-            message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
-            type: 'admit-card',
-            admitCardReady: true,
-            recipientUid: uid,
-            active: true,
-            audience: 'private',
-            createdBy: auth.currentUser?.uid || null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        const notificationKey = 'admit-card-' + String(title + '-' + (settings.admitCardDate || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        // Firestore batches are limited to 500 writes. Chunk so 2,000+ students work.
+        for (let offset = 0; offset < eligibleStudents.length; offset += 400) {
+          const batch = db.batch();
+          eligibleStudents.slice(offset, offset + 400).forEach(studentDoc => {
+            const student = studentDoc.data() || {};
+            const uid = student.uid || studentDoc.id;
+            const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc(notificationKey);
+            batch.set(notificationRef, {
+              title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
+              message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
+              type: 'admit-card',
+              admitCardReady: true,
+              recipientUid: uid,
+              active: true,
+              audience: 'private',
+              createdBy: auth.currentUser?.uid || null,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
           });
-        });
-        await batch.commit();
+          await batch.commit();
+        }
         window.ownerAdmitCardSettings = { ...configData, ...settings };
         if (status) status.textContent = 'रिलीज़ सफल: ' + eligibleStudents.length + ' लिंक किए नामांकित विद्यार्थियों को सूचना भेजी गई।' + (studentsSnap.size >= 5000 ? ' · 5,000 रिकॉर्ड की सीमा पहुँची—अगले बैच की जाँच करें।' : '');
         showToast(eligibleStudents.length + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
