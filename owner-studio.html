@@ -2810,6 +2810,17 @@ Ans: B"></textarea>
               d.rollNumber = rollNumber;
               sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
               d.verificationStatus = status.value;
+              if (status.value === 'confirmed' && collectionName === 'examEnrolledStudents') {
+                try {
+                  await pushNotification(d.uid || d.id, {
+                    title: 'परीक्षा पंजीकरण स्वीकृत',
+                    body: 'आपका पंजीकरण स्वीकृत हो गया है। आपका रोल नंबर: ' + (rollNumber || 'जारी होना बाकी') + '।',
+                    type: 'enrollment-approved', important: true, pinnedByOwner: true
+                  });
+                } catch (notificationError) {
+                  console.warn('पंजीकरण स्वीकृति सूचना नहीं भेजी गई:', notificationError);
+                }
+              }
               admit.disabled = status.value !== 'confirmed' || !rollNumber;
               admit.title = admit.disabled ? 'पुष्टि और रोल नंबर आवश्यक हैं' : 'प्रवेश-पत्र प्रिंट करें';
               showToast('विद्यार्थी / प्रवेश-पत्र स्थिति सहेज दी गई।');
