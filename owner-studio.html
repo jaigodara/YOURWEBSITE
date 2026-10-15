@@ -21,6 +21,7 @@
 
   <!-- jsPDF, AutoTable & SheetJS for PDF / Excel Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -526,8 +527,9 @@ Ans: B"></textarea>
         <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">📎 किसी एक विद्यार्थी को Admit Card PDF भेजें</h4>
-          <p class="text-[11px] text-stone-600">यह PDF रोल नंबर से विद्यार्थी खोजकर उसके निजी Notification Centre में भेजी जाएगी। PDF अधिकतम 10 MB; Firebase Storage/Firestore rules अनुमति देना आवश्यक है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे BIS-…)">
+          <p class="text-[11px] text-stone-600">रोल नंबर से एक विद्यार्थी को प्रवेश-पत्र जारी करें। पुराना PDF अपलोड विकल्प नीचे सुरक्षित रखा गया है।</p>
+          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे JAMBH-2026-00001)">
+          <button id="releaseIndividualAdmitCardButton" type="button" onclick="releaseAdmitCardForRollNumber()" class="w-full rounded-lg bg-forest px-3 py-2.5 text-xs font-extrabold text-white">🎟️ इस रोल नंबर पर प्रवेश-पत्र जारी करें</button>
           <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
           <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">⬆️ निजी Notification में Admit Card PDF अपलोड करें</button>
           <p id="individualAdmitCardUploadStatus" class="text-[11px] text-stone-600" aria-live="polite"></p>
@@ -1649,6 +1651,33 @@ Ans: B"></textarea>
     }
     window.uploadIndividualAdmitCardPdf = uploadIndividualAdmitCardPdf;
 
+    async function pushNotification(uid, data = {}, batch = null) {
+      if (!isPrimaryOwner() && !hasEditorPermission('notifications')) throw new Error('सूचना प्रकाशित करने का अधिकार नहीं है।');
+      const payload = {
+        title: String(data.title || 'नई सूचना'),
+        message: String(data.body || data.message || ''),
+        type: String(data.type || 'announcement'),
+        important: data.important === true,
+        pinnedByOwner: data.pinnedByOwner === true,
+        active: true,
+        createdBy: auth.currentUser?.uid || null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if (uid === 'ALL' || !uid) {
+        const ref = db.collection('notifications').doc(data.id || undefined);
+        const allPayload = { ...payload, audience: 'all' };
+        if (batch) batch.set(ref, allPayload);
+        else await ref.set(allPayload);
+        return ref;
+      }
+      const ref = db.collection('userNotifications').doc(uid).collection('items').doc(data.id || undefined);
+      const personalPayload = { ...payload, recipientUid: uid, audience: 'private' };
+      if (batch) batch.set(ref, personalPayload);
+      else await ref.set(personalPayload);
+      return ref;
+    }
+    window.pushNotification = pushNotification;
+
     async function loadAdmitCardSettings() {
       try {
         const snap = await db.collection('examConfig').doc('current').get();
@@ -1699,53 +1728,104 @@ Ans: B"></textarea>
 
     async function releaseAdmitCards() {
       if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ करने का अधिकार केवल Owner को है।');
-      if (!confirm('क्या आप सभी लिंक किए हुए नामांकित विद्यार्थियों के लिए प्रवेश-पत्र रिलीज़ करना चाहते हैं? पुराने रिकॉर्ड भी शामिल होंगे। उन्हें निजी सूचना भेजी जाएगी।')) return;
+      if (!confirm('क्या आप सभी पुष्टि किए हुए विद्यार्थियों के लिए प्रवेश-पत्र जारी करना चाहते हैं? प्रत्येक विद्यार्थी को निजी सूचना भेजी जाएगी।')) return;
       const status = document.getElementById('ownerAdmitReleaseStatus');
+      const button = document.querySelector('button[onclick="releaseAdmitCards()"]');
+      if (button) { button.disabled = true; button.textContent = 'प्रवेश-पत्र जारी हो रहे हैं…'; }
+      let scanned = 0, released = 0, skipped = 0, failed = 0, cursor = null;
       try {
-        // Do not filter solely on verificationStatus == 'confirmed': older valid enrollments
-        // may use pending/approved/verified or omit the field. Include linked accounts only.
-        const studentsSnap = await db.collection('examEnrolledStudents').limit(5000).get();
-        const eligibleStudents = studentsSnap.docs.filter(doc => {
-          const student = doc.data() || {};
-          const uid = student.uid || doc.id;
-          return !!uid && uid.length >= 5 && student.verificationStatus === 'confirmed' && !!student.rollNumber && !String(student.rollNumber).startsWith('BIS-');
-        });
         const configRef = db.collection('examConfig').doc('current');
-        const configSnap = await configRef.get();
-        const configData = configSnap.exists ? configSnap.data() || {} : {};
         const settings = readAdmitCardSettings(true);
-        await configRef.set(settings, { merge: true });
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
-        const notificationKey = 'admit-card-' + String(title + '-' + (settings.admitCardDate || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
-        // Firestore batches are limited to 500 writes. Chunk so 2,000+ students work.
-        for (let offset = 0; offset < eligibleStudents.length; offset += 400) {
-          const batch = db.batch();
-          eligibleStudents.slice(offset, offset + 400).forEach(studentDoc => {
-            const student = studentDoc.data() || {};
-            const uid = student.uid || studentDoc.id;
-            const notificationRef = db.collection('userNotifications').doc(uid).collection('items').doc(notificationKey);
-            batch.set(notificationRef, {
-              title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-              message: title + ' का प्रवेश-पत्र आपके लॉगिन में उपलब्ध है। परीक्षा अनुभाग में अपने पंजीकरण कार्ड से इसे खोलकर प्रिंट / PDF में सेव करें। रोल नंबर: ' + (student.rollNumber || ('BIS-' + uid)),
-              type: 'admit-card',
-              admitCardReady: true,
-              recipientUid: uid,
-              active: true,
-              audience: 'private',
-              createdBy: auth.currentUser?.uid || null,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+        const dateKey = settings.admitCardDate || 'no-date';
+        const notificationId = 'admit-card-' + String(title + '-' + dateKey).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        await configRef.set(settings, { merge: true });
+        while (true) {
+          let query = db.collection('examEnrolledStudents').orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
+          if (cursor) query = query.startAfter(cursor);
+          const page = await query.get();
+          if (page.empty) break;
+          scanned += page.size;
+          const eligible = page.docs.filter(doc => {
+            const d = doc.data() || {};
+            return d.verificationStatus === 'confirmed' && !!d.rollNumber && /^JAMBH-2026-\d{5}$/.test(String(d.rollNumber)) && String(d.uid || doc.id).length >= 5;
           });
-          await batch.commit();
+          skipped += page.size - eligible.length;
+          for (let offset = 0; offset < eligible.length; offset += 200) {
+            const group = eligible.slice(offset, offset + 200);
+            const batch = db.batch();
+            group.forEach(studentDoc => {
+              const student = studentDoc.data() || {};
+              const uid = student.uid || studentDoc.id;
+              batch.set(studentDoc.ref, {
+                admitCardReleased: true,
+                admitCardReleasedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                admitCardExamTitle: title,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+              pushNotification(uid, {
+                id: notificationId, title: '🎟️ प्रवेश-पत्र जारी हो गया',
+                body: title + ' का प्रवेश-पत्र अब सूचना कार्ड, प्रोफ़ाइल और परीक्षा पंजीकरण में डाउनलोड कर सकते हैं। रोल नंबर: ' + student.rollNumber,
+                type: 'admit-card', important: true, pinnedByOwner: true
+              }, batch);
+            });
+            await batch.commit();
+            released += group.length;
+            if (status) status.textContent = 'प्रगति: ' + scanned + ' रिकॉर्ड देखे · ' + released + ' प्रवेश-पत्र जारी · ' + skipped + ' अयोग्य रिकॉर्ड छोड़े।';
+          }
+          cursor = page.docs[page.docs.length - 1];
+          if (page.size < 400) break;
         }
-        window.ownerAdmitCardSettings = { ...configData, ...settings };
-        if (status) status.textContent = 'रिलीज़ सफल: ' + eligibleStudents.length + ' लिंक किए नामांकित विद्यार्थियों को सूचना भेजी गई।' + (studentsSnap.size >= 5000 ? ' · 5,000 रिकॉर्ड की सीमा पहुँची—अगले बैच की जाँच करें।' : '');
-        showToast(eligibleStudents.length + ' विद्यार्थियों के प्रवेश-पत्र रिलीज़ कर दिए गए।');
+        window.ownerAdmitCardSettings = { ...(window.ownerAdmitCardSettings || {}), ...settings };
+        if (status) status.textContent = 'पूरा हुआ: ' + released + ' प्रवेश-पत्र जारी, ' + skipped + ' रिकॉर्ड छोड़े, ' + failed + ' त्रुटियाँ। कुल जाँचे गए रिकॉर्ड: ' + scanned + '।';
+        showToast(released + ' विद्यार्थियों के प्रवेश-पत्र जारी कर दिए गए।');
       } catch (error) {
-        if (status) status.textContent = 'रिलीज़ नहीं हो सका: ' + error.message + ' — userNotifications rules जाँचें।';
-        showToast('प्रवेश-पत्र रिलीज़ असफल: ' + error.message);
+        failed++;
+        if (status) status.textContent = 'रिलीज़ बीच में रुकी: ' + error.message + ' · ' + released + ' जारी हुए; दोबारा चलाने पर वही सूचना ID अपडेट होगी।';
+        showToast('प्रवेश-पत्र जारी नहीं हो सके: ' + error.message);
+      } finally {
+        if (button) { button.disabled = false; button.textContent = '📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें'; }
       }
     }
+
+    async function releaseAdmitCardForRollNumber() {
+      if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र जारी करने का अधिकार केवल Owner को है।');
+      const input = document.getElementById('individualAdmitCardUid');
+      const status = document.getElementById('individualAdmitCardUploadStatus');
+      const button = document.getElementById('releaseIndividualAdmitCardButton');
+      const roll = (input?.value || '').trim();
+      if (!roll) { if (status) status.textContent = 'विद्यार्थी का रोल नंबर दर्ज करें।'; return; }
+      if (!confirm('क्या ' + roll + ' के लिए प्रवेश-पत्र जारी करके निजी सूचना भेजें?')) return;
+      if (button) { button.disabled = true; button.textContent = 'जारी हो रहा है…'; }
+      if (status) status.textContent = 'रोल नंबर से विद्यार्थी खोजा जा रहा है…';
+      try {
+        const matches = await db.collection('examEnrolledStudents').where('rollNumber', '==', roll).limit(2).get();
+        if (matches.empty) throw new Error('इस रोल नंबर का विद्यार्थी नहीं मिला।');
+        if (matches.size !== 1) throw new Error('यह रोल नंबर एक से अधिक रिकॉर्ड में है; सुरक्षा के लिए रोक दिया गया।');
+        const studentDoc = matches.docs[0], student = studentDoc.data() || {};
+        if (student.verificationStatus !== 'confirmed') throw new Error('पहले विद्यार्थी का पंजीकरण पुष्टि करें।');
+        const configSnap = await db.collection('examConfig').doc('current').get();
+        const cfg = configSnap.exists ? configSnap.data() || {} : {};
+        const title = document.getElementById('ownerAdmitExamTitle')?.value.trim() || cfg.admitCardTitle || 'मुख्य परीक्षा';
+        const notificationId = 'admit-card-' + String(title + '-' + (document.getElementById('ownerAdmitExamDate')?.value || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        const batch = db.batch();
+        batch.set(studentDoc.ref, { admitCardReleased: true, admitCardReleasedAt: firebase.firestore.FieldValue.serverTimestamp(), admitCardExamTitle: title, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        pushNotification(student.uid || studentDoc.id, {
+          id: notificationId, title: '🎟️ प्रवेश-पत्र जारी हो गया',
+          body: title + ' का प्रवेश-पत्र अब डाउनलोड कर सकते हैं। रोल नंबर: ' + student.rollNumber,
+          type: 'admit-card', important: true, pinnedByOwner: true
+        }, batch);
+        await batch.commit();
+        if (status) status.textContent = 'प्रवेश-पत्र जारी हुआ और सूचना भेजी गई: ' + (student.fullName || student.name || 'विद्यार्थी') + ' · ' + roll;
+        showToast('एक विद्यार्थी का प्रवेश-पत्र जारी कर दिया गया।');
+      } catch (error) {
+        if (status) status.textContent = 'प्रवेश-पत्र जारी नहीं हुआ: ' + error.message;
+        showToast('प्रवेश-पत्र जारी नहीं हुआ: ' + error.message);
+      } finally {
+        if (button) { button.disabled = false; button.textContent = '🎟️ इस रोल नंबर पर प्रवेश-पत्र जारी करें'; }
+      }
+    }
+    window.releaseAdmitCardForRollNumber = releaseAdmitCardForRollNumber;
 
     async function revokeAdmitCardRelease() {
       if (!isPrimaryOwner()) return showToast('प्रवेश-पत्र रिलीज़ रोकने का अधिकार केवल Owner को है।');
