@@ -343,6 +343,10 @@ Add these match blocks inside the existing Firestore service block, after checki
       allow update, delete: if canReviewExam();
     }
 
+    match /userNotificationReads/{uid}/items/{notificationId} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
+
 Important migration notes:
 
 - The three submission collections above now grant read access only to `canReviewExam()`. This matches the portal code, which no longer reads submissions to populate student results. Verify no other deployed client depends on students reading their own submission documents before publishing these rules.
