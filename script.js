@@ -996,7 +996,7 @@
         const action = document.createElement('button');
         action.type = 'button';
         action.className = 'inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
-        action.textContent = item.type === 'admit-card' ? '🎟️ प्रवेश-पत्र खोलें' : '📊 परिणाम देखें';
+        action.textContent = item.type === 'admit-card' ? '🎟️ प्रवेश-पत्र PDF डाउनलोड करें' : '📊 परिणाम देखें';
         action.addEventListener('click', async () => {
           if (item.type === 'admit-card') {
             try {
