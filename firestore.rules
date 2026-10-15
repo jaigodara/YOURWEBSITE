@@ -334,7 +334,7 @@ service cloud.firestore {
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.get('recipientUid', '') == uid
-          && request.resource.data.get('type', '') == 'quiz-result'
+          && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
           && request.resource.data.get('active', false) == true
         );
       allow update: if signedIn()
