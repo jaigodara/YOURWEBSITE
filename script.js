@@ -130,6 +130,8 @@
     initialized: false,
     publicNotificationsUnsubscribe: null,
     personalNotificationsUnsubscribe: null,
+    notificationReadsUnsubscribe: null,
+    notificationReadKeys: [],
     notifications: [],
     personalNotifications: []
   };
@@ -998,6 +1000,7 @@
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
     if (!Array.isArray(seen)) seen = [];
+    seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
     const unseen = items.filter(item => !seen.includes(item._key));
     const badge = byId('notificationUnreadCount');
     if (badge) {
@@ -1026,12 +1029,27 @@
 
   function markNotificationsRead(itemsToMark) {
     if (!state.user) return;
-    const key = 'bishnoi_seen_notifications_v2_' + state.user.uid;
+    const uid = state.user.uid;
+    const key = 'bishnoi_seen_notifications_v2_' + uid;
+    const keysToMark = (itemsToMark || []).map(item => item._key).filter(Boolean);
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
-    const merged = [...new Set([...seen, ...(itemsToMark || []).map(item => item._key).filter(Boolean)])].slice(-1000);
+    const merged = [...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])].slice(-1000);
     try { localStorage.setItem(key, JSON.stringify(merged)); } catch (_) {}
+    // Persist read state to Firestore so it follows the signed-in student across devices.
+    if (state.db && keysToMark.length) {
+      const batch = state.db.batch();
+      keysToMark.forEach(notificationKey => {
+        const documentId = notificationKey.replace(/[^A-Za-z0-9_-]/g, '_');
+        batch.set(state.db.collection('userNotificationReads').doc(uid).collection('items').doc(documentId), {
+          key: notificationKey,
+          readAt: serverTimestamp()
+        }, { merge: true });
+      });
+      batch.commit().catch(error => console.warn('Notification read state was saved locally but not synced:', error));
+    }
+    state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []), ...keysToMark])];
     renderNotificationCenter();
   }
 
@@ -1065,6 +1083,7 @@
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
+    seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
     const unread = allItems.filter(item => !seen.includes(item._key));
     markNotificationsRead(unread.length ? unread : allItems.slice(0, 5));
   };
@@ -1074,12 +1093,26 @@
       state.personalNotificationsUnsubscribe();
       state.personalNotificationsUnsubscribe = null;
     }
+    if (state.notificationReadsUnsubscribe) {
+      state.notificationReadsUnsubscribe();
+      state.notificationReadsUnsubscribe = null;
+    }
     state.personalNotifications = [];
+    state.notificationReadKeys = [];
     if (!state.user || !state.db) {
       renderNotificationCenter();
       return;
     }
     const uid = state.user.uid;
+    state.notificationReadsUnsubscribe = state.db
+      .collection('userNotificationReads').doc(uid).collection('items').limit(1000)
+      .onSnapshot(snapshot => {
+        if (state.user?.uid !== uid) return;
+        state.notificationReadKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
+        renderNotificationCenter();
+      }, error => {
+        console.warn('Cross-device notification read state could not load; local state remains available:', error);
+      });
     state.personalNotificationsUnsubscribe = state.db
       .collection('userNotifications').doc(uid).collection('items')
       .orderBy('createdAt', 'desc').limit(30)
