@@ -133,7 +133,8 @@
     notificationReadsUnsubscribe: null,
     notificationReadKeys: [],
     notifications: [],
-    personalNotifications: []
+    personalNotifications: [],
+    notificationVisibleCount: 20
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -888,6 +889,21 @@
     popup.document.close();
   }
 
+  window.pushNotification = async function pushNotification(uid, data = {}) {
+    if (!state.db) throw new Error('Firestore उपलब्ध नहीं है।');
+    const recipientUid = uid || state.user?.uid;
+    if (!recipientUid) throw new Error('सूचना पाने वाला खाता निर्धारित नहीं है।');
+    return state.db.collection('userNotifications').doc(recipientUid).collection('items').add({
+      title: String(data.title || 'नई सूचना'),
+      message: String(data.body || data.message || ''),
+      type: String(data.type || 'announcement'),
+      important: data.important === true,
+      pinnedByOwner: data.pinnedByOwner === true,
+      recipientUid, audience: 'private', active: true,
+      createdBy: state.user?.uid || null, createdAt: serverTimestamp()
+    });
+  };
+
   function notificationTime(item) {
     return timestampMillis(item?.createdAt) || Number(item?.createdAtMs) || 0;
   }
@@ -1026,14 +1042,31 @@
     if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
-    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.slice(0, state.notificationVisibleCount || 20).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    let moreButton = byId('loadMoreNotifications');
+    if (list && !moreButton) {
+      moreButton = document.createElement('button');
+      moreButton.id = 'loadMoreNotifications';
+      moreButton.type = 'button';
+      moreButton.className = 'mt-3 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-forest';
+      moreButton.textContent = 'और दिखाएँ';
+      moreButton.addEventListener('click', () => {
+        state.notificationVisibleCount = (state.notificationVisibleCount || 20) + 20;
+        renderNotificationCenter();
+      });
+      list.insertAdjacentElement('afterend', moreButton);
+    }
+    if (moreButton) {
+      moreButton.hidden = items.length <= (state.notificationVisibleCount || 20);
+      moreButton.textContent = 'और दिखाएँ (' + Math.max(0, items.length - (state.notificationVisibleCount || 20)) + ' बाकी)';
+    }
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
       readAll = document.createElement('button');
       readAll.id = 'markAllNotificationsRead';
       readAll.type = 'button';
       readAll.className = 'mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
-      readAll.textContent = '✓ सभी सूचनाएँ पढ़ी हुई चिह्नित करें / Mark all as read';
+      readAll.textContent = '✓ सभी सूचनाएँ पढ़ी हुई चिह्नित करें';
       readAll.addEventListener('click', () => {
         const current = [
           ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
@@ -1054,7 +1087,7 @@
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
-    const merged = [...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])].slice(-1000);
+    const merged = [...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])];
     try { localStorage.setItem(key, JSON.stringify(merged)); } catch (_) {}
     // Persist read state to Firestore so it follows the signed-in student across devices.
     if (state.db && keysToMark.length) {
