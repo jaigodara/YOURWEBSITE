@@ -1329,6 +1329,7 @@ Ans: B"></textarea>
         }
         batch.set(questionRef, update, { merge: true });
         await batch.commit();
+        if (publish && target === 'quiz') await pushNotification('ALL', { id: 'quiz-published-' + id, title: '📚 दैनिक ज्ञान परीक्षा प्रकाशित', body: 'नई दैनिक ज्ञान परीक्षा उपलब्ध है। परीक्षा अनुभाग में जाकर प्रयास करें।', type: 'quiz-published' });
         showToast(publish ? 'प्रश्न प्रकाशित हो गया। मुख्य/मॉक परीक्षा की उत्तर-कुंजी निजी संग्रह में रखी गई है।' : 'प्रश्न वापस Draft में कर दिया गया।');
         listenQuizQuestions();
       } catch (error) {
@@ -1899,11 +1900,7 @@ Ans: B"></textarea>
         }
         for (const [title, message] of notices) {
           try {
-            await db.collection('notifications').add({
-              title, message, active: true, audience: 'all', type: 'exam-announcement',
-              createdBy: auth.currentUser?.uid || null,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            await pushNotification('ALL', { id: 'exam-announcement-' + String(title).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 60) + '-' + Date.now(), title, body: message, type: 'exam-announcement' });
           } catch (notificationError) {
             console.warn('Exam settings saved but automatic notification failed:', notificationError);
           }
@@ -2006,19 +2003,12 @@ Ans: B"></textarea>
         if (published && d.uid) {
           try {
             // Deterministic ID prevents duplicate notices when a result is republished.
-            await db.collection('userNotifications').doc(d.uid).collection('items').doc(resultId + '_result_published').set({
+            await pushNotification(d.uid, {
+              id: resultId + '_result_published',
               title: '📣 आपका परीक्षा परिणाम घोषित हो गया',
-              message: (d.mode || examReviewCollection) + ' · अंतिम अंक: ' + value + '/' + total +
-                (feedback.value.trim() ? ' · टिप्पणी: ' + feedback.value.trim() : ''),
-              type: 'exam-result',
-              resultScore: value,
-              resultTotal: total,
-              recipientUid: d.uid,
-              active: true,
-              audience: 'private',
-              createdBy: reviewerUid,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+              body: (d.mode || examReviewCollection) + ' · अंतिम अंक: ' + value + '/' + total + (feedback.value.trim() ? ' · टिप्पणी: ' + feedback.value.trim() : ''),
+              type: 'exam-result'
+            });
           } catch (notificationError) {
             console.warn('Result saved but private result notification failed:', notificationError);
           }
@@ -2788,9 +2778,13 @@ Ans: B"></textarea>
                   }
                 }
               }
+              const wasConfirmed = d.verificationStatus === 'confirmed';
               d.rollNumber = rollNumber;
               sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
               d.verificationStatus = status.value;
+              if (collectionName === 'examEnrolledStudents' && status.value === 'confirmed' && !wasConfirmed) {
+                await pushNotification(d.uid || d.id, { id: 'enrollment-approved-' + rollNumber, title: '✅ आपका पंजीकरण स्वीकृत हुआ', body: 'आपका पंजीकरण स्वीकृत है। रोल नंबर: ' + rollNumber, type: 'enrollment-approved', important: true });
+              }
               admit.disabled = status.value !== 'confirmed' || !rollNumber;
               admit.title = admit.disabled ? 'पुष्टि और रोल नंबर आवश्यक हैं' : 'प्रवेश-पत्र प्रिंट करें';
               showToast('विद्यार्थी / प्रवेश-पत्र स्थिति सहेज दी गई।');
