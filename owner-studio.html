@@ -1751,7 +1751,8 @@ Ans: B"></textarea>
         const settings = readAdmitCardSettings(true);
         const title = settings.admitCardTitle || 'मुख्य परीक्षा';
         const dateKey = settings.admitCardDate || 'no-date';
-        const notificationId = 'admit-card-' + String((settings.admitCardExamType || 'मुख्य परीक्षा') + '-' + title + '-' + dateKey).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+        const examKey = ({ 'मुख्य परीक्षा': 'main', 'मॉक परीक्षा 1': 'mock1', 'मॉक परीक्षा 2': 'mock2', 'दैनिक ज्ञान क्विज़': 'quiz' })[settings.admitCardExamType || 'मुख्य परीक्षा'] || 'main';
+        const notificationId = 'admit-card-' + examKey + '-' + String(dateKey).replace(/[^0-9-]/g, '');
         await configRef.set(settings, { merge: true });
         while (true) {
           let query = db.collection('examEnrolledStudents').orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
