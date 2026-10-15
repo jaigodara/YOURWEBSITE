@@ -71,6 +71,14 @@ test("Firestore security rules regression suite", async (t) => {
       await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { verificationStatus: "pending" }));
     });
 
+    await t.test("विद्यार्थी स्वयं प्रवेश-पत्र रिलीज़ स्थिति नहीं बदल सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true, admitCardReleasedAt: serverTimestamp(),
+      }));
+    });
+
     await t.test("परीक्षा शुरू होने के बाद deadline से पहले main submission स्वीकार होता है", async () => {
       await reset();
       const db = env.authenticatedContext(STUDENT).firestore();
