@@ -1662,7 +1662,7 @@ Ans: B"></textarea>
     }
     window.uploadIndividualAdmitCardPdf = uploadIndividualAdmitCardPdf;
 
-    async function pushNotification(uid, data = {}, batch = null) {
+    function pushNotification(uid, data = {}, batch = null) {
       if (!isPrimaryOwner() && !hasEditorPermission('notifications')) throw new Error('सूचना प्रकाशित करने का अधिकार नहीं है।');
       const payload = {
         title: String(data.title || 'नई सूचना'),
@@ -1677,15 +1677,19 @@ Ans: B"></textarea>
       if (uid === 'ALL' || !uid) {
         const ref = data.id ? db.collection('notifications').doc(data.id) : db.collection('notifications').doc();
         const allPayload = { ...payload, audience: 'all' };
-        if (batch) batch.set(ref, allPayload);
-        else await ref.set(allPayload);
-        return ref;
+        if (batch) {
+          batch.set(ref, allPayload);
+          return Promise.resolve(ref);
+        }
+        return ref.set(allPayload).then(() => ref);
       }
       const ref = data.id ? db.collection('userNotifications').doc(uid).collection('items').doc(data.id) : db.collection('userNotifications').doc(uid).collection('items').doc();
       const personalPayload = { ...payload, recipientUid: uid, audience: 'private' };
-      if (batch) batch.set(ref, personalPayload);
-      else await ref.set(personalPayload);
-      return ref;
+      if (batch) {
+        batch.set(ref, personalPayload);
+        return Promise.resolve(ref);
+      }
+      return ref.set(personalPayload).then(() => ref);
     }
     window.pushNotification = pushNotification;
 
