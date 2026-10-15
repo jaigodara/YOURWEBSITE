@@ -1,0 +1,415 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function superOwner() {
+      return signedIn()
+        && request.auth.uid == '8YRBWWMKG2OUW6cmzZkGbFgOqyp2';
+    }
+
+    function examOwner() {
+      return signedIn() && (
+        superOwner()
+        || request.auth.uid == 'rdP0ZXzSP9fGzmJshEVvbOfb31g2'
+        || (
+          exists(/databases/$(database)/documents/roles/$(request.auth.uid))
+          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role == 'owner'
+        )
+      );
+    }
+
+    function owner() {
+      return examOwner()
+        || (
+          signedIn()
+          && exists(/databases/$(database)/documents/roles/$(request.auth.uid))
+          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role in ['owner', 'editor']
+        );
+    }
+
+    function editorHasPermission(permission) {
+      let rolePath = /databases/$(database)/documents/roles/$(request.auth.uid);
+      return signedIn()
+        && exists(rolePath)
+        && get(rolePath).data.role == 'editor'
+        && get(rolePath).data.get('permissions', {}).get(permission, false) == true;
+    }
+
+    function canReviewExam() {
+      return examOwner() || editorHasPermission('examReview');
+    }
+
+    function canEditQuizDrafts() {
+      return editorHasPermission('quizDrafts');
+    }
+
+    function canSendNotifications() {
+      return examOwner() || editorHasPermission('notifications');
+    }
+
+    function canManageMedia() {
+      return examOwner() || editorHasPermission('media');
+    }
+
+    function examStarted(fieldName) {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return exists(configPath)
+        && get(configPath).data.get(fieldName, null) != null
+        && request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1));
+    }
+
+    function confirmedExamStudent() {
+      let enrollmentPath = /databases/$(database)/documents/examEnrolledStudents/$(request.auth.uid);
+      return signedIn()
+        && exists(enrollmentPath)
+        && get(enrollmentPath).data.get('verificationStatus', '') == 'confirmed'
+        && get(enrollmentPath).data.get('rollNumber', '') != ''
+        && !get(enrollmentPath).data.get('rollNumber', '').matches('^BIS-.*$');
+    }
+
+    function sessionDeadlineReached(mode) {
+      let sessionPath = /databases/$(database)/documents/examSessions/$(request.auth.uid + '_' + mode);
+      return exists(sessionPath)
+        && get(sessionPath).data.get('endAt', null) != null
+        && request.time >= get(sessionPath).data.endAt;
+    }
+
+    function validScheduledSessionEnd(mode, endAt) {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return exists(configPath) && (
+        (mode == 'quiz' && endAt == get(configPath).data.get('quizEndAt', null))
+        || (mode == 'mock1' && endAt == get(configPath).data.get('mock1EndAt', null))
+        || (mode == 'mock2' && endAt == get(configPath).data.get('mock2EndAt', null))
+        || (mode == 'main' && endAt == get(configPath).data.get('mainEndAt', null))
+      );
+    }
+
+    // Roles: only the super owner can assign or revoke roles.
+    match /roles/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow write: if superOwner();
+    }
+
+    match /users/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner']);
+      allow update: if owner()
+        || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'updatedAt'
+          ])
+        );
+      allow delete: if owner();
+    }
+
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if owner();
+    }
+
+    match /examConfig/{id} {
+      allow read: if true;
+      allow write: if examOwner();
+    }
+
+    // Student-visible question documents must contain no secret answer key.
+    match /quiz/{questionId} {
+      allow read: if examOwner() || canEditQuizDrafts()
+        || (resource.data.get('published', false) == true && examStarted('quizStartAt'));
+      allow create: if examOwner()
+        || (canEditQuizDrafts()
+          && request.resource.data.get('published', false) == false
+          && request.resource.data.get('status', '') == 'draft');
+      allow update: if examOwner()
+        || (canEditQuizDrafts()
+          && request.resource.data.get('published', false) == false
+          && request.resource.data.get('status', '') == 'draft');
+      allow delete: if examOwner();
+    }
+
+    match /mainExamQuestions/{questionId} {
+      allow read: if examOwner()
+        || (resource.data.get('published', false) == true && examStarted('mainStartAt'));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /mockExam_1/{questionId} {
+      allow read: if examOwner()
+        || (resource.data.get('published', false) == true && examStarted('mock1StartAt'));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /mockExam_2/{questionId} {
+      allow read: if examOwner()
+        || (resource.data.get('published', false) == true && examStarted('mock2StartAt'));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /examAnswerKeys/{examCollection}/items/{questionId} {
+      allow read: if canReviewExam();
+      allow write: if examOwner();
+    }
+
+    match /examDrafts/{id} {
+      allow read, write: if owner()
+        || (signedIn() && id.matches('^' + request.auth.uid + '_.*$'));
+    }
+
+    match /examEnrolledStudents/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow create: if examOwner()
+        || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.get('uid', '') == uid
+          && request.resource.data.get('rollNumber', '') == 'BIS-' + uid
+          && request.resource.data.get('verificationStatus', '') == 'pending'
+        );
+      allow update: if examOwner()
+        || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.get('uid', '') == uid
+          && request.resource.data.get('rollNumber', '') == resource.data.get('rollNumber', '')
+          && request.resource.data.get('verificationStatus', '') == resource.data.get('verificationStatus', '')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'updatedAt'
+          ])
+        );
+      allow delete: if examOwner();
+    }
+
+    match /counters/{id} {
+      allow read, write: if examOwner();
+    }
+
+    match /reviews/{reviewId} {
+      allow read, create, update: if canReviewExam();
+      allow delete: if examOwner();
+      match /history/{historyId} {
+        allow read, create: if canReviewExam();
+        allow update, delete: if examOwner();
+      }
+    }
+
+    match /publishedResults/{resultId} {
+      allow read: if examOwner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      allow create: if canReviewExam()
+        || (
+          signedIn()
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('mode', '') == 'quiz'
+          && request.resource.data.get('status', '') == 'published'
+          && request.resource.data.keys().hasOnly([
+            'uid', 'sourceCollection', 'sourceSubmissionId', 'mode', 'name',
+            'rollNumber', 'score', 'total', 'status', 'feedback', 'publishedAt', 'publishedBy'
+          ])
+        );
+      allow update, delete: if canReviewExam();
+    }
+
+    // Student answer sheets remain private to authorized reviewers.
+    match /mainExamSubmissions/{attemptId} {
+      allow create: if confirmedExamStudent()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == 'main'
+        && examStarted('mainStartAt')
+        && sessionDeadlineReached('main');
+      allow read, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /mockExamSubmissions/{attemptId} {
+      allow create: if confirmedExamStudent()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && (
+          (request.resource.data.get('mode', '') == 'mock1'
+            && examStarted('mock1StartAt') && sessionDeadlineReached('mock1'))
+          || (request.resource.data.get('mode', '') == 'mock2'
+            && examStarted('mock2StartAt') && sessionDeadlineReached('mock2'))
+        );
+      allow read, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /quizAttempts/{attemptId} {
+      allow create: if confirmedExamStudent()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == 'quiz'
+        && examStarted('quizStartAt');
+      allow read, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /examSubmissions/{id} {
+      allow read: if examOwner()
+        || (signedIn() && (
+          resource.data.get('uid', '') == request.auth.uid
+          || resource.data.get('studentUid', '') == request.auth.uid
+        ));
+      allow create: if signedIn() && (
+        request.resource.data.get('uid', '') == request.auth.uid
+        || request.resource.data.get('studentUid', '') == request.auth.uid
+      );
+      allow update, delete: if examOwner();
+    }
+
+    match /examSessions/{sessionId} {
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && (
+          request.resource.data.get('status', '') == 'late_request'
+          || (
+            request.resource.data.get('status', '') == 'active'
+            && validScheduledSessionEnd(
+              request.resource.data.get('mode', ''),
+              request.resource.data.get('endAt', null)
+            )
+          )
+        );
+      allow read: if examOwner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      allow update: if examOwner() || (
+        signedIn()
+        && resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
+          'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt', 'lateEntryRequested',
+          'requestedAt', 'reentryGrantConsumedAt'
+        ])
+        && request.resource.data.get('endAt', null) == resource.data.get('endAt', null)
+      );
+      allow delete: if examOwner();
+    }
+
+    match /admitCards/{cardId} {
+      allow read: if examOwner()
+        || (signedIn() && (
+          resource.data.get('studentUid', '') == request.auth.uid
+          || resource.data.get('uid', '') == request.auth.uid
+        ));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /userAccessLogs/{id} {
+      allow create: if signedIn() && request.resource.data.get('uid', '') == request.auth.uid;
+      allow read, update, delete: if owner();
+    }
+
+    match /feedbacks/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if owner();
+    }
+
+    // Public announcements only. Never store private recipient notifications here.
+    match /notifications/{id} {
+      allow read: if true;
+      allow create: if canSendNotifications()
+        && request.resource.data.get('title', null) is string
+        && request.resource.data.get('message', null) is string
+        && request.resource.data.get('audience', '') == 'all'
+        && request.resource.data.get('active', false) == true
+        && request.resource.data.get('createdBy', '') == request.auth.uid;
+      allow update, delete: if canSendNotifications();
+    }
+
+    match /userNotifications/{uid}/items/{notificationId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if (
+          canSendNotifications()
+          && request.resource.data.get('recipientUid', '') == uid
+        ) || (
+          canReviewExam()
+          && request.resource.data.get('type', '') == 'exam-result'
+          && request.resource.data.get('recipientUid', '') == uid
+        ) || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.get('recipientUid', '') == uid
+          && request.resource.data.get('type', '') == 'quiz-result'
+          && request.resource.data.get('active', false) == true
+        );
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'read', 'readAt', 'isRead'
+        ]);
+      allow delete: if examOwner();
+    }
+
+    match /userNotificationReads/{uid}/items/{notificationId} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /posts/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('body', null) is string
+        && request.resource.data.body.size() <= 2000;
+      allow update: if owner();
+      allow delete: if owner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+    }
+
+    match /audios/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /pdfs/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /shabadwani/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /treePledges/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.get('uid', '') == request.auth.uid;
+      allow delete: if owner();
+    }
+
+    match /stats/{id} {
+      allow read: if true;
+      allow write: if owner();
+    }
+
+    match /visitorLogs/{id} {
+      allow create: if true;
+      allow read, update, delete: if owner();
+    }
+
+    match /draftQueue/{id} {
+      allow read, write: if owner();
+    }
+
+    match /scheduledTasks/{id} {
+      allow read, write: if owner();
+    }
+
+    match /historyItems/{id} {
+      allow read: if true;
+      allow create, update, delete: if owner();
+    }
+
+    // Deny any collection not explicitly covered above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

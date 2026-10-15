@@ -1,6 +1,8 @@
 # Firebase security patch required by the latest portal code
 
-**This file is a patch guide, not a replacement for the live Firebase Console rules.** The live rules are not stored in this repository, so committing this document does not deploy them. Merge the relevant match-block changes into Firebase Console → Firestore Database → Rules, and publish. Do not add a second permissive match block: Firestore allow rules are ORed together, so an older public-read rule would override these restrictions.
+**A consolidated starting ruleset is now available in the repository root at [firestore.rules](./firestore.rules).** This file is version-controlled, but committing it does not publish rules to the live Firebase project. Review it against your current Firebase Console rules and test it with the Firebase Emulator Suite before publishing.
+
+**Do not blindly append these rules to existing live rules.** Firestore combines overlapping `allow` statements with OR logic; any old broad public-read or permissive-write rule can defeat a restrictive rule. Replace overlapping matches rather than adding duplicates.
 
 ## 1. Add these helper functions inside your existing service cloud.firestore block
 
