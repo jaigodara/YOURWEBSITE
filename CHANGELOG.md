@@ -25,3 +25,34 @@
 - Student notification listeners no longer require `createdAt` ordering or fixed query limits; records are sorted in the browser so older records without timestamps can still appear.
 - Important and owner-pinned notifications sort above ordinary notifications; the previous render-time 100-item truncation and local read-marker truncation were removed.
 - The underlying composer still uses the legacy public `notifications` and nested `userNotifications/{uid}/items` paths. Flat-schema notifications, event hooks, pagination controls and cross-device marker migration remain outstanding.
+
+
+## 2026-10-15 — Admit-card PDF and notification event hooks (follow-up branch)
+
+- `script.js`
+  - Added browser-generated Hindi-friendly admit-card PDF using html2canvas + jsPDF (image-based rendering).
+  - Added profile and enrollment-status download controls plus a download action from the admit-card notification.
+  - Added notification list “और दिखाएँ” display pagination, 📌 markers for important/pinned notices, and removed local read-marker truncation.
+- `index.html`
+  - Loaded html2canvas and jsPDF for client-side PDF generation; the new admit-card flow does not upload the PDF to Firebase Storage.
+- `owner-studio.html`
+  - Replaced the individual PDF upload controls with roll-number-based release.
+  - Bulk release uses cursor pagination over enrollment documents, pages of up to 400 students, and write batches of at most 400 operations (200 students per batch because each student needs two writes).
+  - Writes per-student release flags and pinned notifications; shows progress, successes, and failed-batch counts.
+  - Added `pushNotification(uid, data, batch)` and connected it to admit-card release, first enrollment approval, result publication, quiz publication, and exam schedule/registration visibility changes.
+- `tests/firestore-rules.test.cjs`
+  - Added tests for preserving an approved roll/status during student resubmission, owner-only admit-card release, and student denial of release flags.
+- `IMPLEMENTATION_STATUS.md`
+  - Updated the checklist to keep items Partly until CI and browser validation are complete.
+
+### How to test
+
+1. Run `npm run build` and `npm run lint`.
+2. Run `npx firebase emulators:exec --only firestore "npm test"`.
+3. In a test owner account, release to a test roll number and then release a test batch; verify per-student pinned notifications and progress counts.
+4. In a test student account, open the notification, profile, and enrollment status; download a PDF with a Hindi name and confirm the name/roll/DOB/mobile/exam/date/instructions render correctly.
+5. Confirm a student cannot set `admitCardReleased` or delete another notification.
+
+### Verification status
+
+- GitHub Actions and real-browser PDF rendering are pending on this branch. No test pass is claimed until the workflow output is inspected.
