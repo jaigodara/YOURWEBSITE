@@ -1696,24 +1696,28 @@ Ans: B"></textarea>
       }
     }
 
-    async function pushNotification(uid, data) {
+    async function pushNotification(uid, data, batch = null) {
       if (!isPrimaryOwner()) throw new Error('सूचना भेजने का अधिकार केवल Owner को है।');
-      if (!uid || typeof uid !== 'string') throw new Error('विद्यार्थी UID उपलब्ध नहीं है।');
+      if (!uid || typeof uid !== 'string') throw new Error('सूचना का लक्ष्य UID या ALL होना चाहिए।');
       const notificationId = String(data.id || (data.type + '-' + Date.now())).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
-      const ref = db.collection('userNotifications').doc(uid).collection('items').doc(notificationId);
-      await ref.set({
+      const payload = {
         title: String(data.title || 'नई सूचना'),
         message: String(data.body || data.message || ''),
         type: String(data.type || 'announcement'),
         important: data.important === true,
         pinnedByOwner: data.pinnedByOwner === true || data.important === true,
         admitCardReady: data.type === 'admit-card',
-        recipientUid: uid,
+        recipientUid: uid === 'ALL' ? null : uid,
         active: true,
-        audience: 'private',
+        audience: uid === 'ALL' ? 'all' : 'private',
         createdBy: auth.currentUser?.uid || null,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      };
+      const ref = uid === 'ALL'
+        ? db.collection('notifications').doc(notificationId)
+        : db.collection('userNotifications').doc(uid).collection('items').doc(notificationId);
+      if (batch) batch.set(ref, payload, { merge: true });
+      else await ref.set(payload, { merge: true });
       return notificationId;
     }
 
