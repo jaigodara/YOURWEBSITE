@@ -11,3 +11,10 @@
 - Not deployed to Firebase production. Review and test the rules in the Firebase Emulator before deployment.
 - Regression test manually: with a test student, create enrollment; approve and assign a roll as owner; edit enrollment; verify the roll and approval state remain unchanged.
 - The broader requested login, notification migration, admit-card release, export redesign, question-bank/review redesign, and full automated end-to-end flow are not completed by this patch. See the pull request checklist.
+
+
+## 2026-10-15 — Roll allocation and truthful camera status
+
+- Owner approval allocates five-digit `JAMBH-2026-XXXXX` rolls in a Firestore transaction using owner-protected `settings/rollCounter`; valid existing rolls are preserved. Legacy records still need a dedicated confirmed migration workflow and full test coverage.
+- Owner Studio labels camera monitoring as unavailable and disables its toggle because real capture is not implemented.
+- The emulator test suite now uses a parent Node test with explicit setup/reset/cleanup, fixing the CI error where the top-level `before` hook was undefined.
