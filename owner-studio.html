@@ -203,6 +203,27 @@
         <p id="ownerDataDashboardStatus" class="text-[10px] text-stone-500" aria-live="polite">डेटा अपडेट होने की प्रतीक्षा में।</p>
       </section>
 
+      <section id="ownerDataExportPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+        <h3 class="font-yatra text-base text-forest">⬇️ सुरक्षित डेटा डाउनलोड</h3>
+        <p class="text-xs text-stone-600">CSV Excel के लिए और JSON बैकअप के लिए है। निजी विद्यार्थी जानकारी वाली फाइल सुरक्षित रखें।</p>
+        <label class="block text-xs font-bold text-stone-700">CSV के लिए डेटा चुनें
+          <select id="ownerExportCollection" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm">
+            <option value="examEnrolledStudents">विद्यार्थी नामांकन और रोल नंबर</option><option value="users">उपयोगकर्ता प्रोफाइल</option>
+            <option value="mainExamSubmissions">मुख्य परीक्षा उत्तर-पत्र</option><option value="mockExamSubmissions">मॉक परीक्षा उत्तर-पत्र</option>
+            <option value="quizAttempts">दैनिक क्विज़ प्रयास</option><option value="publishedResults">प्रकाशित परिणाम</option>
+            <option value="reviews">निजी मैन्युअल जाँच</option><option value="mainExamQuestions">मुख्य परीक्षा प्रश्न</option>
+            <option value="mockExam_1">मॉक परीक्षा सेट 1 प्रश्न</option><option value="mockExam_2">मॉक परीक्षा सेट 2 प्रश्न</option>
+            <option value="quiz">दैनिक क्विज़ प्रश्न</option><option value="examConfig">परीक्षा सेटिंग्स</option>
+            <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option>
+          </select>
+        </label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button type="button" onclick="exportOwnerData('csv')" class="rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">⬇️ चुना हुआ CSV डाउनलोड</button>
+          <button type="button" onclick="exportOwnerData('json')" class="rounded-xl bg-amber-400 px-4 py-3 text-xs font-extrabold text-stone-950">⬇️ पूरा JSON बैकअप डाउनलोड</button>
+        </div>
+        <p id="ownerExportStatus" class="text-[11px] text-stone-500" aria-live="polite">बड़ी सूचियाँ पेज-दर-पेज पढ़ी जाएँगी।</p>
+      </section>
+
       <!-- DRAFT APPROVAL QUEUE -->
       <div class="bg-amber-50/80 p-5 rounded-3xl border-2 border-amber-300 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
@@ -1600,7 +1621,8 @@ Ans: B"></textarea>
         const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-90) || 'admit-card.pdf';
         const path = 'notificationUploads/private/' + uid + '/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
         const upload = await firebase.storage().ref().child(path).put(file, { contentType: 'application/pdf' });
-        await db.collection('userNotifications').doc(uid).collection('items').add({
+        await db.collection('userNotifications').doc(uid).collection('items')
+          .doc('admit-card-pdf-' + rollNumber.replace(/[^A-Za-z0-9_-]/g, '_')).set({
           title: '🎟️ आपका प्रवेश-पत्र PDF जारी हो गया',
           message: 'Owner ने आपके खाते के लिए प्रवेश-पत्र PDF भेजा है। नीचे “PDF खोलें / डाउनलोड करें” चुनें।',
           type: 'admit-card',
@@ -1686,7 +1708,7 @@ Ans: B"></textarea>
         const eligibleStudents = studentsSnap.docs.filter(doc => {
           const student = doc.data() || {};
           const uid = student.uid || doc.id;
-          return !!uid && uid.length >= 5 && !!(student.rollNumber || student.phone || student.fullName || student.name);
+          return !!uid && uid.length >= 5 && student.verificationStatus === 'confirmed' && !!student.rollNumber && !String(student.rollNumber).startsWith('BIS-');
         });
         const configRef = db.collection('examConfig').doc('current');
         const configSnap = await configRef.get();
@@ -1966,16 +1988,19 @@ Ans: B"></textarea>
         : Object.entries(rawAnswersForScore);
       let computedAutoScore = 0;
       let canComputeAutoScore = false;
+      const normalizeReviewAnswer = value => {
+        if (typeof value === 'string' && /^[A-D]$/i.test(value.trim())) return value.trim().toUpperCase().charCodeAt(0) - 65;
+        if (value && typeof value === 'object') return value.index ?? value.value ?? value.text ?? JSON.stringify(value);
+        return value;
+      };
       scoreEntries.forEach(([questionId, answer]) => {
-        const question = examReviewQuestionLookup[questionId];
+        const question = examReviewQuestionLookup[(d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] || '') + '::' + questionId] || examReviewQuestionLookup[questionId];
         if (!question) return;
         const correct = question.correctAnswer ?? question.answerIndex ?? question.ans;
         if (correct === undefined || correct === null) return;
         canComputeAutoScore = true;
-        const normalizedCorrect = typeof correct === 'string' && /^[A-D]$/i.test(correct.trim())
-          ? ['A','B','C','D'].indexOf(correct.trim().toUpperCase())
-          : correct;
-        const normalizedAnswer = typeof answer === 'string' && /^[A-D]$/i.test(answer.trim()) ? ['A','B','C','D'].indexOf(answer.trim().toUpperCase()) : answer;
+        const normalizedCorrect = normalizeReviewAnswer(correct);
+        const normalizedAnswer = normalizeReviewAnswer(answer);
         const numericAnswer = Number(normalizedAnswer);
         const numericCorrect = Number(normalizedCorrect);
         if ((Number.isInteger(numericAnswer) && Number.isInteger(numericCorrect) && numericAnswer === numericCorrect) || String(normalizedAnswer) === String(normalizedCorrect)) computedAutoScore++;
@@ -1993,7 +2018,7 @@ Ans: B"></textarea>
       examReviewQueue.forEach((row, index) => {
         const option = document.createElement('option');
         option.value = String(index);
-        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' + (row.name || row.fullName || row.email || row.uid || 'विद्यार्थी');
+        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' + (row.name || row.fullName || row.displayName || 'विद्यार्थी');
         jump.appendChild(option);
       });
       jump.value = String(examReviewIndex);
@@ -2008,10 +2033,10 @@ Ans: B"></textarea>
       card.className = 'p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-3';
       const name = document.createElement('h4');
       name.className = 'font-bold text-forest text-base';
-      name.textContent = d.name || d.fullName || d.email || d.uid || 'प्रतिभागी';
+      name.textContent = d.name || d.fullName || d.displayName || 'प्रतिभागी';
       const meta = document.createElement('div');
       meta.className = 'text-xs text-stone-600';
-      meta.textContent = 'UID: ' + (d.uid || d.userId || d.id) + ' · ईमेल: ' + (d.email || '—') +
+      meta.textContent = 'मोबाइल: ' + (d.phone || d.mobile || '—') + ' · ईमेल: ' + (d.email || '—') +
         ' · परीक्षा: ' + (d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
         (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
         ' · वर्तमान स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
@@ -2036,7 +2061,7 @@ Ans: B"></textarea>
       }
 
       answerEntries.forEach(([questionId, answer], index) => {
-        const q = examReviewQuestionLookup[questionId] || {};
+        const q = examReviewQuestionLookup[(d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] || '') + '::' + questionId] || examReviewQuestionLookup[questionId] || {};
         const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
         const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
         const selectedIndex = Number(answer);
@@ -2065,7 +2090,7 @@ Ans: B"></textarea>
           choices.className = 'list-[upper-alpha] pl-5 text-stone-500';
           options.forEach(optionText => {
             const li = document.createElement('li');
-            li.textContent = String(optionText);
+            li.textContent = optionText && typeof optionText === 'object' ? String(optionText.text || optionText.label || optionText.value || '') : String(optionText);
             choices.appendChild(li);
           });
           item.appendChild(choices);
@@ -2366,6 +2391,88 @@ Ans: B"></textarea>
     }
     window.loadOwnerDataDashboard = loadOwnerDataDashboard;
 
+    async function exportOwnerData(format) {
+      if (!isPrimaryOwner()) return showToast('डेटा डाउनलोड केवल Super Owner कर सकता है।');
+      const status = document.getElementById('ownerExportStatus');
+      const selected = document.getElementById('ownerExportCollection')?.value || 'examEnrolledStudents';
+      const buttons = [...(document.getElementById('ownerDataExportPanel')?.querySelectorAll('button') || [])];
+      const button = buttons[format === 'csv' ? 0 : 1];
+      if (button) { button.disabled = true; button.textContent = 'डेटा तैयार हो रहा है…'; }
+      if (status) status.textContent = 'Firebase से रिकॉर्ड पेज-दर-पेज पढ़े जा रहे हैं…';
+      const plain = value => {
+        if (value == null) return value;
+        if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
+        if (Array.isArray(value)) return value.map(plain);
+        if (typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plain(item)]));
+        return value;
+      };
+      const readAll = async name => {
+        const rows = []; let last = null;
+        while (true) {
+          let q = db.collection(name).orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
+          if (last) q = q.startAfter(last);
+          const snap = await q.get();
+          if (snap.empty) break;
+          snap.docs.forEach(doc => rows.push({ id: doc.id, ...plain(doc.data() || {}) }));
+          last = snap.docs[snap.docs.length - 1];
+          if (snap.size < 400) break;
+        }
+        return rows;
+      };
+      const download = (name, content, mime) => {
+        const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+        const url = URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      };
+      try {
+        let payload;
+        if (selected === 'examAnswerKeys' && format === 'csv') {
+          payload = {};
+          for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
+            const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
+            payload[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
+          }
+        } else if (format === 'csv') payload = await readAll(selected);
+        else {
+          payload = {};
+          for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig']) {
+            try { payload[name] = await readAll(name); } catch (error) { payload[name] = { exportError: error.message || String(error) }; }
+          }
+          payload.examAnswerKeys = {};
+          for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
+            try {
+              const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
+              payload.examAnswerKeys[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
+            } catch (error) { payload.examAnswerKeys[setName] = { exportError: error.message || String(error) }; }
+          }
+          payload.exportMetadata = { exportedAt: new Date().toISOString(), exportedBy: auth.currentUser?.uid || null, note: 'Private backup; may contain student personal data and unpublished review details.' };
+        }
+        if (format === 'csv') {
+          const rows = Array.isArray(payload) ? payload : Object.entries(payload).flatMap(([setName, items]) => (items || []).map(item => ({ questionSet: setName, ...item })));
+          const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
+          const cell = value => {
+            let text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+            if (/^[=+@\-\t\r]/.test(text)) text = "'" + text;
+            return '"' + text.replace(/"/g, '""') + '"';
+          };
+          const csv = '\uFEFF' + [headers.map(cell).join(','), ...rows.map(row => headers.map(key => cell(row[key])).join(','))].join('\r\n');
+          download('bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv');
+          if (status) status.textContent = 'CSV डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
+        } else {
+          download('bishnoism-owner-backup-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2), 'application/json');
+          if (status) status.textContent = 'JSON बैकअप डाउनलोड शुरू हुआ। अस्वीकृत collections के कारण exportError में शामिल हैं।';
+        }
+        showToast('डेटा डाउनलोड तैयार है। फाइल सुरक्षित रखें।');
+      } catch (error) {
+        if (status) status.textContent = 'डाउनलोड असफल: ' + (error.message || String(error)) + ' · Owner permissions जाँचें।';
+        showToast('डेटा डाउनलोड नहीं हुआ: ' + (error.message || String(error)));
+      } finally {
+        if (button) { button.disabled = false; button.textContent = format === 'csv' ? '⬇️ चुना हुआ CSV डाउनलोड' : '⬇️ पूरा JSON बैकअप डाउनलोड'; }
+      }
+    }
+    window.exportOwnerData = exportOwnerData;
+
     async function loadExamSubmissions() {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र समीक्षा की अनुमति नहीं है।');
       const list = document.getElementById('examSubmissionsList');
@@ -2417,29 +2524,40 @@ Ans: B"></textarea>
           return !queryText || haystack.includes(queryText);
         });
 
-        const questionCollections = examReviewCollection === 'mainExamSubmissions'
-          ? ['mainExamQuestions']
-          : examReviewCollection === 'mockExamSubmissions'
-            ? [...new Set(examReviewQueue.map(d => d.mode === 'mock1' ? 'mockExam_1' : d.mode === 'mock2' ? 'mockExam_2' : '').filter(Boolean))]
-            : ['quiz'];
-        if (examReviewCollection === 'mockExamSubmissions' && !questionCollections.length) questionCollections.push('mockExam_1', 'mockExam_2');
+        const modeToCollection = { main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' };
+        const questionCollections = [...new Set(examReviewQueue.map(d =>
+          d.questionSetKey || modeToCollection[d.mode] ||
+          (examReviewCollection === 'mainExamSubmissions' ? 'mainExamQuestions' :
+            examReviewCollection === 'mockExamSubmissions' ? (d.mode === 'mock2' ? 'mockExam_2' : 'mockExam_1') : 'quiz')
+        ))];
         examReviewQuestionLookup = {};
+        examReviewQueue.forEach(row => {
+          const setKey = row.questionSetKey || modeToCollection[row.mode] || '';
+          (Array.isArray(row.questionSnapshots) ? row.questionSnapshots : []).forEach(snapshot => {
+            if (snapshot && snapshot.id != null) {
+              examReviewQuestionLookup[setKey + '::' + String(snapshot.id)] = { ...snapshot };
+              if (!examReviewQuestionLookup[String(snapshot.id)]) examReviewQuestionLookup[String(snapshot.id)] = { ...snapshot };
+            }
+          });
+        });
         for (const questionCollection of questionCollections) {
           try {
             const questionSnap = await db.collection(questionCollection).get();
             questionSnap.forEach(questionDoc => {
-              examReviewQuestionLookup[questionDoc.id] = { id: questionDoc.id, ...questionDoc.data() };
+              const key = questionCollection + '::' + questionDoc.id;
+              examReviewQuestionLookup[key] = { id: questionDoc.id, ...questionDoc.data(), ...(examReviewQuestionLookup[key] || {}) };
             });
-            if (questionCollection !== 'quiz') {
-              const keysSnap = await db.collection('examAnswerKeys').doc(questionCollection).collection('items').get();
-              keysSnap.forEach(keyDoc => {
-                if (examReviewQuestionLookup[keyDoc.id]) {
-                  examReviewQuestionLookup[keyDoc.id].answerIndex = keyDoc.data()?.answerIndex;
-                }
-              });
-            }
+            const keysSnap = await db.collection('examAnswerKeys').doc(questionCollection).collection('items').get();
+            keysSnap.forEach(keyDoc => {
+              const key = questionCollection + '::' + keyDoc.id;
+              examReviewQuestionLookup[key] = {
+                ...(examReviewQuestionLookup[key] || { id: keyDoc.id }),
+                answerIndex: keyDoc.data()?.answerIndex,
+                correctAnswer: keyDoc.data()?.correctAnswer ?? examReviewQuestionLookup[key]?.correctAnswer
+              };
+            });
           } catch (questionError) {
-            console.warn('Question text could not be loaded from ' + questionCollection, questionError);
+            console.warn('Question text/answer key could not be loaded from ' + questionCollection, questionError);
           }
         }
         examReviewIndex = 0;
