@@ -1,5 +1,5 @@
 const { readFileSync } = require("node:fs");
-const { test, before, after, beforeEach } = require("node:test");
+const { test } = require("node:test");
 const path = require("node:path");
 const {
   initializeTestEnvironment,
@@ -7,117 +7,99 @@ const {
   assertFails,
 } = require("@firebase/rules-unit-testing");
 const {
-  doc,
-  setDoc,
-  updateDoc,
-  getDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
+  doc, setDoc, updateDoc, getDoc, deleteDoc, serverTimestamp, Timestamp,
 } = require("firebase/firestore");
 
 const PROJECT_ID = "bishnoi-platform-rules-test";
 const STUDENT = "student-test-uid";
 const OWNER = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
-let env;
 
-before(async () => {
-  env = await initializeTestEnvironment({
+test("Firestore security rules regression suite", async (t) => {
+  const env = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: { rules: readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8") },
   });
-});
 
-after(async () => {
-  await env.cleanup();
-});
-
-beforeEach(async () => {
-  await env.clearFirestore();
-  await env.withSecurityRulesDisabled(async (ctx) => {
-    const db = ctx.firestore();
-    await setDoc(doc(db, "examConfig/current"), {
-      mainStartAt: Timestamp.fromMillis(Date.now() - 60_000),
-      mock1StartAt: Timestamp.fromMillis(Date.now() - 60_000),
-      mock2StartAt: Timestamp.fromMillis(Date.now() - 60_000),
-      quizStartAt: Timestamp.fromMillis(Date.now() - 60_000),
+  async function reset() {
+    await env.clearFirestore();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "examConfig/current"), {
+        mainStartAt: Timestamp.fromMillis(Date.now() - 60_000),
+        mock1StartAt: Timestamp.fromMillis(Date.now() - 60_000),
+        mock2StartAt: Timestamp.fromMillis(Date.now() - 60_000),
+        quizStartAt: Timestamp.fromMillis(Date.now() - 60_000),
+      });
+      await setDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        uid: STUDENT, fullName: "परीक्षण विद्यार्थी",
+        verificationStatus: "confirmed", rollNumber: "JAMBH-2026-00001",
+      });
+      await setDoc(doc(db, "examAnswerKeys/main/items/q1"), { correctAnswer: "A" });
+      await setDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1"), {
+        recipientUid: STUDENT, title: "परीक्षण सूचना",
+        message: "यह सूचना हटनी नहीं चाहिए।", type: "general", active: true,
+      });
     });
-    await setDoc(doc(db, "examEnrolledStudents", STUDENT), {
-      uid: STUDENT,
-      fullName: "परीक्षण विद्यार्थी",
-      verificationStatus: "confirmed",
-      rollNumber: "JAMBH-2026-00001",
+  }
+
+  try {
+    await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext("new-student").firestore();
+      await assertSucceeds(setDoc(doc(db, "examEnrolledStudents/new-student"), {
+        uid: "new-student", fullName: "नया विद्यार्थी",
+        verificationStatus: "pending", createdAt: serverTimestamp(),
+      }));
     });
-    await setDoc(doc(db, "examAnswerKeys/main/items/q1"), { correctAnswer: "A" });
-    await setDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1"), {
-      recipientUid: STUDENT,
-      title: "परीक्षण सूचना",
-      message: "यह सूचना हटनी नहीं चाहिए।",
-      type: "general",
-      active: true,
+
+    await t.test("विद्यार्थी enrollment बनाते समय roll number नहीं दे सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext("spoof-student").firestore();
+      await assertFails(setDoc(doc(db, "examEnrolledStudents/spoof-student"), {
+        uid: "spoof-student", fullName: "गलत रोल",
+        verificationStatus: "pending", rollNumber: "JAMBH-2026-99999",
+      }));
     });
-  });
-});
 
-test("student can create pending enrollment without roll number", async () => {
-  const db = env.authenticatedContext("new-student").firestore();
-  await assertSucceeds(setDoc(doc(db, "examEnrolledStudents/new-student"), {
-    uid: "new-student",
-    fullName: "नया विद्यार्थी",
-    verificationStatus: "pending",
-    createdAt: serverTimestamp(),
-  }));
-});
+    await t.test("विद्यार्थी edit में owner का roll और approval नहीं बदल सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        fullName: "बदला हुआ नाम", updatedAt: serverTimestamp(),
+      }));
+      await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { rollNumber: "JAMBH-2026-00002" }));
+      await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { verificationStatus: "pending" }));
+    });
 
-test("student cannot assign a roll number during enrollment creation", async () => {
-  const db = env.authenticatedContext("spoof-student").firestore();
-  await assertFails(setDoc(doc(db, "examEnrolledStudents/spoof-student"), {
-    uid: "spoof-student",
-    fullName: "गलत रोल",
-    verificationStatus: "pending",
-    rollNumber: "JAMBH-2026-99999",
-  }));
-});
+    await t.test("परीक्षा शुरू होने के बाद deadline से पहले main submission स्वीकार होता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(setDoc(doc(db, "mainExamSubmissions/attempt-early"), {
+        uid: STUDENT, mode: "main", answers: { q1: "A" }, submittedAt: serverTimestamp(),
+      }));
+    });
 
-test("editing enrollment preserves owner-assigned roll and approval", async () => {
-  const db = env.authenticatedContext(STUDENT).firestore();
-  await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
-    fullName: "बदला हुआ नाम",
-    updatedAt: serverTimestamp(),
-  }));
-  await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
-    rollNumber: "JAMBH-2026-00002",
-  }));
-  await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
-    verificationStatus: "pending",
-  }));
-});
+    await t.test("विद्यार्थी private answer key नहीं पढ़ सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(getDoc(doc(db, "examAnswerKeys/main/items/q1")));
+    });
 
-test("student can submit a main exam before its deadline once it has started", async () => {
-  const db = env.authenticatedContext(STUDENT).firestore();
-  await assertSucceeds(setDoc(doc(db, "mainExamSubmissions", "attempt-early"), {
-    uid: STUDENT,
-    mode: "main",
-    answers: { q1: "A" },
-    submittedAt: serverTimestamp(),
-  }));
-});
+    await t.test("विद्यार्थी notification पढ़ सकता है लेकिन उसे मिटा नहीं सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(getDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
+      await assertFails(deleteDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
+    });
 
-test("student cannot read private answer keys", async () => {
-  const db = env.authenticatedContext(STUDENT).firestore();
-  await assertFails(getDoc(doc(db, "examAnswerKeys/main/items/q1")));
-});
-
-test("student can read but cannot delete their notification", async () => {
-  const db = env.authenticatedContext(STUDENT).firestore();
-  await assertSucceeds(getDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
-  await assertFails(deleteDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
-});
-
-test("student can write their own notification read marker", async () => {
-  const db = env.authenticatedContext(STUDENT).firestore();
-  await assertSucceeds(setDoc(doc(db, "userNotificationReads", STUDENT, "items", "notice-1"), {
-    read: true,
-    readAt: serverTimestamp(),
-  }));
+    await t.test("विद्यार्थी अपने notification read marker को लिख सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(setDoc(doc(db, "userNotificationReads", STUDENT, "items", "notice-1"), {
+        read: true, readAt: serverTimestamp(),
+      }));
+    });
+  } finally {
+    await env.cleanup();
+  }
 });
