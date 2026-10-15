@@ -2296,7 +2296,28 @@ Ans: B"></textarea>
 
       try {
         const snap = await db.collection(examReviewCollection).limit(500).get();
-        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Restore saved private review state without modifying the original submission.
+        try {
+          const reviewSnap = await db.collection('reviews')
+            .where('sourceCollection', '==', examReviewCollection).limit(500).get();
+          const reviewBySubmission = new Map();
+          reviewSnap.forEach(reviewDoc => {
+            const review = reviewDoc.data() || {};
+            if (review.submissionId) reviewBySubmission.set(review.submissionId, review);
+          });
+          rows = rows.map(row => {
+            const review = reviewBySubmission.get(row.id);
+            return review ? {
+              ...row,
+              manualScore: review.manualScore,
+              manualReviewStatus: review.status,
+              manualFeedback: review.feedback || ''
+            } : row;
+          });
+        } catch (reviewLoadError) {
+          console.warn('Private review state could not be loaded:', reviewLoadError);
+        }
         rows.sort((a, b) => {
           const ar = String(a.rollNumber || '');
           const br = String(b.rollNumber || '');
