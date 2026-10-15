@@ -110,7 +110,7 @@ service cloud.firestore {
     }
 
     match /settings/{id} {
-      allow read: if true;
+      allow read: if id != 'rollCounter' || owner();
       allow write: if owner();
     }
 
@@ -221,8 +221,7 @@ service cloud.firestore {
       allow create: if confirmedExamStudent()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'main'
-        && examStarted('mainStartAt')
-        && sessionDeadlineReached('main');
+        && examStarted('mainStartAt');
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
     }
@@ -232,9 +231,9 @@ service cloud.firestore {
         && request.resource.data.get('uid', '') == request.auth.uid
         && (
           (request.resource.data.get('mode', '') == 'mock1'
-            && examStarted('mock1StartAt') && sessionDeadlineReached('mock1'))
+            && examStarted('mock1StartAt'))
           || (request.resource.data.get('mode', '') == 'mock2'
-            && examStarted('mock2StartAt') && sessionDeadlineReached('mock2'))
+            && examStarted('mock2StartAt'))
         );
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
