@@ -2295,6 +2295,13 @@ function renderExamVisibility() {
         return;
       }
     }
+    if (typeof window.pushNotification === 'function') {
+      window.pushNotification(state.user.uid, {
+        title: 'परीक्षा शुरू हुई',
+        body: 'आपने ' + ({ quiz: 'दैनिक ज्ञान क्विज़', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा' }[mode] || mode) + ' शुरू की है।',
+        type: 'exam-start'
+      }).catch(error => console.warn('परीक्षा शुरू होने की सूचना सहेजी नहीं गई:', error));
+    }
     const attemptEndAt = lateEntryGranted ? ownerGrantedEndAt : scheduledEndAt;
 
     const collectionName = CONFIG.examCollections[mode];
@@ -2717,6 +2724,14 @@ function renderExamVisibility() {
   };
 
   app.switchTab = window.switchTab;
+  app.downloadMyAdmitCard = async function () {
+    if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
+    try {
+      const snap = await state.db.collection('examEnrolledStudents').doc(state.user.uid).get();
+      if (!snap.exists) throw new Error('आपका नामांकन रिकॉर्ड नहीं मिला।');
+      await printStudentAdmitCard({ uid: state.user.uid, ...snap.data() });
+    } catch (error) { notify('प्रवेश-पत्र डाउनलोड नहीं हुआ: ' + error.message, 'error'); }
+  };
   app.openProfileOrAuth = function () {
     if (state.user) {
       const modal = byId('userProfileModal');
@@ -2736,6 +2751,14 @@ function renderExamVisibility() {
         const verificationLabel = verification === 'confirmed' ? 'व्यवस्थापक द्वारा सत्यापित' : verification === 'rejected' ? 'सत्यापन अस्वीकृत' : 'सत्यापन लंबित';
         setText('profileAccountStatus', (state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता') + ' • ' + verificationLabel);
         setText('profileRoleBadge', state.isOwner ? 'OWNER' : 'सदस्य');
+        const profileAdmitButton = byId('profileAdmitCardButton');
+        if (profileAdmitButton) profileAdmitButton.classList.add('hidden');
+        if (state.db) state.db.collection('examEnrolledStudents').doc(state.user.uid).get().then(snap => {
+          const enrollment = snap.exists ? snap.data() || {} : {};
+          const available = enrollment.verificationStatus === 'confirmed' && !!enrollment.rollNumber &&
+            enrollment.admitCardReleased === true && state.examConfig?.admitCardReleased === true;
+          if (profileAdmitButton) profileAdmitButton.classList.toggle('hidden', !available);
+        }).catch(error => console.warn('प्रोफ़ाइल प्रवेश-पत्र स्थिति नहीं पढ़ी गई:', error));
         setText('statMalaTotal', state.mala.count || 0);
         setText('statMalaLaps', state.mala.laps || 0);
         modal.classList.remove('hidden');
