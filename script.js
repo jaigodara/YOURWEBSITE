@@ -2403,6 +2403,14 @@ function renderExamVisibility() {
       // when available, is written to publishedResults in the same atomic batch.
       answers: { ...exam.answers },
       review: { ...exam.review },
+      questionSetKey: CONFIG.examCollections[exam.mode] || exam.mode,
+      questionOrder: exam.questions.map((question, index) => String(question.id || index)),
+      questionSnapshots: exam.questions.map((question, index) => ({
+        id: String(question.id || index),
+        question: question.question || question.text || question.q || '',
+        options: (Array.isArray(question.options) ? question.options : Array.isArray(question.opts) ? question.opts : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '')).map(option => typeof option === 'object' ? { text: option.text || option.label || option.value || '' } : String(option)),
+        marks: Number(question.marks || question.points || 1)
+      })),
       submittedAt: serverTimestamp(),
       automatic
     };
