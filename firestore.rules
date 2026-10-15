@@ -110,8 +110,8 @@ service cloud.firestore {
     }
 
     match /settings/{id} {
-      allow read: if id != 'rollCounter' || owner();
-      allow write: if owner();
+      allow read: if id != 'rollCounter' || examOwner();
+      allow write: if id == 'rollCounter' ? examOwner() : owner();
     }
 
     match /examConfig/{id} {
