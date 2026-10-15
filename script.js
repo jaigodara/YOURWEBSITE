@@ -810,16 +810,16 @@
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll && state.examConfig?.admitCardReleased === true) {
+    if (status === 'confirmed' && roll && state.examConfig?.admitCardReleased === true && record.admitCardReleased === true) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
-      button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड / PDF में सेव करें';
+      button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड करें';
       button.addEventListener('click', () => printStudentAdmitCard(record));
       host.appendChild(button);
       const hint = document.createElement('p');
       hint.className = 'text-stone-500';
-      hint.textContent = 'खुलने वाली विंडो में “प्रिंट / PDF में सेव करें” चुनें।';
+      hint.textContent = 'प्रवेश-पत्र सीधे PDF में डाउनलोड होगा।';
       host.appendChild(hint);
     } else if (status === 'confirmed' && roll) {
       const hint = document.createElement('p');
@@ -857,37 +857,64 @@
     }
   }
 
-  function printStudentAdmitCard(record) {
-    if (state.examConfig?.admitCardReleased !== true) {
-      notify('प्रवेश-पत्र अभी Owner द्वारा रिलीज़ नहीं किया गया है।', 'error');
-      return;
+  async function printStudentAdmitCard(record) {
+    if (state.examConfig?.admitCardReleased !== true || record?.admitCardReleased !== true) {
+      notify('प्रवेश-पत्र अभी जारी नहीं हुआ है।', 'error'); return;
     }
-    if (!state.user || !record || record.uid !== state.user.uid) {
-      notify('अपने खाते का वैध पंजीकरण उपलब्ध नहीं है।', 'error');
-      return;
+    if (!state.user || !record || (record.uid || state.user.uid) !== state.user.uid) {
+      notify('अपने खाते का प्रवेश-पत्र ही डाउनलोड कर सकते हैं।', 'error'); return;
     }
     if (record.verificationStatus !== 'confirmed' || !record.rollNumber) {
-      notify('प्रवेश-पत्र के लिए व्यवस्थापक की पुष्टि और रोल नंबर आवश्यक हैं।', 'error');
-      return;
+      notify('प्रवेश-पत्र के लिए पुष्टि और रोल नंबर आवश्यक हैं।', 'error'); return;
     }
-    const popup = window.open('', '_blank', 'width=900,height=700');
-    if (!popup) {
-      notify('प्रवेश-पत्र खोलने के लिए इस वेबसाइट के pop-ups की अनुमति दें।', 'error');
-      return;
+    if (typeof window.html2canvas !== 'function' || !window.jspdf?.jsPDF) {
+      notify('PDF सुविधा लोड नहीं हुई। इंटरनेट जाँचकर पेज रिफ्रेश करें।', 'error'); return;
     }
-    const esc = escapeHtml;
-    const admitSettings = state.examConfig || {};
-    const name = esc(record.fullName || record.name || state.profile?.displayName || state.user.displayName || 'विद्यार्थी');
-    const roll = esc(record.rollNumber);
-    const exam = esc(admitSettings.admitCardTitle || record.examName || record.examTitle || 'मुख्य परीक्षा');
-    const date = esc([admitSettings.admitCardDate || record.examDate || record.date || 'आधिकारिक सूचना के अनुसार', admitSettings.admitCardTime].filter(Boolean).join(' • '));
-    const venue = esc(admitSettings.admitCardCenter || record.examCenter || record.center || 'ऑनलाइन परीक्षा पोर्टल');
-    const instructions = esc(admitSettings.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें। आधिकारिक परीक्षा समय और निर्देशों का पालन करें। विवरण गलत होने पर परीक्षा से पहले व्यवस्थापक से संपर्क करें।');
-    const regId = esc(record.registrationNumber || record.uid || state.user.uid);
-    popup.document.open();
-    popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>परीक्षा प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:18px;overflow:hidden}.head{background:#173b29;color:white;padding:24px;text-align:center}.head h1{margin:0}.body{padding:24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}.field{border:1px solid #ddd;border-radius:10px;padding:12px}.label{font-size:10px;color:#68766b}.value{font-weight:bold;margin-top:5px;overflow-wrap:anywhere}.notice{margin-top:20px;padding:12px;background:#fff8dc;border-radius:10px;font-size:12px;line-height:1.7}.print{display:block;margin:20px auto;padding:12px 20px;background:#173b29;color:white;border:0;border-radius:9px;font-weight:bold}@media(max-width:540px){.grid{grid-template-columns:1fr}}@media print{body{padding:0;background:#fff}.print{display:none}.card{border-radius:0}}</style></head><body><article class="card"><header class="head"><div style="font-size:32px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><strong>पंजीकरण सत्यापित</strong><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+regId+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>'+instructions+'</div></main></article><button class="print" onclick="window.print()">प्रिंट / PDF में सेव करें</button></body></html>');
-    popup.document.close();
+    let surface;
+    try {
+      notify('प्रवेश-पत्र PDF तैयार हो रही है…', 'info');
+      surface = document.createElement('div');
+      surface.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;padding:30px;background:#fffdf7;color:#143622;font-family:Arial,sans-serif;z-index:-1;';
+      const cfg = state.examConfig || {};
+      const esc = escapeHtml;
+      const fields = [
+        ['विद्यार्थी का नाम', record.fullName || record.name || state.profile?.displayName || state.user.displayName || 'विद्यार्थी'],
+        ['रोल नंबर', record.rollNumber],
+        ['जन्म तिथि', record.dateOfBirth || record.dob || '—'],
+        ['मोबाइल', record.phone || record.mobile || state.profile?.phone || '—'],
+        ['परीक्षा', cfg.admitCardTitle || record.examName || 'मुख्य परीक्षा'],
+        ['दिनांक / समय', [cfg.admitCardDate || 'आधिकारिक सूचना के अनुसार', cfg.admitCardTime].filter(Boolean).join(' • ')],
+        ['परीक्षा केंद्र', cfg.admitCardCenter || 'ऑनलाइन परीक्षा पोर्टल'],
+        ['पंजीकरण ID', record.uid || state.user.uid]
+      ];
+      const fieldHtml = fields.map(function (field) {
+        return '<div style="border:1px solid #d9dfd8;border-radius:10px;padding:14px;min-height:52px"><div style="font-size:12px;color:#68766b">' + esc(field[0]) + '</div><div style="font-size:17px;font-weight:bold;margin-top:8px;overflow-wrap:anywhere">' + esc(field[1]) + '</div></div>';
+      }).join('');
+      surface.innerHTML = '<article style="border:5px solid #143622;border-radius:18px;overflow:hidden"><header style="background:#143622;color:white;padding:28px;text-align:center;border-bottom:6px solid #d6a43a"><div style="font-size:42px">🌳</div><h1 style="font-size:30px;margin:8px 0">बिश्नोई समाज डिजिटल मंच</h1><p style="font-size:17px;margin:0;color:#ffe8a3">परीक्षा प्रवेश-पत्र</p></header><main style="padding:28px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:22px">परीक्षार्थी विवरण</h2><div style="width:110px;height:130px;border:2px dashed #8b998f;display:flex;align-items:center;justify-content:center;color:#68766b;font-size:16px">फोटो</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">' + fieldHtml + '</div><section style="margin-top:24px;padding:18px;background:#fff4cf;border:1px solid #e6ce85;border-radius:12px;line-height:1.8"><strong>महत्वपूर्ण निर्देश</strong><p style="white-space:pre-wrap">' + esc(cfg.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।') + '</p></section><p style="margin-top:32px;font-size:12px;text-align:center;color:#68766b">यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर बनाया गया है।</p></main></article>';
+      document.body.appendChild(surface);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const canvas = await window.html2canvas(surface, { scale: 2, backgroundColor: '#fffdf7', useCORS: true });
+      const pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const image = canvas.toDataURL('image/jpeg', 0.95);
+      const width = 190, height = canvas.height * width / canvas.width;
+      const pageHeight = 277;
+      if (height <= pageHeight) pdf.addImage(image, 'JPEG', 10, 10, width, height);
+      else {
+        let offset = 0, page = 0;
+        while (offset < height) {
+          if (page > 0) pdf.addPage();
+          pdf.addImage(image, 'JPEG', 10, 10 - offset, width, height);
+          offset += pageHeight; page++;
+        }
+      }
+      pdf.save('Admit-Card-' + String(record.rollNumber).replace(/[^A-Za-z0-9-]/g, '-') + '.pdf');
+      notify('प्रवेश-पत्र PDF डाउनलोड हो गई।', 'success');
+    } catch (error) {
+      console.error('Admit card PDF generation failed:', error);
+      notify('PDF नहीं बनी: ' + (error?.message || 'ब्राउज़र PDF त्रुटि'), 'error');
+    } finally { if (surface) surface.remove(); }
   }
+  window.downloadPortalAdmitCard = printStudentAdmitCard;
 
   window.pushNotification = async function pushNotification(uid, data = {}) {
     if (!state.db) throw new Error('Firestore उपलब्ध नहीं है।');
@@ -970,7 +997,18 @@
         action.type = 'button';
         action.className = 'inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
         action.textContent = item.type === 'admit-card' ? '🎟️ प्रवेश-पत्र खोलें' : '📊 परिणाम देखें';
-        action.addEventListener('click', () => {
+        action.addEventListener('click', async () => {
+          if (item.type === 'admit-card') {
+            try {
+              if (!state.user || !state.db) throw new Error('पहले लॉगिन करें।');
+              const snap = await state.db.collection('examEnrolledStudents').doc(state.user.uid).get();
+              if (!snap.exists) throw new Error('आपका नामांकन रिकॉर्ड नहीं मिला।');
+              setVisible('notificationPopup', false);
+              setVisible('publicNotificationsSection', false);
+              await printStudentAdmitCard({ uid: state.user.uid, ...snap.data() });
+            } catch (error) { notify('प्रवेश-पत्र डाउनलोड नहीं हुआ: ' + error.message, 'error'); }
+            return;
+          }
           setVisible('notificationPopup', false);
           setVisible('publicNotificationsSection', false);
           window.switchTab('quiz');
