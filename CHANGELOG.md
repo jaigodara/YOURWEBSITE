@@ -25,3 +25,12 @@
 - Student notification listeners no longer require `createdAt` ordering or fixed query limits; records are sorted in the browser so older records without timestamps can still appear.
 - Important and owner-pinned notifications sort above ordinary notifications; the previous render-time 100-item truncation and local read-marker truncation were removed.
 - The underlying composer still uses the legacy public `notifications` and nested `userNotifications/{uid}/items` paths. Flat-schema notifications, event hooks, pagination controls and cross-device marker migration remain outstanding.
+
+
+## 2026-10-15 — Admit-card release and notification hooks
+
+- Added exam-type selection and cursor-paginated admit-card release. The owner UI reads up to 400 enrollment records per page; write batches process up to 200 students because each student needs an enrollment update plus a notification (within Firestore's 500-write batch limit).
+- Each released enrollment stores `admitCardReleased`, `admitCardReleasedAt`, and a settings snapshot. A single student can be released by roll number; the older uploaded-PDF option remains.
+- Student admit cards are rendered in the browser to a canvas and saved with jsPDF. A download action is available from the notification card, profile and enrollment status when release is active for that student.
+- Added `pushNotification` helper calls for exam announcements/start scheduling, quiz publication, enrollment approval, result publication and admit-card release. Student notification history now initially displays 20 items with an “और दिखाएँ” button.
+- Added an emulator rule test preventing students from self-setting the admit-card release flag. Final status depends on the current GitHub Actions workflow; these changes are not deployed.
