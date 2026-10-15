@@ -807,7 +807,7 @@
     heading.textContent = 'आपका पंजीकरण: ' + statusText;
     host.appendChild(heading);
     const detail = document.createElement('p');
-    detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'अभी आवंटित नहीं');
+    detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
     if (status === 'confirmed' && roll && state.examConfig?.admitCardReleased === true) {
       const button = document.createElement('button');
@@ -1184,7 +1184,9 @@
           const ref = state.db.collection('examEnrolledStudents').doc(state.user.uid);
           const existing = await ref.get();
           const old = existing.exists ? existing.data() : {};
-          const data = {
+          // Students may edit only their own enrollment details. Roll numbers and
+          // approval state are assigned by an owner and must never be client-controlled.
+          const editable = {
             uid: state.user.uid,
             fullName,
             name: fullName,
@@ -1192,21 +1194,25 @@
             dateOfBirth,
             examName,
             location,
-            verificationStatus: old.verificationStatus || 'pending',
-            // Firebase Auth UIDs are unique; preserving the full UID makes this
-            // generated roll number unique without a manual counter or race.
-            rollNumber: 'BIS-' + state.user.uid,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           };
-          if (!existing.exists) data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-          await ref.set(data, { merge: true });
-          if (status) status.textContent = 'पंजीकरण भेज दिया गया। आपका यूनिक रोल नंबर अपने-आप बन गया है; व्यवस्थापक की पुष्टि के बाद प्रवेश-पत्र यहीं मिलेगा।';
+          if (state.user.email) editable.email = state.user.email;
+          if (!existing.exists) {
+            await ref.set({
+              ...editable,
+              verificationStatus: 'pending',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } else {
+            await ref.update(editable);
+          }
+          if (status) status.textContent = 'पंजीकरण सहेज दिया गया है। रोल नंबर Owner की स्वीकृति के बाद जारी होगा।';
           await refreshEnrollmentStatus();
           notify('परीक्षा पंजीकरण सहेज दिया गया।', 'success');
         } catch (error) {
           console.error('Enrollment submit failed:', error);
-          if (status) status.textContent = 'पंजीकरण सहेजा नहीं जा सका। Firebase Firestore rules में examEnrolledStudents की अनुमति जाँचें।';
-          notify('पंजीकरण सहेजने में समस्या आई।', 'error');
+          if (status) status.textContent = 'पंजीकरण सहेजा नहीं जा सका: ' + (error?.code || error?.message || 'अज्ञात Firestore त्रुटि') + '। Firestore Rules और आवश्यक फ़ील्ड जाँचें।';
+          notify('पंजीकरण सहेजा नहीं जा सका: ' + (error?.code || error?.message || 'अज्ञात Firestore त्रुटि'), 'error');
         } finally {
           if (button) button.disabled = false;
         }
