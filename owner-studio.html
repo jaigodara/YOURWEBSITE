@@ -2595,7 +2595,7 @@ Ans: B"></textarea>
       popup.document.close();
     }
 
-    async function assignRealEnrollmentRoll(enrollmentRef, existingRoll) {
+    async function assignRealEnrollmentRoll(enrollmentRef, existingRoll, approve = false) {
       const current = String(existingRoll || '').trim();
       if (/^JAMBH-2026-\d{5}$/.test(current)) return current;
       if (current && !current.startsWith('BIS-')) throw new Error('मौजूदा रोल नंबर पहले से दर्ज है; उसे अपने-आप नहीं बदला जाएगा।');
@@ -2612,7 +2612,7 @@ Ans: B"></textarea>
         const enrollmentSnap = await tx.get(enrollmentRef);
         if (!enrollmentSnap.exists) throw new Error('नामांकन रिकॉर्ड नहीं मिला।');
         const record = enrollmentSnap.data() || {};
-        if (record.verificationStatus !== 'confirmed') throw new Error('पहले विद्यार्थी के पंजीकरण की पुष्टि करें।');
+        if (record.verificationStatus !== 'confirmed' && !approve) throw new Error('पहले विद्यार्थी के पंजीकरण की पुष्टि करें।');
         const latestRoll = String(record.rollNumber || '').trim();
         if (/^JAMBH-2026-\d{5}$/.test(latestRoll)) return latestRoll;
         if (latestRoll && !latestRoll.startsWith('BIS-')) throw new Error('मौजूदा रोल नंबर पहले से दर्ज है; उसे अपने-आप नहीं बदला जाएगा।');
@@ -2623,7 +2623,7 @@ Ans: B"></textarea>
         if (next > 99999) throw new Error('JAMBH-2026 रोल नंबर की सीमा पूरी हो गई है।');
         const rollNumber = 'JAMBH-2026-' + String(next).padStart(5, '0');
         tx.set(counterRef, { n: next, lastNumber: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-        tx.set(enrollmentRef, { rollNumber, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        tx.set(enrollmentRef, { rollNumber, ...(approve ? { verificationStatus: 'confirmed', verifiedBy: auth.currentUser?.uid || null, verifiedAt: firebase.firestore.FieldValue.serverTimestamp() } : {}), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         return rollNumber;
       });
     }
@@ -2690,7 +2690,7 @@ Ans: B"></textarea>
               const recordRef = db.collection(collectionName).doc(d.id);
               let rollNumber = collectionName === 'examEnrolledStudents' ? (d.rollNumber || '') : rollInput.value.trim();
               if (status.value === 'confirmed' && collectionName === 'examEnrolledStudents') {
-                rollNumber = await assignRealEnrollmentRoll(recordRef, rollNumber);
+                rollNumber = await assignRealEnrollmentRoll(recordRef, rollNumber, true);
               }
               if (status.value === 'confirmed' && !rollNumber) {
                 showToast('पुष्टि से पहले विद्यार्थी का रोल नंबर दर्ज करें।');
