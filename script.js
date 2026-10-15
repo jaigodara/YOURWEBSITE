@@ -972,7 +972,7 @@
         : 'rounded-xl border border-amber-200 bg-white p-3 space-y-2';
       const title = document.createElement('h3');
       title.className = 'font-bold text-forest text-sm';
-      title.textContent = item.title || 'नई सूचना';
+      title.textContent = ((item.pinnedByOwner || item.important) ? '📌 ' : '') + (item.title || 'नई सूचना');
       const body = document.createElement('p');
       body.className = 'text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
       body.textContent = item.message || '';
@@ -1121,7 +1121,7 @@
       readAll.id = 'markAllNotificationsRead';
       readAll.type = 'button';
       readAll.className = 'mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
-      readAll.textContent = '✓ सभी सूचनाएँ पढ़ी हुई चिह्नित करें / Mark all as read';
+      readAll.textContent = '✓ सब पढ़ा हुआ चिह्नित करें';
       readAll.addEventListener('click', () => {
         const current = [
           ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
