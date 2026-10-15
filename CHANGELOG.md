@@ -36,10 +36,10 @@
 - `index.html`
   - Loaded html2canvas and jsPDF for client-side PDF generation; the new admit-card flow does not upload the PDF to Firebase Storage.
 - `owner-studio.html`
-  - Replaced the individual PDF upload controls with roll-number-based release.
+  - Added an exam-type selector and made roll-number-based release the default; preserved the old Storage PDF upload under “उन्नत विकल्प”.
   - Bulk release uses cursor pagination over enrollment documents, pages of up to 400 students, and write batches of at most 400 operations (200 students per batch because each student needs two writes).
   - Writes per-student release flags and pinned notifications; shows progress, successes, and failed-batch counts.
-  - Added `pushNotification(uid, data, batch)` and connected it to admit-card release, first enrollment approval, result publication, quiz publication, and exam schedule/registration visibility changes.
+  - Added `pushNotification(uid, data, batch)` and connected it to admit-card release, first enrollment approval, result publication, quiz publication, registration open/close, and exam-start events when the configured start time is already reached. Future timed-start alerts still require a trusted scheduled backend.
 - `tests/firestore-rules.test.cjs`
   - Added tests for preserving an approved roll/status during student resubmission, owner-only admit-card release, and student denial of release flags.
 - `IMPLEMENTATION_STATUS.md`
@@ -55,4 +55,4 @@
 
 ### Verification status
 
-- GitHub Actions and real-browser PDF rendering are pending on this branch. No test pass is claimed until the workflow output is inspected.
+- Latest-head GitHub Actions is pending. Real-browser PDF rendering is not covered by the Firestore Emulator; no claim is made that it has been tested live.
