@@ -79,6 +79,25 @@ test("Firestore security rules regression suite", async (t) => {
       }));
     });
 
+    await t.test("Owner विद्यार्थी के लिए प्रवेश-पत्र रिलीज़ स्थिति सहेज सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true, admitCardReleasedAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("Owner पिन की गई निजी प्रवेश-पत्र सूचना बना सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "admit-card-main"), {
+        recipientUid: STUDENT, title: "🎟️ प्रवेश-पत्र जारी हो गया",
+        message: "JAMBH-2026-00001 का प्रवेश-पत्र उपलब्ध है।",
+        type: "admit-card", important: true, pinnedByOwner: true,
+        active: true, audience: "private", createdBy: OWNER, createdAt: serverTimestamp(),
+      }));
+    });
+
     await t.test("परीक्षा शुरू होने के बाद deadline से पहले main submission स्वीकार होता है", async () => {
       await reset();
       const db = env.authenticatedContext(STUDENT).firestore();
