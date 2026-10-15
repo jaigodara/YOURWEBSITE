@@ -1010,7 +1010,7 @@
     const personalItems = (state.personalNotifications || [])
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
-    const items = [...personalItems, ...globalItems].sort((a, b) => notificationTime(b) - notificationTime(a));
+    const items = [...personalItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
@@ -1026,7 +1026,7 @@
     if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
-    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.slice(0, 100).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.map(item => ({ ...item, _isRead: seen.includes(item._key) })));
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
       readAll = document.createElement('button');
@@ -1108,7 +1108,7 @@
     }
     const uid = state.user.uid;
     state.notificationReadsUnsubscribe = state.db
-      .collection('userNotificationReads').doc(uid).collection('items').limit(1000)
+      .collection('userNotificationReads').doc(uid).collection('items')
       .onSnapshot(snapshot => {
         if (state.user?.uid !== uid) return;
         state.notificationReadKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
@@ -1118,7 +1118,6 @@
       });
     state.personalNotificationsUnsubscribe = state.db
       .collection('userNotifications').doc(uid).collection('items')
-      .orderBy('createdAt', 'desc').limit(30)
       .onSnapshot(snapshot => {
         if (state.user?.uid !== uid) return;
         state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
@@ -1133,8 +1132,6 @@
   function initPublicNotifications() {
     if (!state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
-      .orderBy('createdAt', 'desc')
-      .limit(30)
       .onSnapshot(snapshot => {
         state.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'global' }));
         renderNotificationCenter();
