@@ -2790,6 +2790,7 @@ Ans: B"></textarea>
             save.disabled = true;
             try {
               const recordRef = db.collection(collectionName).doc(d.id);
+              const wasConfirmed = d.verificationStatus === 'confirmed';
               let rollNumber = collectionName === 'examEnrolledStudents' ? (d.rollNumber || '') : rollInput.value.trim();
               if (status.value === 'confirmed' && collectionName === 'examEnrolledStudents') {
                 rollNumber = await assignRealEnrollmentRoll(recordRef, rollNumber, true);
@@ -2829,9 +2830,10 @@ Ans: B"></textarea>
               d.rollNumber = rollNumber;
               sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
               d.verificationStatus = status.value;
-              if (status.value === 'confirmed' && collectionName === 'examEnrolledStudents') {
+              if (status.value === 'confirmed' && !wasConfirmed && collectionName === 'examEnrolledStudents') {
                 try {
                   await pushNotification(d.uid || d.id, {
+                    id: 'enrollment-approved-' + String(d.uid || d.id).replace(/[^A-Za-z0-9_-]/g, '_'),
                     title: 'परीक्षा पंजीकरण स्वीकृत',
                     body: 'आपका पंजीकरण स्वीकृत हो गया है। आपका रोल नंबर: ' + (rollNumber || 'जारी होना बाकी') + '।',
                     type: 'enrollment-approved', important: true, pinnedByOwner: true
