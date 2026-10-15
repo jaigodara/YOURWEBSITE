@@ -45,9 +45,9 @@ The existing source was listening to `notifications` and `userNotifications/{uid
 
 ## Required verification before production
 
-1. Review this branch and run the GitHub Actions workflow to completion.
-2. Test with one test owner and one test student in the Firebase Emulator.
-3. Inspect deployed Firestore rules and indexes before deployment.
+1. Review the passing [Quality checks run #28](https://github.com/jaigodara/YOURWEBSITE/actions/runs/38756988530); rerun CI after any application-code changes.
+2. Test with one test owner and one test student in the live browser flow, especially the Hindi PDF download and notification actions.
+3. Inspect deployed Firestore rules and indexes before deployment; no rules have been deployed by this work.
 4. Do not merge or deploy until the remaining checklist items are implemented and tested.
 
 
