@@ -2224,7 +2224,7 @@ Ans: B"></textarea>
       const status = document.getElementById('ownerDataDashboardStatus');
       if (status) status.textContent = 'डेटा लोड हो रहा है…';
       try {
-        const names = ['examEnrolledStudents', 'users', 'quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions'];
+        const names = ['examEnrolledStudents', 'users', 'quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions', 'publishedResults', 'reviews'];
         const fetched = await Promise.all(names.map(async name => {
           try {
             const snap = await db.collection(name).limit(300).get();
@@ -2235,6 +2235,14 @@ Ans: B"></textarea>
         }));
         const data = Object.fromEntries(fetched.map(([name, value]) => [name, value.rows]));
         const errors = fetched.filter(([, value]) => value.error).map(([name, value]) => name + ': ' + value.error);
+        const publishedResults = data.publishedResults.filter(row => row.status === 'published');
+        const allSubmissions = [
+          ...data.quizAttempts.map(row => ({ ...row, _sourceCollection: 'quizAttempts' })),
+          ...data.mockExamSubmissions.map(row => ({ ...row, _sourceCollection: 'mockExamSubmissions' })),
+          ...data.mainExamSubmissions.map(row => ({ ...row, _sourceCollection: 'mainExamSubmissions' }))
+        ];
+        const reviewedKeys = new Set(data.reviews.map(row => row.sourceCollection + '_' + row.submissionId));
+        const awaitingReview = allSubmissions.filter(row => !reviewedKeys.has(row._sourceCollection + '_' + row.id)).length;
         const enrolled = data.examEnrolledStudents.sort((a,b) => String(a.rollNumber || '').localeCompare(String(b.rollNumber || ''), undefined, { numeric:true }));
         const recent = data.users.sort((a,b) => ownerDashboardMillis(b.lastSeenAt || b.lastLoginAt) - ownerDashboardMillis(a.lastSeenAt || a.lastLoginAt));
         const onlineCutoff = Date.now() - 3 * 60 * 1000;
@@ -2247,7 +2255,9 @@ Ans: B"></textarea>
             ['नामांकित', enrolled.length],
             ['हाल में ऑनलाइन', online.length],
             ['क्विज़ प्रयास', data.quizAttempts.length],
-            ['मॉक / मुख्य', data.mockExamSubmissions.length + ' / ' + data.mainExamSubmissions.length]
+            ['मॉक / मुख्य', data.mockExamSubmissions.length + ' / ' + data.mainExamSubmissions.length],
+            ['प्रकाशित परिणाम', publishedResults.length],
+            ['जाँच बाकी', awaitingReview]
           ].forEach(([label, value]) => {
             const tile = document.createElement('div');
             tile.className = 'rounded-xl border border-stone-200 bg-stone-50 p-3';
@@ -2269,11 +2279,14 @@ Ans: B"></textarea>
           (ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt) ? new Date(ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt)).toLocaleString('hi-IN') : 'समय उपलब्ध नहीं')), 'users collection में खाते नहीं मिले।');
         const resultLine = row => (row.name || row.fullName || row.email || row.uid || row.id) + ' · ' +
           (row.rollNumber || 'बिना रोल नंबर') + ' · अंक: ' +
-          (row.finalScore ?? row.manualScore ?? row.score ?? 'जाँच बाकी') + '/' + (row.total ?? row.totalQuestions ?? '—') +
-          ' · ' + (row.resultPublished === true || row.manualReviewStatus === 'published' || row.mode === 'quiz' ? 'प्रकाशित' : (row.manualReviewStatus || 'जाँच बाकी'));
-        renderOwnerDashboardRows('ownerQuizResultsList', data.quizAttempts.sort((a,b) => ownerDashboardMillis(b.submittedAt) - ownerDashboardMillis(a.submittedAt)).slice(0,100), resultLine, 'क्विज़ प्रयास नहीं मिले।');
-        renderOwnerDashboardRows('ownerMockResultsList', data.mockExamSubmissions.sort((a,b) => ownerDashboardMillis(b.submittedAt) - ownerDashboardMillis(a.submittedAt)).slice(0,100), resultLine, 'मॉक परीक्षा सबमिशन नहीं मिले।');
-        renderOwnerDashboardRows('ownerMainResultsList', data.mainExamSubmissions.sort((a,b) => ownerDashboardMillis(b.submittedAt) - ownerDashboardMillis(a.submittedAt)).slice(0,100), resultLine, 'मुख्य परीक्षा सबमिशन नहीं मिले।');
+          (row.score ?? '—') + '/' + (row.total ?? '—') + ' · प्रकाशित';
+        const byMode = mode => publishedResults
+          .filter(row => mode === 'mock' ? ['mock1', 'mock2'].includes(row.mode) : row.mode === mode)
+          .sort((a,b) => ownerDashboardMillis(b.publishedAt) - ownerDashboardMillis(a.publishedAt))
+          .slice(0,100);
+        renderOwnerDashboardRows('ownerQuizResultsList', byMode('quiz'), resultLine, 'अभी कोई क्विज़ परिणाम प्रकाशित नहीं हुआ।');
+        renderOwnerDashboardRows('ownerMockResultsList', byMode('mock'), resultLine, 'अभी कोई मॉक परिणाम प्रकाशित नहीं हुआ।');
+        renderOwnerDashboardRows('ownerMainResultsList', byMode('main'), resultLine, 'अभी कोई मुख्य परीक्षा परिणाम प्रकाशित नहीं हुआ।');
         if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 100 रिकॉर्ड दिखाए गए हैं।' + (errors.length ? ' · जिन collections का access नहीं मिला: ' + errors.join(' | ') : '');
       } catch (error) {
         if (status) status.textContent = 'रिपोर्ट लोड नहीं हुई: ' + error.message + ' · Firestore rules और collection access जाँचें।';
