@@ -803,7 +803,7 @@
     const status = record.verificationStatus || 'pending';
     const statusText = status === 'confirmed' ? 'पंजीकरण स्वीकृत' : status === 'rejected' ? 'पंजीकरण अस्वीकृत' : 'पंजीकरण समीक्षा की प्रतीक्षा में';
     const storedRoll = String(record.rollNumber || '').trim();
-    const roll = /^JAMBH-2026-\\d{4,}$/.test(storedRoll) ? storedRoll : '';
+    const roll = /^JAMBH-2026-\d{4,}$/.test(storedRoll) ? storedRoll : '';
     host.replaceChildren();
     renderProfileAdmitCard(record);
     const heading = document.createElement('strong');
@@ -875,7 +875,7 @@
       notify('अपने खाते का वैध पंजीकरण उपलब्ध नहीं है।', 'error');
       return;
     }
-    if (record.verificationStatus !== 'confirmed' || !/^JAMBH-2026-\\d{4,}$/.test(String(record.rollNumber || '').trim())) {
+    if (record.verificationStatus !== 'confirmed' || !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || '').trim())) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
@@ -943,7 +943,7 @@
     const title = document.createElement('strong');
     title.textContent = '🎟️ प्रवेश-पत्र';
     const text = document.createElement('p');
-    const hasValidRoll = record.verificationStatus === 'confirmed' && /^JAMBH-2026-\\d{4,}$/.test(String(record.rollNumber || '').trim());
+    const hasValidRoll = record.verificationStatus === 'confirmed' && /^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || '').trim());
     const isReleased = hasValidRoll && (record.admitCardReleased === true || (state.examConfig?.admitCardReleased === true && !record.admitCardExamType));
     text.textContent = isReleased ? 'आपका प्रवेश-पत्र जारी हो चुका है।' : hasValidRoll ? 'रोल नंबर जारी है; प्रवेश-पत्र Owner द्वारा रिलीज़ किए जाने पर डाउनलोड बटन दिखेगा।' : 'पंजीकरण स्वीकृत होने और JAMBH-2026 रोल नंबर आवंटित होने के बाद प्रवेश-पत्र उपलब्ध होगा।';
     host.append(title, text);
