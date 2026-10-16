@@ -30,7 +30,7 @@ test("admit-card download requires confirmed approval, a five-digit roll, and re
   assert.notEqual(bodyEnd, -1, "admit-card download function should be complete");
   const body = script.slice(functionStart, bodyEnd);
   assert.match(body, /record\.verificationStatus\s*!==\s*['"]confirmed['"]/);
-  assert.match(body, /JAMBH-2026-\\\\d\{5\}/);
+  assert.match(body, /JAMBH-2026-\\\\d\\{5\\}/);
   assert.match(body, /admitCardReleased\s*===\s*true/);
   assert.match(body, /अभी जारी नहीं हुआ/);
 });
