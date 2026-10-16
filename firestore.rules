@@ -180,7 +180,7 @@ service cloud.firestore {
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
+            'uid', 'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
           ])
         );
       allow delete: if examOwner();
