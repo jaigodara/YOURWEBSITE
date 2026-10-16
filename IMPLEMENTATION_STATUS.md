@@ -48,3 +48,9 @@ The existing source was listening to `notifications` and `userNotifications/{uid
 2. Test with one test owner and one test student in the Firebase Emulator.
 3. Inspect deployed Firestore rules and indexes before deployment.
 4. Do not merge or deploy until the remaining checklist items are implemented and tested.
+
+
+## 2026-10-16 follow-up status
+- G1: Partly — fixed the render call and added flat-schema listeners, owner helper dual writes, strict read-marker rules, and emulator tests. Composer migration, all event hooks, roll migration UI, cursor-backed pagination, and latest CI/live verification remain incomplete.
+- G2: Partly — browser PDF/release flows exist, but live PDF rendering and latest test verification are not confirmed.
+- G3–G7: Partly / Not done — full submission/review redesign, private quiz-key migration, mobileIndex/profile security, exports/backup, question-bank redesign, late-student workflow, media fallbacks, and hidden-email mobile/password + Google linking are not verified complete.
