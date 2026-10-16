@@ -7,8 +7,8 @@ This file deliberately distinguishes implemented code from items that still need
 | Area | Status | Notes |
 |---|---|---|
 | A1 enrollment payload / preserve approval and roll | Done (code patch) | Students no longer submit a roll number; create pending record, update editable fields only; rules restrict fields. Emulator test added. |
-| A2 JAMBH-2026 counter / migrate legacy BIS rolls | Partly | Owner approval now allocates `JAMBH-2026-00001`-style five-digit rolls transactionally through `settings/rollCounter`, preserves valid existing rolls, and limits counter access to exam owners. Legacy migration is still not a separate paginated/confirmed tool; allocation scans existing enrollments and has not been emulator/live verified. |
-| A3 profile mobile/village and admit-card button | Partly | Added an admit-card status/download panel to the profile and enrollment status, using the existing enrollment field names. Mobile/village persistence remains unverified and is not changed here. |
+| A2 JAMBH-2026 counter / migrate legacy BIS rolls | Partly | Owner approval allocates unique `JAMBH-2026-0001`-style rolls transactionally through `settings/rollCounter`, preserves valid existing rolls, and treats four digits as a minimum width. Legacy migration is still not a separate paginated/confirmed tool; allocation scans existing enrollments and needs live verification. |
+| A3 profile mobile/village and admit-card button | Partly | Internal `BIS-...` values are no longer displayed as student roll numbers. After owner approval assigns a valid `JAMBH-2026-####` roll, the student can download a browser-generated PDF from profile or enrollment status without waiting for a separate bulk notification release. Mobile/village persistence and live PDF rendering still need browser verification. |
 | A4 resubmission regression | Done (test added) | Test asserts assigned roll and approval cannot be changed by a student; CI run #28 passed. |
 | B1-B6 notification schema, real-time combined feed, unread/pin/pagination, event notifications and composer | Partly | Fixed a confirmed JavaScript comment/newline bug that commented out `renderNotificationCards`, which could leave the notification panel empty even when Firestore data arrived. Added a regression test for this exact failure. Existing “और दिखाएँ”, pinned ordering and event hooks remain. Flat schema/read-marker migration and live browser verification remain incomplete; do not mark fully Done until the new CI run passes. |
 | C1-C4 browser-generated admit card and release workflow | Partly | Added an explicit exam-type selector, cursor-paginated release (400 student page; write batches capped at 400 operations), per-student release fields and pinned notification, progress/failure counts, single-roll release, and browser PDF via html2canvas + jsPDF. Student profile, enrollment status and notification cards link to download. The notification renderer had a source-level newline bug that could suppress card rendering; a regression fix/test is now in this follow-up branch. Actual Hindi PDF rendering/download and live Firebase behavior still need a browser test. Storage is no longer required by the new flow. |
@@ -64,3 +64,11 @@ The existing source was listening to `notifications` and `userNotifications/{uid
 
 - Found a literal escaped newline in the notification render comment. It placed the `renderNotificationCards(...)` call inside a `//` comment, so Firestore listeners could receive data while the list remained blank.
 - Fixed the source to put the render call on a real new line and added a source regression test. The item remains Partly until CI passes and real-browser rendering is verified.
+
+
+## 2026-10-16 — Student roll display and admit-card access follow-up
+
+- Student-facing enrollment status now displays only a valid `JAMBH-2026-` roll; legacy `BIS-...` internal identifiers are shown as “जारी होना बाकी”.
+- Owner approval creates a transactionally sequenced roll with a minimum four-digit suffix (for example, `JAMBH-2026-0001`); existing valid rolls are preserved.
+- Once enrollment is confirmed and a valid roll exists, the student can download the browser-generated admit-card PDF from the profile/enrollment area. Notification release remains responsible for notifying students, not for hiding the download control.
+- Added source regression tests. Live Firestore approval, Hindi PDF rendering, and actual student-browser download still require manual verification after deployment.
