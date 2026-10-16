@@ -86,7 +86,7 @@ test("profile/auth handlers are safe when Firebase has no initialized app", () =
   window.BishnoiAuth = {};
   window.BishnoiApp = {};
   window.firebase.apps.length = 0;
-  const mainStartup = script.indexOf("\\ntry {\\n(() => {");
+  const mainStartup = script.indexOf("\ntry {\n(() => {");
   assert.ok(mainStartup > 0, "early placeholder block should precede main startup");
   window.eval(script.slice(0, mainStartup));
   assert.equal(window.firebase.apps.length, 0, "the early block must not initialize Firebase");
@@ -107,9 +107,7 @@ test("Firebase startup publishes readiness and replaces the profile placeholder"
   const placeholder = function earlyProfilePlaceholder() {};
   window.BishnoiApp.openProfileOrAuth = placeholder;
   window.eval(script);
-  if (window.document.readyState === "loading") {
-    window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
-  }
+  window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   assert.ok(window.firebase.apps.length > 0, "Firebase app should be initialized");
   assert.equal(window.__bishnoiReady, true);
   assert.notEqual(window.BishnoiApp.openProfileOrAuth, placeholder);
