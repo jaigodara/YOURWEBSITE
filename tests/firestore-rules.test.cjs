@@ -44,13 +44,28 @@ test("Firestore security rules regression suite", async (t) => {
   }
 
   try {
-    await t.test("सूचना सूची का render call JavaScript comment में नहीं दबा है", async () => {
+    await t.test("सूचना केंद्र pinned/important सूचनाएँ पहले दिखाता है और render करता है", async () => {
       const source = readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
-      const lines = source.split(/\r?\n/);
-      const commentIndex = lines.findIndex(line => line.includes("Keep read notifications as history"));
-      assert.ok(commentIndex >= 0, "notification render comment should exist");
-      assert.doesNotMatch(lines[commentIndex], /renderNotificationCards/);
-      assert.match(lines[commentIndex + 1] || "", /^\s*renderNotificationCards\(list,/);
+      const functionStart = source.indexOf("function renderNotificationCenter()");
+      assert.notEqual(functionStart, -1, "notification center function should exist");
+      const bodyStart = source.indexOf("{", functionStart);
+      let depth = 0;
+      let bodyEnd = -1;
+      for (let i = bodyStart; i < source.length; i += 1) {
+        if (source[i] === "{") depth += 1;
+        if (source[i] === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            bodyEnd = i + 1;
+            break;
+          }
+        }
+      }
+      assert.notEqual(bodyEnd, -1, "notification center function should be complete");
+      const body = source.slice(functionStart, bodyEnd);
+      assert.match(body, /renderNotificationCards\s*\(/);
+      assert.match(body, /sort\s*\(\s*\(a, b\)\s*=>\s*Number\(!!\(b\.pinnedByOwner\s*\|\|\s*b\.important\)\)\s*-\s*Number\(!!\(a\.pinnedByOwner\s*\|\|\s*a\.important\)\)/);
+      assert.doesNotMatch(body, /deleteDoc\s*\(|\.remove\s*\(/);
     });
 
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
