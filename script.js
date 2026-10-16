@@ -870,7 +870,7 @@
       notify('प्रवेश-पत्र के लिए पुष्टि और रोल नंबर आवश्यक हैं।', 'error'); return;
     }
     if (typeof window.html2canvas !== 'function' || !window.jspdf?.jsPDF) {
-      notify('PDF सुविधा लोड नहीं हुई। इंटरनेट जाँचकर पेज रिफ्रेश करें।', 'error'); return;
+      notify('PDF लाइब्रेरी उपलब्ध नहीं है (html2canvas_missing या jspdf_missing)। नेटवर्क/CDN जाँचकर पेज रिफ्रेश करें।', 'error'); return;
     }
     let surface;
     try {
@@ -895,25 +895,38 @@
       surface.innerHTML = '<article style="border:5px solid #143622;border-radius:18px;overflow:hidden"><header style="background:#143622;color:white;padding:28px;text-align:center;border-bottom:6px solid #d6a43a"><div style="font-size:42px">🌳</div><h1 style="font-size:30px;margin:8px 0">बिश्नोई समाज डिजिटल मंच</h1><p style="font-size:17px;margin:0;color:#ffe8a3">परीक्षा प्रवेश-पत्र</p></header><main style="padding:28px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:22px">परीक्षार्थी विवरण</h2><div style="width:110px;height:130px;border:2px dashed #8b998f;display:flex;align-items:center;justify-content:center;color:#68766b;font-size:16px">फोटो</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">' + fieldHtml + '</div><section style="margin-top:24px;padding:18px;background:#fff4cf;border:1px solid #e6ce85;border-radius:12px;line-height:1.8"><strong>महत्वपूर्ण निर्देश</strong><p style="white-space:pre-wrap">' + esc(cfg.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।') + '</p></section><p style="margin-top:32px;font-size:12px;text-align:center;color:#68766b">यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर बनाया गया है।</p></main></article>';
       document.body.appendChild(surface);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const canvas = await window.html2canvas(surface, { scale: 2, backgroundColor: '#fffdf7', useCORS: true });
-      const pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const image = canvas.toDataURL('image/jpeg', 0.95);
+      if (document.fonts?.ready) await document.fonts.ready;
+      const canvas = await window.html2canvas(surface, { scale: 2, backgroundColor: '#fffdf7', useCORS: true, logging: false });
+      if (!canvas.width || !canvas.height) throw new Error('html2canvas_empty_canvas');
+      const pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const image = canvas.toDataURL('image/jpeg', 0.96);
       const width = 190, height = canvas.height * width / canvas.width;
       const pageHeight = 277;
-      if (height <= pageHeight) pdf.addImage(image, 'JPEG', 10, 10, width, height);
+      if (height <= pageHeight) pdf.addImage(image, 'JPEG', 10, 10, width, height, undefined, 'FAST');
       else {
         let offset = 0, page = 0;
         while (offset < height) {
           if (page > 0) pdf.addPage();
-          pdf.addImage(image, 'JPEG', 10, 10 - offset, width, height);
+          pdf.addImage(image, 'JPEG', 10, 10 - offset, width, height, undefined, 'FAST');
           offset += pageHeight; page++;
         }
       }
-      pdf.save('Admit-Card-' + String(record.rollNumber).replace(/[^A-Za-z0-9-]/g, '-') + '.pdf');
-      notify('प्रवेश-पत्र PDF डाउनलोड हो गई।', 'success');
+      const filename = 'Admit-Card-' + String(record.rollNumber).replace(/[^A-Za-z0-9-]/g, '-') + '.pdf';
+      const blob = pdf.output('blob');
+      if (!(blob instanceof Blob) || blob.size < 1000) throw new Error('jspdf_empty_pdf');
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      notify('प्रवेश-पत्र PDF डाउनलोड शुरू हुआ।', 'success');
     } catch (error) {
       console.error('Admit card PDF generation failed:', error);
-      notify('PDF नहीं बनी: ' + (error?.message || 'ब्राउज़र PDF त्रुटि'), 'error');
+      notify('PDF नहीं बनी: ' + (error?.code || error?.message || 'unknown_pdf_error'), 'error');
     } finally { if (surface) surface.remove(); }
   }
   window.downloadPortalAdmitCard = printStudentAdmitCard;
