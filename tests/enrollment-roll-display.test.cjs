@@ -13,7 +13,8 @@ test("student view never displays the internal BIS identifier as a roll number",
 
 test("approved students can download their admit card as soon as a valid roll is assigned", () => {
   assert.ok(script.includes("if (status === 'confirmed' && roll) {"));
-  assert.ok(script.includes("if (record.verificationStatus !== 'confirmed' || !/^JAMBH-2026-\\d{4,}$/.test(String(record.rollNumber || '').trim())) {"));
+  assert.ok(script.includes("if (record.verificationStatus !== 'confirmed' ||"));
+  assert.ok(script.includes("!/^JAMBH-2026-\\d{5}$/.test(String(record.rollNumber || ''))"));
   assert.ok(script.includes("if (hasValidRoll) {\n      const button = document.createElement('button');\n      button.id = 'downloadAdmitCardButton';"));
   assert.ok(!script.includes("notify('प्रवेश-पत्र अभी जारी नहीं हुआ है।', 'error');"));
 });
