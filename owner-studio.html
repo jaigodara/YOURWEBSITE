@@ -496,6 +496,10 @@ Ans: B"></textarea>
           <input id="registrationSearch" type="search" placeholder="नाम / रोल नंबर / मोबाइल खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
           <button onclick="loadRegistrationReviews()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">रिकॉर्ड लाएँ</button>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button id="repairLegacyRollsButton" type="button" onclick="assignMissingLegacyRolls()" class="px-3 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl text-xs font-extrabold">🔢 रोल नंबर नया बनाएँ (पुराने / खाली रोल)</button>
+          <p id="repairLegacyRollsStatus" role="status" aria-live="polite" class="text-xs text-stone-600 self-center">यह केवल पुष्टि किए विद्यार्थियों के खाली या BIS-* रोल बदलेगा; सही JAMBH रोल नहीं बदलेगा।</p>
+        </div>
         <div id="registrationReviewList" class="space-y-2 max-h-72 overflow-y-auto custom-scroll">
           <div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लाने के लिए collection चुनें।</div>
         </div>
@@ -2718,6 +2722,48 @@ Ans: B"></textarea>
         return rollNumber;
       });
     }
+
+    async function assignMissingLegacyRolls() {
+      if (!isPrimaryOwner()) return showToast('रोल नंबर बनाने का अधिकार केवल Owner को है।');
+      const button = document.getElementById('repairLegacyRollsButton');
+      const status = document.getElementById('repairLegacyRollsStatus');
+      if (!confirm('क्या सभी पुष्टि किए विद्यार्थियों के खाली या BIS-* रोल नंबर को क्रमशः JAMBH-2026-XXXXX में बदलना है? पहले से सही JAMBH रोल नहीं बदले जाएँगे।')) return;
+      if (button) { button.disabled = true; button.textContent = 'रोल नंबर बनाए जा रहे हैं…'; }
+      let scanned = 0, assigned = 0, skipped = 0, failed = 0, cursor = null, lastError = '';
+      try {
+        while (true) {
+          let query = db.collection('examEnrolledStudents').orderBy(firebase.firestore.FieldPath.documentId()).limit(200);
+          if (cursor) query = query.startAfter(cursor);
+          const page = await query.get();
+          if (page.empty) break;
+          for (const doc of page.docs) {
+            scanned++;
+            const data = doc.data() || {};
+            const roll = String(data.rollNumber || '').trim();
+            if (data.verificationStatus !== 'confirmed' || (/^JAMBH-2026-\d{5}$/.test(roll)) || (roll && !roll.startsWith('BIS-'))) { skipped++; continue; }
+            try {
+              await assignRealEnrollmentRoll(doc.ref, roll, false);
+              assigned++;
+            } catch (error) {
+              failed++; lastError = (error.code || error.message || 'unknown').toString();
+            }
+            if (status) status.textContent = 'प्रगति: ' + scanned + ' जाँचे · ' + assigned + ' नए रोल · ' + skipped + ' छोड़े · ' + failed + ' विफल';
+          }
+          cursor = page.docs[page.docs.length - 1];
+          if (page.size < 200) break;
+        }
+        if (status) status.textContent = 'समाप्त: ' + assigned + ' रोल नंबर बने · ' + skipped + ' छोड़े · ' + failed + ' विफल · कुल जाँचे: ' + scanned + (lastError ? ' · अंतिम त्रुटि: ' + lastError : '');
+        showToast(failed ? 'रोल नंबर प्रक्रिया पूरी हुई; ' + failed + ' रिकॉर्ड विफल (' + lastError + ')' : assigned + ' रोल नंबर बनाए गए।');
+        await loadRegistrationReviews();
+      } catch (error) {
+        const cause = error.code || error.message || 'unknown';
+        if (status) status.textContent = 'रोल नंबर प्रक्रिया विफल: ' + cause;
+        showToast('रोल नंबर नहीं बन पाए: ' + cause);
+      } finally {
+        if (button) { button.disabled = false; button.textContent = '🔢 रोल नंबर नया बनाएँ (पुराने / खाली रोल)'; }
+      }
+    }
+    window.assignMissingLegacyRolls = assignMissingLegacyRolls;
 
     async function loadRegistrationReviews() {
       if (!isPrimaryOwner()) return showToast('विद्यार्थी पंजीकरण रिकॉर्ड केवल Owner देख सकता है।');
