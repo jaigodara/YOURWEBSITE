@@ -1,4 +1,5 @@
 const { readFileSync } = require("node:fs");
+const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const path = require("node:path");
 const {
@@ -43,6 +44,15 @@ test("Firestore security rules regression suite", async (t) => {
   }
 
   try {
+    await t.test("सूचना सूची का render call JavaScript comment में नहीं दबा है", async () => {
+      const source = readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
+      const lines = source.split(/\r?\n/);
+      const commentIndex = lines.findIndex(line => line.includes("Keep read notifications as history"));
+      assert.ok(commentIndex >= 0, "notification render comment should exist");
+      assert.doesNotMatch(lines[commentIndex], /renderNotificationCards/);
+      assert.match(lines[commentIndex + 1] || "", /^\s*renderNotificationCards\(list,/);
+    });
+
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
       await reset();
       const db = env.authenticatedContext("new-student").firestore();

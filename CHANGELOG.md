@@ -56,3 +56,9 @@
 ### Verification status
 
 - GitHub Actions Quality checks run #28 passed on application-code commit `6bda28e`: syntax check, CSS build, lint, and 10/10 emulator tests passed. The status/changelog documentation commits came afterward without changing application code. Real-browser PDF rendering is not covered by the Firestore Emulator and remains unverified live.
+
+
+## 2026-10-16 — Notification rendering regression fix
+
+- Fixed a literal escaped newline that caused the `renderNotificationCards(...)` call to be swallowed by the preceding JavaScript comment. The notification listeners could receive data without rendering cards.
+- Added a regression test to ensure the render call remains a separate executable line. Admit-card PDF and Firebase live behavior still require real-browser verification.
