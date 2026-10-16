@@ -43,3 +43,10 @@
 - Student UI listens to flat personal + ALL notices and read markers in real time; owner pushNotification writes both flat and legacy records.
 - Root cause confirmed: the literal `\\n` in the source comment swallowed the render call. Live/emulator verification is still required.
 - Real SMS OTP is not used by the mobile/password identity flow; Firebase Phone Auth SMS requires the Blaze plan.
+
+
+## 2026-10-16 — Admit-card PDF and roll allocation follow-up
+- Root cause: the owner-created enrollment path explicitly fell back to `BIS-<uid>` instead of calling the transactional `JAMBH-2026-XXXXX` allocator. It now saves the confirmed enrollment and allocates a counter-backed roll through `assignRealEnrollmentRoll`; existing valid JAMBH rolls are preserved.
+- Added the owner-only `रोल नंबर नया बनाएँ (पुराने / खाली रोल)` tool. It scans enrollment records in cursor pages, confirms before changes, processes only confirmed records with missing/BIS rolls, reports progress and surfaces actual Firebase/error causes.
+- Admit-card PDF generation now waits for browser fonts, validates the canvas/PDF blob, and triggers a direct Blob download through an anchor rather than relying on jsPDF's internal save path. Failures name the actual error code/message.
+- These code changes are committed to `fix/enrollment-notifications-owner-workflows`. They are not live until that branch is deployed; Vercel status for the latest commit is still pending. No browser/emulator run has been completed in this environment.
