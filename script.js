@@ -2943,29 +2943,45 @@ function renderExamVisibility() {
     countdownEl.textContent = days + ' दिन, ' + hours + ' घंटे, ' + minutes + ' मिनट शेष';
   }
 
+  function runStartupModule(name, callback) {
+    try {
+      callback();
+      return true;
+    } catch (error) {
+      console.error('पोर्टल मॉड्यूल आरंभ नहीं हो सका (' + name + '):', error);
+      try { notify('कुछ सुविधाएँ अभी लोड नहीं हुईं (' + name + ')। कृपया दोबारा प्रयास करें।', 'error'); }
+      catch (_) { showEarlyHindiToast(); }
+      return false;
+    }
+  }
+
   function initPortal() {
     if (state.initialized) return;
     state.initialized = true;
 
-    renderDailyMessage();
-    initEnrollmentUI();
-    renderPanchangEstimate();
-    renderExamCountdowns();
-    window.setInterval(renderExamCountdowns, 1000);
-    initMalaState();
-    initKaraokePlayer();
-    renderNiyamsList();
-    bindOptionalButtons();
+    // Firebase must be ready before any module can call auth() or firestore().
+    const firebaseReady = runStartupModule('Firebase', () => {
+      if (!initFirebase()) throw new Error('Firebase compat initialization failed.');
+    });
 
-    if (initFirebase()) {
-      initAuthUI();
-      initPublicNotifications();
-      loadShabadRepository();
+    runStartupModule('दैनिक संदेश', renderDailyMessage);
+    runStartupModule('नामांकन', initEnrollmentUI);
+    runStartupModule('पंचांग', renderPanchangEstimate);
+    runStartupModule('परीक्षा काउंटडाउन', () => {
+      renderExamCountdowns();
+      window.setInterval(() => runStartupModule('परीक्षा काउंटडाउन', renderExamCountdowns), 1000);
+    });
+    runStartupModule('जपमाला', initMalaState);
+    runStartupModule('भजन प्लेयर', initKaraokePlayer);
+    runStartupModule('२९ नियम', renderNiyamsList);
+    runStartupModule('वैकल्पिक बटन', bindOptionalButtons);
+
+    if (firebaseReady) {
+      runStartupModule('प्रमाणीकरण', initAuthUI);
+      runStartupModule('सूचनाएँ', initPublicNotifications);
+      runStartupModule('शब्दवाणी', loadShabadRepository);
     }
 
-    // The last active section is restored after Firebase reports the auth state.
-
-    // The navigation function is now exposed globally.
     window.BishnoiPortal = window.BishnoiPortal || {};
     window.BishnoiPortal.switchTab = window.switchTab;
     window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
