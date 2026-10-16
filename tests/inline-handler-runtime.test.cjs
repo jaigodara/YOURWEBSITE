@@ -44,7 +44,7 @@ function makeDom() {
   const { window } = dom;
   window.BishnoiAuth = { openAuthModal: function earlyAuthPlaceholder() {} };
   window.BishnoiApp = { openProfileOrAuth: function earlyProfilePlaceholder() {} };
-  window.console = { ...console, error: () => {}, warn: () => {}, log: () => {} };
+  window.console = console;
   window.scrollTo = () => {};
   window.matchMedia = () => ({ matches: false, addListener: () => {}, removeListener: () => {} });
   window.alert = () => {};
@@ -90,11 +90,15 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   window.eval(script);
   // Owner-only inline scripts also publish owner handlers; evaluate those scripts without loading remote SDKs.
   const ownerDom = new JSDOM(ownerHtml, { url: "https://bishnoism.test/owner-studio.html", runScripts: "outside-only" });
+  makeFirebaseStub(ownerDom.window);
   for (const inline of [...ownerDom.window.document.querySelectorAll("script:not([src])")]) {
-    try { window.eval(inline.textContent); } catch (_) { /* individual owner modules may require an authenticated backend */ }
+    ownerDom.window.eval(inline.textContent);
   }
-  const paths = [...new Set([...calledPaths(indexHtml), ...calledPaths(ownerHtml)])];
-  const unresolved = paths.filter(expression => typeof resolvePath(window, expression) !== "function");
+  const pathsByWindow = [
+    ...calledPaths(indexHtml).map(expression => ({ expression, target: window })),
+    ...calledPaths(ownerHtml).map(expression => ({ expression, target: ownerDom.window }))
+  ];
+  const unresolved = pathsByWindow.filter(item => typeof resolvePath(item.target, item.expression) !== "function").map(item => item.expression);
   assert.deepEqual(unresolved, [], "unresolved inline onclick paths: " + unresolved.join(", "));
   assert.equal(window.BishnoiAuth, authObjectBefore, "BishnoiAuth object identity must be preserved");
   assert.equal(window.BishnoiApp, appObjectBefore, "BishnoiApp object identity must be preserved");
