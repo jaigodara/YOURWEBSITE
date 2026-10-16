@@ -1664,32 +1664,17 @@ Ans: B"></textarea>
 
     function pushNotification(uid, data = {}, batch = null) {
       if (!isPrimaryOwner() && !hasEditorPermission('notifications')) throw new Error('सूचना प्रकाशित करने का अधिकार नहीं है।');
-      const payload = {
-        title: String(data.title || 'नई सूचना'),
-        message: String(data.body || data.message || ''),
-        type: String(data.type || 'announcement'),
-        important: data.important === true,
-        pinnedByOwner: data.pinnedByOwner === true,
-        active: true,
-        createdBy: auth.currentUser?.uid || null,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      if (uid === 'ALL' || !uid) {
-        const ref = data.id ? db.collection('notifications').doc(data.id) : db.collection('notifications').doc();
-        const allPayload = { ...payload, audience: 'all' };
-        if (batch) {
-          batch.set(ref, allPayload);
-          return Promise.resolve(ref);
-        }
-        return ref.set(allPayload).then(() => ref);
-      }
-      const ref = data.id ? db.collection('userNotifications').doc(uid).collection('items').doc(data.id) : db.collection('userNotifications').doc(uid).collection('items').doc();
-      const personalPayload = { ...payload, recipientUid: uid, audience: 'private' };
-      if (batch) {
-        batch.set(ref, personalPayload);
-        return Promise.resolve(ref);
-      }
-      return ref.set(personalPayload).then(() => ref);
+      const recipientUid = uid || 'ALL';
+      const notificationId = data.id || db.collection('userNotifications').doc().id;
+      const title = String(data.title || 'नई सूचना'), body = String(data.body || data.message || '');
+      const type = String(data.type || 'announcement'), important = data.important === true;
+      const pinnedByOwner = data.pinnedByOwner === true, createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const flatRef = db.collection('userNotifications').doc(notificationId);
+      const flatPayload = { uid: recipientUid, type, title, body, important, pinnedByOwner, fileUrl: data.fileUrl || null, createdAt };
+      const legacyRef = recipientUid === 'ALL' ? db.collection('notifications').doc(notificationId) : db.collection('userNotifications').doc(recipientUid).collection('items').doc(notificationId);
+      const legacyPayload = { title, message: body, type, important, pinnedByOwner, active: true, createdBy: auth.currentUser?.uid || null, createdAt, ...(recipientUid === 'ALL' ? { audience: 'all' } : { recipientUid, audience: 'private' }) };
+      if (batch) { batch.set(flatRef, flatPayload); batch.set(legacyRef, legacyPayload); return Promise.resolve(flatRef); }
+      return Promise.all([flatRef.set(flatPayload), legacyRef.set(legacyPayload)]).then(() => flatRef);
     }
     window.pushNotification = pushNotification;
 
