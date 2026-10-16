@@ -1097,7 +1097,8 @@
     if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
-    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.slice(0, state.notificationVisibleLimit).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    // Keep read notifications as history, dimmed; badge count remains unread-only.
+    renderNotificationCards(list, items.slice(0, state.notificationVisibleLimit).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
     let moreButton = byId('showMoreNotificationsButton');
     if (section && !moreButton) {
       moreButton = document.createElement('button');
