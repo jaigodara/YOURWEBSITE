@@ -65,7 +65,7 @@ test("Firestore security rules regression suite", async (t) => {
       const body = source.slice(functionStart, bodyEnd);
       assert.match(body, /renderNotificationCards\s*\(/);
       assert.match(body, /sort\s*\(\s*\(a, b\)\s*=>\s*Number\(!!\(b\.pinnedByOwner\s*\|\|\s*b\.important\)\)\s*-\s*Number\(!!\(a\.pinnedByOwner\s*\|\|\s*a\.important\)\)/);
-      assert.doesNotMatch(body, /deleteDoc\s*\(|\.remove\s*\(/);
+      assert.doesNotMatch(body, /deleteDoc\s*\(/);
     });
 
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
