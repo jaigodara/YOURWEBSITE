@@ -14,6 +14,23 @@
  * secret. AI and proctor uploads must go through your own authenticated server.
  * ========================================================================== */
 "use strict";
+window.BishnoiAuth = window.BishnoiAuth || {};
+window.BishnoiApp = window.BishnoiApp || {};
+
+function showEarlyHindiToast() {
+  try {
+    let toast = document.getElementById('earlyHindiToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'earlyHindiToast';
+      toast.setAttribute('role', 'status');
+      toast.textContent = 'पेज लोड हो रहा है, कृपया दोबारा दबाएँ';
+      toast.style.cssText = 'position:fixed;z-index:99999;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;padding:12px 18px;border-radius:12px;background:#143622;color:#fff;font:600 14px sans-serif';
+      (document.body || document.documentElement).appendChild(toast);
+    }
+    toast.hidden = false;
+  } catch (error) { console.error('हिंदी सूचना नहीं दिख सकी:', error); }
+}
 
 // Publish navigation immediately so existing HTML inline onclick handlers such
 // as BishnoiPortal.switchTab('home') never see an undefined namespace.
@@ -58,34 +75,58 @@
   window.BishnoiPortal.switchTab = window.switchTab;
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
   window.Bishnoi.switchTab = window.switchTab;
-  window.BishnoiApp = window.BishnoiApp || {};
   window.BishnoiApp.switchTab = window.switchTab;
 
-  // Safe early handlers for inline HTML buttons. The full auth/profile
-  // implementations replace these once the portal script finishes loading.
-  window.BishnoiAuth = window.BishnoiAuth || {};
+  // Early handlers remain useful while the full modules initialize.
   if (typeof window.BishnoiAuth.openAuthModal !== 'function') {
     window.BishnoiAuth.openAuthModal = function () {
-      const modal = document.getElementById('authModal');
-      if (modal) {
-        modal.hidden = false;
-        modal.classList.remove('hidden');
-        modal.setAttribute('aria-hidden', 'false');
-      } else {
-        console.warn('Authentication UI is not available yet.');
+      try {
+        const modal = document.getElementById('authModal');
+        if (modal) {
+          modal.hidden = false;
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          modal.style.display = 'flex';
+          modal.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        showEarlyHindiToast();
+      } catch (error) {
+        console.error('प्रारंभिक लॉगिन पैनल नहीं खुला:', error);
+        showEarlyHindiToast();
       }
     };
   }
   if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
     window.BishnoiApp.openProfileOrAuth = function () {
-      if (window.BishnoiAuth && typeof window.BishnoiAuth.openAuthModal === 'function') {
-        return window.BishnoiAuth.openAuthModal();
+      try {
+        const profile = document.getElementById('userProfileModal');
+        const loggedIn = !!(window.firebase?.auth && window.firebase.auth().currentUser);
+        if (loggedIn && profile) {
+          profile.classList.remove('hidden');
+          profile.classList.add('flex');
+          profile.style.display = 'flex';
+          profile.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        const auth = document.getElementById('authModal');
+        if (!loggedIn && auth) {
+          auth.classList.remove('hidden');
+          auth.classList.add('flex');
+          auth.style.display = 'flex';
+          auth.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        showEarlyHindiToast();
+      } catch (error) {
+        console.error('प्रारंभिक प्रोफ़ाइल पैनल नहीं खुला:', error);
+        showEarlyHindiToast();
       }
-      console.warn('Profile/auth UI is not available yet.');
     };
   }
 })();;
 
+try {
 (() => {
   const CONFIG = Object.freeze({
     firebase: {
@@ -3313,3 +3354,7 @@ function renderExamVisibility() {
 
   }
 })();
+} catch (error) {
+  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);
+  showEarlyHindiToast();
+}
