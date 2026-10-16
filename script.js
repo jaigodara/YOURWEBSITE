@@ -56,6 +56,30 @@
   window.Bishnoi.switchTab = window.switchTab;
   window.BishnoiApp = window.BishnoiApp || {};
   window.BishnoiApp.switchTab = window.switchTab;
+
+  // Safe early handlers for inline HTML buttons. The full auth/profile
+  // implementations replace these once the portal script finishes loading.
+  window.BishnoiAuth = window.BishnoiAuth || {};
+  if (typeof window.BishnoiAuth.openAuthModal !== 'function') {
+    window.BishnoiAuth.openAuthModal = function () {
+      const modal = document.getElementById('authModal');
+      if (modal) {
+        modal.hidden = false;
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+      } else {
+        console.warn('Authentication UI is not available yet.');
+      }
+    };
+  }
+  if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
+    window.BishnoiApp.openProfileOrAuth = function () {
+      if (window.BishnoiAuth && typeof window.BishnoiAuth.openAuthModal === 'function') {
+        return window.BishnoiAuth.openAuthModal();
+      }
+      console.warn('Profile/auth UI is not available yet.');
+    };
+  }
 })();;
 
 (() => {
