@@ -1,4 +1,5 @@
 const { readFileSync } = require("node:fs");
+const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const path = require("node:path");
 const {
@@ -43,6 +44,15 @@ test("Firestore security rules regression suite", async (t) => {
   }
 
   try {
+    await t.test("सूचना सूची का render call JavaScript comment में नहीं दबा है", async () => {
+      const source = readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
+      const lines = source.split(/\r?\n/);
+      const commentIndex = lines.findIndex(line => line.includes("Keep read notifications as history"));
+      assert.ok(commentIndex >= 0, "notification render comment should exist");
+      assert.doesNotMatch(lines[commentIndex], /renderNotificationCards/);
+      assert.match(lines[commentIndex + 1] || "", /^\s*renderNotificationCards\(list,/);
+    });
+
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
       await reset();
       const db = env.authenticatedContext("new-student").firestore();
@@ -69,6 +79,10 @@ test("Firestore security rules regression suite", async (t) => {
       }));
       await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { rollNumber: "JAMBH-2026-00002" }));
       await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), { verificationStatus: "pending" }));
+      const afterResubmit = await getDoc(doc(db, "examEnrolledStudents", STUDENT));
+      if (afterResubmit.data().rollNumber !== "JAMBH-2026-00001" || afterResubmit.data().verificationStatus !== "confirmed") {
+        throw new Error("Enrollment resubmission changed owner-assigned roll/approval.");
+      }
     });
 
     await t.test("विद्यार्थी स्वयं प्रवेश-पत्र रिलीज़ स्थिति नहीं बदल सकता", async () => {
@@ -157,6 +171,36 @@ test("Firestore security rules regression suite", async (t) => {
       const db = env.authenticatedContext(STUDENT).firestore();
       await assertSucceeds(setDoc(doc(db, "userNotificationReads", STUDENT, "items", "notice-1"), {
         read: true, readAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("Owner प्रवेश-पत्र रिलीज़ flag और pinned per-student notification लिख सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true,
+        admitCardReleasedAt: serverTimestamp(),
+        admitCardExamType: "मुख्य परीक्षा",
+      }));
+      await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "admit-card-test"), {
+        recipientUid: STUDENT,
+        title: "🎟️ प्रवेश-पत्र जारी",
+        message: "हिंदी नाम वाला विद्यार्थी",
+        type: "admit-card",
+        important: true,
+        pinnedByOwner: true,
+        active: true,
+        audience: "private",
+        createdAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("विद्यार्थी स्वयं प्रवेश-पत्र जारी नहीं कर सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true,
+        admitCardReleasedAt: serverTimestamp(),
       }));
     });
   } finally {

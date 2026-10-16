@@ -14,6 +14,7 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - run: node --check script.js
       - run: npm run build
       - run: npm run lint
       - run: npx firebase emulators:exec --only firestore "npm test"
