@@ -103,3 +103,12 @@
 - Startup now initializes Firebase before other UI modules, wraps each module independently, and sets `window.__bishnoiReady` after the public handlers have been installed.
 - Added jsdom regression coverage for empty Firebase apps, readiness/real-handler replacement, and the single `window.switchTab` assignment.
 - Verification is pending GitHub Actions; no green CI or live-browser success is claimed until the latest run completes.
+
+
+## 2026-10-16 — Firebase startup and profile handler recovery
+
+- Root cause: `portalSwitchTabImplementation` was declared with `let` inside the early-navigation IIFE but assigned later from the separate main portal closure. That out-of-scope assignment threw a `ReferenceError` before `initPortal()` could reach `initFirebase()`; the real auth/profile handlers therefore never replaced the placeholders. The binding now lives in the shared script scope.
+- The early profile placeholder checks `firebase.apps.length` before calling Firebase Auth and falls back to the auth modal or the Hindi loading toast when no app exists.
+- Startup now initializes Firebase before other UI modules, wraps each module independently, and sets `window.__bishnoiReady` after the public handlers have been installed.
+- Added jsdom regression coverage for empty Firebase apps, readiness/real-handler replacement, and the single `window.switchTab` assignment.
+- Verification is pending GitHub Actions; no green CI or live-browser success is claimed until the latest run completes.
