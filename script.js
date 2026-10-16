@@ -131,6 +131,8 @@
     publicNotificationsUnsubscribe: null,
     personalNotificationsUnsubscribe: null,
     notificationReadsUnsubscribe: null,
+    flatNotificationsUnsubscribe: null,
+    flatNotificationReadsUnsubscribe: null,
     notificationReadKeys: [],
     notifications: [],
     personalNotifications: [],
@@ -816,12 +818,12 @@
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
-      button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड / PDF में सेव करें';
+      button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड करें';
       button.addEventListener('click', () => printStudentAdmitCard(record));
       host.appendChild(button);
       const hint = document.createElement('p');
       hint.className = 'text-stone-500';
-      hint.textContent = 'खुलने वाली विंडो में “प्रिंट / PDF में सेव करें” चुनें।';
+      hint.textContent = 'प्रवेश-पत्र सीधे PDF में डाउनलोड होगा।';
       host.appendChild(hint);
     } else if (status === 'confirmed' && roll) {
       const hint = document.createElement('p');
@@ -864,76 +866,201 @@
     }
   }
 
-  async function downloadStudentAdmitCard(record) {
-    if (!state.user || !record || (record.uid && record.uid !== state.user.uid)) {
+  async function printStudentAdmitCard(record) {
+    const released = record?.admitCardReleased === true ||
+      (state.examConfig?.admitCardReleased === true && !record?.admitCardExamType);
+
+    if (!released) {
+      notify('प्रवेश-पत्र अभी जारी नहीं हुआ है।', 'error');
+      return;
+    }
+
+    if (!state.user || !record ||
+        (record.uid && record.uid !== state.user.uid)) {
       notify('अपने खाते का वैध पंजीकरण उपलब्ध नहीं है।', 'error');
       return;
     }
-    if (record.verificationStatus !== 'confirmed' || !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || '').trim())) {
+
+    if (record.verificationStatus !== 'confirmed' ||
+        !/^JAMBH-2026-\d{5}$/.test(String(record.rollNumber || ''))) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
-    if (typeof window.html2canvas !== 'function' || !(window.jspdf?.jsPDF || window.jsPDF)) {
+
+    if (typeof window.html2canvas !== 'function' ||
+        !(window.jspdf?.jsPDF || window.jsPDF)) {
       notify('PDF सुविधा लोड नहीं हुई। पेज रीफ्रेश करके फिर प्रयास करें।', 'error');
       return;
     }
-    const config = state.examConfig || {};
-    const card = document.createElement('article');
-    card.style.cssText = 'position:fixed;left:-10000px;top:0;width:760px;padding:28px;background:#fffdf7;color:#143622;border:5px double #143622;font-family:Arial,sans-serif;z-index:-1;box-sizing:border-box';
-    const field = (label, value) => '<div style="border:1px solid #d6d3c8;border-radius:10px;padding:12px;min-height:52px"><div style="font-size:12px;color:#786f5d">'+escapeHtml(label)+'</div><div style="font-size:18px;font-weight:700;margin-top:6px;overflow-wrap:anywhere">'+escapeHtml(value || '—')+'</div></div>';
-    card.innerHTML = '<header style="text-align:center;background:#143622;color:#fff;padding:20px;margin-bottom:18px"><div style="font-size:32px">🌳</div><h1 style="font-size:26px;margin:8px 0">बिश्नोइज़्म डिजिटल मंच</h1><p style="margin:0;font-size:16px">परीक्षा प्रवेश-पत्र</p></header><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-      field('विद्यार्थी का नाम', record.fullName || record.name || state.profile?.displayName || state.user.displayName || 'विद्यार्थी')+
-      field('रोल नंबर', record.rollNumber)+field('जन्म तिथि', record.dateOfBirth || record.dob || '—')+
-      field('मोबाइल नंबर', record.phone || record.mobile || '—')+
-      field('परीक्षा', config.admitCardTitle || record.examName || record.examType || 'मुख्य परीक्षा')+
-      field('दिनांक एवं समय', [config.admitCardDate || record.examDate || 'आधिकारिक सूचना के अनुसार', config.admitCardTime || ''].filter(Boolean).join(' · '))+
-      field('परीक्षा केंद्र', config.admitCardCenter || record.examCenter || 'ऑनलाइन परीक्षा पोर्टल')+
-      field('फोटो', 'यहाँ विद्यार्थी का फोटो चिपकाएँ')+'</div>'+
-      '<section style="margin-top:18px;background:#fff5d9;border-radius:10px;padding:14px;line-height:1.7"><strong>महत्वपूर्ण निर्देश</strong><p style="white-space:pre-wrap;margin:6px 0 0">'+escapeHtml(config.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें। परीक्षा समय से पहले पोर्टल पर उपस्थित रहें और व्यवस्थापक के निर्देशों का पालन करें।')+'</p></section>';
-    document.body.appendChild(card);
-    const button = byId('downloadAdmitCardButton');
-    if (button) { button.disabled = true; button.textContent = 'PDF तैयार हो रही है…'; }
+
+    let surface;
+
     try {
-      const canvas = await window.html2canvas(card, { scale: 2, backgroundColor: '#fffdf7', useCORS: true });
+      notify('प्रवेश-पत्र PDF तैयार हो रही है…', 'info');
+
+      surface = document.createElement('div');
+      surface.style.cssText =
+        'position:fixed;left:-10000px;top:0;width:794px;padding:30px;background:#fffdf7;color:#143622;font-family:Arial,sans-serif;box-sizing:border-box;';
+
+      const cfg = record.admitCardSettings || state.examConfig || {};
+      const esc = escapeHtml;
+
+      const fields = [
+        ['विद्यार्थी का नाम', record.fullName || record.name ||
+          state.profile?.displayName || state.user.displayName || 'विद्यार्थी'],
+        ['रोल नंबर', record.rollNumber],
+        ['जन्म तिथि', record.dateOfBirth || record.dob || '—'],
+        ['मोबाइल नंबर', record.phone || record.mobile ||
+          state.profile?.phone || '—'],
+        ['परीक्षा', cfg.admitCardTitle || record.examName || 'मुख्य परीक्षा'],
+        ['दिनांक / समय', [
+          cfg.admitCardDate || 'आधिकारिक सूचना के अनुसार',
+          cfg.admitCardTime
+        ].filter(Boolean).join(' · ')],
+        ['परीक्षा केंद्र', cfg.admitCardCenter || 'ऑनलाइन परीक्षा पोर्टल'],
+        ['पंजीकरण ID', record.uid || state.user.uid]
+      ];
+
+      const fieldHtml = fields.map(field =>
+        '<div style="border:1px solid #d9dfd8;border-radius:10px;padding:14px;min-height:52px">' +
+        '<div style="font-size:12px;color:#68766b">' + esc(field[0]) + '</div>' +
+        '<div style="font-size:17px;font-weight:bold;margin-top:8px;overflow-wrap:anywhere">' +
+        esc(String(field[1] ?? '—')) + '</div></div>'
+      ).join('');
+
+      surface.innerHTML =
+        '<article style="border:5px solid #143622;border-radius:18px;overflow:hidden">' +
+        '<header style="background:#143622;color:white;padding:28px;text-align:center;border-bottom:6px solid #d6a43a">' +
+        '<div style="font-size:42px">🌳</div>' +
+        '<h1 style="font-size:30px;margin:8px 0">बिश्नोइज़्म डिजिटल मंच</h1>' +
+        '<p style="font-size:17px;margin:0;color:#ffe8a3">परीक्षा प्रवेश-पत्र</p></header>' +
+        '<main style="padding:28px"><h2 style="font-size:22px">परीक्षार्थी विवरण</h2>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">' +
+        fieldHtml + '</div>' +
+        '<section style="margin-top:24px;padding:18px;background:#fff4cf;border:1px solid #e6ce85;border-radius:12px;line-height:1.8">' +
+        '<strong>महत्वपूर्ण निर्देश</strong><p style="white-space:pre-wrap">' +
+        esc(cfg.admitCardInstructions ||
+          'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।') +
+        '</p></section>' +
+        '<p style="margin-top:32px;font-size:12px;text-align:center;color:#68766b">' +
+        'यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर बनाया गया है।' +
+        '</p></main></article>';
+
+      document.body.appendChild(surface);
+
+      await new Promise(resolve =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve))
+      );
+
+      if (document.fonts?.ready) await document.fonts.ready;
+
+      const canvas = await window.html2canvas(surface, {
+        scale: 2,
+        backgroundColor: '#fffdf7',
+        useCORS: true,
+        logging: false
+      });
+
+      if (!canvas.width || !canvas.height) {
+        throw new Error('PDF canvas खाली है।');
+      }
+
       const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
-      const pdf = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const margin = 8, pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const pdf = new JsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      const margin = 10;
+      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
       const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
       const imageHeight = canvas.height * pageWidth / canvas.width;
       const image = canvas.toDataURL('image/jpeg', 0.95);
+
       let offset = 0;
+      let page = 0;
+
       while (offset < imageHeight) {
-        if (offset > 0) pdf.addPage();
-        pdf.addImage(image, 'JPEG', margin, margin - offset, pageWidth, imageHeight);
+        if (page > 0) pdf.addPage();
+
+        pdf.addImage(
+          image, 'JPEG',
+          margin, margin - offset,
+          pageWidth, imageHeight,
+          undefined, 'FAST'
+        );
+
         offset += pageHeight;
+        page++;
       }
-      const safeRoll = String(record.rollNumber).replace(/[^A-Za-z0-9-]/g, '_');
-      pdf.save('Admit-Card-' + safeRoll + '.pdf');
+
+      const safeRoll = String(record.rollNumber)
+        .replace(/[^A-Za-z0-9-]/g, '_');
+
+      const blob = pdf.output('blob');
+
+      if (!(blob instanceof Blob) || blob.size < 1000) {
+        throw new Error('PDF फ़ाइल खाली है।');
+      }
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'Admit-Card-' + safeRoll + '.pdf';
+      anchor.style.display = 'none';
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
       notify('प्रवेश-पत्र PDF डाउनलोड शुरू हुआ।', 'success');
+
     } catch (error) {
       console.error('Admit-card PDF generation failed:', error);
-      notify('PDF नहीं बन सकी: ' + (error?.message || error), 'error');
+      notify('PDF नहीं बनी: ' + (error?.message || 'अज्ञात त्रुटि'), 'error');
     } finally {
-      card.remove();
-      if (button) { button.disabled = false; button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड'; }
+      if (surface) surface.remove();
     }
   }
 
-  function printStudentAdmitCard(record) {
-    return downloadStudentAdmitCard(record);
+  function downloadStudentAdmitCard(record) {
+    return printStudentAdmitCard(record);
   }
 
   function renderProfileAdmitCard(record) {
     const profilePanel = byId('tab-profile');
     if (!profilePanel || !record) return;
+
     let host = byId('profileAdmitCardHost');
+
     if (!host) {
       host = document.createElement('section');
       host.id = 'profileAdmitCardHost';
-      host.className = 'mx-3 my-3 rounded-xl border border-stone-200 bg-white p-4 space-y-2';
+      host.className =
+        'mx-3 my-3 rounded-xl border border-stone-200 bg-white p-4 space-y-2';
       profilePanel.appendChild(host);
     }
+
     host.replaceChildren();
+
+    const released = record.admitCardReleased === true ||
+      (state.examConfig?.admitCardReleased === true &&
+       !record.admitCardExamType);
+
+    const heading = document.createElement('strong');
+    heading.textContent = '🎟️ प्रवेश-पत्र';
+
+    const message = document.createElement('p');
+    message.textContent = released
+      ? 'आपका प्रवेश-पत्र जारी हो चुका है।'
+      : 'अभी जारी नहीं हुआ।';
+
+    host.append(heading, message);
+
+    if (released) {
     const title = document.createElement('strong');
     title.textContent = '🎟️ प्रवेश-पत्र';
     const text = document.createElement('p');
@@ -945,12 +1072,29 @@
       const button = document.createElement('button');
       button.id = 'downloadAdmitCardButton';
       button.type = 'button';
-      button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
-      button.textContent = '🎟️ प्रवेश-पत्र डाउनलोड';
-      button.addEventListener('click', () => downloadStudentAdmitCard(record));
+      button.className =
+        'rounded-lg bg-forest px-4 py-2 font-bold text-white';
+      button.textContent = '🎟️ प्रवेश-पत्र PDF डाउनलोड करें';
+      button.addEventListener('click', () => printStudentAdmitCard(record));
       host.appendChild(button);
     }
   }
+  window.downloadPortalAdmitCard = printStudentAdmitCard;
+
+  window.pushNotification = async function pushNotification(uid, data = {}) {
+    if (!state.db) throw new Error('Firestore उपलब्ध नहीं है।');
+    const recipientUid = uid || state.user?.uid;
+    if (!recipientUid) throw new Error('सूचना पाने वाला खाता निर्धारित नहीं है।');
+    return state.db.collection('userNotifications').doc(recipientUid).collection('items').add({
+      title: String(data.title || 'नई सूचना'),
+      message: String(data.body || data.message || ''),
+      type: String(data.type || 'announcement'),
+      important: data.important === true,
+      pinnedByOwner: data.pinnedByOwner === true,
+      recipientUid, audience: 'private', active: true,
+      createdBy: state.user?.uid || null, createdAt: serverTimestamp()
+    });
+  };
 
   function notificationTime(item) {
     return timestampMillis(item?.createdAt) || Number(item?.createdAtMs) || 0;
@@ -1017,8 +1161,43 @@
         const action = document.createElement('button');
         action.type = 'button';
         action.className = 'inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
-        action.textContent = item.type === 'admit-card' ? '🎟️ प्रवेश-पत्र खोलें' : '📊 परिणाम देखें';
+        action.textContent = item.type === 'admit-card'
+          ? '🎟️ प्रवेश-पत्र PDF डाउनलोड करें'
+          : '📊 परिणाम देखें';
+
         action.addEventListener('click', async () => {
+          if (item.type === 'admit-card') {
+            try {
+              if (!state.user || !state.db) {
+                throw new Error('पहले लॉगिन करें।');
+              }
+
+              const snap = await state.db
+                .collection('examEnrolledStudents')
+                .doc(state.user.uid)
+                .get();
+
+              if (!snap.exists) {
+                throw new Error('आपका नामांकन रिकॉर्ड नहीं मिला।');
+              }
+
+              setVisible('notificationPopup', false);
+              setVisible('publicNotificationsSection', false);
+
+              await printStudentAdmitCard({
+                uid: state.user.uid,
+                ...snap.data()
+              });
+            } catch (error) {
+              notify(
+                'प्रवेश-पत्र डाउनलोड नहीं हुआ: ' + error.message,
+                'error'
+              );
+            }
+            return;
+          }
+
+          // Keep the existing result-viewing logic here.
           setVisible('notificationPopup', false);
           if (item.type === 'admit-card') {
             try {
@@ -1082,7 +1261,8 @@
     const personalItems = (state.personalNotifications || [])
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
-    const items = [...personalItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
+    const flatItems = (state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
+    const items = [...personalItems, ...flatItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
@@ -1099,34 +1279,54 @@
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
     // Keep read notifications as history, dimmed; badge count remains unread-only.
-    renderNotificationCards(list, items.slice(0, state.notificationVisibleLimit).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
-    let moreButton = byId('showMoreNotificationsButton');
-    if (section && !moreButton) {
+    const visibleLimit = state.notificationVisibleLimit || 20;
+
+    renderNotificationCards(
+      list,
+      items.slice(0, visibleLimit).map(item => ({
+        ...item,
+        _isRead: seen.includes(item._key)
+      }))
+    );
+
+    let moreButton = byId('loadMoreNotifications');
+
+    if (!moreButton) {
       moreButton = document.createElement('button');
-      moreButton.id = 'showMoreNotificationsButton';
+      moreButton.id = 'loadMoreNotifications';
       moreButton.type = 'button';
-      moreButton.className = 'mt-3 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-xs font-bold text-forest';
+      moreButton.className =
+        'mt-3 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-xs font-bold text-forest';
       moreButton.textContent = 'और दिखाएँ';
+
       moreButton.addEventListener('click', () => {
-        state.notificationVisibleLimit += 20;
+        state.notificationVisibleLimit =
+          (state.notificationVisibleLimit || 20) + 20;
         renderNotificationCenter();
       });
-      (list || section).insertAdjacentElement('afterend', moreButton);
+
+      if (list) {
+        list.insertAdjacentElement('afterend', moreButton);
+      }
     }
-    if (moreButton) {
-      moreButton.hidden = items.length <= state.notificationVisibleLimit;
-      moreButton.classList.toggle('hidden', items.length <= state.notificationVisibleLimit);
+
+       if (moreButton) {
+      moreButton.hidden = items.length <= visibleLimit;
+      moreButton.textContent =
+        'और दिखाएँ (' + Math.max(0, items.length - visibleLimit) + ' बाकी)';
     }
+
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
       readAll = document.createElement('button');
       readAll.id = 'markAllNotificationsRead';
       readAll.type = 'button';
       readAll.className = 'mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900';
-      readAll.textContent = '✓ सब पढ़ा हुआ चिह्नित करें';
+      readAll.textContent = '✓ सभी सूचनाएँ पढ़ी हुई चिह्नित करें';
       readAll.addEventListener('click', () => {
         const current = [
           ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
+          ...(state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, _key: 'flat:' + item.id, _flat: true })),
           ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
         ];
         markNotificationsRead(current);
@@ -1138,25 +1338,30 @@
 
   function markNotificationsRead(itemsToMark) {
     if (!state.user) return;
-    const uid = state.user.uid;
-    const key = 'bishnoi_seen_notifications_v2_' + uid;
-    const keysToMark = (itemsToMark || []).map(item => item._key).filter(Boolean);
+    const uid = state.user.uid, key = 'bishnoi_seen_notifications_v2_' + uid;
+    const selected = (itemsToMark || []).filter(item => item && item._key);
+    const keysToMark = selected.map(item => item._key);
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
-    const merged = [...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])];
-    try { localStorage.setItem(key, JSON.stringify(merged)); } catch (_) {}
+    const merged = [...new Set([
+      ...seen,
+      ...(state.notificationReadKeys || []),
+      ...keysToMark
+    ])];
+
+    try {
+      localStorage.setItem(key, JSON.stringify(merged));
+    } catch (_) {}
+
     // Persist read state to Firestore so it follows the signed-in student across devices.
     if (state.db && keysToMark.length) {
       const batch = state.db.batch();
-      keysToMark.forEach(notificationKey => {
-        const documentId = notificationKey.replace(/[^A-Za-z0-9_-]/g, '_');
-        batch.set(state.db.collection('userNotificationReads').doc(uid).collection('items').doc(documentId), {
-          key: notificationKey,
-          readAt: serverTimestamp()
-        }, { merge: true });
+      selected.forEach(item => {
+        if (item._flat) batch.set(state.db.collection('notificationReads').doc(uid + '_' + item.id), { uid, notificationId: item.id, read: true, readAt: serverTimestamp() }, { merge: true });
+        else batch.set(state.db.collection('userNotificationReads').doc(uid).collection('items').doc(item._key.replace(/[^A-Za-z0-9_-]/g, '_')), { key: item._key, readAt: serverTimestamp() }, { merge: true });
       });
-      batch.commit().catch(error => console.warn('Notification read state was saved locally but not synced:', error));
+      batch.commit().catch(error => { console.error('Notification read-marker sync failed:', error.code || error.message, error); notify('पढ़ी हुई स्थिति सिंक नहीं हुई (' + (error.code || 'unknown') + ')।', 'error'); });
     }
     state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []), ...keysToMark])];
     renderNotificationCenter();
@@ -1190,33 +1395,33 @@
       state.notificationReadsUnsubscribe();
       state.notificationReadsUnsubscribe = null;
     }
-    state.personalNotifications = [];
-    state.notificationReadKeys = [];
-    if (!state.user || !state.db) {
-      renderNotificationCenter();
-      return;
-    }
+    if (state.flatNotificationsUnsubscribe) { state.flatNotificationsUnsubscribe(); state.flatNotificationsUnsubscribe = null; }
+    if (state.flatNotificationReadsUnsubscribe) { state.flatNotificationReadsUnsubscribe(); state.flatNotificationReadsUnsubscribe = null; }
+    state.personalNotifications = []; state.flatNotifications = []; state.notificationReadKeys = [];
+    if (!state.user || !state.db) { renderNotificationCenter(); return; }
     const uid = state.user.uid;
-    state.notificationReadsUnsubscribe = state.db
-      .collection('userNotificationReads').doc(uid).collection('items')
-      .onSnapshot(snapshot => {
-        if (state.user?.uid !== uid) return;
-        state.notificationReadKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
-        renderNotificationCenter();
-      }, error => {
-        console.warn('Cross-device notification read state could not load; local state remains available:', error);
-      });
-    state.personalNotificationsUnsubscribe = state.db
-      .collection('userNotifications').doc(uid).collection('items')
-      .onSnapshot(snapshot => {
-        if (state.user?.uid !== uid) return;
-        state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
-        renderNotificationCenter();
-      }, error => {
-        console.warn('Private notifications could not load. Check userNotifications Firestore rules:', error);
-        state.personalNotifications = [];
-        renderNotificationCenter();
-      });
+    state.notificationReadsUnsubscribe = state.db.collection('userNotificationReads').doc(uid).collection('items').onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      const legacyKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
+      state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => k.startsWith('flat:')), ...legacyKeys])];
+      renderNotificationCenter();
+    }, error => console.error('Legacy notification read-marker listener failed:', error.code || error.message, error));
+    state.flatNotificationReadsUnsubscribe = state.db.collection('notificationReads').where('uid', '==', uid).onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      const flatKeys = snapshot.docs.filter(doc => doc.data()?.read === true).map(doc => 'flat:' + doc.data().notificationId);
+      state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => !k.startsWith('flat:')), ...flatKeys])];
+      renderNotificationCenter();
+    }, error => console.error('Flat notification read-marker listener failed:', error.code || error.message, error));
+    state.personalNotificationsUnsubscribe = state.db.collection('userNotifications').doc(uid).collection('items').onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
+      renderNotificationCenter();
+    }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; renderNotificationCenter(); });
+    state.flatNotificationsUnsubscribe = state.db.collection('userNotifications').where('uid', 'in', [uid, 'ALL']).onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      state.flatNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'flat' }));
+      renderNotificationCenter();
+    }, error => { console.error('Flat notification listener failed:', error.code || error.message, error); notify('सूचनाएँ लोड नहीं हुईं (' + (error.code || 'unknown') + ')।', 'error'); });
   }
 
   function initPublicNotifications() {
@@ -1235,6 +1440,10 @@
       state.publicNotificationsUnsubscribe = null;
       if (state.personalNotificationsUnsubscribe) state.personalNotificationsUnsubscribe();
       state.personalNotificationsUnsubscribe = null;
+      if (state.flatNotificationsUnsubscribe) state.flatNotificationsUnsubscribe();
+      state.flatNotificationsUnsubscribe = null;
+      if (state.flatNotificationReadsUnsubscribe) state.flatNotificationReadsUnsubscribe();
+      state.flatNotificationReadsUnsubscribe = null;
     });
   }
 
@@ -2314,6 +2523,13 @@ function renderExamVisibility() {
         return;
       }
     }
+    if (typeof window.pushNotification === 'function') {
+      window.pushNotification(state.user.uid, {
+        title: 'परीक्षा शुरू हुई',
+        body: 'आपने ' + ({ quiz: 'दैनिक ज्ञान क्विज़', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा' }[mode] || mode) + ' शुरू की है।',
+        type: 'exam-start'
+      }).catch(error => console.warn('परीक्षा शुरू होने की सूचना सहेजी नहीं गई:', error));
+    }
     const attemptEndAt = lateEntryGranted ? ownerGrantedEndAt : scheduledEndAt;
 
     const collectionName = CONFIG.examCollections[mode];
@@ -2736,6 +2952,14 @@ function renderExamVisibility() {
   };
 
   app.switchTab = window.switchTab;
+  app.downloadMyAdmitCard = async function () {
+    if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
+    try {
+      const snap = await state.db.collection('examEnrolledStudents').doc(state.user.uid).get();
+      if (!snap.exists) throw new Error('आपका नामांकन रिकॉर्ड नहीं मिला।');
+      await printStudentAdmitCard({ uid: state.user.uid, ...snap.data() });
+    } catch (error) { notify('प्रवेश-पत्र डाउनलोड नहीं हुआ: ' + error.message, 'error'); }
+  };
   app.openProfileOrAuth = function () {
     if (state.user) {
       const modal = byId('userProfileModal');
@@ -2755,6 +2979,14 @@ function renderExamVisibility() {
         const verificationLabel = verification === 'confirmed' ? 'व्यवस्थापक द्वारा सत्यापित' : verification === 'rejected' ? 'सत्यापन अस्वीकृत' : 'सत्यापन लंबित';
         setText('profileAccountStatus', (state.isOwner ? 'ओनर खाता • प्रबंधन अधिकार सक्रिय' : 'सदस्य खाता') + ' • ' + verificationLabel);
         setText('profileRoleBadge', state.isOwner ? 'OWNER' : 'सदस्य');
+        const profileAdmitButton = byId('profileAdmitCardButton');
+        if (profileAdmitButton) profileAdmitButton.classList.add('hidden');
+        if (state.db) state.db.collection('examEnrolledStudents').doc(state.user.uid).get().then(snap => {
+          const enrollment = snap.exists ? snap.data() || {} : {};
+          const available = enrollment.verificationStatus === 'confirmed' && !!enrollment.rollNumber &&
+            enrollment.admitCardReleased === true;
+          if (profileAdmitButton) profileAdmitButton.classList.toggle('hidden', !available);
+        }).catch(error => console.warn('प्रोफ़ाइल प्रवेश-पत्र स्थिति नहीं पढ़ी गई:', error));
         setText('statMalaTotal', state.mala.count || 0);
         setText('statMalaLaps', state.mala.laps || 0);
         modal.classList.remove('hidden');

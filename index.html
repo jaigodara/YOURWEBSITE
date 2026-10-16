@@ -41,6 +41,8 @@
     .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #143622; border-radius: 4px; }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
@@ -560,6 +562,7 @@
         <input type="tel" id="profEditPhone" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="मोबाइल नंबर (जैसे +91 9876543210)">
         <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="गाँव / ज़िला">
         <button onclick="window.BishnoiAuth.saveProfile()" class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">💾 प्रोफ़ाइल सहेजें</button>
+        <button id="profileAdmitCardButton" type="button" onclick="window.BishnoiApp.downloadMyAdmitCard()" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 font-extrabold rounded-xl shadow">🎟️ प्रवेश-पत्र डाउनलोड करें</button>
         <a id="profileOwnerStudioLink" href="owner-studio.html" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 text-center font-extrabold rounded-xl shadow">🛡️ ओनर स्टूडियो खोलें</a>
         <button onclick="window.BishnoiAuth.logout()" class="w-full py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200">लॉगआउट</button>
       </div>

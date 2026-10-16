@@ -27,6 +27,29 @@
 - The underlying composer still uses the legacy public `notifications` and nested `userNotifications/{uid}/items` paths. Flat-schema notifications, event hooks, pagination controls and cross-device marker migration remain outstanding.
 
 
+## 2026-10-15 — Admit-card release and notification hooks
+
+- Added exam-type selection and cursor-paginated admit-card release. The owner UI reads up to 400 enrollment records per page; write batches process up to 200 students because each student needs an enrollment update plus a notification (within Firestore's 500-write batch limit).
+- Each released enrollment stores `admitCardReleased`, `admitCardReleasedAt`, and a settings snapshot. A single student can be released by roll number; the older uploaded-PDF option remains.
+- Student admit cards are rendered in the browser to a canvas and saved with jsPDF. A download action is available from the notification card, profile and enrollment status when release is active for that student.
+- Added `pushNotification` helper calls for exam announcements/start scheduling, quiz publication, enrollment approval, result publication and admit-card release. Student notification history now initially displays 20 items with an “और दिखाएँ” button.
+- Added an emulator rule test preventing students from self-setting the admit-card release flag. Final status depends on the current GitHub Actions workflow; these changes are not deployed.
+
+
+## 2026-10-16 — Notification rendering and flat-schema compatibility
+- Fixed the literal escaped newline that had joined the notification-card render call to a line comment. The render call was therefore commented out; the realtime listener could receive records without displaying them.
+- Added flat `userNotifications/{notificationId}` documents with `uid` set to `ALL` or a recipient UID and fields `uid, type, title, body, important, pinnedByOwner, fileUrl, createdAt`.
+- Added `notificationReads/{uid_notificationId}` markers with exactly `uid, notificationId, read, readAt`; students cannot delete them. Existing nested notification/read collections remain supported.
+- Student UI listens to flat personal + ALL notices and read markers in real time; owner pushNotification writes both flat and legacy records.
+- Root cause confirmed: the literal `\\n` in the source comment swallowed the render call. Live/emulator verification is still required.
+- Real SMS OTP is not used by the mobile/password identity flow; Firebase Phone Auth SMS requires the Blaze plan.
+
+
+## 2026-10-16 — Admit-card PDF and roll allocation follow-up
+- Root cause: the owner-created enrollment path explicitly fell back to `BIS-<uid>` instead of calling the transactional `JAMBH-2026-XXXXX` allocator. It now saves the confirmed enrollment and allocates a counter-backed roll through `assignRealEnrollmentRoll`; existing valid JAMBH rolls are preserved.
+- Added the owner-only `रोल नंबर नया बनाएँ (पुराने / खाली रोल)` tool. It scans enrollment records in cursor pages, confirms before changes, processes only confirmed records with missing/BIS rolls, reports progress and surfaces actual Firebase/error causes.
+- Admit-card PDF generation now waits for browser fonts, validates the canvas/PDF blob, and triggers a direct Blob download through an anchor rather than relying on jsPDF's internal save path. Failures name the actual error code/message.
+- These code changes are committed to `fix/enrollment-notifications-owner-workflows`. They are not live until that branch is deployed; Vercel status for the latest commit is still pending. No browser/emulator run has been completed in this environment.
 ## 2026-10-15 — Admit-card PDF and notification event hooks (follow-up branch)
 
 - `script.js`

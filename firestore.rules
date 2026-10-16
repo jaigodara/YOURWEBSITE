@@ -321,6 +321,30 @@ service cloud.firestore {
       allow update, delete: if canSendNotifications();
     }
 
+    match /userNotifications/{notificationId} {
+      allow read: if signedIn() && resource.data.get('uid', '') in ['ALL', request.auth.uid];
+      allow create: if examOwner()
+        && request.resource.data.keys().hasOnly(['uid', 'type', 'title', 'body', 'important', 'pinnedByOwner', 'fileUrl', 'createdAt'])
+        && request.resource.data.get('uid', '') is string
+        && request.resource.data.get('uid', '').size() <= 128
+        && request.resource.data.get('type', '') is string
+        && request.resource.data.get('title', '') is string
+        && request.resource.data.get('body', '') is string
+        && request.resource.data.get('important', false) is bool
+        && request.resource.data.get('pinnedByOwner', false) is bool;
+      allow update, delete: if examOwner();
+    }
+
+    match /notificationReads/{markerId} {
+      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'notificationId', 'read', 'readAt'])
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('notificationId', '') is string
+        && request.resource.data.get('read', false) == true;
+      allow delete: if false;
+    }
+
     match /userNotifications/{uid}/items/{notificationId} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow create: if (
@@ -334,7 +358,7 @@ service cloud.firestore {
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.get('recipientUid', '') == uid
-          && request.resource.data.get('type', '') == 'quiz-result'
+          && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
           && request.resource.data.get('active', false) == true
         );
       allow update: if signedIn()

@@ -85,6 +85,33 @@ test("Firestore security rules regression suite", async (t) => {
       }
     });
 
+    await t.test("विद्यार्थी स्वयं प्रवेश-पत्र रिलीज़ स्थिति नहीं बदल सकता", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true, admitCardReleasedAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("Owner विद्यार्थी के लिए प्रवेश-पत्र रिलीज़ स्थिति सहेज सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
+        admitCardReleased: true, admitCardReleasedAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("Owner पिन की गई निजी प्रवेश-पत्र सूचना बना सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "admit-card-main"), {
+        recipientUid: STUDENT, title: "🎟️ प्रवेश-पत्र जारी हो गया",
+        message: "JAMBH-2026-00001 का प्रवेश-पत्र उपलब्ध है।",
+        type: "admit-card", important: true, pinnedByOwner: true,
+        active: true, audience: "private", createdBy: OWNER, createdAt: serverTimestamp(),
+      }));
+    });
+
     await t.test("परीक्षा शुरू होने के बाद deadline से पहले main submission स्वीकार होता है", async () => {
       await reset();
       const db = env.authenticatedContext(STUDENT).firestore();
@@ -104,6 +131,39 @@ test("Firestore security rules regression suite", async (t) => {
       const db = env.authenticatedContext(STUDENT).firestore();
       await assertSucceeds(getDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
       await assertFails(deleteDoc(doc(db, "userNotifications", STUDENT, "items", "notice-1")));
+    });
+
+    await t.test("विद्यार्थी अपने खाते में परीक्षा शुरू सूचना लिख सकता है", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "exam-start-1"), {
+        recipientUid: STUDENT, title: "परीक्षा शुरू हुई", message: "मुख्य परीक्षा शुरू की गई।",
+        type: "exam-start", active: true, audience: "private", createdAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("flat notification read marker uses the exact schema", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(setDoc(doc(db, "notificationReads", STUDENT + "_flat-1"), {
+        uid: STUDENT, notificationId: "flat-1", read: true, readAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(db, "notificationReads", STUDENT + "_bad"), {
+        uid: STUDENT, notificationId: "bad", read: true, readAt: serverTimestamp(), key: "legacy-extra",
+      }));
+      await assertFails(deleteDoc(doc(db, "notificationReads", STUDENT + "_flat-1")));
+    });
+
+    await t.test("flat ALL notification is readable but student cannot delete it", async () => {
+      await reset();
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(setDoc(doc(ownerDb, "userNotifications/flat-all"), {
+        uid: "ALL", type: "announcement", title: "सार्वजनिक सूचना", body: "सभी के लिए",
+        important: true, pinnedByOwner: true, fileUrl: "", createdAt: serverTimestamp(),
+      }));
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(getDoc(doc(studentDb, "userNotifications/flat-all")));
+      await assertFails(deleteDoc(doc(studentDb, "userNotifications/flat-all")));
     });
 
     await t.test("विद्यार्थी अपने notification read marker को लिख सकता है", async () => {
