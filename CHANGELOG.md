@@ -34,3 +34,12 @@
 - Student admit cards are rendered in the browser to a canvas and saved with jsPDF. A download action is available from the notification card, profile and enrollment status when release is active for that student.
 - Added `pushNotification` helper calls for exam announcements/start scheduling, quiz publication, enrollment approval, result publication and admit-card release. Student notification history now initially displays 20 items with an “और दिखाएँ” button.
 - Added an emulator rule test preventing students from self-setting the admit-card release flag. Final status depends on the current GitHub Actions workflow; these changes are not deployed.
+
+
+## 2026-10-16 — Notification rendering and flat-schema compatibility
+- Fixed the literal escaped newline that had joined the notification-card render call to a line comment. The render call was therefore commented out; the realtime listener could receive records without displaying them.
+- Added flat `userNotifications/{notificationId}` documents with `uid` set to `ALL` or a recipient UID and fields `uid, type, title, body, important, pinnedByOwner, fileUrl, createdAt`.
+- Added `notificationReads/{uid_notificationId}` markers with exactly `uid, notificationId, read, readAt`; students cannot delete them. Existing nested notification/read collections remain supported.
+- Student UI listens to flat personal + ALL notices and read markers in real time; owner pushNotification writes both flat and legacy records.
+- Root cause confirmed: the literal `\\n` in the source comment swallowed the render call. Live/emulator verification is still required.
+- Real SMS OTP is not used by the mobile/password identity flow; Firebase Phone Auth SMS requires the Blaze plan.
