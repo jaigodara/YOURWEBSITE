@@ -812,7 +812,7 @@
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll && (record.admitCardReleased === true || (state.examConfig?.admitCardReleased === true && !record.admitCardExamType))) {
+    if (status === 'confirmed' && roll) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
@@ -865,12 +865,6 @@
   }
 
   async function downloadStudentAdmitCard(record) {
-    const released = record?.admitCardReleased === true ||
-      (state.examConfig?.admitCardReleased === true && !record?.admitCardExamType);
-    if (!released) {
-      notify('प्रवेश-पत्र अभी जारी नहीं हुआ है।', 'error');
-      return;
-    }
     if (!state.user || !record || (record.uid && record.uid !== state.user.uid)) {
       notify('अपने खाते का वैध पंजीकरण उपलब्ध नहीं है।', 'error');
       return;
@@ -944,10 +938,10 @@
     title.textContent = '🎟️ प्रवेश-पत्र';
     const text = document.createElement('p');
     const hasValidRoll = record.verificationStatus === 'confirmed' && /^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || '').trim());
-    const isReleased = hasValidRoll && (record.admitCardReleased === true || (state.examConfig?.admitCardReleased === true && !record.admitCardExamType));
-    text.textContent = isReleased ? 'आपका प्रवेश-पत्र जारी हो चुका है।' : hasValidRoll ? 'रोल नंबर जारी है; प्रवेश-पत्र Owner द्वारा रिलीज़ किए जाने पर डाउनलोड बटन दिखेगा।' : 'पंजीकरण स्वीकृत होने और JAMBH-2026 रोल नंबर आवंटित होने के बाद प्रवेश-पत्र उपलब्ध होगा।';
+    const isReleased = hasValidRoll;
+    text.textContent = isReleased ? 'पंजीकरण स्वीकृत है। आपका प्रवेश-पत्र PDF डाउनलोड के लिए उपलब्ध है।' : 'पंजीकरण स्वीकृत होने और JAMBH-2026 रोल नंबर आवंटित होने के बाद प्रवेश-पत्र उपलब्ध होगा।';
     host.append(title, text);
-    if (isReleased) {
+    if (hasValidRoll) {
       const button = document.createElement('button');
       button.id = 'downloadAdmitCardButton';
       button.type = 'button';
