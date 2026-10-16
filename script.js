@@ -18,7 +18,11 @@
 // Publish navigation immediately so existing HTML inline onclick handlers such
 // as BishnoiPortal.switchTab('home') never see an undefined namespace.
 (function exposeEarlyNavigation() {
+  let portalSwitchTabImplementation = null;
   window.switchTab = function (id) {
+    if (typeof portalSwitchTabImplementation === 'function') {
+      return portalSwitchTabImplementation(id);
+    }
     const raw = String(id || '').replace(/^tab-/, '');
     const aliases = { sahitya: 'library', pariksha: 'quiz' };
     const key = aliases[raw] || raw;
@@ -299,7 +303,7 @@
     profile: 'tab-profile'
   };
 
-  window.switchTab = function (id) {
+  portalSwitchTabImplementation = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
