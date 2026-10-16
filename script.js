@@ -131,6 +131,8 @@
     publicNotificationsUnsubscribe: null,
     personalNotificationsUnsubscribe: null,
     notificationReadsUnsubscribe: null,
+    flatNotificationsUnsubscribe: null,
+    flatNotificationReadsUnsubscribe: null,
     notificationReadKeys: [],
     notifications: [],
     personalNotifications: [],
@@ -1064,7 +1066,8 @@
     const personalItems = (state.personalNotifications || [])
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
-    const items = [...personalItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
+    const flatItems = (state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
+    const items = [...personalItems, ...flatItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
@@ -1080,7 +1083,8 @@
     if (bell) bell.classList.remove('animate-bounce', 'notification-bell-arrival');
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
-    // Keep read notifications as history, dimmed; badge count remains unread-only.\n    renderNotificationCards(list, items.slice(0, state.notificationVisibleCount || 20).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    // Keep read notifications as history, dimmed; badge count remains unread-only.
+    renderNotificationCards(list, items.slice(0, state.notificationVisibleCount || 20).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
     let moreButton = byId('loadMoreNotifications');
     if (list && !moreButton) {
       moreButton = document.createElement('button');
@@ -1108,6 +1112,7 @@
       readAll.addEventListener('click', () => {
         const current = [
           ...(state.personalNotifications || []).filter(item => item.active !== false).map(item => ({ ...item, _key: 'private:' + item.id })),
+          ...(state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, _key: 'flat:' + item.id, _flat: true })),
           ...(state.notifications || []).filter(item => item.active === true && (item.audience === 'all' || !item.audience)).map(item => ({ ...item, _key: 'global:' + item.id }))
         ];
         markNotificationsRead(current);
@@ -1119,25 +1124,20 @@
 
   function markNotificationsRead(itemsToMark) {
     if (!state.user) return;
-    const uid = state.user.uid;
-    const key = 'bishnoi_seen_notifications_v2_' + uid;
-    const keysToMark = (itemsToMark || []).map(item => item._key).filter(Boolean);
+    const uid = state.user.uid, key = 'bishnoi_seen_notifications_v2_' + uid;
+    const selected = (itemsToMark || []).filter(item => item && item._key);
+    const keysToMark = selected.map(item => item._key);
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
     if (!Array.isArray(seen)) seen = [];
-    const merged = [...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])];
-    try { localStorage.setItem(key, JSON.stringify(merged)); } catch (_) {}
-    // Persist read state to Firestore so it follows the signed-in student across devices.
-    if (state.db && keysToMark.length) {
+    try { localStorage.setItem(key, JSON.stringify([...new Set([...seen, ...(state.notificationReadKeys || []), ...keysToMark])])); } catch (_) {}
+    if (state.db && selected.length) {
       const batch = state.db.batch();
-      keysToMark.forEach(notificationKey => {
-        const documentId = notificationKey.replace(/[^A-Za-z0-9_-]/g, '_');
-        batch.set(state.db.collection('userNotificationReads').doc(uid).collection('items').doc(documentId), {
-          key: notificationKey,
-          readAt: serverTimestamp()
-        }, { merge: true });
+      selected.forEach(item => {
+        if (item._flat) batch.set(state.db.collection('notificationReads').doc(uid + '_' + item.id), { uid, notificationId: item.id, read: true, readAt: serverTimestamp() }, { merge: true });
+        else batch.set(state.db.collection('userNotificationReads').doc(uid).collection('items').doc(item._key.replace(/[^A-Za-z0-9_-]/g, '_')), { key: item._key, readAt: serverTimestamp() }, { merge: true });
       });
-      batch.commit().catch(error => console.warn('Notification read state was saved locally but not synced:', error));
+      batch.commit().catch(error => { console.error('Notification read-marker sync failed:', error.code || error.message, error); notify('पढ़ी हुई स्थिति सिंक नहीं हुई (' + (error.code || 'unknown') + ')।', 'error'); });
     }
     state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []), ...keysToMark])];
     renderNotificationCenter();
@@ -1171,33 +1171,33 @@
       state.notificationReadsUnsubscribe();
       state.notificationReadsUnsubscribe = null;
     }
-    state.personalNotifications = [];
-    state.notificationReadKeys = [];
-    if (!state.user || !state.db) {
-      renderNotificationCenter();
-      return;
-    }
+    if (state.flatNotificationsUnsubscribe) { state.flatNotificationsUnsubscribe(); state.flatNotificationsUnsubscribe = null; }
+    if (state.flatNotificationReadsUnsubscribe) { state.flatNotificationReadsUnsubscribe(); state.flatNotificationReadsUnsubscribe = null; }
+    state.personalNotifications = []; state.flatNotifications = []; state.notificationReadKeys = [];
+    if (!state.user || !state.db) { renderNotificationCenter(); return; }
     const uid = state.user.uid;
-    state.notificationReadsUnsubscribe = state.db
-      .collection('userNotificationReads').doc(uid).collection('items')
-      .onSnapshot(snapshot => {
-        if (state.user?.uid !== uid) return;
-        state.notificationReadKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
-        renderNotificationCenter();
-      }, error => {
-        console.warn('Cross-device notification read state could not load; local state remains available:', error);
-      });
-    state.personalNotificationsUnsubscribe = state.db
-      .collection('userNotifications').doc(uid).collection('items')
-      .onSnapshot(snapshot => {
-        if (state.user?.uid !== uid) return;
-        state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
-        renderNotificationCenter();
-      }, error => {
-        console.warn('Private notifications could not load. Check userNotifications Firestore rules:', error);
-        state.personalNotifications = [];
-        renderNotificationCenter();
-      });
+    state.notificationReadsUnsubscribe = state.db.collection('userNotificationReads').doc(uid).collection('items').onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      const legacyKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
+      state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => k.startsWith('flat:')), ...legacyKeys])];
+      renderNotificationCenter();
+    }, error => console.error('Legacy notification read-marker listener failed:', error.code || error.message, error));
+    state.flatNotificationReadsUnsubscribe = state.db.collection('notificationReads').where('uid', '==', uid).onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      const flatKeys = snapshot.docs.filter(doc => doc.data()?.read === true).map(doc => 'flat:' + doc.data().notificationId);
+      state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => !k.startsWith('flat:')), ...flatKeys])];
+      renderNotificationCenter();
+    }, error => console.error('Flat notification read-marker listener failed:', error.code || error.message, error));
+    state.personalNotificationsUnsubscribe = state.db.collection('userNotifications').doc(uid).collection('items').onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
+      renderNotificationCenter();
+    }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; renderNotificationCenter(); });
+    state.flatNotificationsUnsubscribe = state.db.collection('userNotifications').where('uid', 'in', [uid, 'ALL']).onSnapshot(snapshot => {
+      if (state.user?.uid !== uid) return;
+      state.flatNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'flat' }));
+      renderNotificationCenter();
+    }, error => { console.error('Flat notification listener failed:', error.code || error.message, error); notify('सूचनाएँ लोड नहीं हुईं (' + (error.code || 'unknown') + ')।', 'error'); });
   }
 
   function initPublicNotifications() {
@@ -1216,6 +1216,10 @@
       state.publicNotificationsUnsubscribe = null;
       if (state.personalNotificationsUnsubscribe) state.personalNotificationsUnsubscribe();
       state.personalNotificationsUnsubscribe = null;
+      if (state.flatNotificationsUnsubscribe) state.flatNotificationsUnsubscribe();
+      state.flatNotificationsUnsubscribe = null;
+      if (state.flatNotificationReadsUnsubscribe) state.flatNotificationReadsUnsubscribe();
+      state.flatNotificationReadsUnsubscribe = null;
     });
   }
 
