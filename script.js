@@ -136,7 +136,7 @@
     notificationReadKeys: [],
     notifications: [],
     personalNotifications: [],
-    notificationVisibleCount: 20
+    notificationVisibleLimit: 20
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -1097,7 +1097,7 @@
     if (popup) setVisible('notificationPopup', false);
     if (popupList) popupList.replaceChildren();
     // Keep read notifications as history, dimmed; badge count remains unread-only.
-    renderNotificationCards(list, items.slice(0, state.notificationVisibleCount || 20).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
+    renderNotificationCards(list, items.slice(0, state.notificationVisibleLimit || 20).map(item => ({ ...item, _isRead: seen.includes(item._key) })));
     let moreButton = byId('loadMoreNotifications');
     if (list && !moreButton) {
       moreButton = document.createElement('button');
@@ -1106,14 +1106,14 @@
       moreButton.className = 'mt-3 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-forest';
       moreButton.textContent = 'और दिखाएँ';
       moreButton.addEventListener('click', () => {
-        state.notificationVisibleCount = (state.notificationVisibleCount || 20) + 20;
+        state.notificationVisibleLimit = (state.notificationVisibleLimit || 20) + 20;
         renderNotificationCenter();
       });
       list.insertAdjacentElement('afterend', moreButton);
     }
     if (moreButton) {
-      moreButton.hidden = items.length <= (state.notificationVisibleCount || 20);
-      moreButton.textContent = 'और दिखाएँ (' + Math.max(0, items.length - (state.notificationVisibleCount || 20)) + ' बाकी)';
+      moreButton.hidden = items.length <= (state.notificationVisibleLimit || 20);
+      moreButton.textContent = 'और दिखाएँ (' + Math.max(0, items.length - (state.notificationVisibleLimit || 20)) + ' बाकी)';
     }
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
