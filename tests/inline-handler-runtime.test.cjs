@@ -86,7 +86,10 @@ test("profile/auth handlers are safe when Firebase has no initialized app", () =
   window.BishnoiAuth = {};
   window.BishnoiApp = {};
   window.firebase.apps.length = 0;
-  window.eval(script);
+  const mainStartup = script.indexOf("\\ntry {\\n(() => {");
+  assert.ok(mainStartup > 0, "early placeholder block should precede main startup");
+  window.eval(script.slice(0, mainStartup));
+  assert.equal(window.firebase.apps.length, 0, "the early block must not initialize Firebase");
   assert.doesNotThrow(() => window.BishnoiApp.openProfileOrAuth());
   assert.doesNotThrow(() => window.BishnoiAuth.openAuthModal());
   const auth = window.document.getElementById("authModal");
