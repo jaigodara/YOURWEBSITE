@@ -54,3 +54,13 @@ The existing source was listening to `notifications` and `userNotifications/{uid
 - G1: Partly — fixed the render call and added flat-schema listeners, owner helper dual writes, strict read-marker rules, and emulator tests. Composer migration, all event hooks, roll migration UI, cursor-backed pagination, and latest CI/live verification remain incomplete.
 - G2: Partly — browser PDF/release flows exist, but live PDF rendering and latest test verification are not confirmed.
 - G3–G7: Partly / Not done — full submission/review redesign, private quiz-key migration, mobileIndex/profile security, exports/backup, question-bank redesign, late-student workflow, media fallbacks, and hidden-email mobile/password + Google linking are not verified complete.
+
+
+## 2026-10-16 — Admit-card / roll-number follow-up
+| Item | Status | Evidence / reason |
+|---|---|---|
+| Owner-created enrollment gets JAMBH roll | Partly | Removed BIS fallback and invokes transactional allocator after saving enrollment. Not emulator-tested. |
+| Legacy / empty roll reassignment tool | Partly | Added owner-only confirmed batch tool with cursor pagination, confirmation, progress and error causes. Not live-tested. |
+| Student admit-card PDF download | Partly | Changed to explicit Blob download and improved canvas/PDF error reporting. Browser/CDN/live testing unavailable. |
+| Live website reflects fixes | Not done | Latest branch commit Vercel status is pending; branch has not been confirmed deployed to production. |
+| Build / lint / tests | Not done | Network restriction prevents checkout and local command execution; no CI workflow run was returned for the latest commit. |
