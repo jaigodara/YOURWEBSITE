@@ -1558,9 +1558,13 @@ Ans: B"></textarea>
         const ref = db.collection('examEnrolledStudents').doc(uid);
         const existing = await ref.get();
         const now = firebase.firestore.FieldValue.serverTimestamp();
-        const rollNumber = enteredRoll || (existing.exists && existing.data()?.rollNumber) || ('BIS-' + uid);
+        const previousRoll = String(enteredRoll || (existing.exists && existing.data()?.rollNumber) || '').trim();
+        if (previousRoll && !/^JAMBH-2026-\d{5}$/.test(previousRoll) && !previousRoll.startsWith('BIS-')) {
+          throw new Error('रोल नंबर केवल JAMBH-2026-XXXXX प्रारूप में स्वीकार होगा।');
+        }
         const record = {
-          uid, fullName, name: fullName, dateOfBirth, phone, examName, rollNumber,
+          uid, fullName, name: fullName, dateOfBirth, phone, examName,
+          ...(previousRoll ? { rollNumber: previousRoll } : {}),
           verificationStatus: 'confirmed',
           ownerCreatedEnrollment: true,
           verifiedBy: auth.currentUser?.uid || null,
@@ -1569,6 +1573,7 @@ Ans: B"></textarea>
         };
         if (!existing.exists) record.createdAt = now;
         await ref.set(record, { merge: true });
+        const rollNumber = await assignRealEnrollmentRoll(ref, previousRoll, false);
         const configSnap = await db.collection('examConfig').doc('current').get();
         if (configSnap.exists && configSnap.data()?.admitCardReleased === true) {
           await db.collection('userNotifications').doc(uid).collection('items').add({
