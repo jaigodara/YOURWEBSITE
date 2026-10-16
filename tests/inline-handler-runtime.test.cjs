@@ -42,6 +42,8 @@ function makeDom() {
     pretendToBeVisual: true
   });
   const { window } = dom;
+  window.BishnoiAuth = { openAuthModal: function earlyAuthPlaceholder() {} };
+  window.BishnoiApp = { openProfileOrAuth: function earlyProfilePlaceholder() {} };
   window.console = { ...console, error: () => {}, warn: () => {}, log: () => {} };
   window.scrollTo = () => {};
   window.matchMedia = () => ({ matches: false, addListener: () => {}, removeListener: () => {} });
@@ -83,6 +85,8 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   const { window } = dom;
   const authObjectBefore = window.BishnoiAuth;
   const appObjectBefore = window.BishnoiApp;
+  const earlyAuth = authObjectBefore.openAuthModal;
+  const earlyProfile = appObjectBefore.openProfileOrAuth;
   window.eval(script);
   // Owner-only inline scripts also publish owner handlers; evaluate those scripts without loading remote SDKs.
   const ownerDom = new JSDOM(ownerHtml, { url: "https://bishnoism.test/owner-studio.html", runScripts: "outside-only" });
@@ -94,6 +98,8 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   assert.deepEqual(unresolved, [], "unresolved inline onclick paths: " + unresolved.join(", "));
   assert.equal(window.BishnoiAuth, authObjectBefore, "BishnoiAuth object identity must be preserved");
   assert.equal(window.BishnoiApp, appObjectBefore, "BishnoiApp object identity must be preserved");
+  assert.notEqual(window.BishnoiAuth.openAuthModal, earlyAuth, "real auth implementation must replace the placeholder");
+  assert.notEqual(window.BishnoiApp.openProfileOrAuth, earlyProfile, "real profile implementation must replace the placeholder");
   dom.window.close();
   ownerDom.window.close();
 });
@@ -101,9 +107,15 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
 test("auth/profile handlers and all five navigation tabs run without throwing and reveal their targets", () => {
   const dom = makeDom();
   const { window } = dom;
-  window.eval(script);
+  window.BishnoiAuth = { openAuthModal: function earlyAuthPlaceholder() {} };
+  window.BishnoiApp = { openProfileOrAuth: function earlyProfilePlaceholder() {} };
   const authObject = window.BishnoiAuth;
   const appObject = window.BishnoiApp;
+  const earlyAuth = authObject.openAuthModal;
+  const earlyProfile = appObject.openProfileOrAuth;
+  window.eval(script);
+  assert.notEqual(authObject.openAuthModal, earlyAuth);
+  assert.notEqual(appObject.openProfileOrAuth, earlyProfile);
   assert.equal(typeof authObject.openAuthModal, "function");
   assert.equal(typeof appObject.openProfileOrAuth, "function");
   assert.doesNotThrow(() => authObject.openAuthModal());
