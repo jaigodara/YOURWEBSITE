@@ -32,10 +32,13 @@ function showEarlyHindiToast() {
   } catch (error) { console.error('हिंदी सूचना नहीं दिख सकी:', error); }
 }
 
+// The early wrapper and the full portal initializer must share this binding.
+// Keeping it outside exposeEarlyNavigation prevents a ReferenceError at startup.
+let portalSwitchTabImplementation = null;
+
 // Publish navigation immediately so existing HTML inline onclick handlers such
 // as BishnoiPortal.switchTab('home') never see an undefined namespace.
 (function exposeEarlyNavigation() {
-  let portalSwitchTabImplementation = null;
   window.switchTab = function (id) {
     if (typeof portalSwitchTabImplementation === 'function') {
       return portalSwitchTabImplementation(id);
