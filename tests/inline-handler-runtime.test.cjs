@@ -122,6 +122,7 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   const earlyAuth = authObjectBefore.openAuthModal;
   const earlyProfile = appObjectBefore.openProfileOrAuth;
   window.eval(script);
+  window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   // Owner-only inline scripts also publish owner handlers; evaluate those scripts without loading remote SDKs.
   const ownerDom = new JSDOM(ownerHtml, { url: "https://bishnoism.test/owner-studio.html", runScripts: "outside-only" });
   makeFirebaseStub(ownerDom.window);
@@ -152,6 +153,7 @@ test("auth/profile handlers and all five navigation tabs run without throwing an
   const earlyAuth = authObject.openAuthModal;
   const earlyProfile = appObject.openProfileOrAuth;
   window.eval(script);
+  window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   assert.notEqual(authObject.openAuthModal, earlyAuth);
   assert.notEqual(appObject.openProfileOrAuth, earlyProfile);
   assert.equal(typeof authObject.openAuthModal, "function");
