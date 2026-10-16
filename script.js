@@ -1065,7 +1065,6 @@
       host.appendChild(button);
     }
   }
-  }
   window.downloadPortalAdmitCard = printStudentAdmitCard;
 
   window.pushNotification = async function pushNotification(uid, data = {}) {
