@@ -11,13 +11,29 @@ test("student view never displays the internal BIS identifier as a roll number",
   assert.ok(script.includes("const roll = /^JAMBH-2026-\\d{4,}$/.test(storedRoll) ? storedRoll : '';"));
 });
 
-test("approved students can download their admit card as soon as a valid roll is assigned", () => {
-  assert.ok(script.includes("if (status === 'confirmed' && roll) {"));
-  assert.ok(script.includes("if (record.verificationStatus !== 'confirmed' || !/^JAMBH-2026-\\d{4,}$/.test(String(record.rollNumber || '').trim())) {"));
-  assert.ok(script.includes("if (hasValidRoll) {\n      const button = document.createElement('button');\n      button.id = 'downloadAdmitCardButton';"));
-  assert.ok(!script.includes("notify('प्रवेश-पत्र अभी जारी नहीं हुआ है।', 'error');"));
+test("admit-card download requires confirmed approval, a five-digit roll, and release", () => {
+  const functionStart = script.indexOf("async function printStudentAdmitCard(record)");
+  assert.notEqual(functionStart, -1, "admit-card download function should exist");
+  const bodyStart = script.indexOf("{", functionStart);
+  let depth = 0;
+  let bodyEnd = -1;
+  for (let i = bodyStart; i < script.length; i += 1) {
+    if (script[i] === "{") depth += 1;
+    if (script[i] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        bodyEnd = i + 1;
+        break;
+      }
+    }
+  }
+  assert.notEqual(bodyEnd, -1, "admit-card download function should be complete");
+  const body = script.slice(functionStart, bodyEnd);
+  assert.match(body, /record\.verificationStatus\s*!==\s*['"]confirmed['"]/);
+  assert.match(body, /JAMBH-2026-\\d\{5\}/);
+  assert.match(body, /admitCardReleased\s*===\s*true/);
+  assert.match(body, /अभी जारी नहीं हुआ/);
 });
-
 test("owner approval assigns unique JAMBH rolls with at least four digits", () => {
   assert.ok(owner.includes("if (/^JAMBH-2026-\\d{4,}$/.test(current)) return current;"));
   assert.ok(owner.includes("const rollNumber = 'JAMBH-2026-' + String(next).padStart(4, '0');"));

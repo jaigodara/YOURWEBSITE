@@ -14,11 +14,32 @@
  * secret. AI and proctor uploads must go through your own authenticated server.
  * ========================================================================== */
 "use strict";
+window.BishnoiAuth = window.BishnoiAuth || {};
+window.BishnoiApp = window.BishnoiApp || {};
+
+function showEarlyHindiToast() {
+  try {
+    let toast = document.getElementById('earlyHindiToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'earlyHindiToast';
+      toast.setAttribute('role', 'status');
+      toast.textContent = 'पेज लोड हो रहा है, कृपया दोबारा दबाएँ';
+      toast.style.cssText = 'position:fixed;z-index:99999;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;padding:12px 18px;border-radius:12px;background:#143622;color:#fff;font:600 14px sans-serif';
+      (document.body || document.documentElement).appendChild(toast);
+    }
+    toast.hidden = false;
+  } catch (error) { console.error('हिंदी सूचना नहीं दिख सकी:', error); }
+}
 
 // Publish navigation immediately so existing HTML inline onclick handlers such
 // as BishnoiPortal.switchTab('home') never see an undefined namespace.
 (function exposeEarlyNavigation() {
+  let portalSwitchTabImplementation = null;
   window.switchTab = function (id) {
+    if (typeof portalSwitchTabImplementation === 'function') {
+      return portalSwitchTabImplementation(id);
+    }
     const raw = String(id || '').replace(/^tab-/, '');
     const aliases = { sahitya: 'library', pariksha: 'quiz' };
     const key = aliases[raw] || raw;
@@ -54,10 +75,58 @@
   window.BishnoiPortal.switchTab = window.switchTab;
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
   window.Bishnoi.switchTab = window.switchTab;
-  window.BishnoiApp = window.BishnoiApp || {};
   window.BishnoiApp.switchTab = window.switchTab;
+
+  // Early handlers remain useful while the full modules initialize.
+  if (typeof window.BishnoiAuth.openAuthModal !== 'function') {
+    window.BishnoiAuth.openAuthModal = function () {
+      try {
+        const modal = document.getElementById('authModal');
+        if (modal) {
+          modal.hidden = false;
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          modal.style.display = 'flex';
+          modal.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        showEarlyHindiToast();
+      } catch (error) {
+        console.error('प्रारंभिक लॉगिन पैनल नहीं खुला:', error);
+        showEarlyHindiToast();
+      }
+    };
+  }
+  if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
+    window.BishnoiApp.openProfileOrAuth = function () {
+      try {
+        const profile = document.getElementById('userProfileModal');
+        const loggedIn = !!(window.firebase?.auth && window.firebase.auth().currentUser);
+        if (loggedIn && profile) {
+          profile.classList.remove('hidden');
+          profile.classList.add('flex');
+          profile.style.display = 'flex';
+          profile.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        const auth = document.getElementById('authModal');
+        if (!loggedIn && auth) {
+          auth.classList.remove('hidden');
+          auth.classList.add('flex');
+          auth.style.display = 'flex';
+          auth.setAttribute('aria-hidden', 'false');
+          return;
+        }
+        showEarlyHindiToast();
+      } catch (error) {
+        console.error('प्रारंभिक प्रोफ़ाइल पैनल नहीं खुला:', error);
+        showEarlyHindiToast();
+      }
+    };
+  }
 })();;
 
+try {
 (() => {
   const CONFIG = Object.freeze({
     firebase: {
@@ -275,7 +344,7 @@
     profile: 'tab-profile'
   };
 
-  window.switchTab = function (id) {
+  portalSwitchTabImplementation = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
@@ -3285,3 +3354,7 @@ function renderExamVisibility() {
 
   }
 })();
+} catch (error) {
+  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);
+  showEarlyHindiToast();
+}
