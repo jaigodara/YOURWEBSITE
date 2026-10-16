@@ -1669,7 +1669,8 @@ Ans: B"></textarea>
       const title = String(data.title || 'नई सूचना'), body = String(data.body || data.message || '');
       const type = String(data.type || 'announcement'), important = data.important === true;
       const pinnedByOwner = data.pinnedByOwner === true, createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      const flatRef = db.collection('userNotifications').doc(notificationId);
+      const flatId = recipientUid === 'ALL' ? notificationId : recipientUid + '_' + notificationId;
+      const flatRef = db.collection('userNotifications').doc(flatId);
       const flatPayload = { uid: recipientUid, type, title, body, important, pinnedByOwner, fileUrl: data.fileUrl || null, createdAt };
       const legacyRef = recipientUid === 'ALL' ? db.collection('notifications').doc(notificationId) : db.collection('userNotifications').doc(recipientUid).collection('items').doc(notificationId);
       const legacyPayload = { title, message: body, type, important, pinnedByOwner, active: true, createdBy: auth.currentUser?.uid || null, createdAt, ...(recipientUid === 'ALL' ? { audience: 'all' } : { recipientUid, audience: 'private' }) };
@@ -1754,8 +1755,9 @@ Ans: B"></textarea>
             return d.verificationStatus === 'confirmed' && !!d.rollNumber && /^JAMBH-2026-\d{5}$/.test(String(d.rollNumber)) && String(d.uid || doc.id).length >= 5 && String(d.examName || 'मुख्य परीक्षा') === String(settings.admitCardExamType || 'मुख्य परीक्षा');
           });
           skipped += page.size - eligible.length;
-          for (let offset = 0; offset < eligible.length; offset += 200) {
-            const group = eligible.slice(offset, offset + 200);
+          for (let offset = 0; offset < eligible.length; offset += 150) {
+            // Three writes per student (enrollment + flat notification + legacy notification) stay below 500.
+            const group = eligible.slice(offset, offset + 150);
             const batch = db.batch();
             group.forEach(studentDoc => {
               const student = studentDoc.data() || {};
