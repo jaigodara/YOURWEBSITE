@@ -80,6 +80,39 @@ test("script.js assigns window.switchTab exactly once", () => {
   assert.equal((script.match(/window\.switchTab\s*=/g) || []).length, 1);
 });
 
+test("profile/auth handlers are safe when Firebase has no initialized app", () => {
+  const dom = makeDom();
+  const { window } = dom;
+  window.BishnoiAuth = {};
+  window.BishnoiApp = {};
+  window.firebase.apps.length = 0;
+  window.eval(script);
+  assert.doesNotThrow(() => window.BishnoiApp.openProfileOrAuth());
+  assert.doesNotThrow(() => window.BishnoiAuth.openAuthModal());
+  const auth = window.document.getElementById("authModal");
+  const toast = window.document.getElementById("earlyHindiToast");
+  assert.ok((auth && !auth.hidden) || (toast && !toast.hidden),
+    "expected auth modal or Hindi loading toast");
+  dom.window.close();
+});
+
+test("Firebase startup publishes readiness and replaces the profile placeholder", () => {
+  const dom = makeDom();
+  const { window } = dom;
+  window.BishnoiAuth = {};
+  window.BishnoiApp = {};
+  const placeholder = function earlyProfilePlaceholder() {};
+  window.BishnoiApp.openProfileOrAuth = placeholder;
+  window.eval(script);
+  if (window.document.readyState === "loading") {
+    window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
+  }
+  assert.ok(window.firebase.apps.length > 0, "Firebase app should be initialized");
+  assert.equal(window.__bishnoiReady, true);
+  assert.notEqual(window.BishnoiApp.openProfileOrAuth, placeholder);
+  dom.window.close();
+});
+
 test("inline handler paths in index.html and owner-studio.html resolve after runtime initialization", () => {
   const dom = makeDom();
   const { window } = dom;
