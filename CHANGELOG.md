@@ -85,3 +85,12 @@
 
 - Fixed a literal escaped newline that caused the `renderNotificationCards(...)` call to be swallowed by the preceding JavaScript comment. The notification listeners could receive data without rendering cards.
 - Added a regression test to ensure the render call remains a separate executable line. Admit-card PDF and Firebase live behavior still require real-browser verification.
+
+
+## 2026-10-16 — Student roll number and admit-card access
+
+- Hide legacy `BIS-...` internal IDs from student-facing roll-number text.
+- Generate unique `JAMBH-2026-0001`-style rolls on owner approval with a minimum four-digit suffix and preserve existing valid rolls.
+- Show the student's admit-card PDF download after approval and valid roll assignment; notification release remains a separate notification action.
+- Add regression tests for roll display, approval gating, and roll-counter behavior.
+- Live Firebase and browser PDF checks remain required; this is not a claim that every website feature is complete.
