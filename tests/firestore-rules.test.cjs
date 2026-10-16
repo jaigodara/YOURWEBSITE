@@ -128,6 +128,30 @@ test("Firestore security rules regression suite", async (t) => {
       }));
     });
 
+    await t.test("flat notification read marker uses the exact schema", async () => {
+      await reset();
+      const db = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(setDoc(doc(db, "notificationReads", STUDENT + "_flat-1"), {
+        uid: STUDENT, notificationId: "flat-1", read: true, readAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(db, "notificationReads", STUDENT + "_bad"), {
+        uid: STUDENT, notificationId: "bad", read: true, readAt: serverTimestamp(), key: "legacy-extra",
+      }));
+      await assertFails(deleteDoc(doc(db, "notificationReads", STUDENT + "_flat-1")));
+    });
+
+    await t.test("flat ALL notification is readable but student cannot delete it", async () => {
+      await reset();
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(setDoc(doc(ownerDb, "userNotifications/flat-all"), {
+        uid: "ALL", type: "announcement", title: "सार्वजनिक सूचना", body: "सभी के लिए",
+        important: true, pinnedByOwner: true, fileUrl: "", createdAt: serverTimestamp(),
+      }));
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(getDoc(doc(studentDb, "userNotifications/flat-all")));
+      await assertFails(deleteDoc(doc(studentDb, "userNotifications/flat-all")));
+    });
+
     await t.test("विद्यार्थी अपने notification read marker को लिख सकता है", async () => {
       await reset();
       const db = env.authenticatedContext(STUDENT).firestore();
