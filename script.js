@@ -3283,4 +3283,5 @@ function renderExamVisibility() {
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
   window.Bishnoi.switchTab = window.switchTab;
 
+  }
 })();
