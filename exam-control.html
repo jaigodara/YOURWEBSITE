@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>परीक्षा नियंत्रण | Bishnoism</title>
+  <link rel="stylesheet" href="./tailwind.generated.css">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+</head>
+<body class="min-h-screen bg-[#FAF7EE] text-[#143622]">
+  <main class="mx-auto max-w-3xl space-y-5 p-4 sm:p-8">
+    <header class="rounded-2xl bg-[#143622] p-6 text-white">
+      <p class="text-xs font-bold tracking-wide text-amber-300">BISHNOISM • OWNER ONLY</p>
+      <h1 class="mt-2 text-2xl font-bold">परीक्षा नियंत्रण</h1>
+      <p class="mt-2 text-sm text-white/80">यह अलग पृष्ठ अधिकृत Owner खाते के लिए है।</p>
+    </header>
+    <section id="checking" class="rounded-2xl border border-amber-200 bg-white p-5">आपके खाते की अनुमति जाँची जा रही है…</section>
+    <section id="denied" class="hidden rounded-2xl border border-red-200 bg-white p-5">
+      <h2 class="font-bold text-red-800">प्रवेश उपलब्ध नहीं</h2>
+      <p class="mt-2 text-sm">इस पृष्ठ के लिए Owner अनुमति आवश्यक है। मुख्य परीक्षा अनुभाग पर वापस जाएँ और अधिकृत खाते से लॉगिन करें।</p>
+      <a class="mt-4 inline-block font-bold underline" href="./index.html#tab-quiz">परीक्षा अनुभाग पर लौटें</a>
+    </section>
+    <section id="ownerContent" class="hidden space-y-4">
+      <div class="rounded-2xl border border-emerald-200 bg-white p-5">
+        <h2 class="font-bold">मौजूदा परीक्षा व्यवस्थापन</h2>
+        <p class="mt-2 text-sm text-stone-600">मौजूदा वेबसाइट के परीक्षा सेटअप और Owner Studio का उपयोग करें; यह पृष्ठ कोई नया या अलग असुरक्षित प्रश्न-बैंक नहीं बनाता।</p>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <a class="rounded-xl bg-[#143622] px-4 py-2 font-bold text-white" href="./index.html#tab-quiz" id="examSectionLink">मुख्य परीक्षा अनुभाग</a>
+          <a class="rounded-xl border border-[#143622] px-4 py-2 font-bold" href="./owner-studio.html">Owner Studio</a>
+        </div>
+      </div>
+      <p class="text-xs text-stone-500">ध्यान दें: इस पृष्ठ का client-side gate केवल UI नियंत्रण है। वास्तविक प्रश्न, उत्तर, स्वीकृति और सबमिशन की सुरक्षा Firestore Rules से ही लागू होनी चाहिए।</p>
+    </section>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script>
+  (() => {
+    'use strict';
+    const firebaseConfig = {
+      apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
+      authDomain: "bishnoi-platform.firebaseapp.com",
+      projectId: "bishnoi-platform",
+      storageBucket: "bishnoi-platform.firebasestorage.app",
+      messagingSenderId: "1001226124051",
+      appId: "1:1001226124051:web:ad4dc69e04e6701024f8e6"
+    };
+    const ownerUids = new Set(["rdP0ZXzSP9fGzmJshEVvbOfb31g2", "8YRBWWMKG2OUW6cmzZkGbFgOqyp2"]);
+    const checking = document.getElementById('checking');
+    const denied = document.getElementById('denied');
+    const content = document.getElementById('ownerContent');
+    const deny = message => {
+      checking.classList.add('hidden');
+      content.classList.add('hidden');
+      denied.classList.remove('hidden');
+      denied.querySelector('p').textContent = message || 'इस पृष्ठ के लिए Owner अनुमति आवश्यक है।';
+    };
+    if (!window.firebase) { deny('Firebase लोड नहीं हुआ। कृपया मुख्य वेबसाइट पर लौटकर पुनः प्रयास करें।'); return; }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firebase.auth().onAuthStateChanged(async user => {
+      if (!user) { deny('पहले मुख्य वेबसाइट पर लॉगिन करें, फिर इस पृष्ठ को खोलें।'); return; }
+      try {
+        const roleDoc = await firebase.firestore().collection('roles').doc(user.uid).get();
+        const profileDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+        const role = roleDoc.exists ? roleDoc.data() : {};
+        const profile = profileDoc.exists ? profileDoc.data() : {};
+        const isOwner = ownerUids.has(user.uid) || role.role === 'owner' ||
+          (Array.isArray(role.roles) && role.roles.includes('owner')) ||
+          profile.role === 'owner' || profile.isOwner === true ||
+          (Array.isArray(profile.roles) && profile.roles.includes('owner'));
+        if (!isOwner) { deny('आपका लॉगिन सफल है, लेकिन Owner अनुमति नहीं मिली।'); return; }
+        checking.classList.add('hidden');
+        content.classList.remove('hidden');
+      } catch (error) {
+        console.error('Owner exam access check failed:', error);
+        deny('Owner अनुमति सत्यापित नहीं हो सकी। Firestore permissions जाँचें।');
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
