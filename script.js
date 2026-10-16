@@ -3376,6 +3376,8 @@ function renderExamVisibility() {
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
   window.Bishnoi.switchTab = window.switchTab;
 
+  // All public handlers are now installed on the original namespace objects.
+  window.__bishnoiReady = true;
   }
 })();
 } catch (error) {
