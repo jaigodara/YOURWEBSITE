@@ -101,26 +101,31 @@ let portalSwitchTabImplementation = null;
     };
   }
   if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
-    window.BishnoiApp.openProfileOrAuth = function () {
+    window.BishnoiApp.openProfileOrAuth = function earlyProfilePlaceholder() {
       try {
-        const profile = document.getElementById('userProfileModal');
-        const loggedIn = !!(window.firebase?.auth && window.firebase.auth().currentUser);
-        if (loggedIn && profile) {
-          profile.classList.remove('hidden');
-          profile.classList.add('flex');
-          profile.style.display = 'flex';
-          profile.setAttribute('aria-hidden', 'false');
+        const firebaseReady = typeof firebase !== 'undefined' &&
+          firebase.apps && firebase.apps.length > 0;
+        if (!firebaseReady) {
+          const auth = document.getElementById('authModal');
+          if (auth) {
+            auth.hidden = false;
+            auth.classList.remove('hidden');
+            auth.classList.add('flex');
+            auth.style.display = 'flex';
+            auth.setAttribute('aria-hidden', 'false');
+          } else {
+            showEarlyHindiToast();
+          }
           return;
         }
-        const auth = document.getElementById('authModal');
-        if (!loggedIn && auth) {
-          auth.classList.remove('hidden');
-          auth.classList.add('flex');
-          auth.style.display = 'flex';
-          auth.setAttribute('aria-hidden', 'false');
-          return;
-        }
-        showEarlyHindiToast();
+        const loggedIn = !!firebase.auth().currentUser;
+        const target = document.getElementById(loggedIn ? 'userProfileModal' : 'authModal');
+        if (!target) return showEarlyHindiToast();
+        target.hidden = false;
+        target.classList.remove('hidden');
+        target.classList.add('flex');
+        target.style.display = 'flex';
+        target.setAttribute('aria-hidden', 'false');
       } catch (error) {
         console.error('प्रारंभिक प्रोफ़ाइल पैनल नहीं खुला:', error);
         showEarlyHindiToast();
