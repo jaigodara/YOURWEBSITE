@@ -1078,6 +1078,7 @@
       button.addEventListener('click', () => printStudentAdmitCard(record));
       host.appendChild(button);
     }
+    }
   }
   window.downloadPortalAdmitCard = printStudentAdmitCard;
 
