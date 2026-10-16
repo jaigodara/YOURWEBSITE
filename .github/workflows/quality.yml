@@ -3,7 +3,7 @@ name: Quality checks
 on:
   pull_request:
   push:
-    branches: [main, fix/enrollment-notifications-owner-workflows]
+    branches: [main, 'fix/**']
 
 jobs:
   quality:
