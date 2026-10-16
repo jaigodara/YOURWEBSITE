@@ -50,7 +50,8 @@ test("Firestore security rules regression suite", async (t) => {
       const commentIndex = lines.findIndex(line => line.includes("Keep read notifications as history"));
       assert.ok(commentIndex >= 0, "notification render comment should exist");
       assert.doesNotMatch(lines[commentIndex], /renderNotificationCards/);
-      assert.match(lines[commentIndex + 1] || "", /^\s*renderNotificationCards\(list,/);
+      const nextExecutableLine = lines.slice(commentIndex + 1).find(line => line.trim() && !line.trim().startsWith('//')) || "";
+      assert.match(nextExecutableLine, /^\s*renderNotificationCards\(\s*$/);
     });
 
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
