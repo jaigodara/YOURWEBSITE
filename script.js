@@ -1296,12 +1296,12 @@
       }
     }
 
-    if (moreButton) {
+       if (moreButton) {
       moreButton.hidden = items.length <= visibleLimit;
       moreButton.textContent =
         'और दिखाएँ (' + Math.max(0, items.length - visibleLimit) + ' बाकी)';
     }
-    }
+
     let readAll = byId('markAllNotificationsRead');
     if (section && !readAll) {
       readAll = document.createElement('button');
