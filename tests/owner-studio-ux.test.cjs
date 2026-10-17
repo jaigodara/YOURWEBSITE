@@ -30,6 +30,14 @@ test("changing the selected exam clears stale answer-sheet results", () => {
   assert.match(ownerStudio, /चुने गए उत्तर-पत्र लाएँ/);
 });
 
+
+test("repeated submissions are distinguishable in the answer-sheet selector", () => {
+  assert.match(ownerStudio, /row\.submittedAt \|\| row\.createdAt/);
+  assert.match(ownerStudio, /toLocaleString\('hi-IN', \{ dateStyle: 'short', timeStyle: 'short' \}\)/);
+  assert.match(ownerStudio, /ID ' \+ String\(row\.id\)\.slice\(0, 6\)/);
+  assert.match(ownerStudio, /रिकॉर्ड ID: ' \+ String\(d\.id\)\.slice\(0, 10\)/);
+});
+
 test("Owner Studio has mobile touch targets and overflow safeguards", () => {
   assert.match(ownerStudio, /Owner Studio: readable, touch-friendly layout/);
   assert.match(ownerStudio, /@media \(max-width: 640px\)/);
