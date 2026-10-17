@@ -127,7 +127,17 @@ service cloud.firestore {
             'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village', 'phone', 'phoneVerified', 'phoneAuthVerifiedAt', 'updatedAt'
           ])
           && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phoneVerified', 'phoneAuthVerifiedAt'])
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone', 'phoneVerified', 'phoneAuthVerifiedAt'])
+            || (
+              request.resource.data.get('phoneVerified', false) != true
+              && request.resource.data.get('phoneAuthVerifiedAt', null) == null
+            )
+            || (
+              request.resource.data.get('phoneVerified', false) == true
+              && resource.data.get('phoneVerified', false) == true
+              && request.resource.data.get('phone', '') == resource.data.get('phone', '')
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phoneVerified', 'phoneAuthVerifiedAt'])
+            )
             || (
               request.resource.data.get('phoneVerified', false) == true
               && request.auth.token.keys().hasAny(['phone_number'])
