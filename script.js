@@ -571,6 +571,7 @@ try {
 
   function initAuthUI() {
     if (!state.auth) return;
+    let shouldOpenAuthFromQuery = new URLSearchParams(window.location.search).get('openAuth') === '1';
 
     // Google sign-in uses signInWithPopup now. The auth-state observer below
     // remains the single source of truth for the active Firebase session.
@@ -582,6 +583,14 @@ try {
       }
       state.user = user;
       state.profile = null;
+      if (shouldOpenAuthFromQuery) {
+        shouldOpenAuthFromQuery = false;
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+        } catch (_) {}
+        if (user) window.BishnoiApp?.openProfileOrAuth?.();
+        else window.BishnoiAuth?.openAuthModal?.();
+      }
       state.resultsIdentityVerified = false;
       window.initPersonalNotificationsForUser();
       window.initPublicNotifications();
