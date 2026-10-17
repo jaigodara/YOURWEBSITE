@@ -554,15 +554,15 @@ try {
       state.user = user;
       state.profile = null;
       state.resultsIdentityVerified = false;
-      initPersonalNotificationsForUser();
-      initPublicNotifications();
-      renderNotificationCenter();
+      window.initPersonalNotificationsForUser();
+      window.initPublicNotifications();
+      window.renderNotificationCenter();
       try {
         const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
         if (savedTab) window.switchTab(savedTab);
       } catch (_) {}
       state.myResults = [];
-      renderMyResults();
+      window.renderMyResults();
       state.isOwner = false;
       state.roles = [];
 
@@ -598,12 +598,12 @@ try {
         }
         try {
           await loadUserProfile(user);
-          restoreActiveExamForUser();
+          window.restoreActiveExamForUser();
           if (state.profile?.mala && typeof state.profile.mala === 'object') {
             state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
             state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
             try { localStorage.setItem('bishnoi_mala_v2', JSON.stringify({ ...state.mala, date: localDateKey() })); } catch (_) {}
-            renderMala();
+            window.renderMala();
           }
           notify(`Welcome${state.profile?.displayName ? ' ' + state.profile.displayName : ''}!`, 'success');
         } catch (e) {
@@ -683,7 +683,7 @@ try {
 
   window.logoutPortalUser = async function () {
     try {
-      stopExamResources();
+      window.stopExamResources();
       if (state.auth) await state.auth.signOut();
       notify('Signed out.', 'success');
     } catch (e) {
@@ -753,26 +753,26 @@ try {
       collection('historyItems').orderBy('createdAt', 'desc').limit(100),
       snap => {
         state.historyItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderHistoryItems();
+        window.renderHistoryItems();
       },
       'History and culture updates'
     );
 
     subscribe(
       collection('posts').orderBy('createdAt', 'desc').limit(50),
-      snap => renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => window.renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'Community'
     );
 
     subscribe(
       collection('audios').orderBy('order', 'asc'),
-      snap => renderAudioList(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => window.renderAudioList(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'Audio library'
     );
 
     subscribe(
       collection('pdfs').orderBy('createdAt', 'desc').limit(100),
-      snap => renderPdfLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => window.renderPdfLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'PDF library'
     );
 
@@ -780,7 +780,7 @@ try {
       collection('examConfig').doc('current'),
       snap => {
         state.examConfig = snap.exists ? snap.data() : {};
-        renderExamVisibility();
+        window.renderExamVisibility();
       },
       'Exam configuration'
     );
@@ -795,7 +795,7 @@ try {
             .map(d => ({ id: d.id, ...d.data() }))
             .filter(row => row.status === 'published')
             .sort((a, b) => timestampMillis(b.publishedAt) - timestampMillis(a.publishedAt));
-          renderMyResults();
+          window.renderMyResults();
         },
         'Published student results'
       );
@@ -811,7 +811,7 @@ try {
     setText('maintenanceProgress', `${progress}%`);
     const bar = byId('maintenanceProgressBar');
     if (bar) bar.style.width = `${progress}%`;
-    renderExamVisibility();
+    window.renderExamVisibility();
   }
 
   function applyMaintenanceSettings() {
@@ -1341,7 +1341,7 @@ try {
     });
   }
 
-  function renderNotificationCenter() {
+  window.renderNotificationCenter = function renderNotificationCenter() {
     const bell = byId('notificationBellButton');
     const section = byId('publicNotificationsSection');
     const popup = byId('notificationPopup');
@@ -1404,7 +1404,7 @@ try {
       moreButton.addEventListener('click', () => {
         state.notificationVisibleLimit =
           (state.notificationVisibleLimit || 20) + 20;
-        renderNotificationCenter();
+        window.renderNotificationCenter();
       });
 
       if (list) {
@@ -1466,7 +1466,7 @@ try {
       batch.commit().catch(error => { console.error('Notification read-marker sync failed:', error.code || error.message, error); notify('पढ़ी हुई स्थिति सिंक नहीं हुई (' + (error.code || 'unknown') + ')।', 'error'); });
     }
     state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []), ...keysToMark])];
-    renderNotificationCenter();
+    window.renderNotificationCenter();
   }
 
   window.toggleNotificationPanel = function (forceOpen) {
@@ -1488,7 +1488,7 @@ try {
     setVisible('notificationPopup', false);
   };
 
-  function initPersonalNotificationsForUser() {
+  window.initPersonalNotificationsForUser = function initPersonalNotificationsForUser() {
     if (state.personalNotificationsUnsubscribe) {
       state.personalNotificationsUnsubscribe();
       state.personalNotificationsUnsubscribe = null;
@@ -1500,42 +1500,42 @@ try {
     if (state.flatNotificationsUnsubscribe) { state.flatNotificationsUnsubscribe(); state.flatNotificationsUnsubscribe = null; }
     if (state.flatNotificationReadsUnsubscribe) { state.flatNotificationReadsUnsubscribe(); state.flatNotificationReadsUnsubscribe = null; }
     state.personalNotifications = []; state.flatNotifications = []; state.notificationReadKeys = [];
-    if (!state.user || !state.db) { renderNotificationCenter(); return; }
+    if (!state.user || !state.db) { window.renderNotificationCenter(); return; }
     const uid = state.user.uid;
     state.notificationReadsUnsubscribe = state.db.collection('userNotificationReads').doc(uid).collection('items').onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       const legacyKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
       state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => k.startsWith('flat:')), ...legacyKeys])];
-      renderNotificationCenter();
+      window.renderNotificationCenter();
     }, error => console.error('Legacy notification read-marker listener failed:', error.code || error.message, error));
     state.flatNotificationReadsUnsubscribe = state.db.collection('notificationReads').where('uid', '==', uid).onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       const flatKeys = snapshot.docs.filter(doc => doc.data()?.read === true).map(doc => 'flat:' + doc.data().notificationId);
       state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => !k.startsWith('flat:')), ...flatKeys])];
-      renderNotificationCenter();
+      window.renderNotificationCenter();
     }, error => console.error('Flat notification read-marker listener failed:', error.code || error.message, error));
     state.personalNotificationsUnsubscribe = state.db.collection('userNotifications').doc(uid).collection('items').onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
-      renderNotificationCenter();
-    }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; renderNotificationCenter(); });
+      window.renderNotificationCenter();
+    }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; window.renderNotificationCenter(); });
     state.flatNotificationsUnsubscribe = state.db.collection('userNotifications').where('uid', 'in', [uid, 'ALL']).onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       state.flatNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'flat' }));
-      renderNotificationCenter();
+      window.renderNotificationCenter();
     }, error => { console.error('Flat notification listener failed:', error.code || error.message, error); notify('सूचनाएँ लोड नहीं हुईं (' + (error.code || 'unknown') + ')।', 'error'); });
   }
 
-  function initPublicNotifications() {
+  window.initPublicNotifications = function initPublicNotifications() {
     if (!state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
       .onSnapshot(snapshot => {
         state.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'global' }));
-        renderNotificationCenter();
+        window.renderNotificationCenter();
       }, error => {
         console.warn('Notifications could not load:', error);
         state.notifications = [];
-        renderNotificationCenter();
+        window.renderNotificationCenter();
       });
     state.unsubscribers.push(() => {
       if (state.publicNotificationsUnsubscribe) state.publicNotificationsUnsubscribe();
@@ -1620,7 +1620,7 @@ try {
     renderEnrollmentStatus(state.user ? undefined : null);
   }
 
-  function renderMyResults() {
+  window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
     if (!host) return;
     const rows = state.myResults || [];
@@ -1643,7 +1643,7 @@ try {
     }).join('');
   }
 
-  function renderHistoryItems() {
+  window.renderHistoryItems = function renderHistoryItems() {
     const historyHost = byId('historySubView');
     const kidsHost = byId('kidsSubView');
     const history = (state.historyItems || []).filter(x => x.category !== 'kids');
@@ -1654,7 +1654,7 @@ try {
   }
 
 
-function renderExamVisibility() {
+window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
 
   // Use real container IDs. The daily quiz container includes both
@@ -1766,7 +1766,7 @@ function renderExamVisibility() {
       state.mala.laps = Math.max(0, Number(saved.laps) || 0);
     } catch (_) {}
 
-    renderMala();
+    window.renderMala();
   }
 
   function saveMala() {
@@ -1786,7 +1786,7 @@ function renderExamVisibility() {
     }
   }
 
-  function renderMala() {
+  window.renderMala = function renderMala() {
     setText('malaCount', state.mala.count);
     setText('malaLapCount', state.mala.laps);
     setText('malaProgress', `${Math.round(state.mala.count / 108 * 100)}%`);
@@ -1807,14 +1807,14 @@ function renderExamVisibility() {
     }
     if (navigator.vibrate && byId('hapticToggle')?.checked) navigator.vibrate(25);
     saveMala();
-    renderMala();
+    window.renderMala();
   };
 
   window.resetMala = function () {
     if (!confirm('Reset this mala count?')) return;
     state.mala.count = 0;
     saveMala();
-    renderMala();
+    window.renderMala();
   };
 
   window.pledgeTree = async function () {
@@ -1967,7 +1967,7 @@ function renderExamVisibility() {
     }
   };
 
-  function renderAudioList(items) {
+  window.renderAudioList = function renderAudioList(items) {
     const host = byId('audioList') || byId('audioPlayerTrackList');
     if (!host) return;
 
@@ -2006,7 +2006,7 @@ function renderExamVisibility() {
     });
   }
 
-  function renderPdfLibrary(items) {
+  window.renderPdfLibrary = function renderPdfLibrary(items) {
     const host = byId('pdfLibrary') || byId('literatureFiles') || byId('pdfGrid');
     if (!host) return;
 
@@ -2025,7 +2025,7 @@ function renderExamVisibility() {
   let communityPostsCache = [];
   let communityTopicFilter = 'all';
 
-  function renderCommunity(posts) {
+  window.renderCommunity = function renderCommunity(posts) {
     communityPostsCache = Array.isArray(posts) ? posts : [];
     const host = byId('communityFeed') || byId('communityPosts') || byId('postsList');
     if (!host) return;
@@ -2062,7 +2062,7 @@ function renderExamVisibility() {
   window.BishnoiCommunity = window.BishnoiCommunity || {};
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
-    renderCommunity(communityPostsCache);
+    window.renderCommunity(communityPostsCache);
   };
   window.BishnoiCommunity.submitPost = async function () {
     if (!requireUser()) return;
@@ -2239,7 +2239,7 @@ function renderExamVisibility() {
     try { sessionStorage.removeItem(ACTIVE_EXAM_STORAGE_KEY); } catch (_) {}
   }
 
-  function restoreActiveExamForUser() {
+  window.restoreActiveExamForUser = function restoreActiveExamForUser() {
     if (!state.user) return;
     let saved;
     try { saved = JSON.parse(sessionStorage.getItem(ACTIVE_EXAM_STORAGE_KEY) || 'null'); } catch (_) { saved = null; }
@@ -2253,7 +2253,7 @@ function renderExamVisibility() {
       return;
     }
 
-    stopExamResources();
+    window.stopExamResources();
     state.exam = {
       active: true,
       mode: saved.mode,
@@ -2308,7 +2308,7 @@ function renderExamVisibility() {
         notify('टैब बदलने की सीमा पूरी हुई। उत्तर सुरक्षित हैं; दोबारा प्रवेश के लिए व्यवस्थापक से संपर्क करें।', 'error');
         state.exam.active = false;
         updateExamSession('kicked', { kickedAt: serverTimestamp(), reason: 'tab_switch_limit' });
-        stopExamResources();
+        window.stopExamResources();
         setText('examResult', 'परीक्षा अस्थायी रूप से लॉक की गई है। आपके उत्तर इसी टैब में सुरक्षित हैं; व्यवस्थापक से अनुमति लें।');
         setVisible('submitExamBtn', false);
         setVisible('nextQuestionBtn', false);
@@ -2382,7 +2382,7 @@ function renderExamVisibility() {
     }, error => console.warn('Exam session listener failed:', error));
   }
 
-  function stopExamResources() {
+  window.stopExamResources = function stopExamResources() {
     const exam = state.exam;
 
     if (exam.timer) clearInterval(exam.timer);
@@ -2463,7 +2463,7 @@ function renderExamVisibility() {
       byId('submitExamBtn').addEventListener('click', () => window.submitPortalExam(false));
       byId('exitExamWorkspace').addEventListener('click', () => {
         setVisible('portalExamWorkspace', false);
-        renderExamVisibility();
+        window.renderExamVisibility();
         window.switchTab('quiz');
       });
     }
@@ -2665,7 +2665,7 @@ function renderExamVisibility() {
         return;
       }
 
-      stopExamResources();
+      window.stopExamResources();
 
       state.exam = {
         active: true,
@@ -2851,7 +2851,7 @@ function renderExamVisibility() {
       exam.submitted = true;
       exam.active = false;
       clearPersistedExam();
-      stopExamResources();
+      window.stopExamResources();
       updateExamSession('submitted', { submittedAt: serverTimestamp() });
       if (instantResult) {
         collection('userNotifications').doc(state.user.uid).collection('items').add({
@@ -3065,12 +3065,12 @@ function renderExamVisibility() {
       const expectedDob = String(record.dateOfBirth || '').trim();
       if (!expectedRoll || roll !== expectedRoll || name !== expectedName || dob !== expectedDob) {
         state.resultsIdentityVerified = false;
-        renderMyResults();
+        window.renderMyResults();
         if (status) status.textContent = 'दर्ज विवरण पंजीकरण रिकॉर्ड से मेल नहीं खाते। कृपया सही जानकारी भरें।';
         return;
       }
       state.resultsIdentityVerified = true;
-      renderMyResults();
+      window.renderMyResults();
       if (status) status.textContent = 'पहचान सत्यापित। घोषित मुख्य/मॉक परिणाम नीचे दिखेंगे।';
       byId('myResultsList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
@@ -3201,7 +3201,7 @@ function renderExamVisibility() {
   app.resetMala = function () {
     state.mala.count = 0;
     saveMala();
-    renderMala();
+    window.renderMala();
   };
   app.switchHistorySubTab = function (name) {
     const isKids = name === 'kids-corner';
