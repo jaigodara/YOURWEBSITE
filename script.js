@@ -1014,6 +1014,36 @@ try {
   }
 
   async function printStudentAdmitCard(record) {
+    // Re-read the student's enrollment immediately before validating/downloading.
+    // This avoids validating stale UI data after an owner approves/releases a card.
+    if (!state.user || !state.db) {
+      notify('कृपया पहले लॉगिन करें और फिर प्रयास करें।', 'error');
+      return;
+    }
+
+    const studentUid = state.user.uid;
+    try {
+      const freshEnrollment = await state.db
+        .collection('examEnrolledStudents')
+        .doc(studentUid)
+        .get();
+
+      if (!freshEnrollment.exists) {
+        notify('आपका पंजीकरण रिकॉर्ड नहीं मिला। कृपया व्यवस्थापक से संपर्क करें।', 'error');
+        return;
+      }
+
+      record = freshEnrollment.data() || {};
+      if (state.user?.uid !== studentUid) return;
+    } catch (error) {
+      console.error('Admit-card enrollment refresh failed:', {
+        code: error?.code || 'unknown',
+        message: error?.message || String(error)
+      });
+      notify('पंजीकरण की जानकारी लोड नहीं हुई। कृपया दोबारा लॉगिन करके प्रयास करें।', 'error');
+      return;
+    }
+
     const released = record?.admitCardReleased === true ||
       (state.examConfig?.admitCardReleased === true && !record?.admitCardExamType);
 
