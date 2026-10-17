@@ -12,7 +12,7 @@ const ownerHtml = readFileSync(path.join(root, "owner-studio.html"), "utf8");
 function makeFirebaseStub(window) {
   const authState = { currentUser: null };
   const authInstance = Object.assign(authState, {
-    onAuthStateChanged: callback => { callback(null); return () => {}; },
+    onAuthStateChanged: callback => { window.__authStateListener = callback; return () => {}; },
     signOut: async () => { authState.currentUser = null; },
     signInWithPopup: async () => ({ user: null }),
     signInWithRedirect: async () => {},
@@ -131,7 +131,8 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   window.console = Object.assign(Object.create(console), {
     error: (...args) => errors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
-  let diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  let diagnosticScript = script.replace("try {\n(() => {\n  const CONFIG", "try {\n(() => {\n  window.__mainIifeEntered = true;\n  const CONFIG");
+  diagnosticScript = diagnosticScript.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
   diagnosticScript = diagnosticScript.replace("  initPortal();", "  window.__bottomReached = true;\n  initPortal();");
   diagnosticScript = diagnosticScript.replace("} catch (error) {\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "} catch (error) {\n  window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
   console.log("T6 instrumentationApplied", diagnosticScript.includes("function initPortal() { window.__initPortalRan = true;"), diagnosticScript.includes("window.__bottomReached = true;"));
@@ -147,6 +148,7 @@ test("full startup initializes Firebase once and publishes real auth/profile API
     openProfileOrAuthType: typeof window.BishnoiApp.openProfileOrAuth,
     readyStateAtScriptEvaluation: evalReadyState,
     initPortalRan: window.__initPortalRan,
+    mainIifeEntered: window.__mainIifeEntered,
     bottomReached: window.__bottomReached,
     outerStartupError: window.__outerStartupError || null,
     profileHandlerName: window.BishnoiApp.openProfileOrAuth.name,
@@ -180,7 +182,8 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   window.console = Object.assign(Object.create(console), {
     error: (...args) => startupErrors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
-  let diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  let diagnosticScript = script.replace("try {\n(() => {\n  const CONFIG", "try {\n(() => {\n  window.__mainIifeEntered = true;\n  const CONFIG");
+  diagnosticScript = diagnosticScript.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
   diagnosticScript = diagnosticScript.replace("  initPortal();", "  window.__bottomReached = true;\n  initPortal();");
   diagnosticScript = diagnosticScript.replace("} catch (error) {\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "} catch (error) {\n  window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
   window.eval(diagnosticScript);
@@ -203,6 +206,7 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
     firstStartupError: startupErrors[0] || null,
     allStartupErrors: startupErrors,
     initPortalRan: window.__initPortalRan,
+    mainIifeEntered: window.__mainIifeEntered,
     bottomReached: window.__bottomReached,
     outerStartupError: window.__outerStartupError || null,
     firebaseInitializeCalls: window.__firebaseInitializeCalls,
