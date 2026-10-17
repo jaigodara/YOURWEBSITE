@@ -131,8 +131,10 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   window.console = Object.assign(Object.create(console), {
     error: (...args) => errors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
-  const diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
-  console.log("T6 instrumentationApplied", diagnosticScript.includes("function initPortal() { window.__initPortalRan = true;"));
+  let diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  diagnosticScript = diagnosticScript.replace("  initPortal();", "  window.__bottomReached = true;\n  initPortal();");
+  diagnosticScript = diagnosticScript.replace("} catch (error) {\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "} catch (error) {\n  window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
+  console.log("T6 instrumentationApplied", diagnosticScript.includes("function initPortal() { window.__initPortalRan = true;"), diagnosticScript.includes("window.__bottomReached = true;"));
   window.eval(diagnosticScript);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   console.log("T6 DIAGNOSTICS", JSON.stringify({
@@ -144,7 +146,11 @@ test("full startup initializes Firebase once and publishes real auth/profile API
     signInWithGoogleType: typeof window.BishnoiAuth.signInWithGoogle,
     openProfileOrAuthType: typeof window.BishnoiApp.openProfileOrAuth,
     readyStateAtScriptEvaluation: evalReadyState,
-    initPortalRan: window.__initPortalRan
+    initPortalRan: window.__initPortalRan,
+    bottomReached: window.__bottomReached,
+    outerStartupError: window.__outerStartupError || null,
+    profileHandlerName: window.BishnoiApp.openProfileOrAuth.name,
+    googleHandlerName: window.BishnoiAuth.signInWithGoogle.name
   }, null, 2));
   assert.equal(window.__firebaseInitializeCalls, 1, "initializeApp should run exactly once; startup console errors: " + errors.join("\\n"));
   assert.equal(window.__bishnoiReady, true);
@@ -174,12 +180,17 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   window.console = Object.assign(Object.create(console), {
     error: (...args) => startupErrors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
-  const diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  let diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  diagnosticScript = diagnosticScript.replace("  initPortal();", "  window.__bottomReached = true;\n  initPortal();");
+  diagnosticScript = diagnosticScript.replace("} catch (error) {\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "} catch (error) {\n  window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
   window.eval(diagnosticScript);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   // Owner-only inline scripts also publish owner handlers; evaluate those scripts without loading remote SDKs.
   const ownerDom = new JSDOM(ownerHtml, { url: "https://bishnoism.test/owner-studio.html", runScripts: "outside-only" });
   makeFirebaseStub(ownerDom.window);
+  ownerDom.window.alert = () => {};
+  ownerDom.window.confirm = () => true;
+  ownerDom.window.open = () => ({});
   for (const inline of [...ownerDom.window.document.querySelectorAll("script:not([src])")]) {
     ownerDom.window.eval(inline.textContent);
   }
@@ -192,6 +203,8 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
     firstStartupError: startupErrors[0] || null,
     allStartupErrors: startupErrors,
     initPortalRan: window.__initPortalRan,
+    bottomReached: window.__bottomReached,
+    outerStartupError: window.__outerStartupError || null,
     firebaseInitializeCalls: window.__firebaseInitializeCalls,
     firebaseAppsLength: window.firebase.apps.length,
     unresolvedPaths: unresolved
