@@ -97,12 +97,25 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   const dom = makeDom();
   const { window } = dom;
   const errors = [];
+  const evalReadyState = window.document.readyState;
   window.console = Object.assign(Object.create(console), {
-    error: (...args) => errors.push(args.map(value => value instanceof Error ? value.name + ": " + value.message : String(value)).join(" "))
+    error: (...args) => errors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
-  window.eval(script);
+  const diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  window.eval(diagnosticScript);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
-  assert.equal(window.__firebaseInitializeCalls, 1, "initializeApp should run exactly once; startup console errors: " + errors.join("\n"));
+  console.log("T6 DIAGNOSTICS", JSON.stringify({
+    counterProperty: "__firebaseInitializeCalls",
+    counterValue: window.__firebaseInitializeCalls,
+    ready: window.__bishnoiReady,
+    firebaseAppsLength: window.firebase.apps.length,
+    consoleErrors: errors,
+    signInWithGoogleType: typeof window.BishnoiAuth.signInWithGoogle,
+    openProfileOrAuthType: typeof window.BishnoiApp.openProfileOrAuth,
+    readyStateAtScriptEvaluation: evalReadyState,
+    initPortalRan: window.__initPortalRan
+  }, null, 2));
+  assert.equal(window.__firebaseInitializeCalls, 1, "initializeApp should run exactly once; startup console errors: " + errors.join("\\n"));
   assert.equal(window.__bishnoiReady, true);
   assert.equal(typeof window.BishnoiApp.openProfileOrAuth, "function");
   assert.equal(typeof window.BishnoiAuth.signInWithGoogle, "function");
@@ -137,6 +150,11 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
     ...calledPaths(ownerHtml).map(expression => ({ expression, target: ownerDom.window }))
   ];
   const unresolved = pathsByWindow.filter(item => typeof resolvePath(item.target, item.expression) !== "function").map(item => item.expression);
+  console.log("T8 DIAGNOSTICS", JSON.stringify({
+    firstStartupError: (window.__startupErrors || [])[0] || null,
+    firstCapturedConsoleError: (window.__startupErrors || [])[0] || null,
+    unresolvedPaths: unresolved
+  }, null, 2));
   assert.deepEqual(unresolved, [], "unresolved inline onclick paths: " + unresolved.join(", "));
   assert.equal(window.BishnoiAuth, authObjectBefore, "BishnoiAuth object identity must be preserved");
   assert.equal(window.BishnoiApp, appObjectBefore, "BishnoiApp object identity must be preserved");
