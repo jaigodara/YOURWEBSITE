@@ -484,6 +484,10 @@ Ans: B"></textarea>
           <button type="button" onclick="loadExamSubmissions()" class="px-4 py-3 bg-forest hover:bg-emerald-950 text-white rounded-xl text-sm font-bold min-h-[44px]">📝 चुने गए उत्तर-पत्र लाएँ</button>
         </div>
         <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button type="button" onclick="printAllExamReviewSheets()" class="min-h-[44px] rounded-xl border border-forest bg-white px-4 py-3 text-sm font-bold text-forest hover:bg-stone-50">📄 सभी विद्यार्थियों की उत्तर-पत्र / जाँच रिपोर्ट PDF</button>
+          <p class="self-center text-[11px] text-stone-500">पहले रिकॉर्ड लाएँ, फिर इस बटन से सभी लोड हुए विद्यार्थियों की रिपोर्ट खोलें और Print में “Save as PDF” चुनें।</p>
+        </div>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
           <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
         </div>
@@ -2612,7 +2616,7 @@ Ans: B"></textarea>
       feedback.id = 'currentReviewFeedback';
       feedback.rows = 2;
       feedback.maxLength = 1000;
-      feedback.placeholder = 'जाँच टिप्पणी / संशोधन का कारण (वैकल्पिक)';
+      feedback.placeholder = 'जाँच का कारण / संशोधन टिप्पणी लिखें (यह रिपोर्ट में भी आएगा)';
       feedback.value = d.manualFeedback || '';
       feedback.className = 'w-full p-3 rounded-lg border border-stone-300 text-sm';
 
@@ -2957,6 +2961,65 @@ Ans: B"></textarea>
       if (status) status.textContent = 'परीक्षा चुनी गई है; रिकॉर्ड अभी लोड नहीं हुए हैं।';
     }
     window.resetExamSubmissionQueue = resetExamSubmissionQueue;
+
+    function printAllExamReviewSheets() {
+      if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र निर्यात की अनुमति नहीं है।');
+      if (!Array.isArray(examReviewQueue) || !examReviewQueue.length) {
+        showToast('पहले चुने गए उत्तर-पत्र लाएँ।');
+        return;
+      }
+      const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+      const getAnswerText = (questionId, answer, student) => {
+        const key = (student.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[student.mode] || '') + '::' + questionId;
+        const q = examReviewQuestionLookup[key] || examReviewQuestionLookup[questionId] || {};
+        const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
+        const answerIndex = Number(answer);
+        const selected = Number.isInteger(answerIndex) && answerIndex >= 0 && answerIndex < options.length ? options[answerIndex] : answer;
+        const selectedText = selected && typeof selected === 'object' ? (selected.text || selected.label || selected.value || JSON.stringify(selected)) : (selected == null || selected === '' ? 'उत्तर नहीं दिया' : String(selected));
+        const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
+        const correctIndex = Number(correct);
+        const correctValue = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < options.length ? options[correctIndex] : correct;
+        const correctText = correctValue && typeof correctValue === 'object' ? (correctValue.text || correctValue.label || correctValue.value || JSON.stringify(correctValue)) : (correctValue == null ? 'प्रश्न बैंक में उपलब्ध नहीं' : String(correctValue));
+        return '<article class="question"><b>' + escapeHtml(q.question || q.text || q.q || student.questionTexts?.[questionId] || ('प्रश्न ID: ' + questionId)) +
+          '</b><p>विद्यार्थी का उत्तर: ' + escapeHtml(selectedText) + '</p><p>सही उत्तर: ' + escapeHtml(correctText) + '</p></article>';
+      };
+      const sections = examReviewQueue.map((student, index) => {
+        const answers = student.answers || student.responses || {};
+        const entries = Array.isArray(answers) ? answers.map((answer, i) => [String(i), answer]) : Object.entries(answers);
+        const submittedAt = student.submittedAt || student.createdAt;
+        const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
+        const submitted = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय उपलब्ध नहीं';
+        const name = student.name || student.fullName || student.displayName || 'नाम उपलब्ध नहीं';
+        const dob = student.dob || student.dateOfBirth || student.date_of_birth || student.birthDate || 'रिकॉर्ड में उपलब्ध नहीं';
+        const reviewReason = student.manualFeedback || student.reviewReason || student.checkingReason || 'जाँच का कारण अभी दर्ज नहीं';
+        return '<section class="student"><h2>विद्यार्थी ' + (index + 1) + ' / ' + examReviewQueue.length + '</h2>' +
+          '<p><b>नाम:</b> ' + escapeHtml(name) + ' &nbsp; <b>रोल नंबर:</b> ' + escapeHtml(student.rollNumber || student.rollNo || 'उपलब्ध नहीं') + '</p>' +
+          '<p><b>जन्म तिथि:</b> ' + escapeHtml(dob) + ' &nbsp; <b>मोबाइल:</b> ' + escapeHtml(student.phone || student.mobile || '—') + '</p>' +
+          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.mode || examReviewCollection) + '</p>' +
+          '<p><b>जमा समय:</b> ' + escapeHtml(submitted) + ' &nbsp; <b>रिकॉर्ड ID:</b> ' + escapeHtml(student.id || '—') + '</p>' +
+          '<p><b>स्वचालित अंक:</b> ' + escapeHtml(student.score ?? student.autoScore ?? student.correct ?? '—') + ' / ' + escapeHtml(student.total ?? student.totalQuestions ?? '—') +
+          ' &nbsp; <b>सत्यापित अंक:</b> ' + escapeHtml(student.manualScore ?? 'अभी सत्यापित नहीं') + '</p>' +
+          '<p><b>जाँच स्थिति:</b> ' + escapeHtml(student.manualReviewStatus || 'जाँच बाकी') + '</p>' +
+          '<p class="reason"><b>जाँच का कारण / टिप्पणी:</b> ' + escapeHtml(reviewReason) + '</p>' +
+          '<h3>उत्तर-पत्र (' + entries.length + ' प्रश्न)</h3>' +
+          (entries.length ? entries.map(([id, answer]) => getAnswerText(id, answer, student)).join('') : '<p>उत्तर उपलब्ध नहीं हैं।</p>') +
+          '</section>';
+      }).join('');
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showToast('ब्राउज़र ने नई विंडो रोकी। इस साइट के लिए pop-ups अनुमति दें और दोबारा प्रयास करें।');
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bishnoism — परीक्षा जाँच रिपोर्ट</title><style>' +
+        'body{font:14px/1.55 Arial,"Noto Sans Devanagari",sans-serif;color:#143622;margin:20px}h1{font-size:24px}h2{font-size:18px;border-bottom:2px solid #D6A43A;padding-bottom:6px}h3{font-size:15px}.student{break-after:page;page-break-after:always}.student:last-child{break-after:auto;page-break-after:auto}.question{border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin:8px 0;break-inside:avoid}.question p{margin:4px 0}.reason{background:#fff7df;border-left:4px solid #D6A43A;padding:8px}.toolbar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd}button{padding:10px 16px;background:#143622;color:#fff;border:0;border-radius:8px}@media print{body{margin:10mm}.toolbar{display:none}@page{size:A4;margin:12mm}}</style></head><body><div class="toolbar"><button onclick="window.print()">प्रिंट करें / Save as PDF</button> <span>प्रिंट विंडो में Destination: Save as PDF चुनें।</span></div><h1>बिश्नोइज़्म — विद्यार्थी उत्तर-पत्र एवं मैन्युअल जाँच रिपोर्ट</h1><p>परीक्षा: ' + escapeHtml(examReviewCollection) + ' · कुल रिकॉर्ड: ' + examReviewQueue.length + ' · रिपोर्ट तिथि: ' + escapeHtml(new Date().toLocaleString('hi-IN')) + '</p>' + sections + '</body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { try { printWindow.print(); } catch (e) {} }, 350);
+    }
+    window.printAllExamReviewSheets = printAllExamReviewSheets;
 
     async function loadExamSubmissions() {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र समीक्षा की अनुमति नहीं है।');
