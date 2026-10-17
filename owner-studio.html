@@ -36,6 +36,41 @@
     .custom-scroll::-webkit-scrollbar { width: 5px; }
     .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #143622; border-radius: 4px; }
+
+    /* Owner Studio: readable, touch-friendly layout across phones and laptops. */
+    .studio-nav-item {
+      display: flex; align-items: center; gap: .55rem; min-height: 44px;
+      width: 100%; padding: .7rem .8rem; border: 1px solid #e7e5e4;
+      border-radius: .85rem; background: #fafaf9; color: #292524;
+      font: 600 .82rem/1.35 "Plus Jakarta Sans", sans-serif; text-align: left;
+      transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+    }
+    .studio-nav-item:hover { border-color: #a7b9aa; background: #f0f5f0; }
+    .studio-nav-active { background: #143622 !important; color: #fff !important; border-color: #143622 !important; }
+    #ownerStudioPageContent { min-width: 0; }
+    #ownerStudioPageContent input:not([type="checkbox"]):not([type="radio"]),
+    #ownerStudioPageContent select,
+    #ownerStudioPageContent textarea { max-width: 100%; min-height: 44px; font-size: 16px; }
+    #examSubmissionsList article, #examSessionQueue article { min-width: 0; overflow-wrap: anywhere; }
+    #examSubmissionsList pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    #ownerDataExportPanel button { min-height: 46px; }
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      header { align-items: flex-start !important; gap: .65rem; }
+      header > div:first-child { min-width: 0; }
+      header h1 { max-width: 16rem; }
+      header > div:last-child { flex-wrap: wrap; justify-content: flex-end; }
+      #ownerStudioSidebar { position: sticky; top: 4.6rem; z-index: 30; }
+      #ownerStudioSidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .studio-nav-item { font-size: .76rem; padding: .65rem .55rem; }
+      #ownerStudioPageContent > section,
+      #ownerStudioPageContent > div,
+      #pane_exam > section,
+      #pane_exam > div { padding: 1rem !important; border-radius: 1rem !important; }
+      #examSubmissionsList { max-height: none; overflow: visible; }
+      #examSessionQueue .break-all { overflow-wrap: anywhere; word-break: normal; }
+      #ownerDataExportPanel .grid { grid-template-columns: minmax(0, 1fr); }
+    }
   </style>
 </head>
 
@@ -224,9 +259,9 @@
 
       <section id="ownerDataExportPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">⬇️ सुरक्षित डेटा डाउनलोड</h3>
-        <p class="text-xs text-stone-600">CSV Excel के लिए और JSON बैकअप के लिए है। निजी विद्यार्थी जानकारी वाली फाइल सुरक्षित रखें।</p>
-        <label class="block text-xs font-bold text-stone-700">CSV के लिए डेटा चुनें
-          <select id="ownerExportCollection" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm">
+        <p class="text-sm text-stone-600">Excel और CSV रिपोर्ट देखने के लिए हैं; JSON पूरा बैकअप है। निजी विद्यार्थी जानकारी वाली फ़ाइल सुरक्षित रखें।</p>
+        <label class="block text-sm font-bold text-stone-700">1. कौन-सा डेटा डाउनलोड करना है?
+          <select id="ownerExportCollection" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base">
             <option value="examEnrolledStudents">विद्यार्थी नामांकन और रोल नंबर</option><option value="users">उपयोगकर्ता प्रोफाइल</option>
             <option value="mainExamSubmissions">मुख्य परीक्षा उत्तर-पत्र</option><option value="mockExamSubmissions">मॉक परीक्षा उत्तर-पत्र</option>
             <option value="quizAttempts">दैनिक क्विज़ प्रयास</option><option value="publishedResults">प्रकाशित परिणाम</option>
@@ -236,11 +271,13 @@
             <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option>
           </select>
         </label>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button type="button" onclick="exportOwnerData('csv')" class="rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">⬇️ चुना हुआ CSV डाउनलोड</button>
-          <button type="button" onclick="exportOwnerData('json')" class="rounded-xl bg-amber-400 px-4 py-3 text-xs font-extrabold text-stone-950">⬇️ पूरा JSON बैकअप डाउनलोड</button>
+        <p class="text-sm font-bold text-stone-700">2. फ़ाइल का फ़ॉर्मेट चुनें</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button type="button" data-export-format="xlsx" onclick="exportOwnerData('xlsx')" class="rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">📊 Excel (.xlsx)</button>
+          <button type="button" data-export-format="csv" onclick="exportOwnerData('csv')" class="rounded-xl border border-forest px-4 py-3 text-sm font-extrabold text-forest">📄 CSV फ़ाइल</button>
+          <button type="button" data-export-format="json" onclick="exportOwnerData('json')" class="rounded-xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-stone-950">🛡️ पूरा JSON बैकअप</button>
         </div>
-        <p id="ownerExportStatus" class="text-[11px] text-stone-500" aria-live="polite">बड़ी सूचियाँ पेज-दर-पेज पढ़ी जाएँगी।</p>
+        <p id="ownerExportStatus" class="text-sm text-stone-600" aria-live="polite">बड़ी सूचियाँ पेज-दर-पेज पढ़ी जाएँगी। निजी विद्यार्थी डेटा केवल सुरक्षित डिवाइस पर डाउनलोड करें।</p>
       </section>
 
       <!-- DRAFT APPROVAL QUEUE -->
@@ -438,13 +475,13 @@ Ans: B"></textarea>
         <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
         <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
-          <select id="reviewSubmissionCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
+          <select id="reviewSubmissionCollection" onchange="resetExamSubmissionQueue()" aria-label="परीक्षा चुनें" class="p-2.5 rounded-xl border border-stone-300 text-base">
             <option value="mainExamSubmissions" selected>मुख्य परीक्षा — mainExamSubmissions</option>
             <option value="mockExamSubmissions">मॉक परीक्षा 1/2 — mockExamSubmissions</option>
             <option value="quizAttempts">दैनिक क्विज़ — quizAttempts</option>
           </select>
           <input id="reviewSubmissionSearch" type="search" placeholder="रोल नंबर / नाम / मोबाइल खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-          <button type="button" onclick="loadExamSubmissions()" class="px-3 py-2 bg-forest hover:bg-emerald-950 text-white rounded-xl text-xs font-bold">📝 मुख्य परीक्षा के उत्तर-पत्र लाएँ</button>
+          <button type="button" onclick="loadExamSubmissions()" class="px-4 py-3 bg-forest hover:bg-emerald-950 text-white rounded-xl text-sm font-bold min-h-[44px]">📝 चुने गए उत्तर-पत्र लाएँ</button>
         </div>
         <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
@@ -908,7 +945,8 @@ Ans: B"></textarea>
       // Load the manual-check queue whenever the exam pane is opened so it is
       // not left looking like an empty/unupdated section after navigation.
       if (paneId === 'pane_exam') {
-        window.setTimeout(() => loadExamSubmissions(), 0);
+        // Do not reopen student answer sheets automatically every time the owner
+        // visits this pane. Load only when the owner explicitly requests it.
         window.setTimeout(() => loadExamSessionQueue(), 0);
       }
       if (paneId === 'pane_overview' && isPrimaryOwner()) {
@@ -2434,7 +2472,13 @@ Ans: B"></textarea>
       examReviewQueue.forEach((row, index) => {
         const option = document.createElement('option');
         option.value = String(index);
-        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' + (row.name || row.fullName || row.displayName || 'विद्यार्थी');
+        const submittedAt = row.submittedAt || row.createdAt;
+        const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
+        const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'समय अज्ञात';
+        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' +
+          (row.name || row.fullName || row.displayName || 'विद्यार्थी') + ' · ' +
+          (row.mode || examReviewCollection) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
+        option.title = 'सबमिशन ID: ' + row.id + ' · जमा: ' + submittedLabel;
         jump.appendChild(option);
       });
       jump.value = String(examReviewIndex);
@@ -2452,10 +2496,14 @@ Ans: B"></textarea>
       name.textContent = d.name || d.fullName || d.displayName || 'प्रतिभागी';
       const meta = document.createElement('div');
       meta.className = 'text-xs text-stone-600';
+      const submittedAt = d.submittedAt || d.createdAt;
+      const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
+      const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय अज्ञात';
       meta.textContent = 'मोबाइल: ' + (d.phone || d.mobile || '—') + ' · ईमेल: ' + (d.email || '—') +
         ' · परीक्षा: ' + (d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
         (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
-        ' · वर्तमान स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
+        ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी') +
+        ' · जमा: ' + submittedLabel + ' · रिकॉर्ड ID: ' + String(d.id).slice(0, 10);
       card.append(name, meta);
 
       const answers = d.answers || d.responses || {};
@@ -2811,8 +2859,8 @@ Ans: B"></textarea>
       if (!isPrimaryOwner()) return showToast('डेटा डाउनलोड केवल Super Owner कर सकता है।');
       const status = document.getElementById('ownerExportStatus');
       const selected = document.getElementById('ownerExportCollection')?.value || 'examEnrolledStudents';
-      const buttons = [...(document.getElementById('ownerDataExportPanel')?.querySelectorAll('button') || [])];
-      const button = buttons[format === 'csv' ? 0 : 1];
+      const button = document.querySelector('#ownerDataExportPanel button[data-export-format="' + format + '"]');
+      const originalButtonText = button?.textContent || '';
       if (button) { button.disabled = true; button.textContent = 'डेटा तैयार हो रहा है…'; }
       if (status) status.textContent = 'Firebase से रिकॉर्ड पेज-दर-पेज पढ़े जा रहे हैं…';
       const plain = value => {
@@ -2843,13 +2891,13 @@ Ans: B"></textarea>
       };
       try {
         let payload;
-        if (selected === 'examAnswerKeys' && format === 'csv') {
+        if (selected === 'examAnswerKeys' && (format === 'csv' || format === 'xlsx')) {
           payload = {};
           for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
             const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
             payload[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
           }
-        } else if (format === 'csv') payload = await readAll(selected);
+        } else if (format === 'csv' || format === 'xlsx') payload = await readAll(selected);
         else {
           payload = {};
           for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig']) {
@@ -2875,6 +2923,19 @@ Ans: B"></textarea>
           const csv = '\uFEFF' + [headers.map(cell).join(','), ...rows.map(row => headers.map(key => cell(row[key])).join(','))].join('\r\n');
           download('bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv');
           if (status) status.textContent = 'CSV डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
+        } else if (format === 'xlsx') {
+          const rows = Array.isArray(payload) ? payload : Object.entries(payload).flatMap(([setName, items]) =>
+            (Array.isArray(items) ? items : []).map(item => ({ questionSet: setName, ...item }))
+          );
+          if (!window.XLSX || !XLSX.utils || !XLSX.writeFile) throw new Error('Excel लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करके फिर प्रयास करें।');
+          const safeRows = rows.map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [
+            key, value && typeof value === 'object' ? JSON.stringify(value) : value
+          ])));
+          const sheet = XLSX.utils.json_to_sheet(safeRows.length ? safeRows : [{ message: 'कोई रिकॉर्ड नहीं मिला' }]);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, sheet, 'Bishnoism Data');
+          XLSX.writeFile(workbook, 'bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
+          if (status) status.textContent = 'Excel डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
         } else {
           download('bishnoism-owner-backup-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2), 'application/json');
           if (status) status.textContent = 'JSON बैकअप डाउनलोड शुरू हुआ। अस्वीकृत collections के कारण exportError में शामिल हैं।';
@@ -2884,10 +2945,18 @@ Ans: B"></textarea>
         if (status) status.textContent = 'डाउनलोड असफल: ' + (error.message || String(error)) + ' · Owner permissions जाँचें।';
         showToast('डेटा डाउनलोड नहीं हुआ: ' + (error.message || String(error)));
       } finally {
-        if (button) { button.disabled = false; button.textContent = format === 'csv' ? '⬇️ चुना हुआ CSV डाउनलोड' : '⬇️ पूरा JSON बैकअप डाउनलोड'; }
+        if (button) { button.disabled = false; button.textContent = originalButtonText; }
       }
     }
     window.exportOwnerData = exportOwnerData;
+
+    function resetExamSubmissionQueue() {
+      const list = document.getElementById('examSubmissionsList');
+      const status = document.getElementById('examReviewQueueStatus');
+      if (list) list.innerHTML = '<div class="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-4 text-sm text-stone-600">नई परीक्षा चुनी गई है। उत्तर-पत्र देखने के लिए “चुने गए उत्तर-पत्र लाएँ” दबाएँ।</div>';
+      if (status) status.textContent = 'परीक्षा चुनी गई है; रिकॉर्ड अभी लोड नहीं हुए हैं।';
+    }
+    window.resetExamSubmissionQueue = resetExamSubmissionQueue;
 
     async function loadExamSubmissions() {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र समीक्षा की अनुमति नहीं है।');
