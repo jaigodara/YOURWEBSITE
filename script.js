@@ -2713,7 +2713,10 @@ window.renderExamVisibility = function renderExamVisibility() {
         const enrollmentSnap = await collection('examEnrolledStudents').doc(state.user.uid).get();
         const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
         if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
-          notify('क्विज़/मॉक/मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
+          notify('परीक्षा देने से पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ। पंजीकरण फॉर्म खोल दिया गया है।', 'error');
+          if (document.documentElement.hasAttribute('data-exam-embed')) {
+            document.documentElement.setAttribute('data-exam-embed', 'enrollment');
+          }
           window.switchTab('quiz');
           const enrollmentSection = byId('enrollmentSection');
           if (enrollmentSection) enrollmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2746,7 +2749,10 @@ window.renderExamVisibility = function renderExamVisibility() {
 
     const scheduledStart = getExamStartAt(mode);
     if (!scheduledStart) {
-      notify('इस परीक्षा का आधिकारिक शुरू होने का समय Owner Studio में सेट नहीं है।', 'error');
+      const message = 'इस परीक्षा का शुरू होने का समय Owner Studio में सेट नहीं है। व्यवस्थापक से समय निर्धारित करने को कहें।';
+      const countdownId = ({ quiz: 'quizCountdown', mock1: 'mock1Countdown', mock2: 'mock2Countdown', main: 'mainExamCountdown' })[mode];
+      if (countdownId) setText(countdownId, '⚠️ ' + message);
+      notify(message, 'error');
       return;
     }
     if (Date.now() < scheduledStart) {
