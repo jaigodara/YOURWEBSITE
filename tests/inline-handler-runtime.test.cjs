@@ -179,6 +179,21 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   dom.window.close();
 });
 
+test("admit-card roll validation accepts four-digit legacy JAMBH rolls and only shows download after release", () => {
+  assert.match(script, /!\/\^JAMBH-2026-\\d\{4,\}\$\//);
+  assert.match(script, /status === 'confirmed' && roll && admitCardReleased/);
+  assert.match(ownerHtml, /JAMBH-2026-\\d\{4,\}/);
+  assert.doesNotMatch(ownerHtml, /JAMBH-2026-\\d\{5\}/);
+});
+
+test("legacy BIS admit-card notices are hidden and password recovery is wired", () => {
+  assert.match(script, /Hide obsolete legacy admit-card notices/);
+  assert.match(script, /BIS-\[A-Za-z0-9_-/);
+  assert.match(script, /authApi\.sendPasswordReset = async function/);
+  assert.match(indexHtml, /BishnoiAuth\.sendPasswordReset\(\)/);
+  assert.match(script, /auth\/account-exists-with-different-credential/);
+});
+
 test("script.js assigns window.switchTab exactly once", () => {
   assert.equal((script.match(/window\.switchTab\s*=/g) || []).length, 1);
 });
