@@ -415,9 +415,9 @@ try {
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
     if (!state.user && restrictedTabs.has(raw)) {
+      // Keep navigation usable; data-changing actions still enforce requireUser().
       window.BishnoiAuth?.openAuthModal?.();
-      notify('इस अनुभाग का उपयोग करने के लिए पहले लॉगिन करें।', 'error');
-      return false;
+      notify('इस अनुभाग की सुविधाओं के लिए पहले लॉगिन करें।', 'error');
     }
     const aliases = new Set([target, `tab-${raw}`]);
 
@@ -455,7 +455,6 @@ try {
     try { sessionStorage.setItem('bishnoi_active_tab_v1', raw); } catch (_) {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    if (['admin', 'profile'].includes(raw)) renderOwnerStudio();
     return true;
   };
 
@@ -3011,6 +3010,10 @@ function renderExamVisibility() {
       return undefined;
     }
   }
+
+    window.__tabChangeHooks.push(key => {
+      if (['admin', 'profile'].includes(key)) safeStep('ओनर स्टूडियो', renderOwnerStudio);
+    });
 
   function initPortal() {
     if (state.initialized) return;
