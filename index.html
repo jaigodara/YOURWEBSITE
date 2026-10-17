@@ -47,7 +47,7 @@
 
     /* Embedded exam view: reuse the existing, tested exam engine without sending users back to the main UI. */
     html[data-exam-embed] body { padding-bottom: 0 !important; min-height: 100vh; }
-    html[data-exam-embed] body > :not(main):not(#toastNotification):not(#customConfirmModal):not(#notificationPopup) { display: none !important; }
+    html[data-exam-embed] body > :not(main):not(#toastNotification):not(#customConfirmModal):not(#notificationPopup):not(#authModal):not(#userProfileModal) { display: none !important; }
     html[data-exam-embed] main { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
     html[data-exam-embed] main > section:not(#tab-quiz) { display: none !important; }
     html[data-exam-embed] #tab-quiz { display: block !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
