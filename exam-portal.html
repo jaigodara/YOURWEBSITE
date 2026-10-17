@@ -1,118 +1,407 @@
+
 <!doctype html>
 <html lang="hi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#143622">
   <title>परीक्षा पोर्टल | Bishnoism</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+
   <style>
-    :root{color-scheme:light;--forest:#143622;--cream:#FAF7EE;--gold:#d6a43a}
-    *{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--forest);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
-    main{max-width:760px;margin:auto;padding:20px}.hero{background:var(--forest);color:#fff;border-radius:24px;padding:26px;margin:10px 0 18px;border-bottom:5px solid var(--gold)}
-    .eyebrow{font-size:11px;font-weight:800;letter-spacing:.14em;color:#f7d88b}.hero h1{font-size:clamp(25px,5vw,38px);line-height:1.2;margin:10px 0}.hero p{color:#e7eee8;font-size:14px}
-    .panel,.exam{background:white;border:1px solid #e3e6df;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 5px 18px #1436220a}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.exam h2{font-size:17px;margin:0 0 6px}.exam p,.muted{font-size:13px;color:#647067}
-    a,.action{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:0;border-radius:11px;background:var(--forest);color:#fff;padding:11px 14px;font-weight:750;font-size:13px;cursor:pointer}
-    .secondary{background:#fff;color:var(--forest);border:1px solid #cbd5cc}.disabled{opacity:.55;pointer-events:none}.status{font-size:13px;padding:12px;border-radius:12px;background:#f4f4ed;color:#425449}.hide{display:none!important}
-    footer{font-size:11px;color:#718076;padding:12px 2px 30px}
+    :root {
+      --forest: #143622;
+      --cream: #FAF7EE;
+      --gold: #D6A43A;
+      --terracotta: #B34A1B;
+      --muted: #647067;
+      --border: #E1E6DE;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--cream);
+      color: var(--forest);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    a { color: inherit; }
+
+    main {
+      width: min(100% - 28px, 900px);
+      margin: 0 auto;
+      padding: 18px 0 40px;
+    }
+
+    .hero {
+      padding: clamp(22px, 5vw, 36px);
+      border-radius: 24px;
+      color: white;
+      background: linear-gradient(140deg, #143622, #205238);
+      border-bottom: 5px solid var(--gold);
+      box-shadow: 0 12px 30px #14362218;
+    }
+
+    .eyebrow {
+      color: #F7D88B;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .14em;
+    }
+
+    h1 {
+      margin: 10px 0;
+      font-size: clamp(27px, 6vw, 42px);
+      line-height: 1.2;
+    }
+
+    .hero p {
+      max-width: 620px;
+      color: #E7EEE8;
+      font-size: 14px;
+    }
+
+    .actions, .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 18px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 43px;
+      padding: 10px 14px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      background: var(--forest);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .button.light {
+      background: white;
+      color: var(--forest);
+      border-color: var(--border);
+    }
+
+    .button.gold {
+      background: var(--gold);
+      color: #1D281E;
+    }
+
+    .button:focus-visible, a:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .status, .panel, .exam {
+      margin-top: 14px;
+      padding: 17px;
+      border: 1px solid var(--border);
+      border-radius: 17px;
+      background: white;
+      box-shadow: 0 5px 18px #14362208;
+    }
+
+    .status {
+      background: #F1F5EF;
+      font-size: 13px;
+    }
+
+    .section-heading {
+      margin: 26px 0 10px;
+      font-size: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
+      gap: 12px;
+    }
+
+    .exam {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 0;
+      min-width: 0;
+    }
+
+    .exam-icon {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border-radius: 14px;
+      background: #F1F5EF;
+      font-size: 25px;
+    }
+
+    .exam h3 {
+      margin: 12px 0 4px;
+      font-size: 17px;
+    }
+
+    .exam p, .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .exam p { margin: 4px 0 14px; }
+
+    .exam .card-actions {
+      width: 100%;
+      margin-top: auto;
+    }
+
+    .exam .button { width: 100%; }
+
+    .hide { display: none !important; }
+
+    .disabled {
+      opacity: .55;
+      pointer-events: none;
+    }
+
+    footer {
+      padding: 18px 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    @media (max-width: 480px) {
+      main { width: min(100% - 20px, 900px); }
+      .hero { border-radius: 18px; }
+      .panel, .exam { padding: 14px; }
+      .actions .button { flex: 1 1 145px; }
+    }
   </style>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
+
 <body>
 <main>
   <header class="hero">
-    <div class="eyebrow">BISHNOISM • EXAM ARENA</div>
+    <div class="eyebrow">BISHNOISM • EXAMINATION</div>
     <h1>परीक्षा पोर्टल</h1>
-    <p>दैनिक ज्ञान क्विज़, मॉक परीक्षाएँ और मुख्य परीक्षा के लिए एक अलग, हल्का प्रवेश पृष्ठ। प्रश्न और उत्तर की अनुमति Firebase Rules से नियंत्रित होती है।</p>
-    <div style="display:flex;gap:9px;flex-wrap:wrap">
-      <a href="./index.html#tab-quiz">मुख्य परीक्षा अनुभाग</a>
-      <a class="secondary" href="./index.html">मुख्य वेबसाइट</a>
+    <p>
+      मॉक परीक्षा, मुख्य परीक्षा, विद्यार्थी पंजीकरण और परिणाम देखने के लिए
+      एक सरल प्रवेश पृष्ठ।
+    </p>
+    <div class="actions">
+      <a class="button gold" href="./index.html#tab-quiz">मुख्य परीक्षा अनुभाग खोलें</a>
+      <a class="button light" href="./index.html">मुख्य वेबसाइट</a>
     </div>
   </header>
-  <section id="portalStatus" class="status" role="status">परीक्षा सेटिंग्स लोड हो रही हैं…</section>
+
+  <div id="portalStatus" class="status" role="status" aria-live="polite">
+    परीक्षा सेटिंग्स लोड हो रही हैं…
+  </div>
+
   <section id="portalDisabled" class="panel hide">
     <h2>परीक्षा पोर्टल अभी बंद है</h2>
-    <p class="muted">व्यवस्थापक के पोर्टल चालू करने पर यहाँ परीक्षाएँ उपलब्ध होंगी।</p>
+    <p class="muted">पोर्टल उपलब्ध होने पर यहाँ परीक्षाओं के विकल्प दिखेंगे।</p>
+    <a class="button" href="./index.html">मुख्य वेबसाइट पर लौटें</a>
   </section>
-  <section id="examCards" class="grid hide">
-    <article id="daily-quiz" class="exam">
-      <h2>🏆 दैनिक ज्ञान क्विज़</h2><p>दैनिक अभ्यास और ज्ञान जाँच।</p>
-      <a href="./index.html#tab-quiz" data-feature="dailyQuizVisible">क्विज़ खोलें</a>
-    </article>
-    <article class="exam">
-      <h2>🧪 मॉक परीक्षा 1</h2><p>मुख्य परीक्षा से पहले अभ्यास।</p>
-      <a href="./index.html#tab-quiz" data-feature="mock1Visible">मॉक 1 खोलें</a>
-    </article>
-    <article class="exam">
-      <h2>🧪 मॉक परीक्षा 2</h2><p>दूसरा अभ्यास सेट।</p>
-      <a href="./index.html#tab-quiz" data-feature="mock2Visible">मॉक 2 खोलें</a>
-    </article>
-    <article class="exam">
-      <h2>🛡️ मुख्य परीक्षा</h2><p>पंजीकरण, निर्धारित समय और रोल नंबर की शर्तें लागू होंगी।</p>
-      <a href="./index.html#tab-quiz" data-feature="mainExamVisible">मुख्य परीक्षा खोलें</a>
-    </article>
-  </section>
-  <section class="panel">
-    <h2 style="margin-top:0;font-size:17px">लॉगिन और सुरक्षा</h2>
-    <p id="authStatus" class="muted">परीक्षा शुरू करने से पहले मुख्य वेबसाइट पर लॉगिन करें।</p>
-    <div style="display:flex;gap:9px;flex-wrap:wrap">
-      <button id="googleLogin" class="action" type="button">Google से लॉगिन</button>
-      <a class="secondary" href="./index.html#tab-quiz">फोन/पासवर्ड या अन्य लॉगिन</a>
+
+  <section id="examArea" class="hide">
+    <h2 class="section-heading">📝 अभ्यास और परीक्षाएँ</h2>
+    <div class="grid">
+      <article id="mock1Card" class="exam hide">
+        <div class="exam-icon" aria-hidden="true">📝</div>
+        <h3>मॉक परीक्षा 1</h3>
+        <p>समयबद्ध अभ्यास परीक्षा। प्रवेश के लिए निर्धारित समय और पंजीकरण की शर्तें लागू होंगी।</p>
+        <div class="card-actions">
+          <a class="button" href="./index.html#tab-quiz">मॉक परीक्षा 1 खोलें</a>
+        </div>
+      </article>
+
+      <article id="mock2Card" class="exam hide">
+        <div class="exam-icon" aria-hidden="true">🎯</div>
+        <h3>मॉक परीक्षा 2</h3>
+        <p>दूसरा अभ्यास सेट। परीक्षा शुरू करने से पहले मुख्य वेबसाइट पर संबंधित विकल्प चुनें।</p>
+        <div class="card-actions">
+          <a class="button" href="./index.html#tab-quiz">मॉक परीक्षा 2 खोलें</a>
+        </div>
+      </article>
+
+      <article id="mainExamCard" class="exam hide">
+        <div class="exam-icon" aria-hidden="true">🏆</div>
+        <h3>मुख्य परीक्षा</h3>
+        <p>पंजीकरण की पुष्टि, निर्धारित समय और वैध प्रवेश-पत्र/रोल नंबर की शर्तें लागू हो सकती हैं।</p>
+        <div class="card-actions">
+          <a class="button gold" href="./index.html#tab-quiz">मुख्य परीक्षा खोलें</a>
+        </div>
+      </article>
+
+      <article id="enrollmentCard" class="exam hide">
+        <div class="exam-icon" aria-hidden="true">🧾</div>
+        <h3>विद्यार्थी पंजीकरण</h3>
+        <p>पंजीकरण भेजें और उसकी स्वीकृति की स्थिति मुख्य वेबसाइट पर देखें।</p>
+        <div class="card-actions">
+          <a class="button" href="./index.html#tab-quiz">पंजीकरण खोलें</a>
+        </div>
+      </article>
+
+      <article id="resultsCard" class="exam hide">
+        <div class="exam-icon" aria-hidden="true">📊</div>
+        <h3>परिणाम डेस्क</h3>
+        <p>प्रकाशित परीक्षा परिणाम और उपलब्ध अंक-पत्र मुख्य वेबसाइट पर देखें।</p>
+        <div class="card-actions">
+          <a class="button" href="./index.html#tab-quiz">परिणाम देखें</a>
+        </div>
+      </article>
     </div>
-    <p class="muted">नोट: यह पृष्ठ अलग और हल्का प्रवेश पृष्ठ है। मौजूदा परीक्षा इंजन अभी मुख्य वेबसाइट के परीक्षा अनुभाग में चलता है; वास्तविक परीक्षा शुरू करने पर वह अनुभाग खुलेगा।</p>
   </section>
-  <footer>यदि कोई परीक्षा दिखाई नहीं दे रही, तो Owner Studio में परीक्षा पोर्टल और संबंधित परीक्षा का toggle जाँचें। केवल लिंक छिपना सुरक्षा नियंत्रण नहीं है; प्रश्न/उत्तर की सुरक्षा Firestore Rules लागू करती हैं।</footer>
+
+  <section class="panel">
+    <h2 style="margin:0;font-size:17px">🔐 विद्यार्थी लॉगिन</h2>
+    <p id="authStatus" class="muted">लॉगिन की स्थिति जाँची जा रही है…</p>
+    <div class="actions">
+      <button id="googleLogin" class="button" type="button">Google से लॉगिन</button>
+      <a class="button light" href="./index.html#tab-profile">अन्य लॉगिन विकल्प</a>
+    </div>
+    <p class="muted">
+      लॉगिन होना अपने-आप परीक्षा की अनुमति नहीं देता। पंजीकरण की पुष्टि,
+      परीक्षा की उपलब्धता और सर्वर की सुरक्षा जाँच भी लागू होती हैं।
+    </p>
+  </section>
+
+  <footer>
+    दैनिक ज्ञान क्विज़ इस पोर्टल में शामिल नहीं है। वह मुख्य वेबसाइट के
+    परीक्षा अनुभाग में ही रहेगा। प्रश्न और उत्तर पढ़ने की अनुमति Firebase
+    सुरक्षा नियमों से नियंत्रित होती है।
+  </footer>
 </main>
+
 <script>
 (() => {
-  const cfg = {
-    apiKey:"AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
-    authDomain:"bishnoi-platform.firebaseapp.com",
-    projectId:"bishnoi-platform",
-    storageBucket:"bishnoi-platform.firebasestorage.app",
-    messagingSenderId:"1001226124051",
-    appId:"1:1001226124051:web:ad4dc69e04e6701024f8e6"
+  "use strict";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxXlp7APA",
+    authDomain: "bishnoi-platform.firebaseapp.com",
+    projectId: "bishnoi-platform",
+    storageBucket: "bishnoi-platform.firebasestorage.app",
+    messagingSenderId: "1001226124051",
+    appId: "1:1001226124051:web:ad4dc69e04e6701024f8e6"
   };
-  const status = document.getElementById('portalStatus');
-  const cards = document.getElementById('examCards');
-  const closed = document.getElementById('portalDisabled');
-  const authStatus = document.getElementById('authStatus');
-  const links = [...document.querySelectorAll('[data-feature]')];
-  const setLink = (el, active) => { el.classList.toggle('disabled', !active); el.setAttribute('aria-disabled', String(!active)); if (!active) el.title='यह परीक्षा Owner Studio से बंद है।'; };
-  if (!window.firebase) { status.textContent='Firebase लोड नहीं हुआ। नेटवर्क जाँचकर पेज रीफ्रेश करें।'; return; }
-  if (!firebase.apps.length) firebase.initializeApp(cfg);
+
+  const byId = id => document.getElementById(id);
+  const status = byId("portalStatus");
+  const area = byId("examArea");
+  const disabledPanel = byId("portalDisabled");
+
+  function setCard(id, visible) {
+    byId(id).classList.toggle("hide", !visible);
+  }
+
+  function setPortalStatus(message) {
+    status.textContent = message;
+  }
+
+  if (!window.firebase) {
+    setPortalStatus("Firebase लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचकर पेज रीफ्रेश करें।");
+    console.error("Firebase SDK was not loaded.");
+    return;
+  }
+
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  } catch (error) {
+    setPortalStatus("Firebase शुरू नहीं हो सका। कृपया पेज रीफ्रेश करें।");
+    console.error("Firebase initialization failed:", error);
+    return;
+  }
+
+  const auth = firebase.auth();
   const db = firebase.firestore();
-  firebase.auth().onAuthStateChanged(user => {
-    authStatus.textContent = user ? 'लॉगिन है: ' + (user.displayName || user.email || user.phoneNumber || 'खाता सक्रिय') : 'अभी लॉगिन नहीं है।';
-    document.getElementById('googleLogin').textContent = user ? 'लॉगिन हो चुका है' : 'Google से लॉगिन';
-    document.getElementById('googleLogin').disabled = !!user;
+
+  auth.onAuthStateChanged(user => {
+    byId("authStatus").textContent = user
+      ? "लॉगिन है। परीक्षा की अनुमति पंजीकरण और परीक्षा सेटिंग्स पर निर्भर करती है।"
+      : "अभी लॉगिन नहीं है। परीक्षा देने के लिए मुख्य वेबसाइट पर लॉगिन करें।";
+
+    byId("googleLogin").textContent = user ? "लॉगिन हो चुका है" : "Google से लॉगिन";
+    byId("googleLogin").disabled = !!user;
   });
-  document.getElementById('googleLogin').addEventListener('click', async () => {
+
+  byId("googleLogin").addEventListener("click", async () => {
+    const button = byId("googleLogin");
+    button.disabled = true;
+
     try {
-      await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       const provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({prompt:'select_account'});
-      await firebase.auth().signInWithPopup(provider);
-    } catch (e) {
-      authStatus.textContent = e.code === 'auth/unauthorized-domain'
-        ? 'यह डोमेन Firebase Authentication में अधिकृत नहीं है।'
-        : e.code === 'auth/popup-blocked'
-          ? 'ब्राउज़र में इस साइट के लिए popup की अनुमति दें।'
-          : 'Google लॉगिन पूरा नहीं हुआ: ' + (e.message || e.code || 'त्रुटि');
+      provider.setCustomParameters({ prompt: "select_account" });
+      await auth.signInWithPopup(provider);
+    } catch (error) {
+      console.error("Google sign-in failed:", error);
+      const message = error.code === "auth/unauthorized-domain"
+        ? "यह वेबसाइट Firebase Authentication में अधिकृत नहीं है।"
+        : error.code === "auth/popup-blocked"
+          ? "ब्राउज़र में इस वेबसाइट के लिए popup की अनुमति दें।"
+          : "लॉगिन पूरा नहीं हुआ। मुख्य वेबसाइट पर उपलब्ध लॉगिन विकल्प आज़माएँ।";
+      byId("authStatus").textContent = message;
+      button.disabled = false;
     }
   });
-  db.collection('examConfig').doc('current').onSnapshot(snap => {
-    const c = snap.exists ? snap.data() : {};
-    const enabled = c.examPortalVisible !== false;
-    cards.classList.toggle('hide', !enabled);
-    closed.classList.toggle('hide', enabled);
-    status.textContent = enabled ? 'परीक्षा पोर्टल चालू है। उपलब्ध परीक्षाएँ नीचे दिखाई गई हैं।' : 'परीक्षा पोर्टल Owner द्वारा बंद किया गया है।';
-    links.forEach(link => setLink(link, enabled && c[link.dataset.feature] !== false));
+
+  db.collection("examConfig").doc("current").onSnapshot(snapshot => {
+    const config = snapshot.exists ? snapshot.data() : {};
+    const portalEnabled = config.examPortalVisible !== false;
+
+    area.classList.toggle("hide", !portalEnabled);
+    disabledPanel.classList.toggle("hide", portalEnabled);
+
+    if (!portalEnabled) {
+      setPortalStatus("परीक्षा पोर्टल Owner द्वारा बंद किया गया है।");
+      return;
+    }
+
+    const mockGroupVisible = config.mockVisible !== false;
+    const mock1Visible = mockGroupVisible && config.mock1Visible !== false;
+    const mock2Visible = mockGroupVisible && config.mock2Visible !== false;
+
+    setCard("mock1Card", mock1Visible);
+    setCard("mock2Card", mock2Visible);
+    setCard("mainExamCard", config.mainExamVisible !== false);
+    setCard("enrollmentCard", config.enrollmentVisible !== false);
+    setCard("resultsCard", config.resultsVisible !== false);
+
+    const visibleCount = [
+      mock1Visible,
+      mock2Visible,
+      config.mainExamVisible !== false,
+      config.enrollmentVisible !== false,
+      config.resultsVisible !== false
+    ].filter(Boolean).length;
+
+    setPortalStatus(
+      visibleCount
+        ? "पोर्टल चालू है। नीचे उपलब्ध विकल्प दिखाए गए हैं।"
+        : "अभी कोई परीक्षा विकल्प उपलब्ध नहीं है। कृपया बाद में देखें।"
+    );
   }, error => {
-    status.textContent = 'परीक्षा सेटिंग्स नहीं पढ़ीं: ' + (error.message || error.code) + '. Firestore Rules में examConfig/current का public read जाँचें।';
+    console.error("Could not load examConfig/current:", error);
+    setPortalStatus(
+      error.code === "permission-denied"
+        ? "परीक्षा सेटिंग्स पढ़ने की अनुमति नहीं मिली। Firebase में examConfig/current का read access जाँचें।"
+        : "परीक्षा सेटिंग्स लोड नहीं हुईं। इंटरनेट कनेक्शन और Firebase स्थिति जाँचें।"
+    );
   });
 })();
 </script>
