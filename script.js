@@ -32,14 +32,78 @@ function showEarlyHindiToast() {
   } catch (error) { console.error('हिंदी सूचना नहीं दिख सकी:', error); }
 }
 
+function firebaseReady() {
+  return typeof firebase !== 'undefined' && !!firebase.apps && firebase.apps.length > 0;
+}
+
+function openEarlyAuthOrToast() {
+  try {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+      modal.hidden = false;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+    } else {
+      showEarlyHindiToast();
+    }
+  } catch (error) {
+    console.error('प्रारंभिक लॉगिन पैनल नहीं खुला:', error);
+    showEarlyHindiToast();
+  }
+}
+
+// The dispatcher is deliberately top-level: the early navigation wrapper and
+// the later portal initializer must share the same implementation binding.
+let portalSwitchTabImplementationImpl = null;
+window.__tabChangeHooks = window.__tabChangeHooks || [];
+
+function portalSwitchTabImplementation(id) {
+  let result;
+  if (typeof portalSwitchTabImplementationImpl === 'function') {
+    result = portalSwitchTabImplementationImpl(id);
+  } else {
+    const raw = String(id || '').replace(/^tab-/, '');
+    const aliases = { sahitya: 'library', pariksha: 'quiz' };
+    const key = aliases[raw] || raw;
+    const target = 'tab-' + key;
+    let found = false;
+    document.querySelectorAll('main [id^="tab-"]').forEach(panel => {
+      const active = panel.id === target ||
+        (key === 'library' && panel.id === 'tab-sahitya') ||
+        (key === 'quiz' && panel.id === 'tab-pariksha');
+      panel.hidden = !active;
+      panel.classList.toggle('hidden', !active);
+      panel.setAttribute('aria-hidden', String(!active));
+      if (active) found = true;
+    });
+    document.querySelectorAll('[id^="bnav-"]').forEach(button => {
+      const active = button.id === 'bnav-' + key ||
+        (key === 'library' && button.id === 'bnav-sahitya') ||
+        (key === 'quiz' && button.id === 'bnav-pariksha');
+      button.classList.toggle('bnav-active', active);
+      button.setAttribute('aria-current', active ? 'page' : 'false');
+    });
+    if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+    result = found;
+    if (!found) console.warn('Navigation panel not found:', target);
+  }
+  const raw = String(id || '').replace(/^tab-/, '');
+  const aliases = { sahitya: 'library', pariksha: 'quiz' };
+  const key = aliases[raw] || raw;
+  (window.__tabChangeHooks || []).forEach(fn => {
+    try { fn(key); } catch (error) { console.error('tab hook failed:', error); }
+  });
+  return result;
+}
+
 // Publish navigation immediately so existing HTML inline onclick handlers such
 // as BishnoiPortal.switchTab('home') never see an undefined namespace.
 (function exposeEarlyNavigation() {
-  let portalSwitchTabImplementation = null;
   window.switchTab = function (id) {
-    if (typeof portalSwitchTabImplementation === 'function') {
-      return portalSwitchTabImplementation(id);
-    }
+    return portalSwitchTabImplementation(id);
+  };
     const raw = String(id || '').replace(/^tab-/, '');
     const aliases = { sahitya: 'library', pariksha: 'quiz' };
     const key = aliases[raw] || raw;
@@ -97,27 +161,29 @@ function showEarlyHindiToast() {
       }
     };
   }
+  if (typeof window.BishnoiAuth.signInWithGoogle !== 'function') {
+    window.BishnoiAuth.signInWithGoogle = function earlyGoogleSignInPlaceholder() {
+      openEarlyAuthOrToast();
+    };
+  }
   if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
-    window.BishnoiApp.openProfileOrAuth = function () {
+    window.BishnoiApp.openProfileOrAuth = function earlyProfilePlaceholder() {
       try {
-        const profile = document.getElementById('userProfileModal');
-        const loggedIn = !!(window.firebase?.auth && window.firebase.auth().currentUser);
-        if (loggedIn && profile) {
-          profile.classList.remove('hidden');
-          profile.classList.add('flex');
-          profile.style.display = 'flex';
-          profile.setAttribute('aria-hidden', 'false');
+        if (!firebaseReady()) {
+          openEarlyAuthOrToast();
           return;
         }
-        const auth = document.getElementById('authModal');
-        if (!loggedIn && auth) {
-          auth.classList.remove('hidden');
-          auth.classList.add('flex');
-          auth.style.display = 'flex';
-          auth.setAttribute('aria-hidden', 'false');
+        const loggedIn = !!firebase.auth().currentUser;
+        const target = document.getElementById(loggedIn ? 'userProfileModal' : 'authModal');
+        if (!target) {
+          showEarlyHindiToast();
           return;
         }
-        showEarlyHindiToast();
+        target.hidden = false;
+        target.classList.remove('hidden');
+        target.classList.add('flex');
+        target.style.display = 'flex';
+        target.setAttribute('aria-hidden', 'false');
       } catch (error) {
         console.error('प्रारंभिक प्रोफ़ाइल पैनल नहीं खुला:', error);
         showEarlyHindiToast();
@@ -344,7 +410,7 @@ try {
     profile: 'tab-profile'
   };
 
-  portalSwitchTabImplementation = function (id) {
+  portalSwitchTabImplementationImpl = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
