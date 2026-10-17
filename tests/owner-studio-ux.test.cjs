@@ -43,3 +43,14 @@ test("Owner Studio has mobile touch targets and overflow safeguards", () => {
   assert.match(ownerStudio, /@media \(max-width: 640px\)/);
   assert.match(ownerStudio, /#examSubmissionsList pre \{ white-space: pre-wrap; overflow-wrap: anywhere; \}/);
 });
+
+
+test("manual exam review can print a complete batch report with identity and review reason", () => {
+  assert.match(ownerStudio, /onclick="printAllExamReviewSheets\(\)"/);
+  assert.match(ownerStudio, /window\.printAllExamReviewSheets = printAllExamReviewSheets/);
+  assert.match(ownerStudio, /विद्यार्थी का नाम|नाम:/);
+  assert.match(ownerStudio, /जन्म तिथि/);
+  assert.match(ownerStudio, /रोल नंबर/);
+  assert.match(ownerStudio, /जाँच का कारण/);
+  assert.match(ownerStudio, /window\.print\(\)/);
+});

@@ -430,6 +430,13 @@ B) 29
 C) 36
 D) 108
 Ans: B"></textarea>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <button type="button" onclick="downloadQuestionTemplate()" class="min-h-[44px] rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-bold text-forest">⬇️ Excel Template डाउनलोड</button>
+          <label class="flex min-h-[44px] cursor-pointer items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-center text-xs font-bold text-white">📤 Excel प्रश्न अपलोड करें
+            <input id="questionExcelFile" type="file" accept=".xlsx,.xls,.csv" class="sr-only" onchange="importQuestionExcel(event)">
+          </label>
+          <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] text-emerald-950">Excel upload पहले Preview बनाएगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
+        </div>
         <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
           👀 पहले सभी प्रश्नों का Preview / जाँच करें
         </button>
@@ -484,6 +491,10 @@ Ans: B"></textarea>
           <button type="button" onclick="loadExamSubmissions()" class="px-4 py-3 bg-forest hover:bg-emerald-950 text-white rounded-xl text-sm font-bold min-h-[44px]">📝 चुने गए उत्तर-पत्र लाएँ</button>
         </div>
         <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button type="button" onclick="printAllExamReviewSheets()" class="min-h-[44px] rounded-xl border border-forest bg-white px-4 py-3 text-sm font-bold text-forest hover:bg-stone-50">📄 सभी विद्यार्थियों की उत्तर-पत्र / जाँच रिपोर्ट PDF</button>
+          <p class="self-center text-[11px] text-stone-500">पहले रिकॉर्ड लाएँ, फिर इस बटन से सभी लोड हुए विद्यार्थियों की रिपोर्ट खोलें और Print में “Save as PDF” चुनें।</p>
+        </div>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
           <div class="text-stone-400 text-xs">ऊपर से परीक्षा चुनकर रिकॉर्ड लाएँ।</div>
         </div>
@@ -1303,6 +1314,57 @@ Ans: B"></textarea>
       if (bulkQuestionDrafts.length) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    function downloadQuestionTemplate() {
+      if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
+      const rows = [['Question','Option A','Option B','Option C','Option D','Correct Answer','Marks','Subject','Explanation'],['Sample question','Option A','Option B','Option C','Option D','A',1,'History','Optional explanation']];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Questions');
+      XLSX.writeFile(wb, 'Bishnoism_Question_Template.xlsx');
+    }
+    window.downloadQuestionTemplate = downloadQuestionTemplate;
+
+    function importQuestionExcel(event) {
+      const file = event && event.target && event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
+      if (file.size > 8388608) return showToast('फ़ाइल 8 MB से छोटी रखें।');
+      const reader = new FileReader();
+      reader.onload = function() {
+        try {
+          const wb = XLSX.read(reader.result, {type:'binary'});
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+          const parsed = [];
+          rows.forEach(function(row) {
+            const keys = Object.keys(row);
+            const get = function(names) {
+              const key = keys.find(function(k) { return names.indexOf(String(k).trim().toLowerCase()) >= 0; });
+              return key == null ? '' : String(row[key] == null ? '' : row[key]).trim();
+            };
+            const q = get(['question','q','प्रश्न']);
+            const opts = [get(['option a','a']),get(['option b','b']),get(['option c','c']),get(['option d','d'])];
+            const a = get(['correct answer','answer','ans']).toUpperCase();
+            const ans = /^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[1-4]$/.test(a) ? Number(a)-1 : -1);
+            if (!q && opts.every(function(x){return !x;})) return;
+            if (!q || opts.some(function(x){return !x;}) || ans < 0 || ans > 3) throw new Error('हर पंक्ति में Question, Option A-D और Correct Answer A/B/C/D भरें।');
+            parsed.push({q:q,opts:opts,ans:ans,marks:Number(get(['marks','अंक']) || 1),subject:get(['subject','विषय']),explanation:get(['explanation','व्याख्या'])});
+          });
+          if (!parsed.length) throw new Error('कोई प्रश्न नहीं मिला।');
+          if (parsed.length > 450) throw new Error('एक बार में अधिकतम 450 प्रश्न अपलोड करें।');
+          bulkEditingQuestionId = null;
+          bulkQuestionDrafts = parsed;
+          renderBulkQuestionPreview();
+          const status = document.getElementById('questionExcelStatus');
+          if (status) status.textContent = parsed.length + ' प्रश्न Preview में हैं। जाँचकर Draft में सहेजें।';
+          showToast(parsed.length + ' प्रश्न Preview में लोड हुए।');
+        } catch (error) {
+          showToast('Excel import असफल: ' + error.message);
+        }
+      };
+      reader.readAsBinaryString(file);
+      event.target.value = '';
+    }
+    window.importQuestionExcel = importQuestionExcel;
+
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
       if (!raw) return showToast('कृपया प्रश्न पेस्ट करें!');
@@ -1359,6 +1421,9 @@ Ans: B"></textarea>
             examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
             status: 'draft',
             published: false,
+            marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
+            subject: String(question.subject || '').trim(),
+            explanation: String(question.explanation || '').trim(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedBy: auth.currentUser?.uid || null
           };
@@ -2612,7 +2677,7 @@ Ans: B"></textarea>
       feedback.id = 'currentReviewFeedback';
       feedback.rows = 2;
       feedback.maxLength = 1000;
-      feedback.placeholder = 'जाँच टिप्पणी / संशोधन का कारण (वैकल्पिक)';
+      feedback.placeholder = 'जाँच का कारण / संशोधन टिप्पणी लिखें (यह रिपोर्ट में भी आएगा)';
       feedback.value = d.manualFeedback || '';
       feedback.className = 'w-full p-3 rounded-lg border border-stone-300 text-sm';
 
@@ -2957,6 +3022,65 @@ Ans: B"></textarea>
       if (status) status.textContent = 'परीक्षा चुनी गई है; रिकॉर्ड अभी लोड नहीं हुए हैं।';
     }
     window.resetExamSubmissionQueue = resetExamSubmissionQueue;
+
+    function printAllExamReviewSheets() {
+      if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र निर्यात की अनुमति नहीं है।');
+      if (!Array.isArray(examReviewQueue) || !examReviewQueue.length) {
+        showToast('पहले चुने गए उत्तर-पत्र लाएँ।');
+        return;
+      }
+      const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+      const getAnswerText = (questionId, answer, student) => {
+        const key = (student.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[student.mode] || '') + '::' + questionId;
+        const q = examReviewQuestionLookup[key] || examReviewQuestionLookup[questionId] || {};
+        const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
+        const answerIndex = Number(answer);
+        const selected = Number.isInteger(answerIndex) && answerIndex >= 0 && answerIndex < options.length ? options[answerIndex] : answer;
+        const selectedText = selected && typeof selected === 'object' ? (selected.text || selected.label || selected.value || JSON.stringify(selected)) : (selected == null || selected === '' ? 'उत्तर नहीं दिया' : String(selected));
+        const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
+        const correctIndex = Number(correct);
+        const correctValue = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < options.length ? options[correctIndex] : correct;
+        const correctText = correctValue && typeof correctValue === 'object' ? (correctValue.text || correctValue.label || correctValue.value || JSON.stringify(correctValue)) : (correctValue == null ? 'प्रश्न बैंक में उपलब्ध नहीं' : String(correctValue));
+        return '<article class="question"><b>' + escapeHtml(q.question || q.text || q.q || student.questionTexts?.[questionId] || ('प्रश्न ID: ' + questionId)) +
+          '</b><p>विद्यार्थी का उत्तर: ' + escapeHtml(selectedText) + '</p><p>सही उत्तर: ' + escapeHtml(correctText) + '</p></article>';
+      };
+      const sections = examReviewQueue.map((student, index) => {
+        const answers = student.answers || student.responses || {};
+        const entries = Array.isArray(answers) ? answers.map((answer, i) => [String(i), answer]) : Object.entries(answers);
+        const submittedAt = student.submittedAt || student.createdAt;
+        const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
+        const submitted = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय उपलब्ध नहीं';
+        const name = student.name || student.fullName || student.displayName || 'नाम उपलब्ध नहीं';
+        const dob = student.dob || student.dateOfBirth || student.date_of_birth || student.birthDate || 'रिकॉर्ड में उपलब्ध नहीं';
+        const reviewReason = student.manualFeedback || student.reviewReason || student.checkingReason || 'जाँच का कारण अभी दर्ज नहीं';
+        return '<section class="student"><h2>विद्यार्थी ' + (index + 1) + ' / ' + examReviewQueue.length + '</h2>' +
+          '<p><b>नाम:</b> ' + escapeHtml(name) + ' &nbsp; <b>रोल नंबर:</b> ' + escapeHtml(student.rollNumber || student.rollNo || 'उपलब्ध नहीं') + '</p>' +
+          '<p><b>जन्म तिथि:</b> ' + escapeHtml(dob) + ' &nbsp; <b>मोबाइल:</b> ' + escapeHtml(student.phone || student.mobile || '—') + '</p>' +
+          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.mode || examReviewCollection) + '</p>' +
+          '<p><b>जमा समय:</b> ' + escapeHtml(submitted) + ' &nbsp; <b>रिकॉर्ड ID:</b> ' + escapeHtml(student.id || '—') + '</p>' +
+          '<p><b>स्वचालित अंक:</b> ' + escapeHtml(student.score ?? student.autoScore ?? student.correct ?? '—') + ' / ' + escapeHtml(student.total ?? student.totalQuestions ?? '—') +
+          ' &nbsp; <b>सत्यापित अंक:</b> ' + escapeHtml(student.manualScore ?? 'अभी सत्यापित नहीं') + '</p>' +
+          '<p><b>जाँच स्थिति:</b> ' + escapeHtml(student.manualReviewStatus || 'जाँच बाकी') + '</p>' +
+          '<p class="reason"><b>जाँच का कारण / टिप्पणी:</b> ' + escapeHtml(reviewReason) + '</p>' +
+          '<h3>उत्तर-पत्र (' + entries.length + ' प्रश्न)</h3>' +
+          (entries.length ? entries.map(([id, answer]) => getAnswerText(id, answer, student)).join('') : '<p>उत्तर उपलब्ध नहीं हैं।</p>') +
+          '</section>';
+      }).join('');
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showToast('ब्राउज़र ने नई विंडो रोकी। इस साइट के लिए pop-ups अनुमति दें और दोबारा प्रयास करें।');
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bishnoism — परीक्षा जाँच रिपोर्ट</title><style>' +
+        'body{font:14px/1.55 Arial,"Noto Sans Devanagari",sans-serif;color:#143622;margin:20px}h1{font-size:24px}h2{font-size:18px;border-bottom:2px solid #D6A43A;padding-bottom:6px}h3{font-size:15px}.student{break-after:page;page-break-after:always}.student:last-child{break-after:auto;page-break-after:auto}.question{border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin:8px 0;break-inside:avoid}.question p{margin:4px 0}.reason{background:#fff7df;border-left:4px solid #D6A43A;padding:8px}.toolbar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd}button{padding:10px 16px;background:#143622;color:#fff;border:0;border-radius:8px}@media print{body{margin:10mm}.toolbar{display:none}@page{size:A4;margin:12mm}}</style></head><body><div class="toolbar"><button onclick="window.print()">प्रिंट करें / Save as PDF</button> <span>प्रिंट विंडो में Destination: Save as PDF चुनें।</span></div><h1>बिश्नोइज़्म — विद्यार्थी उत्तर-पत्र एवं मैन्युअल जाँच रिपोर्ट</h1><p>परीक्षा: ' + escapeHtml(examReviewCollection) + ' · कुल रिकॉर्ड: ' + examReviewQueue.length + ' · रिपोर्ट तिथि: ' + escapeHtml(new Date().toLocaleString('hi-IN')) + '</p>' + sections + '</body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { try { printWindow.print(); } catch (e) {} }, 350);
+    }
+    window.printAllExamReviewSheets = printAllExamReviewSheets;
 
     async function loadExamSubmissions() {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र समीक्षा की अनुमति नहीं है।');
