@@ -1,3 +1,8 @@
+window.__startupTrace = window.__startupTrace || [];
+function traceStartup(step, extra) {
+  try { window.__startupTrace.push(step + (extra ? ': ' + extra : '')); } catch (e) {}
+}
+traceStartup('script:enter');
 /*
  * Corrected copy based on the original uploaded script.js.
  * Static syntax and targeted regression fixes have been applied.
@@ -132,12 +137,14 @@ function portalSwitchTabImplementation(id) {
     };
   }
   if (typeof window.BishnoiAuth.signInWithGoogle !== 'function') {
-    window.BishnoiAuth.signInWithGoogle = function earlyGoogleSignInPlaceholder() {
+    traceStartup('attach:auth:done');
+  window.BishnoiAuth.signInWithGoogle = function earlyGoogleSignInPlaceholder() {
       openEarlyAuthOrToast();
     };
   }
   if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
-    window.BishnoiApp.openProfileOrAuth = function earlyProfilePlaceholder() {
+    traceStartup('attach:app:done');
+  window.BishnoiApp.openProfileOrAuth = function earlyProfilePlaceholder() {
       try {
         if (!firebaseReady()) {
           openEarlyAuthOrToast();
@@ -164,6 +171,7 @@ function portalSwitchTabImplementation(id) {
 
 try {
 (() => {
+  traceStartup('iife:enter');
   const CONFIG = Object.freeze({
     firebase: {
       apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
@@ -197,6 +205,7 @@ try {
     legacyOwnerUid: "8YRBWWMKG2OUW6cmzZkGbFgOqyp2"
   });
 
+  traceStartup(CONFIG && CONFIG.firebase ? 'config:found' : 'config:MISSING');
   const state = {
     db: null,
     auth: null,
@@ -2985,7 +2994,13 @@ window.renderExamVisibility = function renderExamVisibility() {
     });
 
   function initPortal() {
-    if (state.initialized) return;
+    traceStartup('initPortal:called');
+    if (state.initialized) {
+      traceStartup('guard-return: state.initialized');
+      console.error('[startup] initPortal skipped: already initialized');
+      return;
+    }
+    traceStartup('initPortal:enter');
     state.initialized = true;
 
     // Firebase is initialized before any module that may use Auth or Firestore.
@@ -2994,7 +3009,15 @@ window.renderExamVisibility = function renderExamVisibility() {
         if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') {
           throw new Error('Firebase compat SDK is not available.');
         }
-        firebase.initializeApp(CONFIG.firebase);
+        traceStartup('firebase:initializeApp:before');
+        try {
+          firebase.initializeApp(CONFIG.firebase);
+          traceStartup('firebase:initializeApp:after');
+        } catch (error) {
+          traceStartup('firebase:initializeApp:ERROR ' + (error?.message || error));
+          console.error('[startup] Firebase initializeApp failed:', error);
+          throw error;
+        }
       }
       if (!firebaseReady()) throw new Error('Firebase initialization did not create a default app.');
       state.auth = firebase.auth();
@@ -3006,6 +3029,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     // Public handlers were attached to the existing namespace objects before
     // initPortal is invoked, so module failures cannot prevent their exposure.
     window.__bishnoiReady = firebaseReady();
+    traceStartup('ready:set ' + window.__bishnoiReady);
 
     safeStep('दैनिक संदेश', renderDailyMessage);
     safeStep('नामांकन', initEnrollmentUI);
