@@ -430,6 +430,13 @@ B) 29
 C) 36
 D) 108
 Ans: B"></textarea>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <button type="button" onclick="downloadQuestionTemplate()" class="min-h-[44px] rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-bold text-forest">⬇️ Excel Template डाउनलोड</button>
+          <label class="flex min-h-[44px] cursor-pointer items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-center text-xs font-bold text-white">📤 Excel प्रश्न अपलोड करें
+            <input id="questionExcelFile" type="file" accept=".xlsx,.xls,.csv" class="sr-only" onchange="importQuestionExcel(event)">
+          </label>
+          <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] text-emerald-950">Excel upload पहले Preview बनाएगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
+        </div>
         <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
           👀 पहले सभी प्रश्नों का Preview / जाँच करें
         </button>
