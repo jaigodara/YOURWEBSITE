@@ -925,7 +925,9 @@ try {
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll) {
+    const cardReleased = record.admitCardReleased === true ||
+      (state.examConfig?.admitCardReleased === true && !record.admitCardExamType);
+    if (status === 'confirmed' && roll && cardReleased) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
@@ -936,10 +938,10 @@ try {
       hint.className = 'text-stone-500';
       hint.textContent = 'प्रवेश-पत्र सीधे PDF में डाउनलोड होगा।';
       host.appendChild(hint);
-    } else if (status === 'confirmed' && roll) {
+    } else if (status === 'confirmed' && roll && !cardReleased) {
       const hint = document.createElement('p');
       hint.className = 'text-amber-800';
-      hint.textContent = 'आपका पंजीकरण स्वीकृत है। प्रवेश-पत्र Owner द्वारा रिलीज़ किए जाने पर यहीं उपलब्ध होगा।';
+      hint.textContent = 'आपका पंजीकरण स्वीकृत है। प्रवेश-पत्र व्यवस्थापक द्वारा जारी होने पर यहीं डाउनलोड कर सकेंगे।';
       host.appendChild(hint);
     } else if (status === 'confirmed' && !roll) {
       const hint = document.createElement('p');
@@ -993,7 +995,7 @@ try {
     }
 
     if (record.verificationStatus !== 'confirmed' ||
-        !/^JAMBH-2026-\d{5}$/.test(String(record.rollNumber || ''))) {
+        !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || ''))) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
@@ -1311,17 +1313,6 @@ try {
 
           // Keep the existing result-viewing logic here.
           setVisible('notificationPopup', false);
-          if (item.type === 'admit-card') {
-            try {
-              if (!state.user || !state.db) throw new Error('पहले विद्यार्थी खाते में लॉगिन करें।');
-              const snap = await state.db.collection('examEnrolledStudents').doc(state.user.uid).get();
-              if (!snap.exists) throw new Error('आपका पंजीकरण रिकॉर्ड नहीं मिला।');
-              await downloadStudentAdmitCard(snap.data());
-            } catch (error) {
-              notify('प्रवेश-पत्र डाउनलोड नहीं हुआ: ' + (error?.message || error), 'error');
-            }
-            return;
-          }
           setVisible('publicNotificationsSection', false);
           window.switchTab('quiz');
           window.setTimeout(() => byId('myResultsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
@@ -1374,7 +1365,29 @@ try {
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
     const flatItems = (state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
-    const items = [...personalItems, ...flatItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
+    // Sort first so duplicate legacy/flat notices keep the newest, highest-priority copy.
+    const sortedItems = [...personalItems, ...flatItems, ...globalItems].sort((a, b) =>
+      Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) ||
+      notificationTime(b) - notificationTime(a)
+    );
+    const seenAdmitExamKeys = new Set();
+    const items = sortedItems.filter(item => {
+      const text = [item.type, item.title, item.message, item.body].filter(Boolean).join(' ');
+      const isAdmitNotice = /admit-card|प्रवेश.?पत्र/i.test(text);
+      if (!isAdmitNotice) return true;
+
+      // Never show legacy internal BIS identifiers as a student's roll number.
+      const validRoll = /JAMBH-2026-\d{4,}/i.test(text);
+      if (/\bBIS-[A-Za-z0-9_-]+\b/i.test(text) && !validRoll) return false;
+
+      // The same release may exist in legacy personal, flat and global feeds.
+      // Keep only the newest copy per exam type.
+      const examKey = /mock\s*2|मॉक\s*2/i.test(text) ? 'mock2'
+        : /mock\s*1|मॉक\s*1/i.test(text) ? 'mock1' : 'main';
+      if (seenAdmitExamKeys.has(examKey)) return false;
+      seenAdmitExamKeys.add(examKey);
+      return true;
+    });
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
