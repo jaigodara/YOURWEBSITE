@@ -19,9 +19,13 @@ test("exam portal embed mode is set before page styles and selects the requested
   }
 });
 
-test("enrollment and results portal actions do not require login just to open their section", () => {
-  assert.match(portalHtml, /if \(!auth\.currentUser && \["main", "mock1", "mock2"\]\.includes\(mode\)\)/);
-  assert.match(portalHtml, /examFrame\.src = "\.\/index\.html\?examEmbed=" \+ encodeURIComponent\(mode\)/);
+test("portal navigation opens the selected section even before login; exam start remains guarded in the app", () => {
+  const launchHandler = portalHtml.slice(portalHtml.indexOf('document.querySelectorAll("[data-launch-exam]")'));
+  assert.match(launchHandler, /examFrame\.src = "\.\/index\.html\?examEmbed=" \+ encodeURIComponent\(mode\)/);
+  assert.match(launchHandler, /if \(!auth\.currentUser && \["main", "mock1", "mock2"\]\.includes\(mode\)\)/);
+  assert.match(launchHandler, /byId\("authStatus"\)\.textContent/);
+  assert.doesNotMatch(launchHandler.slice(0, launchHandler.indexOf('examFrame.src')), /return;/,
+    "the navigation handler must not return early before loading the requested section");
 });
 
 test("exam schedule changes only publish notifications after explicit owner opt-in", () => {
