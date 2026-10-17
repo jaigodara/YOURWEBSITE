@@ -2499,21 +2499,44 @@ window.renderExamVisibility = function renderExamVisibility() {
   function updateExamSession(status, extra = {}) {
     const ref = examSessionDocumentRef();
     if (!ref || !state.user) return Promise.resolve();
+
     const exam = state.exam;
-    return ref.set({
-      uid: state.user.uid,
+    const uid = state.user.uid;
+    const mode = exam.mode;
+    const payload = {
+      uid,
       name: state.profile?.displayName || state.user.displayName || state.user.email || 'विद्यार्थी',
-      mode: exam.mode,
+      mode,
       status,
       currentQuestion: Number(exam.index || 0) + 1,
       totalQuestions: exam.questions?.length || 0,
       tabSwitches: Number(exam.tabSwitches || 0),
       endAtMs: Number(exam.endAt || 0),
-      endAt: Number(exam.endAt) > 0 ? firebase.firestore.Timestamp.fromMillis(Number(exam.endAt)) : null,
       updatedAt: serverTimestamp(),
       ...extra
-    }, { merge: true }).catch(error => {
-      console.warn('Exam session status could not be saved. Check examSessions rules.', error);
+    };
+
+    return ref.get().then(snapshot => {
+      if (!snapshot.exists && status !== 'active' && status !== 'late_request') {
+        console.warn('Refusing to create a missing exam session with status:', status);
+        return;
+      }
+
+      // The deadline is set when a session is created. Never overwrite the
+      // server-owned deadline during ordinary progress/status updates.
+      if (snapshot.exists) {
+        delete payload.endAt;
+        return ref.set(payload, { merge: true });
+      }
+
+      payload.endAt = Number(exam.endAt) > 0
+        ? firebase.firestore.Timestamp.fromMillis(Number(exam.endAt))
+        : null;
+      return ref.set(payload, { merge: true });
+    }).catch(error => {
+      console.error('Exam session status could not be saved:', status, error);
+      // Session telemetry must not create unhandled rejections in timer and
+      // visibility-change callbacks. The console retains the actionable error.
     });
   }
 
