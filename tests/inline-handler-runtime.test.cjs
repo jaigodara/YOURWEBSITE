@@ -15,14 +15,14 @@ function makeFirebaseStub(window) {
     EmailAuthProvider: { credential: () => ({}) }
   });
   const firestore = () => ({
-    collection: () => ({ doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }), set: async () => {}, update: async () => {}, onSnapshot: () => () => {} }), where: () => ({ get: async () => ({ docs: [] }) }), get: async () => ({ docs: [] }) }),
+    collection: () => ({ doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }), set: async () => {}, update: async () => {}, onSnapshot: () => () => {} }), where: () => ({ get: async () => ({ docs: [] }) }), get: async () => ({ docs: [] }), onSnapshot: callback => { callback({ docs: [] }); return () => {}; } }),
     doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }), set: async () => {}, update: async () => {}, onSnapshot: () => () => {} }),
     runTransaction: async callback => callback({ get: async () => ({ exists: false, data: () => ({}) }), set: () => {}, update: () => {} })
   });
   const storage = () => ({ ref: () => ({ put: async () => ({}), getDownloadURL: async () => "" }) });
   window.firebase = {
     apps: [],
-    initializeApp: () => { const app = { name: "[DEFAULT]" }; window.firebase.apps.push(app); return app; },
+    initializeApp: () => { window.__firebaseInitializeCalls = (window.__firebaseInitializeCalls || 0) + 1; const app = { name: "[DEFAULT]" }; window.firebase.apps.push(app); return app; },
     app: () => window.firebase.apps[0],
     auth,
     firestore,
@@ -75,6 +75,43 @@ function resolvePath(window, expression) {
   }
   return value;
 }
+
+test("early auth placeholders are safe before Firebase initialization", () => {
+  const dom = makeDom();
+  const { window } = dom;
+  window.BishnoiAuth = {};
+  window.BishnoiApp = {};
+  window.firebase.apps.length = 0;
+  const mainStartup = script.indexOf("\\ntry {\\n(() => {");
+  assert.ok(mainStartup > 0, "early placeholder block should precede main startup");
+  window.eval(script.slice(0, mainStartup));
+  assert.equal(window.firebase.apps.length, 0, "early handlers must not initialize Firebase");
+  assert.doesNotThrow(() => window.BishnoiApp.openProfileOrAuth());
+  assert.doesNotThrow(() => window.BishnoiAuth.openAuthModal());
+  assert.doesNotThrow(() => window.BishnoiAuth.signInWithGoogle());
+  assert.equal(window.document.getElementById("authModal").hidden, false);
+  dom.window.close();
+});
+
+test("full startup initializes Firebase once and publishes real auth/profile APIs without runtime reference/type errors", () => {
+  const dom = makeDom();
+  const { window } = dom;
+  const errors = [];
+  window.console = Object.assign(Object.create(console), {
+    error: (...args) => errors.push(args.map(value => value instanceof Error ? value.name + ": " + value.message : String(value)).join(" "))
+  });
+  window.eval(script);
+  window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
+  assert.equal(window.__firebaseInitializeCalls, 1, "initializeApp should run exactly once");
+  assert.equal(window.__bishnoiReady, true);
+  assert.equal(typeof window.BishnoiApp.openProfileOrAuth, "function");
+  assert.equal(typeof window.BishnoiAuth.signInWithGoogle, "function");
+  assert.doesNotMatch(window.BishnoiApp.openProfileOrAuth.name, /earlyProfilePlaceholder/);
+  assert.doesNotMatch(window.BishnoiAuth.signInWithGoogle.name, /earlyGoogleSignInPlaceholder/);
+  assert.equal(errors.some(message => message.includes("आरंभ नहीं हो सका")), false, errors.join("\\n"));
+  assert.equal(errors.some(message => /ReferenceError|TypeError/.test(message)), false, errors.join("\\n"));
+  dom.window.close();
+});
 
 test("script.js assigns window.switchTab exactly once", () => {
   assert.equal((script.match(/window\.switchTab\s*=/g) || []).length, 1);
