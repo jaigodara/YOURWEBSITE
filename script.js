@@ -3622,9 +3622,9 @@ window.renderExamVisibility = function renderExamVisibility() {
       setAuthMessage('पंजीकरण सफल हुआ। विश्नोई डिजिटल मंच में आपका स्वागत है।', 'success');
     } catch (error) {
       console.error('मोबाइल पंजीकरण/Google सत्यापन विफल:', error);
-      if (user) {
-        await cleanupUnverifiedAccount(user, details);
-      }
+      let cleanup = { deleted: false };
+      if (user) cleanup = await cleanupUnverifiedAccount(user, details);
+      if (cleanup.deleted && registrationRetry) registrationRetry = { ...registrationRetry, needsRecreate: true };
       window.__bishnoiRegistrationInProgress = false;
       if (error.code === 'auth/email-already-in-use' && registrationStage === 'create-account') {
         return setAuthMessage('यह मोबाइल नंबर पहले से पंजीकृत है, कृपया लॉगिन करें', 'error');
@@ -3642,9 +3642,18 @@ window.renderExamVisibility = function renderExamVisibility() {
       setAuthMessage('दोबारा सत्यापन के लिए उसी मोबाइल नंबर और पासवर्ड से लॉगिन करके पंजीकरण फिर शुरू करें।', 'error');
       return;
     }
+    if (registrationRetry.needsRecreate) {
+      const details = { ...registrationRetry };
+      delete details.needsRecreate;
+      registrationRetry = details;
+      await authApi.registerWithMobile(details);
+      return;
+    }
     try {
       const credential = await state.auth.signInWithEmailAndPassword(hiddenEmail(registrationRetry.mobile), registrationRetry.password);
-      await authApi.registerWithMobile(registrationRetry, credential.user);
+      const details = { ...registrationRetry };
+      delete details.needsRecreate;
+      await authApi.registerWithMobile(details, credential.user);
     } catch (error) {
       setAuthMessage(error.code === 'auth/user-not-found'
         ? 'पिछला अस्थायी खाता हट चुका है। कृपया फिर से पंजीकरण करें।'
