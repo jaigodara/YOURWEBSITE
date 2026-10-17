@@ -956,7 +956,7 @@ try {
     const updatedAt = timestampMillis(record.updatedAt);
     const registrationFields = [
       ['पूरा नाम', record.fullName || record.name],
-      ['मोबाइल नंबर', record.phone || record.mobile],
+      ['मोबाइल नंबर', state.profile?.mobile || '—'],
       ['जन्म तिथि', record.dateOfBirth || record.dob],
       ['परीक्षा', record.examName || record.examTitle || 'मुख्य परीक्षा'],
       ['गाँव / शहर / स्थान', record.location || record.village || record.city],
@@ -3775,8 +3775,10 @@ window.renderExamVisibility = function renderExamVisibility() {
       await user.linkWithCredential(credential);
       await user.getIdToken?.(true);
       const userRef = state.db.collection('users').doc(user.uid);
-      await userRef.set({ mobile, email: googleEmailForUser(user) || user.email || '', gmailVerified: true }, { merge: true });
-      await state.db.collection('mobileIndex').doc(mobile).set({ uid: user.uid });
+      const batch = state.db.batch();
+      batch.set(userRef, { mobile, email: googleEmailForUser(user) || user.email || '', gmailVerified: true }, { merge: true });
+      batch.set(state.db.collection('mobileIndex').doc(mobile), { uid: user.uid });
+      await batch.commit();
       state.profile = { ...(state.profile || {}), mobile, gmailVerified: true };
       setAuthMessage('मोबाइल नंबर और पासवर्ड जोड़ दिए गए।', 'success');
       authApi.closeAuthModal();
