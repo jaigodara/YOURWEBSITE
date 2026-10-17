@@ -289,9 +289,9 @@
   </section>
 
   <footer>
-    दैनिक ज्ञान क्विज़ इस पोर्टल में शामिल नहीं है। वह मुख्य वेबसाइट के
-    परीक्षा अनुभाग में ही रहेगा। प्रश्न और उत्तर पढ़ने की अनुमति Firebase
-    सुरक्षा नियमों से नियंत्रित होती है।
+    दैनिक ज्ञान क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में रहेगा।
+    यहाँ से चुनी गई परीक्षा, पंजीकरण या परिणाम का सही अनुभाग मुख्य वेबसाइट के
+    सुरक्षित कार्यक्षेत्र में खुलेगा। प्रश्न और उत्तर Firebase सुरक्षा नियमों से नियंत्रित हैं।
   </footer>
 </main>
 
@@ -351,10 +351,12 @@
   auth.onAuthStateChanged(user => {
     byId("authStatus").textContent = user
       ? "लॉगिन है। परीक्षा की अनुमति पंजीकरण और परीक्षा सेटिंग्स पर निर्भर करती है।"
-      : "अभी लॉगिन नहीं है। परीक्षा देने के लिए मुख्य वेबसाइट पर लॉगिन करें।";
+      : "अभी लॉगिन नहीं है। परीक्षा देने के लिए लॉगिन करें; पंजीकरण और परिणाम भी खोले जा सकते हैं।";
 
-    byId("googleLogin").textContent = user ? "लॉगिन हो चुका है" : "Google से लॉगिन";
-    byId("googleLogin").disabled = !!user;
+    byId("googleLogin").textContent = user ? "Google से लॉगिन हो चुका है" : "Google से लॉगिन";
+    // Keep the control usable so an account can be switched or the sign-in
+    // flow retried if Firebase restored a stale session.
+    byId("googleLogin").disabled = false;
   });
 
   byId("googleLogin").addEventListener("click", async () => {
@@ -382,12 +384,14 @@
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-launch-exam");
       if (!examTitles[mode]) return;
-      if (!auth.currentUser) {
-        byId("authStatus").textContent = "पहले Google से लॉगिन करें, फिर परीक्षा खोलें।";
+      if (!auth.currentUser && ["main", "mock1", "mock2"].includes(mode)) {
+        byId("authStatus").textContent = "परीक्षा शुरू करने के लिए पहले लॉगिन करें। पंजीकरण और परिणाम देखने के लिए लॉगिन के बाद संबंधित विकल्प खोलें।";
         byId("googleLogin").focus();
-        setPortalStatus("परीक्षा खोलने से पहले विद्यार्थी लॉगिन आवश्यक है।");
+        setPortalStatus("परीक्षा शुरू करने से पहले विद्यार्थी लॉगिन आवश्यक है।");
         return;
       }
+      // Enrollment and result lookup are useful before an exam; do not hide
+      // them behind an exam-start gate. The iframe URL selects the exact panel.
       byId("examFrameTitle").textContent = examTitles[mode];
       framePanel.classList.remove("hide");
       examArea.classList.add("hide");
