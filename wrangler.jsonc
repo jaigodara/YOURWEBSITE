@@ -1,9 +1,9 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bishnoi-digital-platform",
   "compatibility_date": "2026-10-12",
   "assets": {
     "directory": ".",
-    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
   "observability": {
