@@ -1689,6 +1689,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['mockExam2Card', c.mock2Visible !== false],
     ['mainExamSection', c.mainExamVisible !== false],
     ['dailyQuizSection', c.dailyQuizVisible !== false],
+    ['examPortalCard', c.examPortalVisible !== false],
     ['myResultsPanel', c.resultsVisible !== false]
   ];
 
