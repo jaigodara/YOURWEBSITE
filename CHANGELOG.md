@@ -104,3 +104,7 @@
 - Startup initializes Firebase before feature modules, attaches real API methods before calling `initPortal`, isolates each feature setup with `safeStep`, and publishes `window.__bishnoiReady`.
 - Removed duplicate `html2canvas` and `jsPDF` script loads from `index.html`; enabled ESLint `no-undef` as an error with explicit browser SDK globals.
 - Added jsdom regression tests for no-app placeholders, one-time initialization, real auth/profile API attachment, runtime errors, and the single `window.switchTab` assignment. CI verification is pending.
+
+
+- Follow-up CI fixes: removed two unmatched closing braces in `owner-studio.html` around the individual admit-card release handler and removed a duplicate `wasConfirmed` declaration in the enrollment-status save handler. The inline owner script now parses.
+- Tightened the pre-initialization regression assertion to verify the auth modal's hidden class is actually removed.
