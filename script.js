@@ -2535,9 +2535,8 @@ window.renderExamVisibility = function renderExamVisibility() {
       return ref.set(payload, { merge: true });
     }).catch(error => {
       console.error('Exam session status could not be saved:', status, error);
-      // Keep callers' existing behavior, but expose the rejection to explicit
-      // callers that want to handle it.
-      throw error;
+      // Session telemetry must not create unhandled rejections in timer and
+      // visibility-change callbacks. The console retains the actionable error.
     });
   }
 
