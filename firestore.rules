@@ -370,7 +370,15 @@ service cloud.firestore {
     }
 
     match /examSessions/{sessionId} {
+      function isOwnSession() {
+        // Match only the four supported session IDs without reading resource.data,
+        // so a signed-in student can safely check whether their session exists.
+        return signedIn()
+          && sessionId.matches(
+            '^' + request.auth.uid + '_(quiz|mock1|mock2|main)
+
       allow create: if signedIn()
+        && sessionId == request.auth.uid + '_' + request.resource.data.get('mode', '')
         && examEnabled(request.resource.data.get('mode', ''))
         && request.resource.data.get('uid', '') == request.auth.uid
         && (
@@ -383,19 +391,237 @@ service cloud.firestore {
             )
           )
         );
-      allow read: if examOwner()
-        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+
       allow update: if examOwner() || (
-        signedIn()
+        isOwnSession()
         && resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == resource.data.get('mode', '')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
           'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt', 'lateEntryRequested',
-          'requestedAt', 'reentryGrantConsumedAt'
+          'requestedAt', 'reentryGrantConsumedAt', 'kickedAt', 'reason', 'submittedAt'
         ])
         && request.resource.data.get('endAt', null) == resource.data.get('endAt', null)
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+          || request.resource.data.get('status', '') == 'kicked'
+          || request.resource.data.get('status', '') == 'submitted'
+          || (
+            request.resource.data.get('status', '') == 'late_request'
+            && request.resource.data.get('lateEntryRequested', false) == true
+          )
+          || (
+            request.resource.data.get('status', '') == 'active'
+            && resource.data.get('status', '') == 'active'
+          )
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lateEntryRequested'])
+          || request.resource.data.get('lateEntryRequested', false) == true
+          || request.resource.data.get('status', '') == 'active'
+        )
       );
+
+      allow delete: if examOwner();
+    }
+
+    match /admitCards/{cardId} {
+      allow read: if examOwner()
+        || (signedIn() && (
+          resource.data.get('studentUid', '') == request.auth.uid
+          || resource.data.get('uid', '') == request.auth.uid
+        ));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /userAccessLogs/{id} {
+      allow create: if signedIn() && request.resource.data.get('uid', '') == request.auth.uid;
+      allow read, update, delete: if owner();
+    }
+
+    match /feedbacks/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if owner();
+    }
+
+    // Public announcements only. Never store private recipient notifications here.
+    match /notifications/{id} {
+      allow read: if true;
+      allow create: if canSendNotifications()
+        && request.resource.data.get('title', null) is string
+        && request.resource.data.get('message', null) is string
+        && request.resource.data.get('audience', '') == 'all'
+        && request.resource.data.get('active', false) == true
+        && request.resource.data.get('createdBy', '') == request.auth.uid;
+      allow update, delete: if canSendNotifications();
+    }
+
+    match /userNotifications/{notificationId} {
+      allow read: if signedIn() && resource.data.get('uid', '') in ['ALL', request.auth.uid];
+      allow create: if examOwner()
+        && request.resource.data.keys().hasOnly(['uid', 'type', 'title', 'body', 'important', 'pinnedByOwner', 'fileUrl', 'createdAt'])
+        && request.resource.data.get('uid', '') is string
+        && request.resource.data.get('uid', '').size() <= 128
+        && request.resource.data.get('type', '') is string
+        && request.resource.data.get('title', '') is string
+        && request.resource.data.get('body', '') is string
+        && request.resource.data.get('important', false) is bool
+        && request.resource.data.get('pinnedByOwner', false) is bool;
+      allow update, delete: if examOwner();
+    }
+
+    match /notificationReads/{markerId} {
+      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'notificationId', 'read', 'readAt'])
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('notificationId', '') is string
+        && request.resource.data.get('read', false) == true;
+      allow delete: if false;
+    }
+
+    match /userNotifications/{uid}/items/{notificationId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if (
+          canSendNotifications()
+          && request.resource.data.get('recipientUid', '') == uid
+        ) || (
+          canReviewExam()
+          && request.resource.data.get('type', '') == 'exam-result'
+          && request.resource.data.get('recipientUid', '') == uid
+        ) || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.get('recipientUid', '') == uid
+          && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
+          && request.resource.data.get('active', false) == true
+        );
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'read', 'readAt', 'isRead'
+        ]);
+      allow delete: if examOwner();
+    }
+
+    match /userNotificationReads/{uid}/items/{notificationId} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /posts/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('body', null) is string
+        && request.resource.data.body.size() <= 2000;
+      allow update: if owner();
+      allow delete: if owner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+    }
+
+    match /audios/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /pdfs/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /shabadwani/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /treePledges/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.get('uid', '') == request.auth.uid;
+      allow delete: if owner();
+    }
+
+    match /stats/{id} {
+      allow read: if true;
+      allow write: if owner();
+    }
+
+    match /visitorLogs/{id} {
+      allow create: if true;
+      allow read, update, delete: if owner();
+    }
+
+    match /draftQueue/{id} {
+      allow read, write: if owner();
+    }
+
+    match /scheduledTasks/{id} {
+      allow read, write: if owner();
+    }
+
+    match /historyItems/{id} {
+      allow read: if true;
+      allow create, update, delete: if owner();
+    }
+
+    // Deny any collection not explicitly covered above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+          );
+      }
+
+      allow read: if examOwner() || isOwnSession();
+
+      allow create: if signedIn()
+        && sessionId == request.auth.uid + '_' + request.resource.data.get('mode', '')
+        && examEnabled(request.resource.data.get('mode', ''))
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && (
+          request.resource.data.get('status', '') == 'late_request'
+          || (
+            request.resource.data.get('status', '') == 'active'
+            && validScheduledSessionEnd(
+              request.resource.data.get('mode', ''),
+              request.resource.data.get('endAt', null)
+            )
+          )
+        );
+
+      allow update: if examOwner() || (
+        isOwnSession()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == resource.data.get('mode', '')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
+          'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt', 'lateEntryRequested',
+          'requestedAt', 'reentryGrantConsumedAt', 'kickedAt', 'reason', 'submittedAt'
+        ])
+        && request.resource.data.get('endAt', null) == resource.data.get('endAt', null)
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+          || request.resource.data.get('status', '') == 'kicked'
+          || request.resource.data.get('status', '') == 'submitted'
+          || (
+            request.resource.data.get('status', '') == 'late_request'
+            && request.resource.data.get('lateEntryRequested', false) == true
+          )
+          || (
+            request.resource.data.get('status', '') == 'active'
+            && resource.data.get('status', '') == 'active'
+          )
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lateEntryRequested'])
+          || request.resource.data.get('lateEntryRequested', false) == true
+          || request.resource.data.get('status', '') == 'active'
+        )
+      );
+
       allow delete: if examOwner();
     }
 
