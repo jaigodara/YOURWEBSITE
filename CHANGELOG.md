@@ -108,3 +108,22 @@
 
 - Follow-up CI fixes: removed two unmatched closing braces in `owner-studio.html` around the individual admit-card release handler and removed a duplicate `wasConfirmed` declaration in the enrollment-status save handler. The inline owner script now parses.
 - Tightened the pre-initialization regression assertion to verify the auth modal's hidden class is actually removed.
+
+
+## 2026-10-17 — Admit-card validation, notification cleanup, and exam-review access
+
+- Student and owner admit-card checks now accept the established `JAMBH-2026-` roll format with four or more digits, including existing `JAMBH-2026-0001` records.
+- The enrollment status panel only shows the PDF download action when the student's admit card is actually released; otherwise it explains that the card is awaiting release.
+- Combined notification feeds hide legacy admit-card messages that expose `BIS-...` internal IDs and deduplicate copies of the same exam release across legacy and flat feeds.
+- Editors explicitly granted `examReview` can read main/mock question documents and the separately protected answer-key collection for reviewing submissions. Student access to unpublished questions and private answer keys remains denied.
+- Self-service profile updates now permit phone, location, and village fields without permitting users to self-assert `phoneVerified`.
+- Added Firestore rules tests for reviewer access, student denial, and profile-field permissions. CI/live-browser results are pending.
+
+## 2026-10-17 — Exam portal entry, owner toggles, and phone/password sign-in
+
+- Added a lightweight standalone `exam-portal.html` entry page and links from the main Pariksha section. The portal reads `examConfig/current` and respects the owner-controlled portal, daily quiz, mock, and main-exam visibility flags.
+- Added an Owner Studio toggle for the separate exam portal and wired it into `examConfig/current`.
+- Added phone-number + password login using a Firebase Auth email/password credential alias that can only be linked after the phone OTP is confirmed; existing direct Google login and email/password login remain available.
+- Exposed the existing Firebase Phone Auth OTP handlers in the login UI and added a guarded Firestore rule: users can mark their phone verified only when the Firebase Auth token's verified phone number matches the saved phone.
+- **Deployment/configuration note:** SMS phone verification requires Firebase Phone provider configuration, authorized domains, and may require a billing-enabled Firebase plan. The new portal is a separate lightweight entry page; the existing exam-taking engine still runs in the main site's exam section and needs a separate extraction before exam sessions themselves stop loading the main site.
+- CI and real Firebase end-to-end tests are pending.

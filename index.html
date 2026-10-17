@@ -318,6 +318,19 @@
         <p class="mt-1 text-xs text-stone-600">प्रश्न बैंक, परीक्षा सेटअप और संचालन के लिए अलग परीक्षा नियंत्रण पृष्ठ खोलें। यह लिंक केवल अधिकृत Owner खाते को दिखेगा।</p>
         <a href="./exam-control.html" class="mt-3 inline-flex rounded-xl bg-forest px-4 py-2 text-sm font-bold text-white">परीक्षा नियंत्रण खोलें</a>
       </div>
+      <section id="examPortalCard" class="rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-4 sm:p-5 shadow-sm space-y-3">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 shrink-0 rounded-xl bg-forest text-amber-300 flex items-center justify-center text-2xl">🛡️</div>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-yatra text-lg text-forest">अलग परीक्षा पोर्टल</h3>
+            <p class="mt-1 text-xs text-stone-600">दैनिक क्विज़, मॉक परीक्षा और मुख्य परीक्षा के लिए समर्पित प्रवेश पृष्ठ खोलें। परीक्षा उपलब्धता Owner Studio से नियंत्रित होती है।</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <a href="./exam-portal.html" class="inline-flex items-center justify-center rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white">🛡️ परीक्षा पोर्टल खोलें</a>
+          <a href="./exam-portal.html#daily-quiz" class="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm font-bold text-forest">🏆 दैनिक क्विज़ खोलें</a>
+        </div>
+      </section>
       <!-- EXAM ENROLLMENT: controlled by Owner Studio's enrollmentVisible setting -->
       <section id="enrollmentSection" class="rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 sm:p-5 shadow-sm space-y-3">
         <div class="flex items-start gap-3">
@@ -509,9 +522,6 @@
       <div class="flex justify-between items-center border-b border-stone-200 pb-2">
         <h3 class="font-bold text-sm text-forest" id="authTitle">लॉगिन (Sign In)</h3>
         <button onclick="window.BishnoiAuth.closeAuthModal()" class="text-stone-400 hover:text-black">✕</button>
-      </div>
-      <div class="grid grid-cols-1 gap-2">
-        <button type="button" id="emailLoginTab" onclick="window.BishnoiAuth.setLoginMethod('email')" class="py-2 rounded-xl bg-forest text-white text-xs font-bold">ईमेल + पासवर्ड</button>
       </div>
       <form id="emailLoginForm" onsubmit="window.BishnoiAuth.handleAuthSubmit(event)" class="space-y-3">
         <div id="nameRow" class="hidden">

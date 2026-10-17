@@ -567,7 +567,8 @@ try {
       window.initPublicNotifications();
       window.renderNotificationCenter();
       try {
-        const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
+        const routeTab = window.location.hash === '#tab-quiz' ? 'quiz' : '';
+        const savedTab = routeTab || sessionStorage.getItem('bishnoi_active_tab_v1');
         if (savedTab) window.switchTab(savedTab);
       } catch (_) {}
       state.myResults = [];
@@ -925,7 +926,9 @@ try {
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll) {
+    const cardReleased = record.admitCardReleased === true ||
+      (state.examConfig?.admitCardReleased === true && !record.admitCardExamType);
+    if (status === 'confirmed' && roll && cardReleased) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
@@ -936,10 +939,10 @@ try {
       hint.className = 'text-stone-500';
       hint.textContent = 'प्रवेश-पत्र सीधे PDF में डाउनलोड होगा।';
       host.appendChild(hint);
-    } else if (status === 'confirmed' && roll) {
+    } else if (status === 'confirmed' && roll && !cardReleased) {
       const hint = document.createElement('p');
       hint.className = 'text-amber-800';
-      hint.textContent = 'आपका पंजीकरण स्वीकृत है। प्रवेश-पत्र Owner द्वारा रिलीज़ किए जाने पर यहीं उपलब्ध होगा।';
+      hint.textContent = 'आपका पंजीकरण स्वीकृत है। प्रवेश-पत्र व्यवस्थापक द्वारा जारी होने पर यहीं डाउनलोड कर सकेंगे।';
       host.appendChild(hint);
     } else if (status === 'confirmed' && !roll) {
       const hint = document.createElement('p');
@@ -993,7 +996,7 @@ try {
     }
 
     if (record.verificationStatus !== 'confirmed' ||
-        !/^JAMBH-2026-\d{5}$/.test(String(record.rollNumber || ''))) {
+        !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || ''))) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
@@ -1311,17 +1314,6 @@ try {
 
           // Keep the existing result-viewing logic here.
           setVisible('notificationPopup', false);
-          if (item.type === 'admit-card') {
-            try {
-              if (!state.user || !state.db) throw new Error('पहले विद्यार्थी खाते में लॉगिन करें।');
-              const snap = await state.db.collection('examEnrolledStudents').doc(state.user.uid).get();
-              if (!snap.exists) throw new Error('आपका पंजीकरण रिकॉर्ड नहीं मिला।');
-              await downloadStudentAdmitCard(snap.data());
-            } catch (error) {
-              notify('प्रवेश-पत्र डाउनलोड नहीं हुआ: ' + (error?.message || error), 'error');
-            }
-            return;
-          }
           setVisible('publicNotificationsSection', false);
           window.switchTab('quiz');
           window.setTimeout(() => byId('myResultsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
@@ -1374,7 +1366,29 @@ try {
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
     const flatItems = (state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
-    const items = [...personalItems, ...flatItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
+    // Sort first so duplicate legacy/flat notices keep the newest, highest-priority copy.
+    const sortedItems = [...personalItems, ...flatItems, ...globalItems].sort((a, b) =>
+      Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) ||
+      notificationTime(b) - notificationTime(a)
+    );
+    const seenAdmitExamKeys = new Set();
+    const items = sortedItems.filter(item => {
+      const text = [item.type, item.title, item.message, item.body].filter(Boolean).join(' ');
+      const isAdmitNotice = /admit-card|प्रवेश.?पत्र/i.test(text);
+      if (!isAdmitNotice) return true;
+
+      // Never show legacy internal BIS identifiers as a student's roll number.
+      const validRoll = /JAMBH-2026-\d{4,}/i.test(text);
+      if (/\bBIS-[A-Za-z0-9_-]+\b/i.test(text) && !validRoll) return false;
+
+      // The same release may exist in legacy personal, flat and global feeds.
+      // Keep only the newest copy per exam type.
+      const examKey = /mock\s*2|मॉक\s*2/i.test(text) ? 'mock2'
+        : /mock\s*1|मॉक\s*1/i.test(text) ? 'mock1' : 'main';
+      if (seenAdmitExamKeys.has(examKey)) return false;
+      seenAdmitExamKeys.add(examKey);
+      return true;
+    });
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
@@ -1676,6 +1690,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['mockExam2Card', c.mock2Visible !== false],
     ['mainExamSection', c.mainExamVisible !== false],
     ['dailyQuizSection', c.dailyQuizVisible !== false],
+    ['examPortalCard', c.examPortalVisible !== false],
     ['myResultsPanel', c.resultsVisible !== false]
   ];
 
@@ -3277,97 +3292,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       modal.style.display = 'none';
     }
   };
-  let phoneConfirmation = null;
-  let phoneRecaptcha = null;
-  authApi.setLoginMethod = function (method) {
-    const phone = method === 'phone';
-    byId('emailLoginForm')?.classList.toggle('hidden', phone);
-    byId('phoneLoginForm')?.classList.toggle('hidden', !phone);
-    byId('emailLoginTab')?.classList.toggle('bg-forest', !phone);
-    byId('emailLoginTab')?.classList.toggle('text-white', !phone);
-    byId('emailLoginTab')?.classList.toggle('bg-stone-100', phone);
-    byId('emailLoginTab')?.classList.toggle('text-stone-700', phone);
-    byId('phoneLoginTab')?.classList.toggle('bg-forest', phone);
-    byId('phoneLoginTab')?.classList.toggle('text-white', phone);
-    byId('phoneLoginTab')?.classList.toggle('bg-stone-100', !phone);
-    byId('phoneLoginTab')?.classList.toggle('text-stone-700', !phone);
-    if (phone) {
-      try {
-        if (!phoneRecaptcha && window.firebase?.auth) {
-          phoneRecaptcha = new firebase.auth.RecaptchaVerifier('phoneRecaptcha', { size: 'normal' });
-          phoneRecaptcha.render().catch(error => console.warn('reCAPTCHA render:', error));
-        }
-      } catch (error) {
-        console.warn('Phone reCAPTCHA initialization:', error);
-      }
-    }
-  };
-  authApi.handleAuthSubmit = async function (event) {
-    if (event) event.preventDefault();
-    const email = (byId('loginIdentifier')?.value || '').trim();
-    const password = byId('loginPass')?.value || '';
-    if (!state.auth) return notify('Authentication is unavailable.', 'error');
-    if (!email || !password) return notify('ईमेल और पासवर्ड दर्ज करें।', 'error');
-    try {
-      const register = !!byId('nameRow') && !byId('nameRow').classList.contains('hidden');
-      if (register) {
-        const displayName = (byId('loginName')?.value || '').trim();
-        const phone = (byId('registerPhone')?.value || '').trim();
-        if (!displayName) return notify('पंजीकरण के लिए अपना पूरा नाम दर्ज करें।', 'error');
-        if (!/^\+?[0-9\s()-]{10,16}$/.test(phone)) return notify('सही मोबाइल नंबर दर्ज करें। उदाहरण: +91 9876543210', 'error');
-        const credential = await state.auth.createUserWithEmailAndPassword(email, password);
-        if (credential.user && displayName) await credential.user.updateProfile({ displayName });
-        await state.db.collection('users').doc(credential.user.uid).set({
-          displayName, phone, phoneVerified: false, email,
-          verificationStatus: 'unverified',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-      } else {
-        await state.auth.signInWithEmailAndPassword(email, password);
-      }
-      authApi.closeAuthModal();
-    } catch (error) {
-      console.error('Authentication failed:', error);
-      notify(authErrorMessage(error), 'error');
-    }
-  };
-  authApi.sendPhoneCode = async function () {
-    if (!state.auth || !window.firebase?.auth) return notify('Authentication is unavailable.', 'error');
-    const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\s()-]/g, '');
-    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
-      return notify('देश कोड सहित सही मोबाइल नंबर दर्ज करें, जैसे +919876543210।', 'error');
-    }
-    try {
-      if (!phoneRecaptcha) {
-        phoneRecaptcha = new firebase.auth.RecaptchaVerifier('phoneRecaptcha', { size: 'normal' });
-      }
-      phoneConfirmation = await state.auth.signInWithPhoneNumber(phone, phoneRecaptcha);
-      byId('phoneCodeRow')?.classList.remove('hidden');
-      notify('SMS OTP भेज दिया गया है।', 'success');
-    } catch (error) {
-      console.error('Phone sign-in failed:', error);
-      try { await phoneRecaptcha?.clear(); } catch (_) {}
-      phoneRecaptcha = null;
-      notify(error.code === 'auth/operation-not-allowed'
-        ? 'Firebase Console में Phone sign-in provider enable करना आवश्यक है.'
-        : authErrorMessage(error), 'error');
-    }
-  };
-  authApi.verifyPhoneCode = async function () {
-    const code = (byId('phoneLoginCode')?.value || '').trim();
-    if (!phoneConfirmation) return notify('पहले OTP भेजें।', 'error');
-    if (!/^\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
-    try {
-      await phoneConfirmation.confirm(code);
-      phoneConfirmation = null;
-      authApi.closeAuthModal();
-      notify('मोबाइल नंबर सत्यापित हो गया।', 'success');
-    } catch (error) {
-      console.error('Phone OTP verification failed:', error);
-      notify(authErrorMessage(error), 'error');
-    }
-  };
+  // Phone/SMS OTP sign-in is intentionally disabled. Use Google sign-in or email/password.
   authApi.signInWithGoogle = async function () {
     if (!state.auth || !window.firebase?.auth) {
       return notify('Google login is unavailable.', 'error');
@@ -3414,15 +3339,20 @@ window.renderExamVisibility = function renderExamVisibility() {
     const name = (byId('profEditName')?.value || '').trim();
     const location = (byId('profEditLocation')?.value || '').trim();
     const phone = (byId('profEditPhone')?.value || '').trim();
+    const normalizePhone = value => String(value || '').replace(/[\s()-]/g, '');
+    const phoneChanged = normalizePhone(phone) !== normalizePhone(state.profile?.phone || state.user.phoneNumber || '');
     try {
       const displayName = name || state.profile?.displayName || state.user.displayName || '';
-      await state.db.collection('users').doc(state.user.uid).set({
+      const profileUpdate = {
         displayName, location, phone,
-        phoneVerified: state.profile?.phoneVerified === true,
+        phoneVerified: !phoneChanged && state.profile?.phoneVerified === true,
         email: state.user.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      state.profile = { ...(state.profile || {}), displayName, location, phone };
+      };
+      if (phoneChanged) profileUpdate.phoneAuthVerifiedAt = firebase.firestore.FieldValue.delete();
+      await state.db.collection('users').doc(state.user.uid).set(profileUpdate, { merge: true });
+      state.profile = { ...(state.profile || {}), displayName, location, phone, phoneVerified: profileUpdate.phoneVerified };
+      if (phoneChanged) delete state.profile.phoneAuthVerifiedAt;
       setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {

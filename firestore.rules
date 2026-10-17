@@ -54,6 +54,32 @@ service cloud.firestore {
       return examOwner() || editorHasPermission('media');
     }
 
+    function examEnabled(mode) {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return exists(configPath)
+        && get(configPath).data.get('examPortalVisible', true) != false
+        && (
+          (mode == 'quiz' && get(configPath).data.get('dailyQuizVisible', true) != false)
+          || (mode == 'mock1' && get(configPath).data.get('mockVisible', true) != false
+            && get(configPath).data.get('mock1Visible', true) != false)
+          || (mode == 'mock2' && get(configPath).data.get('mockVisible', true) != false
+            && get(configPath).data.get('mock2Visible', true) != false)
+          || (mode == 'main' && get(configPath).data.get('mainExamVisible', true) != false)
+        );
+    }
+
+    function examPortalEnabled() {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return !exists(configPath)
+        || get(configPath).data.get('examPortalVisible', true) == true;
+    }
+
+    function dailyQuizEnabled() {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return !exists(configPath)
+        || get(configPath).data.get('dailyQuizVisible', true) == true;
+    }
+
     function examStarted(fieldName) {
       let configPath = /databases/$(database)/documents/examConfig/current;
       return exists(configPath)
@@ -79,7 +105,7 @@ service cloud.firestore {
 
     function validScheduledSessionEnd(mode, endAt) {
       let configPath = /databases/$(database)/documents/examConfig/current;
-      return exists(configPath) && (
+      return exists(configPath) && examEnabled(mode) && (
         (mode == 'quiz' && endAt == get(configPath).data.get('quizEndAt', null))
         || (mode == 'mock1' && endAt == get(configPath).data.get('mock1EndAt', null))
         || (mode == 'mock2' && endAt == get(configPath).data.get('mock2EndAt', null))
@@ -97,14 +123,40 @@ service cloud.firestore {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
       allow create: if signedIn()
         && request.auth.uid == uid
-        && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner']);
+        && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner'])
+        && (
+          request.resource.data.get('phoneVerified', false) != true
+          || (
+            request.auth.token.keys().hasAny(['phone_number'])
+            && request.auth.token.phone_number == request.resource.data.get('phone', '')
+          )
+        );
       allow update: if owner()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'updatedAt'
+            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village', 'phone', 'phoneVerified', 'phoneAuthVerifiedAt', 'updatedAt'
           ])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone', 'phoneVerified', 'phoneAuthVerifiedAt'])
+            || (
+              request.resource.data.get('phoneVerified', false) != true
+              && request.resource.data.get('phoneAuthVerifiedAt', null) == null
+            )
+            || (
+              request.resource.data.get('phoneVerified', false) == true
+              && resource.data.get('phoneVerified', false) == true
+              && request.resource.data.get('phone', '') == resource.data.get('phone', '')
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phoneVerified', 'phoneAuthVerifiedAt'])
+            )
+            || (
+              request.resource.data.get('phoneVerified', false) == true
+              && request.auth.token.keys().hasAny(['phone_number'])
+              && request.auth.token.phone_number == request.resource.data.get('phone', '')
+              && request.resource.data.get('phoneAuthVerifiedAt', null) is timestamp
+            )
+          )
         );
       allow delete: if owner();
     }
@@ -122,7 +174,7 @@ service cloud.firestore {
     // Student-visible question documents must contain no secret answer key.
     match /quiz/{questionId} {
       allow read: if examOwner() || canEditQuizDrafts()
-        || (resource.data.get('published', false) == true && examStarted('quizStartAt'));
+        || (resource.data.get('published', false) == true && examEnabled('quiz') && examStarted('quizStartAt'));
       allow create: if examOwner()
         || (canEditQuizDrafts()
           && request.resource.data.get('published', false) == false
@@ -135,20 +187,20 @@ service cloud.firestore {
     }
 
     match /mainExamQuestions/{questionId} {
-      allow read: if examOwner()
-        || (resource.data.get('published', false) == true && examStarted('mainStartAt'));
+      allow read: if canReviewExam()
+        || (resource.data.get('published', false) == true && examEnabled('main') && examStarted('mainStartAt'));
       allow create, update, delete: if examOwner();
     }
 
     match /mockExam_1/{questionId} {
-      allow read: if examOwner()
-        || (resource.data.get('published', false) == true && examStarted('mock1StartAt'));
+      allow read: if canReviewExam()
+        || (resource.data.get('published', false) == true && examEnabled('mock1') && examStarted('mock1StartAt'));
       allow create, update, delete: if examOwner();
     }
 
     match /mockExam_2/{questionId} {
-      allow read: if examOwner()
-        || (resource.data.get('published', false) == true && examStarted('mock2StartAt'));
+      allow read: if canReviewExam()
+        || (resource.data.get('published', false) == true && examEnabled('mock2') && examStarted('mock2StartAt'));
       allow create, update, delete: if examOwner();
     }
 
@@ -219,6 +271,7 @@ service cloud.firestore {
     // Student answer sheets remain private to authorized reviewers.
     match /mainExamSubmissions/{attemptId} {
       allow create: if confirmedExamStudent()
+        && examEnabled('main')
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'main'
         && examStarted('mainStartAt');
@@ -231,9 +284,9 @@ service cloud.firestore {
         && request.resource.data.get('uid', '') == request.auth.uid
         && (
           (request.resource.data.get('mode', '') == 'mock1'
-            && examStarted('mock1StartAt'))
+            && examEnabled('mock1') && examStarted('mock1StartAt'))
           || (request.resource.data.get('mode', '') == 'mock2'
-            && examStarted('mock2StartAt'))
+            && examEnabled('mock2') && examStarted('mock2StartAt'))
         );
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
@@ -241,6 +294,7 @@ service cloud.firestore {
 
     match /quizAttempts/{attemptId} {
       allow create: if confirmedExamStudent()
+        && examEnabled('quiz')
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'quiz'
         && examStarted('quizStartAt');
@@ -263,6 +317,7 @@ service cloud.firestore {
 
     match /examSessions/{sessionId} {
       allow create: if signedIn()
+        && examEnabled(request.resource.data.get('mode', ''))
         && request.resource.data.get('uid', '') == request.auth.uid
         && (
           request.resource.data.get('status', '') == 'late_request'
