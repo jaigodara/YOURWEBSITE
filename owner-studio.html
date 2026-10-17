@@ -2074,8 +2074,6 @@ Ans: B"></textarea>
         }
       }
     }
-      }
-    }
     window.releaseAdmitCardForRollNumber = releaseAdmitCardForRollNumber;
 
     async function revokeAdmitCardRelease() {
@@ -3113,7 +3111,6 @@ Ans: B"></textarea>
                   }
                 }
               }
-              const wasConfirmed = d.verificationStatus === 'confirmed';
               d.rollNumber = rollNumber;
               sub.textContent = 'रोल नंबर: ' + (d.rollNumber || 'आवंटित नहीं') + ' · मोबाइल: ' + (d.mobile || d.phone || '—') + ' · ईमेल: ' + (d.email || '—') + ' · वर्तमान स्थिति: ' + status.value;
               d.verificationStatus = status.value;
