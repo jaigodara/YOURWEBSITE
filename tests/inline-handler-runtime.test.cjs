@@ -102,7 +102,7 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   });
   window.eval(script);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
-  assert.equal(window.__firebaseInitializeCalls, 1, "initializeApp should run exactly once");
+  assert.equal(window.__firebaseInitializeCalls, 1, "initializeApp should run exactly once; startup console errors: " + errors.join("\n"));
   assert.equal(window.__bishnoiReady, true);
   assert.equal(typeof window.BishnoiApp.openProfileOrAuth, "function");
   assert.equal(typeof window.BishnoiAuth.signInWithGoogle, "function");
@@ -156,6 +156,7 @@ test("auth/profile handlers and all five navigation tabs run without throwing an
   const earlyAuth = authObject.openAuthModal;
   const earlyProfile = appObject.openProfileOrAuth;
   window.eval(script);
+  window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   assert.notEqual(authObject.openAuthModal, earlyAuth);
   assert.notEqual(appObject.openProfileOrAuth, earlyProfile);
   assert.equal(typeof authObject.openAuthModal, "function");
