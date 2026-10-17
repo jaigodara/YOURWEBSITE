@@ -3027,7 +3027,6 @@ function renderExamVisibility() {
     window.BishnoiPortal = window.BishnoiPortal || {};
     window.BishnoiPortal.switchTab = window.switchTab;
     window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
-    window.Bishnoi.switchTab = window.switchTab;
   }
 
   // Export selected helpers for debugging without exposing privileged actions.
