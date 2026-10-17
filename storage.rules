@@ -1,0 +1,46 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function mediaEditor() {
+      let rolePath = /databases/(default)/documents/roles/$(request.auth.uid);
+      return signedIn()
+        && firestore.exists(rolePath)
+        && firestore.get(rolePath).data.role == 'editor'
+        && firestore.get(rolePath).data.get('permissions', {}).get('media', false) == true;
+    }
+
+    function mediaOwner() {
+      return signedIn() && (
+        request.auth.uid == '8YRBWWMKG2OUW6cmzZkGbFgOqyp2'
+        || request.auth.uid == 'rdP0ZXzSP9fGzmJshEVvbOfb31g2'
+        || (
+          firestore.exists(/databases/(default)/documents/roles/$(request.auth.uid))
+          && firestore.get(/databases/(default)/documents/roles/$(request.auth.uid)).data.role == 'owner'
+        )
+      );
+    }
+
+    // Publicly readable website media. Only the verified Owner or an Editor
+    // with the media permission may upload, replace, or delete these files.
+    match /publicMedia/{kind}/{fileName} {
+      allow read: if kind in ['pdfs', 'audios'];
+      allow create, update: if mediaOwner() || mediaEditor()
+        && kind in ['pdfs', 'audios']
+        && request.resource.size <= (kind == 'pdfs' ? 25 * 1024 * 1024 : 30 * 1024 * 1024)
+        && (
+          (kind == 'pdfs' && request.resource.contentType == 'application/pdf')
+          || (kind == 'audios' && request.resource.contentType.matches('audio/.*|video/mp4'))
+        );
+      allow delete: if mediaOwner() || mediaEditor();
+    }
+
+    // All other Storage paths are denied unless a separate explicit rule exists.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
