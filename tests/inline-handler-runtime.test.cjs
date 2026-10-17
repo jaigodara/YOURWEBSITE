@@ -82,7 +82,7 @@ test("early auth placeholders are safe before Firebase initialization", () => {
   window.BishnoiAuth = {};
   window.BishnoiApp = {};
   window.firebase.apps.length = 0;
-  const mainStartup = script.indexOf("\\ntry {\\n(() => {");
+  const mainStartup = script.indexOf("\ntry {\n(() => {");
   assert.ok(mainStartup > 0, "early placeholder block should precede main startup");
   window.eval(script.slice(0, mainStartup));
   assert.equal(window.firebase.apps.length, 0, "early handlers must not initialize Firebase");
@@ -108,7 +108,7 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   assert.equal(typeof window.BishnoiAuth.signInWithGoogle, "function");
   assert.doesNotMatch(window.BishnoiApp.openProfileOrAuth.name, /earlyProfilePlaceholder/);
   assert.doesNotMatch(window.BishnoiAuth.signInWithGoogle.name, /earlyGoogleSignInPlaceholder/);
-  assert.equal(errors.some(message => message.includes("आरंभ नहीं हो सका")), false, errors.join("\\n"));
+  assert.equal(errors.some(message => message.includes("आरंभ नहीं हो सका")), false, errors.join("\n"));
   assert.equal(errors.some(message => /ReferenceError|TypeError/.test(message)), false, errors.join("\\n"));
   dom.window.close();
 });
@@ -125,6 +125,7 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   const earlyAuth = authObjectBefore.openAuthModal;
   const earlyProfile = appObjectBefore.openProfileOrAuth;
   window.eval(script);
+  window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   // Owner-only inline scripts also publish owner handlers; evaluate those scripts without loading remote SDKs.
   const ownerDom = new JSDOM(ownerHtml, { url: "https://bishnoism.test/owner-studio.html", runScripts: "outside-only" });
   makeFirebaseStub(ownerDom.window);
