@@ -3283,14 +3283,19 @@ window.renderExamVisibility = function renderExamVisibility() {
       const modal = byId('userProfileModal');
       if (modal) {
         const profile = state.profile || {};
-        const displayName = profile.displayName || state.user.displayName || '';
-        const email = state.user.email || state.user.phoneNumber || 'Google / अन्य लॉगिन खाता';
+        const displayName = profile.displayName || profile.fullName || state.user.displayName || '';
+        const googleProfile = (state.user.providerData || []).find(item => item && item.providerId === 'google.com');
+        const email = profile.email || googleProfile?.email || state.user.email || 'Google / अन्य लॉगिन खाता';
         const nameInput = byId('profEditName');
         const locationInput = byId('profEditLocation');
         const phoneInput = byId('profEditPhone');
         if (nameInput) nameInput.value = displayName;
         if (locationInput) locationInput.value = profile.location || '';
-        if (phoneInput) phoneInput.value = profile.phone || state.user.phoneNumber || '';
+        if (phoneInput) {
+          phoneInput.value = maskMobile(profile.mobile || '');
+          phoneInput.readOnly = true;
+          phoneInput.setAttribute('aria-readonly', 'true');
+        }
         setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
         setText('profileEmailDisplay', email);
         const verification = profile.verificationStatus || 'unverified';
