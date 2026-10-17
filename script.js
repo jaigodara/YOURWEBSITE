@@ -1181,6 +1181,7 @@ try {
       host.appendChild(button);
     }
   }
+  }
   window.downloadPortalAdmitCard = printStudentAdmitCard;
 
   window.pushNotification = async function pushNotification(uid, data = {}) {
@@ -3415,7 +3416,6 @@ window.renderExamVisibility = function renderExamVisibility() {
   // cached/dynamically evaluated script); initPortal is idempotent.
   initPortal();
 
-  }
 })();
 } catch (error) {
   console.error('मुख्य पेज आरंभ नहीं हो सका:', error);
