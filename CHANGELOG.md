@@ -94,3 +94,17 @@
 - Show the student's admit-card PDF download after approval and valid roll assignment; notification release remains a separate notification action.
 - Add regression tests for roll display, approval gating, and roll-counter behavior.
 - Live Firebase and browser PDF checks remain required; this is not a claim that every website feature is complete.
+
+
+## 2026-10-17 — Startup reference error hotfix
+
+- Root cause on `main`: `script.js:38` declared `portalSwitchTabImplementation` inside `exposeEarlyNavigation()`, but `script.js:347` assigned it from the separate main-portal IIFE. That assignment raised a `ReferenceError` and stopped startup before Firebase initialization and the real auth API assignments.
+- Fix: the single top-level dispatcher now owns the shared implementation slot; the main portal assigns its full implementation through that slot. Tab hooks are isolated with `try/catch`.
+- Early auth/profile/Google handlers now use a Firebase-readiness guard and safely fall back to the auth modal or Hindi loading toast.
+- Startup initializes Firebase before feature modules, attaches real API methods before calling `initPortal`, isolates each feature setup with `safeStep`, and publishes `window.__bishnoiReady`.
+- Removed duplicate `html2canvas` and `jsPDF` script loads from `index.html`; enabled ESLint `no-undef` as an error with explicit browser SDK globals.
+- Added jsdom regression tests for no-app placeholders, one-time initialization, real auth/profile API attachment, runtime errors, and the single `window.switchTab` assignment. CI verification is pending.
+
+
+- Follow-up CI fixes: removed two unmatched closing braces in `owner-studio.html` around the individual admit-card release handler and removed a duplicate `wasConfirmed` declaration in the enrollment-status save handler. The inline owner script now parses.
+- Tightened the pre-initialization regression assertion to verify the auth modal's hidden class is actually removed.

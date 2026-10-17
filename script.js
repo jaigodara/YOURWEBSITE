@@ -1,3 +1,8 @@
+window.__startupTrace = window.__startupTrace || [];
+function traceStartup(step, extra) {
+  try { window.__startupTrace.push(step + (extra ? ': ' + extra : '')); } catch (e) {}
+}
+traceStartup('script:enter');
 /*
  * Corrected copy based on the original uploaded script.js.
  * Static syntax and targeted regression fixes have been applied.
@@ -32,21 +37,44 @@ function showEarlyHindiToast() {
   } catch (error) { console.error('हिंदी सूचना नहीं दिख सकी:', error); }
 }
 
-// Publish navigation immediately so existing HTML inline onclick handlers such
-// as BishnoiPortal.switchTab('home') never see an undefined namespace.
-(function exposeEarlyNavigation() {
-  let portalSwitchTabImplementation = null;
-  window.switchTab = function (id) {
-    if (typeof portalSwitchTabImplementation === 'function') {
-      return portalSwitchTabImplementation(id);
+function firebaseReady() {
+  return typeof firebase !== 'undefined' && !!firebase.apps && firebase.apps.length > 0;
+}
+
+function openEarlyAuthOrToast() {
+  try {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+      modal.hidden = false;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+    } else {
+      showEarlyHindiToast();
     }
+  } catch (error) {
+    console.error('प्रारंभिक लॉगिन पैनल नहीं खुला:', error);
+    showEarlyHindiToast();
+  }
+}
+
+// The dispatcher is deliberately top-level: the early navigation wrapper and
+// the later portal initializer must share the same implementation binding.
+let portalSwitchTabImplementationImpl = null;
+window.__tabChangeHooks = window.__tabChangeHooks || [];
+
+function portalSwitchTabImplementation(id) {
+  let result;
+  if (typeof portalSwitchTabImplementationImpl === 'function') {
+    result = portalSwitchTabImplementationImpl(id);
+  } else {
     const raw = String(id || '').replace(/^tab-/, '');
     const aliases = { sahitya: 'library', pariksha: 'quiz' };
     const key = aliases[raw] || raw;
     const target = 'tab-' + key;
-    const panels = document.querySelectorAll('main [id^="tab-"]');
     let found = false;
-    panels.forEach(panel => {
+    document.querySelectorAll('main [id^="tab-"]').forEach(panel => {
       const active = panel.id === target ||
         (key === 'library' && panel.id === 'tab-sahitya') ||
         (key === 'quiz' && panel.id === 'tab-pariksha');
@@ -55,10 +83,6 @@ function showEarlyHindiToast() {
       panel.setAttribute('aria-hidden', String(!active));
       if (active) found = true;
     });
-    if (!found) {
-      console.warn('Navigation panel not found:', id, 'expected', target);
-      return false;
-    }
     document.querySelectorAll('[id^="bnav-"]').forEach(button => {
       const active = button.id === 'bnav-' + key ||
         (key === 'library' && button.id === 'bnav-sahitya') ||
@@ -66,9 +90,24 @@ function showEarlyHindiToast() {
       button.classList.toggle('bnav-active', active);
       button.setAttribute('aria-current', active ? 'page' : 'false');
     });
-    try { sessionStorage.setItem('bishnoi_active_tab_v1', key); } catch (_) {}
     if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
-    return true;
+    result = found;
+    if (!found) console.warn('Navigation panel not found:', target);
+  }
+  const raw = String(id || '').replace(/^tab-/, '');
+  const aliases = { sahitya: 'library', pariksha: 'quiz' };
+  const key = aliases[raw] || raw;
+  (window.__tabChangeHooks || []).forEach(fn => {
+    try { fn(key); } catch (error) { console.error('tab hook failed:', error); }
+  });
+  return result;
+}
+
+// Publish navigation immediately so existing HTML inline onclick handlers such
+// as BishnoiPortal.switchTab('home') never see an undefined namespace.
+(function exposeEarlyNavigation() {
+  window.switchTab = function (id) {
+    return portalSwitchTabImplementation(id);
   };
   window.switchPortalTab = window.switchTab;
   window.BishnoiPortal = window.BishnoiPortal || {};
@@ -97,27 +136,31 @@ function showEarlyHindiToast() {
       }
     };
   }
+  if (typeof window.BishnoiAuth.signInWithGoogle !== 'function') {
+    traceStartup('attach:auth:done');
+  window.BishnoiAuth.signInWithGoogle = function earlyGoogleSignInPlaceholder() {
+      openEarlyAuthOrToast();
+    };
+  }
   if (typeof window.BishnoiApp.openProfileOrAuth !== 'function') {
-    window.BishnoiApp.openProfileOrAuth = function () {
+    traceStartup('attach:app:done');
+  window.BishnoiApp.openProfileOrAuth = function earlyProfilePlaceholder() {
       try {
-        const profile = document.getElementById('userProfileModal');
-        const loggedIn = !!(window.firebase?.auth && window.firebase.auth().currentUser);
-        if (loggedIn && profile) {
-          profile.classList.remove('hidden');
-          profile.classList.add('flex');
-          profile.style.display = 'flex';
-          profile.setAttribute('aria-hidden', 'false');
+        if (!firebaseReady()) {
+          openEarlyAuthOrToast();
           return;
         }
-        const auth = document.getElementById('authModal');
-        if (!loggedIn && auth) {
-          auth.classList.remove('hidden');
-          auth.classList.add('flex');
-          auth.style.display = 'flex';
-          auth.setAttribute('aria-hidden', 'false');
+        const loggedIn = !!firebase.auth().currentUser;
+        const target = document.getElementById(loggedIn ? 'userProfileModal' : 'authModal');
+        if (!target) {
+          showEarlyHindiToast();
           return;
         }
-        showEarlyHindiToast();
+        target.hidden = false;
+        target.classList.remove('hidden');
+        target.classList.add('flex');
+        target.style.display = 'flex';
+        target.setAttribute('aria-hidden', 'false');
       } catch (error) {
         console.error('प्रारंभिक प्रोफ़ाइल पैनल नहीं खुला:', error);
         showEarlyHindiToast();
@@ -128,6 +171,7 @@ function showEarlyHindiToast() {
 
 try {
 (() => {
+  traceStartup('iife:enter');
   const CONFIG = Object.freeze({
     firebase: {
       apiKey: "AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA",
@@ -161,6 +205,7 @@ try {
     legacyOwnerUid: "8YRBWWMKG2OUW6cmzZkGbFgOqyp2"
   });
 
+  traceStartup(CONFIG && CONFIG.firebase ? 'config:found' : 'config:MISSING');
   const state = {
     db: null,
     auth: null,
@@ -294,7 +339,7 @@ try {
   const requireUser = () => {
     if (!state.user) {
       notify('Please sign in first.');
-      promptUserLogin();
+      window.promptUserLogin();
       return false;
     }
     return true;
@@ -344,14 +389,14 @@ try {
     profile: 'tab-profile'
   };
 
-  portalSwitchTabImplementation = function (id) {
+  portalSwitchTabImplementationImpl = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
     if (!state.user && restrictedTabs.has(raw)) {
+      // Keep navigation usable; data-changing actions still enforce requireUser().
       window.BishnoiAuth?.openAuthModal?.();
-      notify('इस अनुभाग का उपयोग करने के लिए पहले लॉगिन करें।', 'error');
-      return false;
+      notify('इस अनुभाग की सुविधाओं के लिए पहले लॉगिन करें।', 'error');
     }
     const aliases = new Set([target, `tab-${raw}`]);
 
@@ -389,15 +434,12 @@ try {
     try { sessionStorage.setItem('bishnoi_active_tab_v1', raw); } catch (_) {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    if (['admin', 'profile'].includes(raw)) renderOwnerStudio();
     return true;
   };
 
-  window.switchPortalTab = window.switchTab;
   window.BishnoiPortal = window.BishnoiPortal || {};
   window.BishnoiPortal.switchTab = window.switchTab;
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
-  window.Bishnoi.switchTab = window.switchTab;
 
   function subscribe(ref, next, errorLabel = 'Live data') {
     const unsub = ref.onSnapshot(next, err => {
@@ -521,15 +563,15 @@ try {
       state.user = user;
       state.profile = null;
       state.resultsIdentityVerified = false;
-      initPersonalNotificationsForUser();
-      initPublicNotifications();
-      renderNotificationCenter();
+      window.initPersonalNotificationsForUser();
+      window.initPublicNotifications();
+      window.renderNotificationCenter();
       try {
         const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
         if (savedTab) window.switchTab(savedTab);
       } catch (_) {}
       state.myResults = [];
-      renderMyResults();
+      window.renderMyResults();
       state.isOwner = false;
       state.roles = [];
 
@@ -565,12 +607,12 @@ try {
         }
         try {
           await loadUserProfile(user);
-          restoreActiveExamForUser();
+          window.restoreActiveExamForUser();
           if (state.profile?.mala && typeof state.profile.mala === 'object') {
             state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
             state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
             try { localStorage.setItem('bishnoi_mala_v2', JSON.stringify({ ...state.mala, date: localDateKey() })); } catch (_) {}
-            renderMala();
+            window.renderMala();
           }
           notify(`Welcome${state.profile?.displayName ? ' ' + state.profile.displayName : ''}!`, 'success');
         } catch (e) {
@@ -629,7 +671,7 @@ try {
     if (!state.auth) return notify('Authentication is unavailable.', 'error');
 
     if (state.user) {
-      switchTab('profile');
+      window.switchTab('profile');
       return;
     }
 
@@ -650,7 +692,7 @@ try {
 
   window.logoutPortalUser = async function () {
     try {
-      stopExamResources();
+      window.stopExamResources();
       if (state.auth) await state.auth.signOut();
       notify('Signed out.', 'success');
     } catch (e) {
@@ -720,26 +762,26 @@ try {
       collection('historyItems').orderBy('createdAt', 'desc').limit(100),
       snap => {
         state.historyItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderHistoryItems();
+        window.renderHistoryItems();
       },
       'History and culture updates'
     );
 
     subscribe(
       collection('posts').orderBy('createdAt', 'desc').limit(50),
-      snap => renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => window.renderCommunity(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'Community'
     );
 
     subscribe(
       collection('audios').orderBy('order', 'asc'),
-      snap => renderAudioList(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => window.renderAudioList(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'Audio library'
     );
 
     subscribe(
       collection('pdfs').orderBy('createdAt', 'desc').limit(100),
-      snap => renderPdfLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => window.renderPdfLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       'PDF library'
     );
 
@@ -747,7 +789,7 @@ try {
       collection('examConfig').doc('current'),
       snap => {
         state.examConfig = snap.exists ? snap.data() : {};
-        renderExamVisibility();
+        window.renderExamVisibility();
       },
       'Exam configuration'
     );
@@ -762,7 +804,7 @@ try {
             .map(d => ({ id: d.id, ...d.data() }))
             .filter(row => row.status === 'published')
             .sort((a, b) => timestampMillis(b.publishedAt) - timestampMillis(a.publishedAt));
-          renderMyResults();
+          window.renderMyResults();
         },
         'Published student results'
       );
@@ -778,7 +820,7 @@ try {
     setText('maintenanceProgress', `${progress}%`);
     const bar = byId('maintenanceProgressBar');
     if (bar) bar.style.width = `${progress}%`;
-    renderExamVisibility();
+    window.renderExamVisibility();
   }
 
   function applyMaintenanceSettings() {
@@ -1148,6 +1190,7 @@ try {
       host.appendChild(button);
     }
   }
+  }
   window.downloadPortalAdmitCard = printStudentAdmitCard;
 
   window.pushNotification = async function pushNotification(uid, data = {}) {
@@ -1308,7 +1351,7 @@ try {
     });
   }
 
-  function renderNotificationCenter() {
+  window.renderNotificationCenter = function renderNotificationCenter() {
     const bell = byId('notificationBellButton');
     const section = byId('publicNotificationsSection');
     const popup = byId('notificationPopup');
@@ -1371,7 +1414,7 @@ try {
       moreButton.addEventListener('click', () => {
         state.notificationVisibleLimit =
           (state.notificationVisibleLimit || 20) + 20;
-        renderNotificationCenter();
+        window.renderNotificationCenter();
       });
 
       if (list) {
@@ -1433,7 +1476,7 @@ try {
       batch.commit().catch(error => { console.error('Notification read-marker sync failed:', error.code || error.message, error); notify('पढ़ी हुई स्थिति सिंक नहीं हुई (' + (error.code || 'unknown') + ')।', 'error'); });
     }
     state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []), ...keysToMark])];
-    renderNotificationCenter();
+    window.renderNotificationCenter();
   }
 
   window.toggleNotificationPanel = function (forceOpen) {
@@ -1455,7 +1498,7 @@ try {
     setVisible('notificationPopup', false);
   };
 
-  function initPersonalNotificationsForUser() {
+  window.initPersonalNotificationsForUser = function initPersonalNotificationsForUser() {
     if (state.personalNotificationsUnsubscribe) {
       state.personalNotificationsUnsubscribe();
       state.personalNotificationsUnsubscribe = null;
@@ -1467,42 +1510,42 @@ try {
     if (state.flatNotificationsUnsubscribe) { state.flatNotificationsUnsubscribe(); state.flatNotificationsUnsubscribe = null; }
     if (state.flatNotificationReadsUnsubscribe) { state.flatNotificationReadsUnsubscribe(); state.flatNotificationReadsUnsubscribe = null; }
     state.personalNotifications = []; state.flatNotifications = []; state.notificationReadKeys = [];
-    if (!state.user || !state.db) { renderNotificationCenter(); return; }
+    if (!state.user || !state.db) { window.renderNotificationCenter(); return; }
     const uid = state.user.uid;
     state.notificationReadsUnsubscribe = state.db.collection('userNotificationReads').doc(uid).collection('items').onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       const legacyKeys = snapshot.docs.map(doc => doc.data()?.key).filter(Boolean);
       state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => k.startsWith('flat:')), ...legacyKeys])];
-      renderNotificationCenter();
+      window.renderNotificationCenter();
     }, error => console.error('Legacy notification read-marker listener failed:', error.code || error.message, error));
     state.flatNotificationReadsUnsubscribe = state.db.collection('notificationReads').where('uid', '==', uid).onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       const flatKeys = snapshot.docs.filter(doc => doc.data()?.read === true).map(doc => 'flat:' + doc.data().notificationId);
       state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => !k.startsWith('flat:')), ...flatKeys])];
-      renderNotificationCenter();
+      window.renderNotificationCenter();
     }, error => console.error('Flat notification read-marker listener failed:', error.code || error.message, error));
     state.personalNotificationsUnsubscribe = state.db.collection('userNotifications').doc(uid).collection('items').onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
-      renderNotificationCenter();
-    }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; renderNotificationCenter(); });
+      window.renderNotificationCenter();
+    }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; window.renderNotificationCenter(); });
     state.flatNotificationsUnsubscribe = state.db.collection('userNotifications').where('uid', 'in', [uid, 'ALL']).onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       state.flatNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'flat' }));
-      renderNotificationCenter();
+      window.renderNotificationCenter();
     }, error => { console.error('Flat notification listener failed:', error.code || error.message, error); notify('सूचनाएँ लोड नहीं हुईं (' + (error.code || 'unknown') + ')।', 'error'); });
   }
 
-  function initPublicNotifications() {
+  window.initPublicNotifications = function initPublicNotifications() {
     if (!state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
       .onSnapshot(snapshot => {
         state.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'global' }));
-        renderNotificationCenter();
+        window.renderNotificationCenter();
       }, error => {
         console.warn('Notifications could not load:', error);
         state.notifications = [];
-        renderNotificationCenter();
+        window.renderNotificationCenter();
       });
     state.unsubscribers.push(() => {
       if (state.publicNotificationsUnsubscribe) state.publicNotificationsUnsubscribe();
@@ -1587,7 +1630,7 @@ try {
     renderEnrollmentStatus(state.user ? undefined : null);
   }
 
-  function renderMyResults() {
+  window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
     if (!host) return;
     const rows = state.myResults || [];
@@ -1610,7 +1653,7 @@ try {
     }).join('');
   }
 
-  function renderHistoryItems() {
+  window.renderHistoryItems = function renderHistoryItems() {
     const historyHost = byId('historySubView');
     const kidsHost = byId('kidsSubView');
     const history = (state.historyItems || []).filter(x => x.category !== 'kids');
@@ -1621,7 +1664,7 @@ try {
   }
 
 
-function renderExamVisibility() {
+window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
 
   // Use real container IDs. The daily quiz container includes both
@@ -1733,7 +1776,7 @@ function renderExamVisibility() {
       state.mala.laps = Math.max(0, Number(saved.laps) || 0);
     } catch (_) {}
 
-    renderMala();
+    window.renderMala();
   }
 
   function saveMala() {
@@ -1753,7 +1796,7 @@ function renderExamVisibility() {
     }
   }
 
-  function renderMala() {
+  window.renderMala = function renderMala() {
     setText('malaCount', state.mala.count);
     setText('malaLapCount', state.mala.laps);
     setText('malaProgress', `${Math.round(state.mala.count / 108 * 100)}%`);
@@ -1774,14 +1817,14 @@ function renderExamVisibility() {
     }
     if (navigator.vibrate && byId('hapticToggle')?.checked) navigator.vibrate(25);
     saveMala();
-    renderMala();
+    window.renderMala();
   };
 
   window.resetMala = function () {
     if (!confirm('Reset this mala count?')) return;
     state.mala.count = 0;
     saveMala();
-    renderMala();
+    window.renderMala();
   };
 
   window.pledgeTree = async function () {
@@ -1829,7 +1872,7 @@ function renderExamVisibility() {
     try {
       const snap = await collection('shabadwani').orderBy('num', 'asc').limit(200).get();
       const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderShabadCards(rows);
+      window.renderShabadCards(rows);
     } catch (e) {
       console.warn('Shabad repository not available', e);
     }
@@ -1934,7 +1977,7 @@ function renderExamVisibility() {
     }
   };
 
-  function renderAudioList(items) {
+  window.renderAudioList = function renderAudioList(items) {
     const host = byId('audioList') || byId('audioPlayerTrackList');
     if (!host) return;
 
@@ -1973,7 +2016,7 @@ function renderExamVisibility() {
     });
   }
 
-  function renderPdfLibrary(items) {
+  window.renderPdfLibrary = function renderPdfLibrary(items) {
     const host = byId('pdfLibrary') || byId('literatureFiles') || byId('pdfGrid');
     if (!host) return;
 
@@ -1992,7 +2035,7 @@ function renderExamVisibility() {
   let communityPostsCache = [];
   let communityTopicFilter = 'all';
 
-  function renderCommunity(posts) {
+  window.renderCommunity = function renderCommunity(posts) {
     communityPostsCache = Array.isArray(posts) ? posts : [];
     const host = byId('communityFeed') || byId('communityPosts') || byId('postsList');
     if (!host) return;
@@ -2029,7 +2072,7 @@ function renderExamVisibility() {
   window.BishnoiCommunity = window.BishnoiCommunity || {};
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
-    renderCommunity(communityPostsCache);
+    window.renderCommunity(communityPostsCache);
   };
   window.BishnoiCommunity.submitPost = async function () {
     if (!requireUser()) return;
@@ -2206,7 +2249,7 @@ function renderExamVisibility() {
     try { sessionStorage.removeItem(ACTIVE_EXAM_STORAGE_KEY); } catch (_) {}
   }
 
-  function restoreActiveExamForUser() {
+  window.restoreActiveExamForUser = function restoreActiveExamForUser() {
     if (!state.user) return;
     let saved;
     try { saved = JSON.parse(sessionStorage.getItem(ACTIVE_EXAM_STORAGE_KEY) || 'null'); } catch (_) { saved = null; }
@@ -2220,7 +2263,7 @@ function renderExamVisibility() {
       return;
     }
 
-    stopExamResources();
+    window.stopExamResources();
     state.exam = {
       active: true,
       mode: saved.mode,
@@ -2250,7 +2293,7 @@ function renderExamVisibility() {
     setVisible('nextQuestionBtn', true);
     setVisible('submitExamBtn', true);
     setText('examResult', 'आपकी पिछली परीक्षा उसी प्रश्न और सुरक्षित किए गए उत्तरों से फिर शुरू की गई है।');
-    switchTab('quiz');
+    window.switchTab('quiz');
     renderExamQuestion();
 
     state.exam.timer = setInterval(() => {
@@ -2275,7 +2318,7 @@ function renderExamVisibility() {
         notify('टैब बदलने की सीमा पूरी हुई। उत्तर सुरक्षित हैं; दोबारा प्रवेश के लिए व्यवस्थापक से संपर्क करें।', 'error');
         state.exam.active = false;
         updateExamSession('kicked', { kickedAt: serverTimestamp(), reason: 'tab_switch_limit' });
-        stopExamResources();
+        window.stopExamResources();
         setText('examResult', 'परीक्षा अस्थायी रूप से लॉक की गई है। आपके उत्तर इसी टैब में सुरक्षित हैं; व्यवस्थापक से अनुमति लें।');
         setVisible('submitExamBtn', false);
         setVisible('nextQuestionBtn', false);
@@ -2349,7 +2392,7 @@ function renderExamVisibility() {
     }, error => console.warn('Exam session listener failed:', error));
   }
 
-  function stopExamResources() {
+  window.stopExamResources = function stopExamResources() {
     const exam = state.exam;
 
     if (exam.timer) clearInterval(exam.timer);
@@ -2430,8 +2473,8 @@ function renderExamVisibility() {
       byId('submitExamBtn').addEventListener('click', () => window.submitPortalExam(false));
       byId('exitExamWorkspace').addEventListener('click', () => {
         setVisible('portalExamWorkspace', false);
-        renderExamVisibility();
-        switchTab('quiz');
+        window.renderExamVisibility();
+        window.switchTab('quiz');
       });
     }
 
@@ -2510,7 +2553,7 @@ function renderExamVisibility() {
         const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
         if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
           notify('क्विज़/मॉक/मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
-          switchTab('quiz');
+          window.switchTab('quiz');
           const enrollmentSection = byId('enrollmentSection');
           if (enrollmentSection) enrollmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
           return;
@@ -2548,7 +2591,7 @@ function renderExamVisibility() {
     if (Date.now() < scheduledStart) {
       const startText = new Date(scheduledStart).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' });
       notify(`यह परीक्षा ${startText} पर शुरू होगी। काउंटडाउन पूरा होने तक प्रवेश बंद है।`, 'error');
-      switchTab('quiz');
+      window.switchTab('quiz');
       renderExamCountdowns();
       return;
     }
@@ -2632,7 +2675,7 @@ function renderExamVisibility() {
         return;
       }
 
-      stopExamResources();
+      window.stopExamResources();
 
       state.exam = {
         active: true,
@@ -2668,7 +2711,7 @@ function renderExamVisibility() {
       setVisible('previousQuestionBtn', true);
       setVisible('nextQuestionBtn', true);
       setVisible('submitExamBtn', true);
-      switchTab('pariksha');
+      window.switchTab('pariksha');
       renderExamQuestion();
 
       state.exam.timer = setInterval(() => {
@@ -2818,7 +2861,7 @@ function renderExamVisibility() {
       exam.submitted = true;
       exam.active = false;
       clearPersistedExam();
-      stopExamResources();
+      window.stopExamResources();
       updateExamSession('submitted', { submittedAt: serverTimestamp() });
       if (instantResult) {
         collection('userNotifications').doc(state.user.uid).collection('items').add({
@@ -2935,39 +2978,80 @@ function renderExamVisibility() {
     countdownEl.textContent = days + ' दिन, ' + hours + ' घंटे, ' + minutes + ' मिनट शेष';
   }
 
+  function safeStep(name, callback) {
+    try {
+      return callback();
+    } catch (error) {
+      console.error('[' + name + '] आरंभ नहीं हो सका:', error);
+      try { notify('कुछ सुविधाएँ अभी लोड नहीं हुईं (' + name + ')। कृपया दोबारा प्रयास करें।', 'error'); }
+      catch (_) { showEarlyHindiToast(); }
+      return undefined;
+    }
+  }
+
+    window.__tabChangeHooks.push(key => {
+      if (['admin', 'profile'].includes(key)) safeStep('ओनर स्टूडियो', renderOwnerStudio);
+    });
+
   function initPortal() {
-    if (state.initialized) return;
+    traceStartup('initPortal:called');
+    if (state.initialized) {
+      traceStartup('guard-return: state.initialized');
+      console.error('[startup] initPortal skipped: already initialized');
+      return;
+    }
+    traceStartup('initPortal:enter');
     state.initialized = true;
 
-    renderDailyMessage();
-    initEnrollmentUI();
-    renderPanchangEstimate();
-    renderExamCountdowns();
-    window.setInterval(renderExamCountdowns, 1000);
-    initMalaState();
-    initKaraokePlayer();
-    renderNiyamsList();
-    bindOptionalButtons();
+    // Firebase is initialized before any module that may use Auth or Firestore.
+    const firebaseInitialized = safeStep('Firebase', () => {
+      if (!firebaseReady()) {
+        if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') {
+          throw new Error('Firebase compat SDK is not available.');
+        }
+        traceStartup('firebase:initializeApp:before');
+        try {
+          firebase.initializeApp(CONFIG.firebase);
+          traceStartup('firebase:initializeApp:after');
+        } catch (error) {
+          traceStartup('firebase:initializeApp:ERROR ' + (error?.message || error));
+          console.error('[startup] Firebase initializeApp failed:', error);
+          throw error;
+        }
+      }
+      if (!firebaseReady()) throw new Error('Firebase initialization did not create a default app.');
+      state.auth = firebase.auth();
+      state.db = firebase.firestore();
+      try { state.storage = firebase.storage(); } catch (_) { state.storage = null; }
+      return true;
+    }) === true;
 
-    if (initFirebase()) {
-      initAuthUI();
-      initPublicNotifications();
-      loadShabadRepository();
+    // Public handlers were attached to the existing namespace objects before
+    // initPortal is invoked, so module failures cannot prevent their exposure.
+    window.__bishnoiReady = firebaseReady();
+    traceStartup('ready:set ' + window.__bishnoiReady);
+
+    safeStep('दैनिक संदेश', renderDailyMessage);
+    safeStep('नामांकन', initEnrollmentUI);
+    safeStep('पंचांग', renderPanchangEstimate);
+    safeStep('परीक्षा काउंटडाउन', () => {
+      renderExamCountdowns();
+      window.setInterval(() => safeStep('परीक्षा काउंटडाउन', renderExamCountdowns), 1000);
+    });
+    safeStep('जपमाला', initMalaState);
+    safeStep('भजन प्लेयर', initKaraokePlayer);
+    safeStep('२९ नियम', renderNiyamsList);
+    safeStep('वैकल्पिक बटन', bindOptionalButtons);
+
+    if (firebaseInitialized) {
+      safeStep('प्रमाणीकरण UI', initAuthUI);
+      safeStep('सार्वजनिक सूचनाएँ', window.initPublicNotifications);
+      safeStep('शब्दवाणी', loadShabadRepository);
     }
 
-    // The last active section is restored after Firebase reports the auth state.
-
-    // The navigation function is now exposed globally.
     window.BishnoiPortal = window.BishnoiPortal || {};
     window.BishnoiPortal.switchTab = window.switchTab;
     window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
-    window.Bishnoi.switchTab = window.switchTab;
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPortal, { once: true });
-  } else {
-    initPortal();
   }
 
   // Export selected helpers for debugging without exposing privileged actions.
@@ -3006,12 +3090,12 @@ function renderExamVisibility() {
       const expectedDob = String(record.dateOfBirth || '').trim();
       if (!expectedRoll || roll !== expectedRoll || name !== expectedName || dob !== expectedDob) {
         state.resultsIdentityVerified = false;
-        renderMyResults();
+        window.renderMyResults();
         if (status) status.textContent = 'दर्ज विवरण पंजीकरण रिकॉर्ड से मेल नहीं खाते। कृपया सही जानकारी भरें।';
         return;
       }
       state.resultsIdentityVerified = true;
-      renderMyResults();
+      window.renderMyResults();
       if (status) status.textContent = 'पहचान सत्यापित। घोषित मुख्य/मॉक परिणाम नीचे दिखेंगे।';
       byId('myResultsList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
@@ -3142,7 +3226,7 @@ function renderExamVisibility() {
   app.resetMala = function () {
     state.mala.count = 0;
     saveMala();
-    renderMala();
+    window.renderMala();
   };
   app.switchHistorySubTab = function (name) {
     const isKids = name === 'kids-corner';
@@ -3350,9 +3434,12 @@ function renderExamVisibility() {
 
   // Keep the public aliases available to inline HTML event handlers.
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
-  window.Bishnoi.switchTab = window.switchTab;
 
-  }
+  // script.js is loaded after the page markup in index.html. Start now so
+  // startup cannot be stranded if DOMContentLoaded already fired (e.g. a
+  // cached/dynamically evaluated script); initPortal is idempotent.
+  initPortal();
+
 })();
 } catch (error) {
   console.error('मुख्य पेज आरंभ नहीं हो सका:', error);
