@@ -523,10 +523,6 @@
         <h3 class="font-bold text-sm text-forest" id="authTitle">लॉगिन (Sign In)</h3>
         <button onclick="window.BishnoiAuth.closeAuthModal()" class="text-stone-400 hover:text-black">✕</button>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button type="button" id="emailLoginTab" onclick="window.BishnoiAuth.setLoginMethod('email')" class="py-2 rounded-xl bg-forest text-white text-xs font-bold">ईमेल + पासवर्ड</button>
-        <button type="button" id="phoneLoginTab" onclick="window.BishnoiAuth.setLoginMethod('phone')" class="py-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-bold">मोबाइल OTP</button>
-      </div>
       <form id="emailLoginForm" onsubmit="window.BishnoiAuth.handleAuthSubmit(event)" class="space-y-3">
         <div id="nameRow" class="hidden">
           <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">पूरा नाम</label>
@@ -547,27 +543,6 @@
         </div>
         <button type="submit" id="authSubmitBtn" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-semibold hover:bg-emerald-950 transition">लॉगिन करें</button>
         <button type="button" onclick="window.BishnoiAuth.toggleAuthMode()" id="authToggleBtn" class="text-xs text-terracotta underline font-semibold block w-full">नए सदस्य हैं? पंजीकरण करें</button>
-      </form>
-      <form id="phoneLoginForm" onsubmit="event.preventDefault(); window.BishnoiAuth.verifyPhoneCode()" class="hidden space-y-3">
-        <label class="block text-[11px] font-semibold text-stone-600">मोबाइल नंबर (देश कोड सहित)
-          <input id="phoneLoginNumber" type="tel" required autocomplete="tel" inputmode="tel" placeholder="+91 98765 43210" class="mt-1 w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-        </label>
-        <label class="block text-[11px] font-semibold text-stone-600">पासवर्ड
-          <input id="phoneLoginPassword" type="password" minlength="6" autocomplete="current-password" required placeholder="कम से कम 6 अक्षर" class="mt-1 w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-        </label>
-        <button type="button" onclick="window.BishnoiAuth.signInWithPhonePassword()" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-bold">मोबाइल + पासवर्ड से लॉगिन</button>
-        <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p class="text-[10px] text-stone-600">पहली बार मोबाइल पासवर्ड सेट करने या पासवर्ड बदलने के लिए SMS OTP से नंबर सत्यापित करें।</p>
-          <div id="phoneRecaptcha" class="min-h-2"></div>
-          <button type="button" onclick="window.BishnoiAuth.sendPhoneCode()" class="mt-2 w-full py-2.5 border border-amber-400 bg-white text-forest rounded-xl text-xs font-bold">OTP भेजें / पासवर्ड सेट करें</button>
-        </div>
-        <div id="phoneCodeRow" class="hidden space-y-2">
-          <label class="block text-[11px] font-semibold text-stone-600">6 अंकों का OTP
-            <input id="phoneLoginCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" class="mt-1 w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-          </label>
-          <button type="submit" class="w-full py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold">मोबाइल सत्यापित करें और पासवर्ड सुरक्षित करें</button>
-        </div>
-        <p class="text-[10px] text-stone-500">SMS सत्यापन के लिए Firebase Phone provider, अधिकृत डोमेन और आवश्यक billing/configuration चालू होना चाहिए। SMS शुल्क लग सकता है।</p>
       </form>
       <div class="pt-2 border-t border-stone-200 space-y-2 text-center">
         <button type="button" onclick="window.BishnoiAuth.signInWithGoogle()" class="w-full py-2.5 bg-white text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm hover:bg-stone-50 transition">🌐 Google से लॉगिन</button>
