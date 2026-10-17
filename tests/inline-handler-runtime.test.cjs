@@ -89,7 +89,7 @@ test("early auth placeholders are safe before Firebase initialization", () => {
   assert.doesNotThrow(() => window.BishnoiApp.openProfileOrAuth());
   assert.doesNotThrow(() => window.BishnoiAuth.openAuthModal());
   assert.doesNotThrow(() => window.BishnoiAuth.signInWithGoogle());
-  assert.equal(window.document.getElementById("authModal").hidden, false);
+  assert.equal(window.document.getElementById("authModal").classList.contains("hidden"), false, "auth modal should be visibly opened");
   dom.window.close();
 });
 
