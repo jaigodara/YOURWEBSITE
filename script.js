@@ -3001,39 +3001,62 @@ function renderExamVisibility() {
     countdownEl.textContent = days + ' दिन, ' + hours + ' घंटे, ' + minutes + ' मिनट शेष';
   }
 
+  function safeStep(name, callback) {
+    try {
+      return callback();
+    } catch (error) {
+      console.error('[' + name + '] आरंभ नहीं हो सका:', error);
+      try { notify('कुछ सुविधाएँ अभी लोड नहीं हुईं (' + name + ')। कृपया दोबारा प्रयास करें।', 'error'); }
+      catch (_) { showEarlyHindiToast(); }
+      return undefined;
+    }
+  }
+
   function initPortal() {
     if (state.initialized) return;
     state.initialized = true;
 
-    renderDailyMessage();
-    initEnrollmentUI();
-    renderPanchangEstimate();
-    renderExamCountdowns();
-    window.setInterval(renderExamCountdowns, 1000);
-    initMalaState();
-    initKaraokePlayer();
-    renderNiyamsList();
-    bindOptionalButtons();
+    // Firebase is initialized before any module that may use Auth or Firestore.
+    const firebaseInitialized = safeStep('Firebase', () => {
+      if (!firebaseReady()) {
+        if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') {
+          throw new Error('Firebase compat SDK is not available.');
+        }
+        firebase.initializeApp(CONFIG.firebase);
+      }
+      if (!firebaseReady()) throw new Error('Firebase initialization did not create a default app.');
+      state.auth = firebase.auth();
+      state.db = firebase.firestore();
+      try { state.storage = firebase.storage(); } catch (_) { state.storage = null; }
+      return true;
+    }) === true;
 
-    if (initFirebase()) {
-      initAuthUI();
-      initPublicNotifications();
-      loadShabadRepository();
+    // Public handlers were attached to the existing namespace objects before
+    // initPortal is invoked, so module failures cannot prevent their exposure.
+    window.__bishnoiReady = firebaseReady();
+
+    safeStep('दैनिक संदेश', renderDailyMessage);
+    safeStep('नामांकन', initEnrollmentUI);
+    safeStep('पंचांग', renderPanchangEstimate);
+    safeStep('परीक्षा काउंटडाउन', () => {
+      renderExamCountdowns();
+      window.setInterval(() => safeStep('परीक्षा काउंटडाउन', renderExamCountdowns), 1000);
+    });
+    safeStep('जपमाला', initMalaState);
+    safeStep('भजन प्लेयर', initKaraokePlayer);
+    safeStep('२९ नियम', renderNiyamsList);
+    safeStep('वैकल्पिक बटन', bindOptionalButtons);
+
+    if (firebaseInitialized) {
+      safeStep('प्रमाणीकरण UI', initAuthUI);
+      safeStep('सार्वजनिक सूचनाएँ', initPublicNotifications);
+      safeStep('शब्दवाणी', loadShabadRepository);
     }
 
-    // The last active section is restored after Firebase reports the auth state.
-
-    // The navigation function is now exposed globally.
     window.BishnoiPortal = window.BishnoiPortal || {};
     window.BishnoiPortal.switchTab = window.switchTab;
     window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
     window.Bishnoi.switchTab = window.switchTab;
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPortal, { once: true });
-  } else {
-    initPortal();
   }
 
   // Export selected helpers for debugging without exposing privileged actions.
@@ -3417,6 +3440,13 @@ function renderExamVisibility() {
   // Keep the public aliases available to inline HTML event handlers.
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
   window.Bishnoi.switchTab = window.switchTab;
+
+  // Start only after all real public API methods have been attached.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPortal, { once: true });
+  } else {
+    initPortal();
+  }
 
   }
 })();
