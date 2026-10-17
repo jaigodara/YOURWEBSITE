@@ -277,3 +277,19 @@ test("admit-card roll validation and notification cleanup stay consistent", () =
   assert.match(ownerHtml, /JAMBH-2026-.d\{4,\}/);
   assert.match(script, /const cardReleased = record\.admitCardReleased === true/);
 });
+
+
+test("separate exam portal and owner-controlled availability toggles are wired", () => {
+  const root = path.join(__dirname, "..");
+  const index = readFileSync(path.join(root, "index.html"), "utf8");
+  const ownerHtml = readFileSync(path.join(root, "owner-studio.html"), "utf8");
+  const portal = readFileSync(path.join(root, "exam-portal.html"), "utf8");
+  assert.match(index, /href="\.\/exam-portal\.html"/);
+  assert.match(ownerHtml, /id="ownerShowExamPortal"/);
+  assert.match(ownerHtml, /examPortalVisible:/);
+  assert.match(script, /\['examPortalCard', c\.examPortalVisible !== false\]/);
+  assert.match(portal, /examConfig/);
+  assert.match(portal, /dailyQuizVisible/);
+  assert.match(portal, /mock1Visible/);
+  assert.match(portal, /mainExamVisible/);
+});
