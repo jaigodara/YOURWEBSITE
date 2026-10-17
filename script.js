@@ -3410,12 +3410,10 @@ window.renderExamVisibility = function renderExamVisibility() {
   // Keep the public aliases available to inline HTML event handlers.
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
 
-  // Start only after all real public API methods have been attached.
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPortal, { once: true });
-  } else {
-    initPortal();
-  }
+  // script.js is loaded after the page markup in index.html. Start now so
+  // startup cannot be stranded if DOMContentLoaded already fired (e.g. a
+  // cached/dynamically evaluated script); initPortal is idempotent.
+  initPortal();
 
   }
 })();
