@@ -2106,7 +2106,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       let active = -1;
 
       lines.forEach((l, i) => {
-        if (Number(l.time || 0) <= audio.currentTime) active = i;
+        if (l.time !== undefined && l.time !== null && l.time !== '' && Number.isFinite(Number(l.time)) && Number(l.time) <= audio.currentTime) active = i;
       });
 
       const host = byId('karaokeLyrics');
@@ -2163,7 +2163,7 @@ window.renderExamVisibility = function renderExamVisibility() {
           audio.load();
           setText('audioPlayerTitle', a.title || 'भजन एवं आरती');
           window.activeKaraokeLyrics = asArray(a.lyrics).map(line =>
-            typeof line === 'string' ? { time: 0, text: line } : line
+            typeof line === 'string' ? { text: line } : line
           );
 
           const lines = byId('karaokeLyrics');
