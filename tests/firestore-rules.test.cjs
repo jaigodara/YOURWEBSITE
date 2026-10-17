@@ -235,6 +235,9 @@ test("Firestore security rules regression suite", async (t) => {
         });
       });
 
+      const source = readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
+      assert.match(source, /collection\('userNotifications'\)\.where\('uid', 'in', \[uid, 'ALL'\]\)/);
+      assert.match(source, /collection\('notificationReads'\)\.where\('uid', '==', uid\)/);
       const studentDb = env.authenticatedContext(STUDENT).firestore();
       // These mirror script.js: where('uid', 'in', [uid, 'ALL']) and
       // where('uid', '==', uid); Firestore rules are not query filters.
