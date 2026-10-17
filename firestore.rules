@@ -103,7 +103,7 @@ service cloud.firestore {
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'updatedAt'
+            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village', 'phone', 'phoneVerified', 'updatedAt'
           ])
         );
       allow delete: if owner();
@@ -135,19 +135,19 @@ service cloud.firestore {
     }
 
     match /mainExamQuestions/{questionId} {
-      allow read: if examOwner()
+      allow read: if canReviewExam()
         || (resource.data.get('published', false) == true && examStarted('mainStartAt'));
       allow create, update, delete: if examOwner();
     }
 
     match /mockExam_1/{questionId} {
-      allow read: if examOwner()
+      allow read: if canReviewExam()
         || (resource.data.get('published', false) == true && examStarted('mock1StartAt'));
       allow create, update, delete: if examOwner();
     }
 
     match /mockExam_2/{questionId} {
-      allow read: if examOwner()
+      allow read: if canReviewExam()
         || (resource.data.get('published', false) == true && examStarted('mock2StartAt'));
       allow create, update, delete: if examOwner();
     }
