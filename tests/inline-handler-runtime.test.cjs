@@ -135,6 +135,14 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   diagnosticScript = diagnosticScript.replace("  function initPortal() {", "  window.__beforeInitPortalDefinition = true;\n  function initPortal() { window.__initPortalRan = true;");
   diagnosticScript = diagnosticScript.replace("  // script.js is loaded after the page markup in index.html. Start now so", "  window.__beforeStartupCall = true;\n  // script.js is loaded after the page markup in index.html. Start now so");
   diagnosticScript = diagnosticScript.replace("  initPortal();", "  window.__bottomReached = true;\n  initPortal();");
+  const sourceLines = diagnosticScript.split("\n");
+  for (let lineIndex = sourceLines.length - 1; lineIndex >= 0; lineIndex--) {
+    if (/^  (?:async )?function [A-Za-z_$][\w$]*\s*\(/.test(sourceLines[lineIndex])) {
+      sourceLines.splice(lineIndex, 0, "  window.__lastFunctionCheckpoint = " + (lineIndex + 1) + ";");
+    }
+  }
+  diagnosticScript = sourceLines.join("\n");
+
   diagnosticScript = diagnosticScript.replace("console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
   console.log("T6 instrumentationApplied", diagnosticScript.includes("function initPortal() { window.__initPortalRan = true;"), diagnosticScript.includes("window.__bottomReached = true;"));
   window.eval(diagnosticScript);
@@ -155,6 +163,7 @@ test("full startup initializes Firebase once and publishes real auth/profile API
     beforeInitPortalDefinition: window.__beforeInitPortalDefinition,
     beforeStartupCall: window.__beforeStartupCall,
     bottomReached: window.__bottomReached,
+    lastFunctionCheckpoint: window.__lastFunctionCheckpoint,
     outerStartupError: window.__outerStartupError || null,
     profileHandlerName: window.BishnoiApp.openProfileOrAuth.name,
     googleHandlerName: window.BishnoiAuth.signInWithGoogle.name
