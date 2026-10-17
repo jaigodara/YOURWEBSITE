@@ -9,9 +9,10 @@ module.exports = [
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "script",
-      globals: { ...globals.browser, ...globals.node },
+      globals: { ...globals.browser, ...globals.node, firebase: "readonly", jspdf: "readonly", html2canvas: "readonly", confetti: "readonly", window: "readonly", document: "readonly" },
     },
     rules: {
+      "no-undef": "error",
       "no-constant-condition": "error",
       "no-unreachable": "error",
       "valid-typeof": "error",
