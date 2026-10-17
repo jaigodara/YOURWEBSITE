@@ -917,6 +917,8 @@ try {
     const statusText = status === 'confirmed' ? 'पंजीकरण स्वीकृत' : status === 'rejected' ? 'पंजीकरण अस्वीकृत' : 'पंजीकरण समीक्षा की प्रतीक्षा में';
     const storedRoll = String(record.rollNumber || '').trim();
     const roll = /^JAMBH-2026-\d{4,}$/.test(storedRoll) ? storedRoll : '';
+    const admitCardReleased = record.admitCardReleased === true ||
+      (state.examConfig?.admitCardReleased === true && !record.admitCardExamType);
     host.replaceChildren();
     renderProfileAdmitCard(record);
     const heading = document.createElement('strong');
@@ -925,7 +927,7 @@ try {
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
-    if (status === 'confirmed' && roll) {
+    if (status === 'confirmed' && roll && admitCardReleased) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'rounded-lg bg-forest px-4 py-2 font-bold text-white';
@@ -993,7 +995,7 @@ try {
     }
 
     if (record.verificationStatus !== 'confirmed' ||
-        !/^JAMBH-2026-\d{5}$/.test(String(record.rollNumber || ''))) {
+        !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || ''))) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
@@ -1374,7 +1376,10 @@ try {
       .filter(item => item.active !== false)
       .map(item => ({ ...item, _key: 'private:' + item.id }));
     const flatItems = (state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
-    const items = [...personalItems, ...flatItems, ...globalItems].sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
+    const items = [...personalItems, ...flatItems, ...globalItems]
+      // Hide obsolete legacy admit-card notices that expose an internal BIS-* ID as if it were a roll number.
+      .filter(item => !(item.type === 'admit-card' && /(?:रोल नंबर|roll number)\s*:\s*BIS-[A-Za-z0-9_-]+/i.test(String(item.message || item.body || ''))))
+      .sort((a, b) => Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) || notificationTime(b) - notificationTime(a));
     const seenKey = 'bishnoi_seen_notifications_v2_' + state.user.uid;
     let seen = [];
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
@@ -3279,6 +3284,7 @@ window.renderExamVisibility = function renderExamVisibility() {
   };
   let phoneConfirmation = null;
   let phoneRecaptcha = null;
+  let pendingGoogleCredential = null;
   authApi.setLoginMethod = function (method) {
     const phone = method === 'phone';
     byId('emailLoginForm')?.classList.toggle('hidden', phone);
@@ -3324,7 +3330,12 @@ window.renderExamVisibility = function renderExamVisibility() {
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
       } else {
-        await state.auth.signInWithEmailAndPassword(email, password);
+        const credential = await state.auth.signInWithEmailAndPassword(email, password);
+        if (pendingGoogleCredential && credential.user) {
+          await credential.user.linkWithCredential(pendingGoogleCredential);
+          pendingGoogleCredential = null;
+          notify('आपका Google खाता मौजूदा खाते से सुरक्षित रूप से लिंक हो गया।', 'success');
+        }
       }
       authApi.closeAuthModal();
     } catch (error) {
@@ -3332,6 +3343,28 @@ window.renderExamVisibility = function renderExamVisibility() {
       notify(authErrorMessage(error), 'error');
     }
   };
+  authApi.sendPasswordReset = async function () {
+    const email = (byId('loginIdentifier')?.value || '').trim();
+    if (!state.auth) return notify('Authentication is unavailable.', 'error');
+    if (!email) {
+      notify('पासवर्ड रीसेट लिंक भेजने के लिए पहले ईमेल पता दर्ज करें।', 'error');
+      byId('loginIdentifier')?.focus();
+      return;
+    }
+    try {
+      await state.auth.sendPasswordResetEmail(email);
+      notify('यदि इस ईमेल पर खाता है, तो पासवर्ड रीसेट लिंक भेज दिया गया है।', 'success');
+    } catch (error) {
+      console.error('Password reset request failed:', error);
+      // Avoid exposing whether an email address has an account.
+      if (error.code === 'auth/invalid-email' || error.code === 'auth/missing-email') {
+        notify('सही ईमेल पता दर्ज करें।', 'error');
+      } else {
+        notify('पासवर्ड रीसेट अनुरोध पूरा नहीं हुआ। ईमेल और Firebase Authentication सेटिंग जाँचें।', 'error');
+      }
+    }
+  };
+
   authApi.sendPhoneCode = async function () {
     if (!state.auth || !window.firebase?.auth) return notify('Authentication is unavailable.', 'error');
     const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\s()-]/g, '');
@@ -3385,7 +3418,11 @@ window.renderExamVisibility = function renderExamVisibility() {
       }
     } catch (error) {
       console.error('Google sign-in failed:', error);
-      if (error.code === 'auth/popup-blocked') {
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        pendingGoogleCredential = firebase.auth.GoogleAuthProvider.credentialFromError(error);
+        authApi.openAuthModal();
+        notify('इस Google ईमेल से पहले से खाता है। उसी खाते के ईमेल और पासवर्ड से लॉगिन करें; सत्यापन के बाद Google खाता लिंक हो जाएगा।', 'info');
+      } else if (error.code === 'auth/popup-blocked') {
         notify('Google login popup was blocked. Allow popups for this website and try again.', 'error');
       } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         notify('Google login was cancelled. Click Google login and finish selecting your account.', 'info');
