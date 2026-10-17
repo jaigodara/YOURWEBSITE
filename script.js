@@ -3399,8 +3399,9 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!phoneConfirmation) return notify('पहले OTP भेजें।', 'error');
     if (!/^\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
     try {
-      const rawPhone = (byId('phoneLoginNumber')?.value || '').trim();
+      const rawPhone = (byId('phoneLoginNumber')?.value || '').replace(/[\s()-]/g, '');
       const password = byId('phoneLoginPassword')?.value || '';
+      if (!/^\+[1-9]\d{7,14}$/.test(rawPhone)) return notify('देश कोड सहित सही मोबाइल नंबर दर्ज करें।', 'error');
       if (password.length < 6) return notify('मोबाइल पासवर्ड कम से कम 6 अक्षर का होना चाहिए।', 'error');
       const credentialResult = await phoneConfirmation.confirm(code);
       const user = credentialResult.user;
