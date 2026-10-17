@@ -567,7 +567,8 @@ try {
       window.initPublicNotifications();
       window.renderNotificationCenter();
       try {
-        const savedTab = sessionStorage.getItem('bishnoi_active_tab_v1');
+        const routeTab = window.location.hash === '#tab-quiz' ? 'quiz' : '';
+        const savedTab = routeTab || sessionStorage.getItem('bishnoi_active_tab_v1');
         if (savedTab) window.switchTab(savedTab);
       } catch (_) {}
       state.myResults = [];
