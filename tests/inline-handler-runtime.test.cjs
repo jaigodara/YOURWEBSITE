@@ -132,9 +132,10 @@ test("full startup initializes Firebase once and publishes real auth/profile API
     error: (...args) => errors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
   let diagnosticScript = script.replace("try {\n(() => {\n  const CONFIG", "try {\n(() => {\n  window.__mainIifeEntered = true;\n  const CONFIG");
-  diagnosticScript = diagnosticScript.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  diagnosticScript = diagnosticScript.replace("  function initPortal() {", "  window.__beforeInitPortalDefinition = true;\n  function initPortal() { window.__initPortalRan = true;");
+  diagnosticScript = diagnosticScript.replace("  // script.js is loaded after the page markup in index.html. Start now so", "  window.__beforeStartupCall = true;\n  // script.js is loaded after the page markup in index.html. Start now so");
   diagnosticScript = diagnosticScript.replace("  initPortal();", "  window.__bottomReached = true;\n  initPortal();");
-  diagnosticScript = diagnosticScript.replace("} catch (error) {\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "} catch (error) {\n  window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
+  diagnosticScript = diagnosticScript.replace("console.error('मुख्य पेज आरंभ नहीं हो सका:', error);", "window.__outerStartupError = error.stack || error.message || String(error);\n  console.error('मुख्य पेज आरंभ नहीं हो सका:', error);");
   console.log("T6 instrumentationApplied", diagnosticScript.includes("function initPortal() { window.__initPortalRan = true;"), diagnosticScript.includes("window.__bottomReached = true;"));
   window.eval(diagnosticScript);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
@@ -149,6 +150,10 @@ test("full startup initializes Firebase once and publishes real auth/profile API
     readyStateAtScriptEvaluation: evalReadyState,
     initPortalRan: window.__initPortalRan,
     mainIifeEntered: window.__mainIifeEntered,
+    beforeInitPortalDefinition: window.__beforeInitPortalDefinition,
+    beforeStartupCall: window.__beforeStartupCall,
+    beforeInitPortalDefinition: window.__beforeInitPortalDefinition,
+    beforeStartupCall: window.__beforeStartupCall,
     bottomReached: window.__bottomReached,
     outerStartupError: window.__outerStartupError || null,
     profileHandlerName: window.BishnoiApp.openProfileOrAuth.name,
