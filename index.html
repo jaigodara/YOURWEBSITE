@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- The standalone exam portal embeds this page with a mode query parameter.
+       Set the mode before CSS is applied so the correct exam/enrollment/results
+       panel is visible inside the iframe. -->
+  <script>
+    (() => {
+      const mode = new URLSearchParams(window.location.search).get('examEmbed');
+      if (['main', 'mock1', 'mock2', 'enrollment', 'results'].includes(mode)) {
+        document.documentElement.setAttribute('data-exam-embed', mode);
+      }
+    })();
+  </script>
   <title>विश्नोई समाज डिजिटल मंच | Bishnoi Digital Platform</title>
   <meta name="description" content="गुरु जम्भेश्वर भगवान के २९ नियम, शब्दवाणी, दैनिक ज्ञान परीक्षा, डिजिटल जपमाला एवं संवाद मंच।">
 
