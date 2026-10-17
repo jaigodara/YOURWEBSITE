@@ -1314,6 +1314,57 @@ Ans: B"></textarea>
       if (bulkQuestionDrafts.length) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    function downloadQuestionTemplate() {
+      if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
+      const rows = [['Question','Option A','Option B','Option C','Option D','Correct Answer','Marks','Subject','Explanation'],['Sample question','Option A','Option B','Option C','Option D','A',1,'History','Optional explanation']];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Questions');
+      XLSX.writeFile(wb, 'Bishnoism_Question_Template.xlsx');
+    }
+    window.downloadQuestionTemplate = downloadQuestionTemplate;
+
+    function importQuestionExcel(event) {
+      const file = event && event.target && event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
+      if (file.size > 8388608) return showToast('फ़ाइल 8 MB से छोटी रखें।');
+      const reader = new FileReader();
+      reader.onload = function() {
+        try {
+          const wb = XLSX.read(reader.result, {type:'binary'});
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+          const parsed = [];
+          rows.forEach(function(row) {
+            const keys = Object.keys(row);
+            const get = function(names) {
+              const key = keys.find(function(k) { return names.indexOf(String(k).trim().toLowerCase()) >= 0; });
+              return key == null ? '' : String(row[key] == null ? '' : row[key]).trim();
+            };
+            const q = get(['question','q','प्रश्न']);
+            const opts = [get(['option a','a']),get(['option b','b']),get(['option c','c']),get(['option d','d'])];
+            const a = get(['correct answer','answer','ans']).toUpperCase();
+            const ans = /^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[1-4]$/.test(a) ? Number(a)-1 : -1);
+            if (!q && opts.every(function(x){return !x;})) return;
+            if (!q || opts.some(function(x){return !x;}) || ans < 0 || ans > 3) throw new Error('हर पंक्ति में Question, Option A-D और Correct Answer A/B/C/D भरें।');
+            parsed.push({q:q,opts:opts,ans:ans,marks:Number(get(['marks','अंक']) || 1),subject:get(['subject','विषय']),explanation:get(['explanation','व्याख्या'])});
+          });
+          if (!parsed.length) throw new Error('कोई प्रश्न नहीं मिला।');
+          if (parsed.length > 450) throw new Error('एक बार में अधिकतम 450 प्रश्न अपलोड करें।');
+          bulkEditingQuestionId = null;
+          bulkQuestionDrafts = parsed;
+          renderBulkQuestionPreview();
+          const status = document.getElementById('questionExcelStatus');
+          if (status) status.textContent = parsed.length + ' प्रश्न Preview में हैं। जाँचकर Draft में सहेजें।';
+          showToast(parsed.length + ' प्रश्न Preview में लोड हुए।');
+        } catch (error) {
+          showToast('Excel import असफल: ' + error.message);
+        }
+      };
+      reader.readAsBinaryString(file);
+      event.target.value = '';
+    }
+    window.importQuestionExcel = importQuestionExcel;
+
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
       if (!raw) return showToast('कृपया प्रश्न पेस्ट करें!');
