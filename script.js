@@ -104,36 +104,6 @@ function portalSwitchTabImplementation(id) {
   window.switchTab = function (id) {
     return portalSwitchTabImplementation(id);
   };
-    const raw = String(id || '').replace(/^tab-/, '');
-    const aliases = { sahitya: 'library', pariksha: 'quiz' };
-    const key = aliases[raw] || raw;
-    const target = 'tab-' + key;
-    const panels = document.querySelectorAll('main [id^="tab-"]');
-    let found = false;
-    panels.forEach(panel => {
-      const active = panel.id === target ||
-        (key === 'library' && panel.id === 'tab-sahitya') ||
-        (key === 'quiz' && panel.id === 'tab-pariksha');
-      panel.hidden = !active;
-      panel.classList.toggle('hidden', !active);
-      panel.setAttribute('aria-hidden', String(!active));
-      if (active) found = true;
-    });
-    if (!found) {
-      console.warn('Navigation panel not found:', id, 'expected', target);
-      return false;
-    }
-    document.querySelectorAll('[id^="bnav-"]').forEach(button => {
-      const active = button.id === 'bnav-' + key ||
-        (key === 'library' && button.id === 'bnav-sahitya') ||
-        (key === 'quiz' && button.id === 'bnav-pariksha');
-      button.classList.toggle('bnav-active', active);
-      button.setAttribute('aria-current', active ? 'page' : 'false');
-    });
-    try { sessionStorage.setItem('bishnoi_active_tab_v1', key); } catch (_) {}
-    if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
-    return true;
-  };
   window.switchPortalTab = window.switchTab;
   window.BishnoiPortal = window.BishnoiPortal || {};
   window.BishnoiPortal.switchTab = window.switchTab;
