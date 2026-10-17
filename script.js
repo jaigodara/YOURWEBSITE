@@ -2097,8 +2097,9 @@ window.renderExamVisibility = function renderExamVisibility() {
   let karaokeFrame = null;
 
   async function initKaraokePlayer() {
-    const audio = byId('karaokeAudio') || byId('bhajanAudio');
-    if (!audio) return;
+    const audio = byId('audioElement') || byId('karaokeAudio') || byId('bhajanAudio');
+    if (!audio || audio.dataset.karaokeBound === 'true') return;
+    audio.dataset.karaokeBound = 'true';
 
     audio.addEventListener('timeupdate', () => {
       const lines = asArray(window.activeKaraokeLyrics);
@@ -2122,6 +2123,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     });
   }
 
+  initKaraokePlayer();
+
   window.toggleKaraokePlayback = function () {
     const audio = byId('karaokeAudio') || byId('bhajanAudio');
     if (!audio) return notify('Audio player is not on this page.');
@@ -2137,14 +2140,14 @@ window.renderExamVisibility = function renderExamVisibility() {
     const host = byId('audioList') || byId('audioPlayerTrackList');
     if (!host) return;
 
-    host.innerHTML = items.map(a => {
+    host.innerHTML = items.length ? items.map(a => {
       const audioUrl = a.audioUrl || a.link || a.url || '';
       return `
-        <button type="button" class="audio-item" data-audio-id="${escapeHtml(a.id)}">
-          ${escapeHtml(a.title || 'Bhajan')} ${audioUrl ? '▶' : ''}
+        <button type="button" class="audio-item rounded-full border border-amber-300/50 bg-white/10 px-3 py-2 text-left font-semibold text-white hover:bg-amber-400 hover:text-stone-950 focus-visible:outline focus-visible:outline-2" data-audio-id="${escapeHtml(a.id)}" ${audioUrl ? '' : 'disabled'}>
+          ${escapeHtml(a.title || 'Bhajan')} ${audioUrl ? '▶ चलाएँ' : 'लिंक नहीं'}
         </button>
       `;
-    }).join('');
+    }).join('') : '<span class="text-stone-300">अभी कोई भजन उपलब्ध नहीं है।</span>';
 
     host.querySelectorAll('[data-audio-id]').forEach(btn => {
       btn.onclick = () => {
@@ -2157,7 +2160,11 @@ window.renderExamVisibility = function renderExamVisibility() {
 
         if (audio) {
           audio.src = audioUrl;
-          window.activeKaraokeLyrics = asArray(a.lyrics);
+          audio.load();
+          setText('audioPlayerTitle', a.title || 'भजन एवं आरती');
+          window.activeKaraokeLyrics = asArray(a.lyrics).map(line =>
+            typeof line === 'string' ? { time: 0, text: line } : line
+          );
 
           const lines = byId('karaokeLyrics');
           if (lines) {
