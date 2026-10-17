@@ -28,7 +28,7 @@ service firebase.storage {
     // with the media permission may upload, replace, or delete these files.
     match /publicMedia/{kind}/{fileName} {
       allow read: if kind in ['pdfs', 'audios'];
-      allow create, update: if mediaOwner() || mediaEditor()
+      allow create, update: if (mediaOwner() || mediaEditor())
         && kind in ['pdfs', 'audios']
         && request.resource.size <= (kind == 'pdfs' ? 25 * 1024 * 1024 : 30 * 1024 * 1024)
         && (
