@@ -87,13 +87,464 @@ service cloud.firestore {
         && request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1));
     }
 
+    function gmailVerifiedStudent() {
+      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return signedIn()
+        && exists(profilePath)
+        && get(profilePath).data.get('gmailVerified', false) == true;
+    }
+
     function confirmedExamStudent() {
       let enrollmentPath = /databases/$(database)/documents/examEnrolledStudents/$(request.auth.uid);
-      return signedIn()
+      return gmailVerifiedStudent()
         && exists(enrollmentPath)
         && get(enrollmentPath).data.get('verificationStatus', '') == 'confirmed'
         && get(enrollmentPath).data.get('rollNumber', '') != ''
-        && !get(enrollmentPath).data.get('rollNumber', '').matches('^BIS-.*$');
+        && !get(enrollmentPath).data.get('rollNumber', '').matches('^BIS-.*
+
+    function sessionDeadlineReached(mode) {
+      let sessionPath = /databases/$(database)/documents/examSessions/$(request.auth.uid + '_' + mode);
+      return exists(sessionPath)
+        && get(sessionPath).data.get('endAt', null) != null
+        && request.time >= get(sessionPath).data.endAt;
+    }
+
+    function validScheduledSessionEnd(mode, endAt) {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return exists(configPath) && examEnabled(mode) && (
+        (mode == 'quiz' && endAt == get(configPath).data.get('quizEndAt', null))
+        || (mode == 'mock1' && endAt == get(configPath).data.get('mock1EndAt', null))
+        || (mode == 'mock2' && endAt == get(configPath).data.get('mock2EndAt', null))
+        || (mode == 'main' && endAt == get(configPath).data.get('mainEndAt', null))
+      );
+    }
+
+    // Roles: only the super owner can assign or revoke roles.
+    match /roles/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow write: if superOwner();
+    }
+
+    match /users/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner'])
+        && (
+          request.resource.data.get('phoneVerified', false) != true
+          || (
+            request.auth.token.keys().hasAny(['phone_number'])
+            && request.auth.token.phone_number == request.resource.data.get('phone', '')
+          )
+        )
+        && (
+          request.resource.data.get('gmailVerified', false) != true
+          || request.auth.token.firebase.identities['google.com'] != null
+        )
+        && (
+          !request.resource.data.keys().hasAny(['mobile'])
+          || (
+            request.resource.data.get('mobile', '') is string
+            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
+          )
+        );
+      allow update: if owner()
+        || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'fullName', 'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village',
+            'phone', 'phoneVerified', 'phoneAuthVerifiedAt', 'updatedAt', 'mobile', 'gmailVerified',
+            'createdAt', 'presenceStatus', 'lastLoginAt', 'lastSeenAt', 'verificationStatus', 'authProvider'
+          ])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
+            || !resource.data.keys().hasAny(['mobile'])
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+            || !resource.data.keys().hasAny(['gmailVerified'])
+            || (
+              resource.data.get('gmailVerified', false) == false
+              && request.resource.data.get('gmailVerified', false) == true
+              && request.auth.token.firebase.identities['google.com'] != null
+            )
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+            || request.resource.data.get('gmailVerified', false) != true
+            || request.auth.token.firebase.identities['google.com'] != null
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
+            || (
+              request.resource.data.get('mobile', '') is string
+              && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
+            )
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone', 'phoneVerified', 'phoneAuthVerifiedAt'])
+            || (
+              request.resource.data.get('phoneVerified', false) != true
+              && request.resource.data.get('phoneAuthVerifiedAt', null) == null
+            )
+            || (
+              request.resource.data.get('phoneVerified', false) == true
+              && resource.data.get('phoneVerified', false) == true
+              && request.resource.data.get('phone', '') == resource.data.get('phone', '')
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phoneVerified', 'phoneAuthVerifiedAt'])
+            )
+            || (
+              request.resource.data.get('phoneVerified', false) == true
+              && request.auth.token.keys().hasAny(['phone_number'])
+              && request.auth.token.phone_number == request.resource.data.get('phone', '')
+              && request.resource.data.get('phoneAuthVerifiedAt', null) is timestamp
+            )
+          )
+        );
+      allow delete: if owner();
+    }
+
+    match /mobileIndex/{mobile} {
+      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
+      allow create: if signedIn()
+        && mobile.matches('^[6-9][0-9]{9}$')
+        && !exists(/databases/$(database)/documents/mobileIndex/$(mobile))
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.get('uid', '') == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /settings/{id} {
+      allow read: if id != 'rollCounter' || examOwner();
+      allow write: if id == 'rollCounter' ? examOwner() : owner();
+    }
+
+    match /examConfig/{id} {
+      allow read: if true;
+      allow write: if examOwner();
+    }
+
+    // Student-visible question documents must contain no secret answer key.
+    match /quiz/{questionId} {
+      allow read: if examOwner() || canEditQuizDrafts()
+        || (resource.data.get('published', false) == true && examEnabled('quiz') && examStarted('quizStartAt'));
+      allow create: if examOwner()
+        || (canEditQuizDrafts()
+          && request.resource.data.get('published', false) == false
+          && request.resource.data.get('status', '') == 'draft');
+      allow update: if examOwner()
+        || (canEditQuizDrafts()
+          && request.resource.data.get('published', false) == false
+          && request.resource.data.get('status', '') == 'draft');
+      allow delete: if examOwner();
+    }
+
+    match /mainExamQuestions/{questionId} {
+      allow read: if canReviewExam()
+        || (resource.data.get('published', false) == true && examEnabled('main') && examStarted('mainStartAt'));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /mockExam_1/{questionId} {
+      allow read: if canReviewExam()
+        || (resource.data.get('published', false) == true && examEnabled('mock1') && examStarted('mock1StartAt'));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /mockExam_2/{questionId} {
+      allow read: if canReviewExam()
+        || (resource.data.get('published', false) == true && examEnabled('mock2') && examStarted('mock2StartAt'));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /examAnswerKeys/{examCollection}/items/{questionId} {
+      allow read: if canReviewExam();
+      allow write: if examOwner();
+    }
+
+    match /examDrafts/{id} {
+      allow read, write: if owner()
+        || (signedIn() && id.matches('^' + request.auth.uid + '_.*$'));
+    }
+
+    match /examEnrolledStudents/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      // Students create pending records only after Google verification.
+      allow create: if examOwner()
+        || (
+          gmailVerifiedStudent()
+          && request.auth.uid == uid
+          && request.resource.data.get('uid', '') == uid
+          && request.resource.data.get('verificationStatus', '') == 'pending'
+          && !('rollNumber' in request.resource.data)
+        );
+      // Editing enrollment details must never change approval or assigned roll.
+      allow update: if examOwner()
+        || (
+          gmailVerifiedStudent()
+          && request.auth.uid == uid
+          && request.resource.data.get('uid', '') == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'fullName', 'name', 'phone', 'mobile', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
+          ])
+        );
+      allow delete: if examOwner();
+    }
+
+    match /counters/{id} {
+      allow read, write: if examOwner();
+    }
+
+    match /reviews/{reviewId} {
+      allow read, create, update: if canReviewExam();
+      allow delete: if examOwner();
+      match /history/{historyId} {
+        allow read, create: if canReviewExam();
+        allow update, delete: if examOwner();
+      }
+    }
+
+    match /publishedResults/{resultId} {
+      allow read: if examOwner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      allow create: if canReviewExam()
+        || (
+          signedIn()
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('mode', '') == 'quiz'
+          && request.resource.data.get('status', '') == 'published'
+          && request.resource.data.keys().hasOnly([
+            'uid', 'sourceCollection', 'sourceSubmissionId', 'mode', 'name',
+            'rollNumber', 'score', 'total', 'status', 'feedback', 'publishedAt', 'publishedBy'
+          ])
+        );
+      allow update, delete: if canReviewExam();
+    }
+
+    // Student answer sheets remain private to authorized reviewers.
+    match /mainExamSubmissions/{attemptId} {
+      allow create: if confirmedExamStudent()
+        && examEnabled('main')
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == 'main'
+        && examStarted('mainStartAt');
+      allow read, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /mockExamSubmissions/{attemptId} {
+      allow create: if confirmedExamStudent()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && (
+          (request.resource.data.get('mode', '') == 'mock1'
+            && examEnabled('mock1') && examStarted('mock1StartAt'))
+          || (request.resource.data.get('mode', '') == 'mock2'
+            && examEnabled('mock2') && examStarted('mock2StartAt'))
+        );
+      allow read, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /quizAttempts/{attemptId} {
+      allow create: if confirmedExamStudent()
+        && examEnabled('quiz')
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == 'quiz'
+        && examStarted('quizStartAt');
+      allow read, update: if canReviewExam();
+      allow delete: if examOwner();
+    }
+
+    match /examSubmissions/{id} {
+      allow read: if examOwner()
+        || (signedIn() && (
+          resource.data.get('uid', '') == request.auth.uid
+          || resource.data.get('studentUid', '') == request.auth.uid
+        ));
+      allow create: if signedIn() && (
+        request.resource.data.get('uid', '') == request.auth.uid
+        || request.resource.data.get('studentUid', '') == request.auth.uid
+      );
+      allow update, delete: if examOwner();
+    }
+
+    match /examSessions/{sessionId} {
+      allow create: if signedIn()
+        && examEnabled(request.resource.data.get('mode', ''))
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && (
+          request.resource.data.get('status', '') == 'late_request'
+          || (
+            request.resource.data.get('status', '') == 'active'
+            && validScheduledSessionEnd(
+              request.resource.data.get('mode', ''),
+              request.resource.data.get('endAt', null)
+            )
+          )
+        );
+      allow read: if examOwner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      allow update: if examOwner() || (
+        signedIn()
+        && resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
+          'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt', 'lateEntryRequested',
+          'requestedAt', 'reentryGrantConsumedAt'
+        ])
+        && request.resource.data.get('endAt', null) == resource.data.get('endAt', null)
+      );
+      allow delete: if examOwner();
+    }
+
+    match /admitCards/{cardId} {
+      allow read: if examOwner()
+        || (signedIn() && (
+          resource.data.get('studentUid', '') == request.auth.uid
+          || resource.data.get('uid', '') == request.auth.uid
+        ));
+      allow create, update, delete: if examOwner();
+    }
+
+    match /userAccessLogs/{id} {
+      allow create: if signedIn() && request.resource.data.get('uid', '') == request.auth.uid;
+      allow read, update, delete: if owner();
+    }
+
+    match /feedbacks/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if owner();
+    }
+
+    // Public announcements only. Never store private recipient notifications here.
+    match /notifications/{id} {
+      allow read: if true;
+      allow create: if canSendNotifications()
+        && request.resource.data.get('title', null) is string
+        && request.resource.data.get('message', null) is string
+        && request.resource.data.get('audience', '') == 'all'
+        && request.resource.data.get('active', false) == true
+        && request.resource.data.get('createdBy', '') == request.auth.uid;
+      allow update, delete: if canSendNotifications();
+    }
+
+    match /userNotifications/{notificationId} {
+      allow read: if signedIn() && resource.data.get('uid', '') in ['ALL', request.auth.uid];
+      allow create: if examOwner()
+        && request.resource.data.keys().hasOnly(['uid', 'type', 'title', 'body', 'important', 'pinnedByOwner', 'fileUrl', 'createdAt'])
+        && request.resource.data.get('uid', '') is string
+        && request.resource.data.get('uid', '').size() <= 128
+        && request.resource.data.get('type', '') is string
+        && request.resource.data.get('title', '') is string
+        && request.resource.data.get('body', '') is string
+        && request.resource.data.get('important', false) is bool
+        && request.resource.data.get('pinnedByOwner', false) is bool;
+      allow update, delete: if examOwner();
+    }
+
+    match /notificationReads/{markerId} {
+      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'notificationId', 'read', 'readAt'])
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('notificationId', '') is string
+        && request.resource.data.get('read', false) == true;
+      allow delete: if false;
+    }
+
+    match /userNotifications/{uid}/items/{notificationId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if (
+          canSendNotifications()
+          && request.resource.data.get('recipientUid', '') == uid
+        ) || (
+          canReviewExam()
+          && request.resource.data.get('type', '') == 'exam-result'
+          && request.resource.data.get('recipientUid', '') == uid
+        ) || (
+          signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.get('recipientUid', '') == uid
+          && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
+          && request.resource.data.get('active', false) == true
+        );
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'read', 'readAt', 'isRead'
+        ]);
+      allow delete: if examOwner();
+    }
+
+    match /userNotificationReads/{uid}/items/{notificationId} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /posts/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('body', null) is string
+        && request.resource.data.body.size() <= 2000;
+      allow update: if owner();
+      allow delete: if owner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+    }
+
+    match /audios/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /pdfs/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /shabadwani/{id} {
+      allow read: if true;
+      allow write: if canManageMedia();
+    }
+
+    match /treePledges/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.get('uid', '') == request.auth.uid;
+      allow delete: if owner();
+    }
+
+    match /stats/{id} {
+      allow read: if true;
+      allow write: if owner();
+    }
+
+    match /visitorLogs/{id} {
+      allow create: if true;
+      allow read, update, delete: if owner();
+    }
+
+    match /draftQueue/{id} {
+      allow read, write: if owner();
+    }
+
+    match /scheduledTasks/{id} {
+      allow read, write: if owner();
+    }
+
+    match /historyItems/{id} {
+      allow read: if true;
+      allow create, update, delete: if owner();
+    }
+
+    // Deny any collection not explicitly covered above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+});
     }
 
     function sessionDeadlineReached(mode) {
