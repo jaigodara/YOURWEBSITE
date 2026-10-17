@@ -3020,7 +3020,7 @@ window.renderExamVisibility = function renderExamVisibility() {
 
     if (firebaseInitialized) {
       safeStep('प्रमाणीकरण UI', initAuthUI);
-      safeStep('सार्वजनिक सूचनाएँ', initPublicNotifications);
+      safeStep('सार्वजनिक सूचनाएँ', window.initPublicNotifications);
       safeStep('शब्दवाणी', loadShabadRepository);
     }
 
