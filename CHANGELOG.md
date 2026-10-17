@@ -148,3 +148,26 @@
    ```
    Alternatively, paste the reviewed `firestore.rules` contents into Firebase Console → Firestore Database → Rules and click **Publish**.
 3. Confirm the production site is serving the expected `script.js` revision, then sign in with a test student in a private window and check the notification/read-marker listeners and admit-card download.
+
+## 2026-10-17 — Mobile/password login with Google verification
+
+- index.html: replaced the email-login form with a mobile-first Hindi screen for mobile/password login, Google direct login, three-step mobile registration, optional mobile/password linking for existing Google-only accounts, and Google-verified password changes.
+- script.js: registration uses 91<10 digits>@jambh-login.app, validates all fields before account creation, links Google to the new account, handles cancelled popups and duplicate mobile numbers, and keeps the existing window.BishnoiAuth.* API and startup order. Mobile identity is read from users/{uid}.mobile; profile display masks it and enrollment mobile is read-only.
+- firestore.rules: added owner-only mobileIndex reads and create-only writes; protected mobile and gmailVerified from ordinary student changes; and require gmailVerified == true for student enrollment and exam submissions.
+- Added jsdom/Firebase-stub tests for registration success/cancellation, duplicate mobile, mobile login, Google login, password recovery, and inline auth handlers. Added emulator tests for duplicate mobile indexes, unverified enrollment, immutable identity fields, and cross-student reads.
+- sendPasswordResetEmail cannot work for this flow because 91<mobile>@jambh-login.app is a hidden Firebase login identifier, not a real mailbox. If a student loses both their password and access to the linked Google account, the Owner must help them recover access.
+
+### Firebase Console rollout (Hindi)
+
+1. Firebase Console → Authentication → Sign-in method.
+2. Enable Email/Password and save. Do not enable Phone/SMS authentication.
+3. On the same page, enable Google and save.
+4. Authentication → Settings → Authorized domains → Add domain. Add bishnoism.vercel.app (domain only; no https:// or path). Add any other actual Vercel production domain used by the site.
+5. In Firestore Database → Rules, review the firestore.rules changes in this PR. Publish them only after the PR Quality check is green and the emulator tests pass.
+6. Test with a non-owner student account first: register using a test mobile and password, complete Google verification, sign out, then test mobile/password login and the Google-based password-change flow.
+
+### Verification status
+
+- Firebase Console settings and production Firestore rules have not been changed by this code commit.
+- Production sign-up, popup linking, mobile-index uniqueness, and password recovery still require a live test on the configured Firebase project.
+- The separate exam portal was not created or changed by this login work.

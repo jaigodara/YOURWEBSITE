@@ -349,7 +349,7 @@
             <input id="enrollmentName" name="name" type="text" maxlength="100" autocomplete="name" required placeholder="अपना पूरा नाम" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
           </label>
           <label class="block text-xs font-semibold text-stone-700">मोबाइल नंबर
-            <input id="enrollmentPhone" name="phone" type="tel" maxlength="20" autocomplete="tel" required placeholder="मोबाइल नंबर" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
+            <input id="enrollmentPhone" name="phone" type="tel" maxlength="10" autocomplete="tel" readonly aria-readonly="true" required placeholder="लॉगिन के बाद मोबाइल नंबर अपने आप आएगा" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
           </label>
           <label class="block text-xs font-semibold text-stone-700">जन्म तिथि (DOB)
             <input id="enrollmentDob" name="dateOfBirth" type="date" required class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
@@ -516,37 +516,67 @@
 
   </main>
 
-  <!-- AUTHENTICATION MODAL -->
-  <div id="authModal" class="fixed inset-0 bg-black/50 z-[9990] hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-xl">
+  <!-- मोबाइल-फर्स्ट लॉगिन और पंजीकरण -->
+  <div id="authModal" aria-hidden="true" class="fixed inset-0 bg-black/50 z-[9990] hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b border-stone-200 pb-2">
-        <h3 class="font-bold text-sm text-forest" id="authTitle">लॉगिन (Sign In)</h3>
-        <button onclick="window.BishnoiAuth.closeAuthModal()" class="text-stone-400 hover:text-black">✕</button>
+        <h3 class="font-bold text-base text-forest" id="authTitle">लॉगिन करें</h3>
+        <button type="button" aria-label="बंद करें" onclick="window.BishnoiAuth.closeAuthModal()" class="text-stone-400 hover:text-black text-xl">✕</button>
       </div>
-      <form id="emailLoginForm" onsubmit="window.BishnoiAuth.handleAuthSubmit(event)" class="space-y-3">
-        <div id="nameRow" class="hidden">
-          <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">पूरा नाम</label>
-          <input type="text" id="loginName" placeholder="अपना नाम दर्ज करें" class="w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-        </div>
-        <div id="registerPhoneRow" class="hidden">
-          <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">मोबाइल नंबर (OTP सत्यापन उपलब्ध नहीं)</label>
-          <input type="tel" id="registerPhone" autocomplete="tel" placeholder="+91 98765 43210" class="w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-          <p class="mt-1 text-[10px] text-stone-500">यह संपर्क विवरण है, सत्यापित पहचान का प्रमाण नहीं।</p>
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">ईमेल पता</label>
-          <input type="email" id="loginIdentifier" required autocomplete="username" placeholder="you@example.com" class="w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-stone-600 mb-0.5">पासवर्ड</label>
-          <input type="password" id="loginPass" required minlength="6" autocomplete="current-password" placeholder="अपना पासवर्ड दर्ज करें" class="w-full p-2.5 text-xs border border-stone-300 rounded-xl">
-        </div>
-        <button type="submit" id="authSubmitBtn" class="w-full py-2.5 bg-forest text-white rounded-xl text-xs font-semibold hover:bg-emerald-950 transition">लॉगिन करें</button>
-        <button type="button" onclick="window.BishnoiAuth.toggleAuthMode()" id="authToggleBtn" class="text-xs text-terracotta underline font-semibold block w-full">नए सदस्य हैं? पंजीकरण करें</button>
-      </form>
-      <div class="pt-2 border-t border-stone-200 space-y-2 text-center">
-        <button type="button" onclick="window.BishnoiAuth.signInWithGoogle()" class="w-full py-2.5 bg-white text-stone-800 border border-stone-300 rounded-xl text-xs font-bold shadow-sm hover:bg-stone-50 transition">🌐 Google से लॉगिन</button>
-        <p class="text-[10px] text-stone-500">Owner access केवल सत्यापित और अधिकृत खाते को मिलेगा।</p>
+      <p id="authStatus" role="status" aria-live="polite" hidden class="text-xs rounded-xl bg-stone-50 p-3 text-stone-700"></p>
+
+      <section id="authLoginView">
+        <form id="emailLoginForm" onsubmit="window.BishnoiAuth.handleAuthSubmit(event)" class="space-y-3">
+          <div id="nameRow" class="hidden">
+            <label for="loginName" class="block text-xs font-semibold text-stone-600 mb-1">पूरा नाम</label>
+            <input type="text" id="loginName" autocomplete="name" placeholder="अपना पूरा नाम" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+          </div>
+          <div>
+            <label for="loginIdentifier" class="block text-xs font-semibold text-stone-600 mb-1">मोबाइल नंबर</label>
+            <input type="tel" id="loginIdentifier" inputmode="numeric" autocomplete="tel" maxlength="14" required placeholder="+91 98765 43210" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+          </div>
+          <div>
+            <label for="loginPass" class="block text-xs font-semibold text-stone-600 mb-1">पासवर्ड</label>
+            <input type="password" id="loginPass" required minlength="1" autocomplete="current-password" placeholder="अपना पासवर्ड" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+          </div>
+          <div id="registerConfirmRow" class="hidden">
+            <label for="registerPasswordConfirm" class="block text-xs font-semibold text-stone-600 mb-1">पासवर्ड दोबारा लिखें</label>
+            <input type="password" id="registerPasswordConfirm" autocomplete="new-password" minlength="8" placeholder="पासवर्ड की पुष्टि करें" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+          </div>
+          <button type="submit" id="authSubmitBtn" class="w-full py-3 bg-forest text-white rounded-xl text-sm font-bold">लॉगिन करें</button>
+          <button type="button" onclick="window.BishnoiAuth.startForgotPassword()" id="forgotPasswordButton" class="text-xs text-terracotta underline font-semibold block w-full">पासवर्ड भूल गए?</button>
+          <button type="button" onclick="window.BishnoiAuth.toggleAuthMode()" id="authToggleBtn" class="text-xs text-forest underline font-semibold block w-full">नए सदस्य हैं? पंजीकरण करें</button>
+          <button type="button" id="authRetryGoogleButton" onclick="window.BishnoiAuth.retryGoogleVerification()" class="hidden w-full py-2.5 border border-terracotta text-terracotta rounded-xl text-xs font-bold">Google सत्यापन दोबारा करें</button>
+        </form>
+      </section>
+
+      <section id="authForgotView" class="hidden space-y-3">
+        <p class="text-sm text-stone-600">पासवर्ड बदलने के लिए उसी Google खाते से सत्यापन करें जो पंजीकरण के समय जोड़ा था।</p>
+        <button type="button" onclick="window.BishnoiAuth.verifyGoogleForPasswordReset()" class="w-full py-3 bg-forest text-white rounded-xl text-sm font-bold">Google से सत्यापित करें</button>
+        <button type="button" onclick="window.BishnoiAuth.setLoginMethod('login')" class="w-full py-2 text-xs underline text-stone-600">लॉगिन पर वापस जाएँ</button>
+      </section>
+
+      <section id="authResetView" class="hidden space-y-3">
+        <label for="newPassword" class="block text-xs font-semibold text-stone-600">नया पासवर्ड</label>
+        <input type="password" id="newPassword" minlength="8" autocomplete="new-password" placeholder="कम से कम 8 अक्षर" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+        <label for="confirmNewPassword" class="block text-xs font-semibold text-stone-600">नया पासवर्ड दोबारा लिखें</label>
+        <input type="password" id="confirmNewPassword" minlength="8" autocomplete="new-password" placeholder="नए पासवर्ड की पुष्टि करें" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+        <button type="button" onclick="window.BishnoiAuth.updateForgottenPassword()" class="w-full py-3 bg-forest text-white rounded-xl text-sm font-bold">पासवर्ड बदलें</button>
+      </section>
+
+      <section id="authLinkMobileView" class="hidden space-y-3">
+        <p class="text-sm text-stone-600">Google से लॉगिन हो चुका है। मोबाइल नंबर और पासवर्ड जोड़ना वैकल्पिक है।</p>
+        <label for="linkMobile" class="block text-xs font-semibold text-stone-600">मोबाइल नंबर</label>
+        <input type="tel" id="linkMobile" inputmode="numeric" maxlength="14" placeholder="+91 98765 43210" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+        <label for="linkPassword" class="block text-xs font-semibold text-stone-600">नया पासवर्ड</label>
+        <input type="password" id="linkPassword" minlength="8" autocomplete="new-password" placeholder="कम से कम 8 अक्षर" class="w-full p-3 text-sm border border-stone-300 rounded-xl">
+        <button type="button" onclick="window.BishnoiAuth.addMobilePassword()" class="w-full py-3 bg-forest text-white rounded-xl text-sm font-bold">मोबाइल नंबर और पासवर्ड जोड़ें</button>
+        <button type="button" onclick="window.BishnoiAuth.skipMobilePassword()" class="w-full py-2 text-xs underline text-stone-600">अभी छोड़ें</button>
+      </section>
+
+      <div class="pt-3 border-t border-stone-200 space-y-2 text-center">
+        <button type="button" onclick="window.BishnoiAuth.signInWithGoogle()" class="w-full py-3 bg-white text-stone-800 border border-stone-300 rounded-xl text-sm font-bold">🌐 Google से सीधे लॉगिन</button>
+        <p class="text-[11px] text-stone-500">पंजीकरण के समय Google सत्यापन ज़रूरी है। कोई SMS या OTP नहीं भेजा जाएगा।</p>
       </div>
     </div>
   </div>
@@ -572,7 +602,7 @@
           <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200"><div id="statMalaLaps" class="font-extrabold text-base text-forest">0</div><div>पूर्ण माला</div></div>
         </div>
         <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold" placeholder="नाम">
-        <input type="tel" id="profEditPhone" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="मोबाइल नंबर (जैसे +91 9876543210)">
+        <input type="tel" id="profEditPhone" readonly aria-readonly="true" class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-100" placeholder="पंजीकृत मोबाइल नंबर">
         <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="गाँव / ज़िला">
         <button onclick="window.BishnoiAuth.saveProfile()" class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">💾 प्रोफ़ाइल सहेजें</button>
         <button id="profileAdmitCardButton" type="button" onclick="window.BishnoiApp.downloadMyAdmitCard()" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 font-extrabold rounded-xl shadow">🎟️ प्रवेश-पत्र डाउनलोड करें</button>

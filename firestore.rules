@@ -87,15 +87,21 @@ service cloud.firestore {
         && request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1));
     }
 
+    function gmailVerifiedStudent() {
+      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return signedIn()
+        && exists(profilePath)
+        && get(profilePath).data.get('gmailVerified', false) == true;
+    }
+
     function confirmedExamStudent() {
       let enrollmentPath = /databases/$(database)/documents/examEnrolledStudents/$(request.auth.uid);
-      return signedIn()
+      return gmailVerifiedStudent()
         && exists(enrollmentPath)
         && get(enrollmentPath).data.get('verificationStatus', '') == 'confirmed'
         && get(enrollmentPath).data.get('rollNumber', '') != ''
         && !get(enrollmentPath).data.get('rollNumber', '').matches('^BIS-.*$');
     }
-
     function sessionDeadlineReached(mode) {
       let sessionPath = /databases/$(database)/documents/examSessions/$(request.auth.uid + '_' + mode);
       return exists(sessionPath)
@@ -130,14 +136,52 @@ service cloud.firestore {
             request.auth.token.keys().hasAny(['phone_number'])
             && request.auth.token.phone_number == request.resource.data.get('phone', '')
           )
+        )
+        && (
+          request.resource.data.get('gmailVerified', false) != true
+          || request.auth.token.firebase.identities['google.com'] != null
+        )
+        && (
+          !request.resource.data.keys().hasAny(['mobile'])
+          || (
+            request.resource.data.get('mobile', '') is string
+            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
+          )
         );
       allow update: if owner()
         || (
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village', 'phone', 'phoneVerified', 'phoneAuthVerifiedAt', 'updatedAt'
+            'fullName', 'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village',
+            'phone', 'phoneVerified', 'phoneAuthVerifiedAt', 'updatedAt', 'mobile', 'gmailVerified',
+            'createdAt', 'presenceStatus', 'lastLoginAt', 'lastSeenAt', 'verificationStatus', 'authProvider'
           ])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
+            || !resource.data.keys().hasAny(['mobile'])
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+            || !resource.data.keys().hasAny(['gmailVerified'])
+            || (
+              resource.data.get('gmailVerified', false) == false
+              && request.resource.data.get('gmailVerified', false) == true
+              && request.auth.token.firebase.identities['google.com'] != null
+            )
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+            || request.resource.data.get('gmailVerified', false) != true
+            || request.auth.token.firebase.identities['google.com'] != null
+          )
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
+            || (
+              request.resource.data.get('mobile', '') is string
+              && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
+            )
+          )
           && (
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone', 'phoneVerified', 'phoneAuthVerifiedAt'])
             || (
@@ -159,6 +203,16 @@ service cloud.firestore {
           )
         );
       allow delete: if owner();
+    }
+
+    match /mobileIndex/{mobile} {
+      allow read: if owner() || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      allow create: if signedIn()
+        && mobile.matches('^[6-9][0-9]{9}$')
+        && !exists(/databases/$(database)/documents/mobileIndex/$(mobile))
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.get('uid', '') == request.auth.uid;
+      allow update, delete: if false;
     }
 
     match /settings/{id} {
@@ -216,10 +270,10 @@ service cloud.firestore {
 
     match /examEnrolledStudents/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
-      // Students create pending records only. A roll number is owner-assigned.
+      // Students create pending records only after Google verification.
       allow create: if examOwner()
         || (
-          signedIn()
+          gmailVerifiedStudent()
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
           && request.resource.data.get('verificationStatus', '') == 'pending'
@@ -228,11 +282,11 @@ service cloud.firestore {
       // Editing enrollment details must never change approval or assigned roll.
       allow update: if examOwner()
         || (
-          signedIn()
+          gmailVerifiedStudent()
           && request.auth.uid == uid
           && request.resource.data.get('uid', '') == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName', 'name', 'phone', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
+            'fullName', 'name', 'phone', 'mobile', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
           ])
         );
       allow delete: if examOwner();
