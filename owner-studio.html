@@ -623,8 +623,8 @@ Ans: B"></textarea>
       </div>
 
       <!-- PER-SECTION SOFT MAINTENANCE CONTROLLER -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
-        <div id="ownerMaintenanceSettingsPanel" class="flex items-center justify-between border-b border-stone-100 pb-2">
+      <div id="ownerMaintenanceSettingsPanel" class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-2">
           <div>
             <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण</h3>
             <p class="text-xs text-stone-500">प्लेटफॉर्म या किसी विशेष टैब को मेंटेनेंस में डालें:</p>
@@ -860,6 +860,7 @@ Ans: B"></textarea>
       if (!owner && permission && !hasEditorPermission(permission)) { showToast('इस अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।'); return; }
       const pane = { dashboard: 'pane_overview', questions: 'pane_quiz', checking: 'pane_exam', admit: 'pane_exam', notifications: 'pane_system', settings: 'pane_system' }[page] || 'pane_overview';
       switchStudioPane(pane);
+      if (page === 'settings') document.getElementById('pane_exam')?.classList.remove('hidden');
       document.querySelectorAll('[data-studio-page]').forEach(button => {
         button.classList.toggle('studio-nav-active', button.dataset.studioPage === page);
         button.setAttribute('aria-current', button.dataset.studioPage === page ? 'page' : 'false');
@@ -872,7 +873,7 @@ Ans: B"></textarea>
         checking: ['ownerExamSessionMonitorPanel','manualExamReviewSection'],
         admit: ['ownerRegistrationReviewPanel','ownerAdmitCardSettingsPanel'],
         notifications: ['ownerNotificationCard'],
-        settings: ['ownerExamVisibilitySettingsPanel','ownerProctoringPanel','ownerMaintenanceSettingsPanel','ownerTrustedEditorsPanel','ownerExportPanel']
+        settings: ['ownerExamVisibilitySettingsPanel','ownerMaintenanceSettingsPanel','ownerTrustedEditorsPanel','ownerExportPanel']
       }[page] || [];
       show.forEach(id => { const el = document.getElementById(id); if (el) delete el.dataset.studioRouteHidden; });
       document.getElementById('ownerStudioSidebar')?.scrollIntoView({behavior:'smooth',block:'start'});
