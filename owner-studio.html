@@ -1583,7 +1583,7 @@ Ans: B"></textarea>
         const existing = await ref.get();
         const now = firebase.firestore.FieldValue.serverTimestamp();
         const previousRoll = String(enteredRoll || (existing.exists && existing.data()?.rollNumber) || '').trim();
-        if (previousRoll && !/^JAMBH-2026-\d{5}$/.test(previousRoll) && !previousRoll.startsWith('BIS-')) {
+        if (previousRoll && !/^JAMBH-2026-\d{4,}$/.test(previousRoll) && !previousRoll.startsWith('BIS-')) {
           throw new Error('रोल नंबर केवल JAMBH-2026-XXXXX प्रारूप में स्वीकार होगा।');
         }
         const record = {
@@ -1875,7 +1875,7 @@ Ans: B"></textarea>
 
             return d.verificationStatus === 'confirmed' &&
               !!d.rollNumber &&
-              /^JAMBH-2026-\d{5}$/.test(String(d.rollNumber)) &&
+              /^JAMBH-2026-\d{4,}$/.test(String(d.rollNumber)) &&
               String(uid).length >= 5 &&
               validExam;
           });
@@ -1976,7 +1976,7 @@ Ans: B"></textarea>
       const button = document.getElementById('releaseIndividualAdmitCardButton');
       const roll = (input?.value || '').trim();
 
-      if (!/^JAMBH-2026-\d{5}$/.test(roll)) {
+      if (!/^JAMBH-2026-\d{4,}$/.test(roll)) {
         if (status) status.textContent = 'सही रोल नंबर दर्ज करें।';
         return;
       }
@@ -2989,7 +2989,7 @@ Ans: B"></textarea>
             scanned++;
             const data = doc.data() || {};
             const roll = String(data.rollNumber || '').trim();
-            if (data.verificationStatus !== 'confirmed' || (/^JAMBH-2026-\d{5}$/.test(roll)) || (roll && !roll.startsWith('BIS-'))) { skipped++; continue; }
+            if (data.verificationStatus !== 'confirmed' || (/^JAMBH-2026-\d{4,}$/.test(roll)) || (roll && !roll.startsWith('BIS-'))) { skipped++; continue; }
             try {
               await assignRealEnrollmentRoll(doc.ref, roll, false);
               assigned++;
