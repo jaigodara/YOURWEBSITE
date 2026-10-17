@@ -10,19 +10,45 @@ const indexHtml = readFileSync(path.join(root, "index.html"), "utf8");
 const ownerHtml = readFileSync(path.join(root, "owner-studio.html"), "utf8");
 
 function makeFirebaseStub(window) {
-  const auth = Object.assign(() => ({ currentUser: null, onAuthStateChanged: () => () => {}, signOut: async () => {} }), {
+  const authState = { currentUser: null };
+  const auth = Object.assign(() => authState, {
     GoogleAuthProvider: function GoogleAuthProvider() {},
-    EmailAuthProvider: { credential: () => ({}) }
+    EmailAuthProvider: { credential: () => ({}) },
+    onAuthStateChanged: callback => { callback(null); return () => {}; },
+    signOut: async () => { authState.currentUser = null; },
+    signInWithPopup: async () => ({ user: null }),
+    signInWithRedirect: async () => {},
+    getRedirectResult: async () => ({ user: null })
   });
+  const emptySnapshot = () => ({ exists: false, id: "missing", data: () => ({}), docs: [], forEach: () => {} });
+  const docRef = () => ({
+    id: "missing", get: async () => emptySnapshot(), set: async () => {}, update: async () => {},
+    delete: async () => {}, onSnapshot: callback => { if (callback) callback(emptySnapshot()); return () => {}; }
+  });
+  const query = () => {
+    const q = {
+      get: async () => emptySnapshot(),
+      onSnapshot: callback => { if (callback) callback(emptySnapshot()); return () => {}; },
+      where: () => q, orderBy: () => q, limit: () => q, startAfter: () => q,
+      doc: () => docRef(), add: async () => ({ id: "new-doc" })
+    };
+    return q;
+  };
   const firestore = () => ({
-    collection: () => ({ doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }), set: async () => {}, update: async () => {}, onSnapshot: () => () => {} }), where: () => ({ get: async () => ({ docs: [] }) }), get: async () => ({ docs: [] }), onSnapshot: callback => { callback({ docs: [] }); return () => {}; } }),
-    doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }), set: async () => {}, update: async () => {}, onSnapshot: () => () => {} }),
-    runTransaction: async callback => callback({ get: async () => ({ exists: false, data: () => ({}) }), set: () => {}, update: () => {} })
+    collection: () => query(), doc: () => docRef(),
+    batch: () => ({ set: () => {}, update: () => {}, delete: () => {}, commit: async () => {} }),
+    runTransaction: async callback => callback({ get: async () => emptySnapshot(), set: () => {}, update: () => {}, delete: () => {} })
   });
   const storage = () => ({ ref: () => ({ put: async () => ({}), getDownloadURL: async () => "" }) });
+  window.__firebaseInitializeCalls = 0;
   window.firebase = {
     apps: [],
-    initializeApp: () => { window.__firebaseInitializeCalls = (window.__firebaseInitializeCalls || 0) + 1; const app = { name: "[DEFAULT]" }; window.firebase.apps.push(app); return app; },
+    initializeApp: () => {
+      window.__firebaseInitializeCalls += 1;
+      const app = { name: "[DEFAULT]" };
+      window.firebase.apps.push(app);
+      return app;
+    },
     app: () => window.firebase.apps[0],
     auth,
     firestore,
@@ -30,7 +56,7 @@ function makeFirebaseStub(window) {
     analytics: () => ({})
   };
   window.firebase.auth.GoogleAuthProvider = auth.GoogleAuthProvider;
-  window.firebase.firestore.FieldValue = { serverTimestamp: () => ({}), increment: n => n };
+  window.firebase.firestore.FieldValue = { serverTimestamp: () => ({}), increment: n => n, delete: () => ({}) };
   window.firebase.firestore.Timestamp = { now: () => new Date() };
   window.firebase.storage = Object.assign(storage, { TaskEvent: {} });
 }
@@ -97,11 +123,13 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   const dom = makeDom();
   const { window } = dom;
   const errors = [];
+  Object.defineProperty(window.document, "readyState", { configurable: true, value: "complete" });
   const evalReadyState = window.document.readyState;
   window.console = Object.assign(Object.create(console), {
     error: (...args) => errors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
   const diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  console.log("T6 instrumentationApplied", diagnosticScript.includes("function initPortal() { window.__initPortalRan = true;"));
   window.eval(diagnosticScript);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   console.log("T6 DIAGNOSTICS", JSON.stringify({
@@ -137,7 +165,13 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   const appObjectBefore = window.BishnoiApp;
   const earlyAuth = authObjectBefore.openAuthModal;
   const earlyProfile = appObjectBefore.openProfileOrAuth;
-  window.eval(script);
+  Object.defineProperty(window.document, "readyState", { configurable: true, value: "complete" });
+  const startupErrors = [];
+  window.console = Object.assign(Object.create(console), {
+    error: (...args) => startupErrors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
+  });
+  const diagnosticScript = script.replace("function initPortal() {", "function initPortal() { window.__initPortalRan = true;");
+  window.eval(diagnosticScript);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
   // Owner-only inline scripts also publish owner handlers; evaluate those scripts without loading remote SDKs.
   const ownerDom = new JSDOM(ownerHtml, { url: "https://bishnoism.test/owner-studio.html", runScripts: "outside-only" });
@@ -151,8 +185,11 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   ];
   const unresolved = pathsByWindow.filter(item => typeof resolvePath(item.target, item.expression) !== "function").map(item => item.expression);
   console.log("T8 DIAGNOSTICS", JSON.stringify({
-    firstStartupError: (window.__startupErrors || [])[0] || null,
-    firstCapturedConsoleError: (window.__startupErrors || [])[0] || null,
+    firstStartupError: startupErrors[0] || null,
+    allStartupErrors: startupErrors,
+    initPortalRan: window.__initPortalRan,
+    firebaseInitializeCalls: window.__firebaseInitializeCalls,
+    firebaseAppsLength: window.firebase.apps.length,
     unresolvedPaths: unresolved
   }, null, 2));
   assert.deepEqual(unresolved, [], "unresolved inline onclick paths: " + unresolved.join(", "));
