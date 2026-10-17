@@ -225,7 +225,7 @@
         <h3>मॉक परीक्षा 1</h3>
         <p>समयबद्ध अभ्यास परीक्षा। प्रवेश के लिए निर्धारित समय और पंजीकरण की शर्तें लागू होंगी।</p>
         <div class="card-actions">
-          <a class="button" href="./index.html#tab-quiz">मॉक परीक्षा 1 खोलें</a>
+          <button class="button" type="button" data-launch-exam="mock1">मॉक परीक्षा 1 खोलें</button>
         </div>
       </article>
 
@@ -234,7 +234,7 @@
         <h3>मॉक परीक्षा 2</h3>
         <p>दूसरा अभ्यास सेट। परीक्षा शुरू करने से पहले मुख्य वेबसाइट पर संबंधित विकल्प चुनें।</p>
         <div class="card-actions">
-          <a class="button" href="./index.html#tab-quiz">मॉक परीक्षा 2 खोलें</a>
+          <button class="button" type="button" data-launch-exam="mock2">मॉक परीक्षा 2 खोलें</button>
         </div>
       </article>
 
@@ -243,7 +243,7 @@
         <h3>मुख्य परीक्षा</h3>
         <p>पंजीकरण की पुष्टि, निर्धारित समय और वैध प्रवेश-पत्र/रोल नंबर की शर्तें लागू हो सकती हैं।</p>
         <div class="card-actions">
-          <a class="button gold" href="./index.html#tab-quiz">मुख्य परीक्षा खोलें</a>
+          <button class="button gold" type="button" data-launch-exam="main">मुख्य परीक्षा खोलें</button>
         </div>
       </article>
 
@@ -252,7 +252,7 @@
         <h3>विद्यार्थी पंजीकरण</h3>
         <p>पंजीकरण भेजें और उसकी स्वीकृति की स्थिति मुख्य वेबसाइट पर देखें।</p>
         <div class="card-actions">
-          <a class="button" href="./index.html#tab-quiz">पंजीकरण खोलें</a>
+          <button class="button" type="button" data-launch-exam="enrollment">पंजीकरण खोलें</button>
         </div>
       </article>
 
@@ -261,10 +261,18 @@
         <h3>परिणाम डेस्क</h3>
         <p>प्रकाशित परीक्षा परिणाम और उपलब्ध अंक-पत्र मुख्य वेबसाइट पर देखें।</p>
         <div class="card-actions">
-          <a class="button" href="./index.html#tab-quiz">परिणाम देखें</a>
+          <button class="button" type="button" data-launch-exam="results">परिणाम देखें</button>
         </div>
       </article>
     </div>
+  </section>
+
+  <section id="examFramePanel" class="panel hide">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><h2 id="examFrameTitle" style="margin:0;font-size:19px">परीक्षा</h2><p class="muted">यहीं परीक्षा पूरी करें। आपको मुख्य वेबसाइट पर नहीं भेजा जाएगा।</p></div>
+      <button id="backToExamChoices" class="button light" type="button">← सभी विकल्प</button>
+    </div>
+    <iframe id="examFrame" title="Bishnoism परीक्षा कार्यक्षेत्र" src="about:blank" loading="lazy" style="display:block;width:100%;height:min(78vh,1000px);min-height:600px;border:1px solid var(--border);border-radius:14px;background:var(--cream);margin-top:14px"></iframe>
   </section>
 
   <section class="panel">
@@ -304,6 +312,16 @@
   const status = byId("portalStatus");
   const area = byId("examArea");
   const disabledPanel = byId("portalDisabled");
+  const framePanel = byId("examFramePanel");
+  const examFrame = byId("examFrame");
+  const examArea = byId("examArea");
+  const examTitles = {
+    mock1: "📝 मॉक परीक्षा 1",
+    mock2: "🎯 मॉक परीक्षा 2",
+    main: "🏆 मुख्य परीक्षा",
+    enrollment: "🧾 विद्यार्थी पंजीकरण",
+    results: "📊 परिणाम डेस्क"
+  };
 
   function setCard(id, visible) {
     byId(id).classList.toggle("hide", !visible);
@@ -358,6 +376,31 @@
       byId("authStatus").textContent = message;
       button.disabled = false;
     }
+  });
+
+  document.querySelectorAll("[data-launch-exam]").forEach(button => {
+    button.addEventListener("click", () => {
+      const mode = button.getAttribute("data-launch-exam");
+      if (!examTitles[mode]) return;
+      if (!auth.currentUser) {
+        byId("authStatus").textContent = "पहले Google से लॉगिन करें, फिर परीक्षा खोलें।";
+        byId("googleLogin").focus();
+        setPortalStatus("परीक्षा खोलने से पहले विद्यार्थी लॉगिन आवश्यक है।");
+        return;
+      }
+      byId("examFrameTitle").textContent = examTitles[mode];
+      framePanel.classList.remove("hide");
+      examArea.classList.add("hide");
+      framePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      examFrame.src = "./index.html?examEmbed=" + encodeURIComponent(mode) + "#tab-quiz";
+    });
+  });
+
+  byId("backToExamChoices").addEventListener("click", () => {
+    examFrame.src = "about:blank";
+    framePanel.classList.add("hide");
+    examArea.classList.remove("hide");
+    byId("portalStatus").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   db.collection("examConfig").doc("current").onSnapshot(snapshot => {

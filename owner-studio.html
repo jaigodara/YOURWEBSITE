@@ -85,7 +85,20 @@
   </header>
 
   <!-- MAIN ADMIN DASHBOARD CONTENT -->
-  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-6 space-y-6">
+  <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-4 py-5">
+    <div class="grid grid-cols-1 md:grid-cols-[210px_minmax(0,1fr)] gap-4 md:gap-6 items-start">
+      <aside id="ownerStudioSidebar" class="md:sticky md:top-24 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm" aria-label="Owner Studio navigation">
+        <p class="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-stone-500">प्रबंधन मेनू / Admin menu</p>
+        <nav class="grid grid-cols-2 md:grid-cols-1 gap-1.5">
+          <button type="button" data-studio-page="dashboard" class="studio-nav-item studio-nav-active">📊 Dashboard</button>
+          <button type="button" data-studio-page="questions" class="studio-nav-item">📝 Question Bank</button>
+          <button type="button" data-studio-page="checking" class="studio-nav-item">✅ Check Answer Sheets</button>
+          <button type="button" data-studio-page="admit" class="studio-nav-item">🎟️ Admit Cards</button>
+          <button type="button" data-studio-page="notifications" class="studio-nav-item">🔔 Notifications</button>
+          <button type="button" data-studio-page="settings" class="studio-nav-item">⚙️ Settings</button>
+        </nav>
+      </aside>
+      <div id="ownerStudioPageContent" class="min-w-0 space-y-6">
 
     <!-- OVERVIEW TELEMETRY & 4 ONE-TAP ACTION SHORTCUTS -->
     <div class="bg-gradient-to-r from-[#143622] via-[#1b432c] to-stone-900 text-white p-5 sm:p-6 rounded-3xl shadow-xl space-y-4 border border-amber-400/40">
@@ -153,7 +166,7 @@
     </div>
 
     <!-- 5 COMPREHENSIVE SUB-TABS -->
-    <div class="flex flex-wrap gap-1.5 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm text-xs font-bold">
+    <div id="legacyStudioTabs" class="hidden flex-wrap gap-1.5 bg-white p-2 rounded-2xl border border-stone-200 shadow-sm text-xs font-bold">
       <button onclick="switchStudioPane('pane_overview')" id="btn_pane_overview" class="admin-subtab-active flex-1 min-w-[110px] py-2 px-2.5 rounded-xl border border-stone-200 transition">
         1. सुविचार व ड्राफ्ट
       </button>
@@ -326,7 +339,7 @@
     <div id="pane_quiz" class="hidden space-y-4">
       
       <!-- DAILY WINNERS LEADERBOARD CONTROLLER -->
-      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerDailyWinnersPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
           <h3 class="font-yatra text-base text-forest">🏆 शीर्ष विजेता (Daily Leaderboard Winners)</h3>
           <button onclick="clearDailyWinnersToBlank()" class="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-bold transition">
@@ -354,7 +367,7 @@
       </div>
 
       <!-- BULK QUESTION BANK IMPORTER -->
-      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerQuestionBankPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
           <h3 class="font-yatra text-base text-forest">⚡ बल्क प्रश्न बैंक इम्पोर्टर (Bulk Importer)</h3>
           <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Regex Parser</span>
@@ -610,7 +623,7 @@ Ans: B"></textarea>
       </div>
 
       <!-- PER-SECTION SOFT MAINTENANCE CONTROLLER -->
-      <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
+      <div id="ownerMaintenanceSettingsPanel" class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b border-stone-100 pb-2">
           <div>
             <h3 class="font-yatra text-base text-red-800">🛠️ मेंटेनेंस एवं सेक्शन लॉक नियंत्रण</h3>
@@ -665,7 +678,7 @@ Ans: B"></textarea>
       </div>
 
       <!-- TRUSTED EDITORS ROLE MANAGER -->
-      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) नियुक्त करें</h3>
         <p class="text-xs text-stone-500">संपादक को Firebase Authentication का UID दें। यह सुविधा roles/{UID} में role=editor लिखेगी; Firestore rules को owner-only role writes की अनुमति देनी चाहिए। केवल मोबाइल नंबर जोड़ना login अधिकार नहीं देता।</p>
         <div class="flex gap-2 text-xs">
@@ -684,7 +697,7 @@ Ans: B"></textarea>
       </div>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
-      <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerExportPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📄 आधिकारिक डेटा रिपोर्ट एक्सपोर्ट (PDF & Excel)</h3>
         <p class="text-xs text-stone-500">परीक्षा परिणाम एवं सदस्यों का डेटाबेस एक क्लिक में डाउनलोड करें:</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold">
@@ -706,7 +719,16 @@ Ans: B"></textarea>
 
     </div>
 
+      </div>
+    </div>
   </main>
+
+  <style>
+    .studio-nav-item{min-height:44px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:11px;background:#fafaf9;color:#374151;text-align:left;font-size:12px;font-weight:800}
+    .studio-nav-item:hover{background:#f0fdf4;border-color:#bbf7d0}
+    .studio-nav-active{background:#143622;color:#fff;border-color:#143622}
+    [data-studio-route-hidden="true"]{display:none!important}
+  </style>
 
   <!-- EMBEDDED COMPLETE OWNER STUDIO LOGIC ENGINE -->
   <script>
@@ -829,6 +851,36 @@ Ans: B"></textarea>
           window.location.href = "index.html";
         }
       });
+    });
+
+    function openStudioPage(page) {
+      const owner = isPrimaryOwner();
+      const permission = { questions: 'quizDrafts', checking: 'examReview', notifications: 'notifications' }[page];
+      if ((page === 'admit' || page === 'settings') && !owner) { showToast('यह अनुभाग केवल Owner के लिए उपलब्ध है।'); return; }
+      if (!owner && permission && !hasEditorPermission(permission)) { showToast('इस अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।'); return; }
+      const pane = { dashboard: 'pane_overview', questions: 'pane_quiz', checking: 'pane_exam', admit: 'pane_exam', notifications: 'pane_system', settings: 'pane_system' }[page] || 'pane_overview';
+      switchStudioPane(pane);
+      if (page === 'settings') document.getElementById('pane_exam')?.classList.remove('hidden');
+      document.querySelectorAll('[data-studio-page]').forEach(button => {
+        button.classList.toggle('studio-nav-active', button.dataset.studioPage === page);
+        button.setAttribute('aria-current', button.dataset.studioPage === page ? 'page' : 'false');
+      });
+      const panels = ['ownerDailyWinnersPanel','ownerQuestionBankPanel','ownerExamSessionMonitorPanel','manualExamReviewSection','ownerProctoringPanel','ownerExamVisibilitySettingsPanel','ownerRegistrationReviewPanel','ownerAdmitCardSettingsPanel','ownerNotificationCard','ownerMaintenanceSettingsPanel','ownerTrustedEditorsPanel','ownerExportPanel'];
+      panels.forEach(id => { const el = document.getElementById(id); if (el) el.dataset.studioRouteHidden = 'true'; });
+      const show = {
+        dashboard: ['ownerDailyWinnersPanel'],
+        questions: ['ownerQuestionBankPanel'],
+        checking: ['ownerExamSessionMonitorPanel','manualExamReviewSection'],
+        admit: ['ownerRegistrationReviewPanel','ownerAdmitCardSettingsPanel'],
+        notifications: ['ownerNotificationCard'],
+        settings: ['ownerExamVisibilitySettingsPanel','ownerMaintenanceSettingsPanel','ownerTrustedEditorsPanel','ownerExportPanel']
+      }[page] || [];
+      show.forEach(id => { const el = document.getElementById(id); if (el) delete el.dataset.studioRouteHidden; });
+      document.getElementById('ownerStudioSidebar')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    document.querySelectorAll('[data-studio-page]').forEach(button => {
+      button.addEventListener('click', () => openStudioPage(button.dataset.studioPage));
     });
 
     function switchStudioPane(paneId) {

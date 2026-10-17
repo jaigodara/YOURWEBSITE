@@ -38,9 +38,44 @@
     .custom-scrollbar::-webkit-scrollbar { width: 5px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #143622; border-radius: 4px; }
+
+    /* Main website: Daily Quiz stays here; scheduled exams, enrollment and results live in Exam Portal. */
+    html:not([data-exam-embed]) #tab-quiz #enrollmentSection,
+    html:not([data-exam-embed]) #tab-quiz #myResultsPanel,
+    html:not([data-exam-embed]) #tab-quiz #mockHub,
+    html:not([data-exam-embed]) #tab-quiz #mainExamSection { display: none !important; }
+
+    /* Embedded exam view: reuse the existing, tested exam engine without sending users back to the main UI. */
+    html[data-exam-embed] body { padding-bottom: 0 !important; min-height: 100vh; }
+    html[data-exam-embed] body > :not(main):not(#toastNotification):not(#customConfirmModal):not(#notificationPopup):not(#authModal):not(#userProfileModal) { display: none !important; }
+    html[data-exam-embed] main { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    html[data-exam-embed] main > section:not(#tab-quiz) { display: none !important; }
+    html[data-exam-embed] #tab-quiz { display: block !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    html[data-exam-embed] #tab-quiz > * { display: none !important; }
+    html[data-exam-embed="main"] #tab-quiz > #mainExamSection,
+    html[data-exam-embed="mock1"] #tab-quiz > #mockHub,
+    html[data-exam-embed="mock2"] #tab-quiz > #mockHub,
+    html[data-exam-embed="enrollment"] #tab-quiz > #enrollmentSection,
+    html[data-exam-embed="results"] #tab-quiz > #myResultsPanel { display: block !important; }
+    html[data-exam-embed="mock1"] #tab-quiz #mockHub > h3,
+    html[data-exam-embed="mock2"] #tab-quiz #mockHub > h3 { display: block !important; }
+    html[data-exam-embed="mock1"] #tab-quiz #mockHub > div,
+    html[data-exam-embed="mock2"] #tab-quiz #mockHub > div { display: grid !important; }
+    html[data-exam-embed="mock1"] #tab-quiz #mockExam2Card,
+    html[data-exam-embed="mock2"] #tab-quiz #mockExam1Card { display: none !important; }
+    html[data-exam-embed] #tab-quiz > #portalExamWorkspace:not([hidden]) { display: block !important; }
+    html[data-exam-embed] #tab-quiz > #portalExamWorkspace:not([hidden]) ~ * { display: none !important; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    (() => {
+      const mode = new URLSearchParams(location.search).get('examEmbed');
+      if (['main', 'mock1', 'mock2', 'enrollment', 'results'].includes(mode)) {
+        document.documentElement.setAttribute('data-exam-embed', mode);
+      }
+    })();
+  </script>
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
