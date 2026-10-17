@@ -127,3 +127,24 @@
 - Exposed the existing Firebase Phone Auth OTP handlers in the login UI and added a guarded Firestore rule: users can mark their phone verified only when the Firebase Auth token's verified phone number matches the saved phone.
 - **Deployment/configuration note:** SMS phone verification requires Firebase Phone provider configuration, authorized domains, and may require a billing-enabled Firebase plan. The new portal is a separate lightweight entry page; the existing exam-taking engine still runs in the main site's exam section and needs a separate extraction before exam sessions themselves stop loading the main site.
 - CI and real Firebase end-to-end tests are pending.
+
+
+## 2026-10-17 — Notification permission diagnosis
+
+- Evidence on `main`: `script.js:1535` reads `notificationReads` with `where('uid', '==', uid)`; `script.js:1546` reads flat `userNotifications` with `where('uid', 'in', [uid, 'ALL'])`.
+- Matching rules on `main`: `firestore.rules:379-380` permit signed-in reads where the document UID is the signed-in UID or `ALL`; `firestore.rules:393-400` restrict read-marker reads/writes to the signed-in UID and deny deletes. The query fields and rule field names match.
+- `script.js:566-567` calls the personal listener from `onAuthStateChanged`; `initPersonalNotificationsForUser` returns before creating personal listeners when no user is signed in. The public `notifications` collection is explicitly public at `firestore.rules:368-376`. Therefore cases A, B and C are not supported by the checked-in `main` source/rules. The leading diagnosis is **D: production rules/deployed source are out of sync with the checked-in version**; compare the live Firebase Rules and the deployed `script.js` before rollout.
+- Added emulator regression coverage for the exact flat-notification and read-marker query shapes: signed-in students can read their own and `ALL` notices, write/read their own marker, and cannot delete notices; signed-out users cannot run the private flat-notification query.
+- No production rules were changed. Keep the existing admit-card approval/valid-roll guard unchanged.
+
+### Production rule verification and deployment
+
+1. In Firebase Console, select project `bishnoi-platform` → **Firestore Database → Rules**. Copy the current rules into a dated backup file before changing anything.
+2. Compare the live `userNotifications` and `notificationReads` matches with `firestore.rules` in this branch. If they differ, deploy only after CI/emulator tests pass:
+   ```sh
+   firebase use bishnoi-platform
+   npx firebase emulators:exec --only firestore "npm test"
+   firebase deploy --only firestore:rules --project bishnoi-platform
+   ```
+   Alternatively, paste the reviewed `firestore.rules` contents into Firebase Console → Firestore Database → Rules and click **Publish**.
+3. Confirm the production site is serving the expected `script.js` revision, then sign in with a test student in a private window and check the notification/read-marker listeners and admit-card download.
