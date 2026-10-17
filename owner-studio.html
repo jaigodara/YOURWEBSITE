@@ -437,6 +437,25 @@ Ans: B"></textarea>
           </label>
           <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] text-emerald-950">Excel upload पहले Preview बनाएगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
         </div>
+        <details class="rounded-xl border border-stone-200 p-3">
+          <summary class="cursor-pointer text-sm font-bold text-forest">➕ एक प्रश्न जल्दी जोड़ें</summary>
+          <div class="mt-3 grid grid-cols-1 gap-2">
+            <textarea id="singleQuestionText" rows="2" class="w-full rounded-lg border border-stone-300 p-2.5 text-base" placeholder="प्रश्न लिखें"></textarea>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input id="singleQuestionOptionA" class="rounded-lg border border-stone-300 p-2.5 text-base" placeholder="विकल्प A">
+              <input id="singleQuestionOptionB" class="rounded-lg border border-stone-300 p-2.5 text-base" placeholder="विकल्प B">
+              <input id="singleQuestionOptionC" class="rounded-lg border border-stone-300 p-2.5 text-base" placeholder="विकल्प C">
+              <input id="singleQuestionOptionD" class="rounded-lg border border-stone-300 p-2.5 text-base" placeholder="विकल्प D">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label class="text-xs font-semibold">सही उत्तर<select id="singleQuestionAnswer" class="mt-1 w-full rounded-lg border border-stone-300 p-2.5 text-base"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></label>
+              <label class="text-xs font-semibold">अंक<input id="singleQuestionMarks" type="number" min="1" max="100" value="1" class="mt-1 w-full rounded-lg border border-stone-300 p-2.5 text-base"></label>
+              <label class="text-xs font-semibold">विषय<input id="singleQuestionSubject" class="mt-1 w-full rounded-lg border border-stone-300 p-2.5 text-base" placeholder="जैसे इतिहास"></label>
+            </div>
+            <textarea id="singleQuestionExplanation" rows="2" class="w-full rounded-lg border border-stone-300 p-2.5 text-base" placeholder="व्याख्या (वैकल्पिक)"></textarea>
+            <button type="button" onclick="addSingleQuestionToPreview()" class="min-h-[44px] rounded-lg bg-forest px-3 py-2 text-sm font-bold text-white">Preview में जोड़ें</button>
+          </div>
+        </details>
         <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
           👀 पहले सभी प्रश्नों का Preview / जाँच करें
         </button>
