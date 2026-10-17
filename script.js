@@ -657,7 +657,7 @@ try {
 
   function renderAuthState() {
     const label = state.user
-      ? (state.profile?.displayName || state.user.displayName || state.user.email || 'Account')
+      ? (state.profile?.displayName || state.profile?.fullName || state.user.displayName || state.user.email || 'सदस्य')
       : 'लॉगिन करें';
 
     ['authButton', 'profileButton', 'loginBtn', 'authLoginButton'].forEach(id => {
@@ -1052,6 +1052,13 @@ try {
         .doc(studentUid)
         .get();
 
+      const profileSnapshot = await state.db.collection('users').doc(studentUid).get();
+      const currentProfile = profileSnapshot.exists ? profileSnapshot.data() || {} : {};
+      if (currentProfile.gmailVerified !== true) {
+        notify('प्रवेश-पत्र के लिए Google सत्यापन आवश्यक है।', 'error');
+        return;
+      }
+      state.profile = { ...(state.profile || {}), ...currentProfile };
       if (!freshEnrollment.exists) {
         notify('आपका पंजीकरण रिकॉर्ड नहीं मिला। कृपया व्यवस्थापक से संपर्क करें।', 'error');
         return;
@@ -1111,8 +1118,7 @@ try {
           state.profile?.displayName || state.user.displayName || 'विद्यार्थी'],
         ['रोल नंबर', record.rollNumber],
         ['जन्म तिथि', record.dateOfBirth || record.dob || '—'],
-        ['मोबाइल नंबर', record.phone || record.mobile ||
-          state.profile?.phone || '—'],
+        ['मोबाइल नंबर', state.profile?.mobile || '—'],
         ['परीक्षा', cfg.admitCardTitle || record.examName || 'मुख्य परीक्षा'],
         ['दिनांक / समय', [
           cfg.admitCardDate || 'आधिकारिक सूचना के अनुसार',
@@ -3465,19 +3471,6 @@ window.renderExamVisibility = function renderExamVisibility() {
   function isGoogleLinked(user) {
     return (user?.providerData || []).some(item => item && item.providerId === 'google.com');
   }
-  async function saveVerifiedProfile(user, details, googleEmail) {
-    const userRef = state.db.collection('users').doc(user.uid);
-    await user.getIdToken?.(true);
-    await userRef.set({
-      fullName: details.fullName,
-      mobile: details.mobile,
-      email: googleEmail,
-      gmailVerified: true,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    await state.db.collection('mobileIndex').doc(details.mobile).set({ uid: user.uid });
-    state.profile = { ...(state.profile || {}), ...details, email: googleEmail, gmailVerified: true };
-  }
   async function cleanupUnverifiedAccount(user, details) {
     try {
       await user.delete();
@@ -3538,6 +3531,10 @@ window.renderExamVisibility = function renderExamVisibility() {
     const forgot = byId('forgotPasswordButton');
     const retry = byId('authRetryGoogleButton');
     if (title) title.textContent = authMode === 'register' ? 'नया पंजीकरण' : 'लॉगिन करें';
+    const submit = byId('authSubmitBtn');
+    const confirmPassword = byId('registerPasswordConfirm');
+    if (submit) submit.textContent = authMode === 'register' ? 'रजिस्टर करें' : 'लॉगिन करें';
+    if (confirmPassword) confirmPassword.required = authMode === 'register';
     if (toggle) toggle.textContent = authMode === 'register' ? 'पहले से सदस्य हैं? लॉगिन करें' : 'नए सदस्य हैं? पंजीकरण करें';
     if (nameRow) nameRow.classList.toggle('hidden', authMode !== 'register');
     if (confirmRow) confirmRow.classList.toggle('hidden', authMode !== 'register');
@@ -3596,11 +3593,13 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!state.auth || !state.db) return setAuthMessage('पंजीकरण सेवा अभी उपलब्ध नहीं है।', 'error');
     window.__bishnoiRegistrationInProgress = true;
     let user = existingUser;
+    let registrationStage = existingUser ? 'google-link' : 'create-account';
     try {
       if (!user) {
         const result = await state.auth.createUserWithEmailAndPassword(hiddenEmail(details.mobile), details.password);
         user = result.user;
       }
+      registrationStage = 'google-link';
       const linked = await user.linkWithPopup(googleProvider());
       user = linked.user || user;
       const googleEmail = googleEmailForUser(user, linked);
@@ -3627,10 +3626,11 @@ window.renderExamVisibility = function renderExamVisibility() {
         await cleanupUnverifiedAccount(user, details);
       }
       window.__bishnoiRegistrationInProgress = false;
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.code === 'auth/email-already-in-use' && registrationStage === 'create-account') {
         return setAuthMessage('यह मोबाइल नंबर पहले से पंजीकृत है, कृपया लॉगिन करें', 'error');
       }
-      if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
+      if (error.code === 'auth/credential-already-in-use' ||
+          (error.code === 'auth/email-already-in-use' && registrationStage === 'google-link')) {
         return setAuthMessage('यह Google ईमेल किसी दूसरे खाते से जुड़ा है। उस Google खाते से लॉगिन करें या Owner से सहायता लें।', 'error');
       }
       setAuthMessage('पंजीकरण पूरा करने के लिए Google से सत्यापन ज़रूरी है।', 'error');
