@@ -3488,7 +3488,8 @@ window.renderExamVisibility = function renderExamVisibility() {
       };
       if (phoneChanged) profileUpdate.phoneAuthVerifiedAt = firebase.firestore.FieldValue.delete();
       await state.db.collection('users').doc(state.user.uid).set(profileUpdate, { merge: true });
-      state.profile = { ...(state.profile || {}), ...profileUpdate, phone, phoneVerified: profileUpdate.phoneVerified };
+      state.profile = { ...(state.profile || {}), displayName, location, phone, phoneVerified: profileUpdate.phoneVerified };
+      if (phoneChanged) delete state.profile.phoneAuthVerifiedAt;
       setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {
