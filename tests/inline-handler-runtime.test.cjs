@@ -292,4 +292,7 @@ test("separate exam portal and owner-controlled availability toggles are wired",
   assert.match(portal, /dailyQuizVisible/);
   assert.match(portal, /mock1Visible/);
   assert.match(portal, /mainExamVisible/);
+  assert.match(script, /signInWithPhonePassword/);
+  assert.match(script, /phonePasswordAlias/);
+  assert.match(index, /id="phoneLoginPassword"/);
 });
