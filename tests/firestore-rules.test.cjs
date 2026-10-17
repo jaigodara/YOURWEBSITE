@@ -135,6 +135,27 @@ test("Firestore security rules regression suite", async (t) => {
       }));
     });
 
+    await t.test("owner exam toggles block student reads when the portal or daily quiz is off", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, "examConfig/current"), {
+          examPortalVisible: false,
+          dailyQuizVisible: false,
+          quizStartAt: Timestamp.fromMillis(Date.now() - 60_000),
+        }, { merge: true });
+        await setDoc(doc(db, "quiz/q-disabled"), {
+          q: "बंद क्विज़ प्रश्न", published: true,
+        });
+        await setDoc(doc(db, "mainExamQuestions/q-disabled"), {
+          q: "बंद मुख्य परीक्षा प्रश्न", published: true,
+        });
+      });
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(getDoc(doc(studentDb, "quiz/q-disabled")));
+      await assertFails(getDoc(doc(studentDb, "mainExamQuestions/q-disabled")));
+    });
+
     await t.test("examReview editor can load main-exam question text and private answer keys without opening them to students", async () => {
       await reset();
       await env.withSecurityRulesDisabled(async (ctx) => {
