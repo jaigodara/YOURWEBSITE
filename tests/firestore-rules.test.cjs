@@ -8,7 +8,7 @@ const {
   assertFails,
 } = require("@firebase/rules-unit-testing");
 const {
-  doc, setDoc, updateDoc, getDoc, deleteDoc, serverTimestamp, Timestamp,
+  doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, collection, query, where, serverTimestamp, Timestamp,
 } = require("firebase/firestore");
 
 const PROJECT_ID = "bishnoi-platform-rules-test";
@@ -221,6 +221,49 @@ test("Firestore security rules regression suite", async (t) => {
         uid: STUDENT, notificationId: "bad", read: true, readAt: serverTimestamp(), key: "legacy-extra",
       }));
       await assertFails(deleteDoc(doc(db, "notificationReads", STUDENT + "_flat-1")));
+    });
+
+    await t.test("app's exact flat-notification queries obey rules for students and signed-out visitors", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, "userNotifications/flat-private"), {
+          uid: STUDENT, type: "admit-card", title: "निजी सूचना", body: "केवल विद्यार्थी के लिए",
+        });
+        await setDoc(doc(db, "userNotifications/flat-all-query"), {
+          uid: "ALL", type: "announcement", title: "सार्वजनिक सूचना", body: "सभी के लिए",
+        });
+      });
+
+      const source = readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
+      assert.match(source, /collection\('userNotifications'\)\.where\('uid', 'in', \[uid, 'ALL'\]\)/);
+      assert.match(source, /collection\('notificationReads'\)\.where\('uid', '==', uid\)/);
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      // These mirror script.js: where('uid', 'in', [uid, 'ALL']) and
+      // where('uid', '==', uid); Firestore rules are not query filters.
+      const flatNotificationsQuery = query(
+        collection(studentDb, "userNotifications"),
+        where("uid", "in", [STUDENT, "ALL"]),
+      );
+      const flatReadMarkersQuery = query(
+        collection(studentDb, "notificationReads"),
+        where("uid", "==", STUDENT),
+      );
+      const notices = await assertSucceeds(getDocs(flatNotificationsQuery));
+      assert.deepEqual(new Set(notices.docs.map((item) => item.data().uid)), new Set([STUDENT, "ALL"]));
+
+      await assertSucceeds(setDoc(doc(studentDb, "notificationReads", STUDENT + "_flat-query"), {
+        uid: STUDENT, notificationId: "flat-private", read: true, readAt: serverTimestamp(),
+      }));
+      const markers = await assertSucceeds(getDocs(flatReadMarkersQuery));
+      assert.ok(markers.docs.some((item) => item.data().notificationId === "flat-private"));
+      await assertFails(deleteDoc(doc(studentDb, "userNotifications/flat-private")));
+
+      const signedOutDb = env.unauthenticatedContext().firestore();
+      await assertFails(getDocs(query(
+        collection(signedOutDb, "userNotifications"),
+        where("uid", "in", [STUDENT, "ALL"]),
+      )));
     });
 
     await t.test("flat ALL notification is readable but student cannot delete it", async () => {

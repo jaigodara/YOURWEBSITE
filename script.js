@@ -926,6 +926,39 @@ try {
     const detail = document.createElement('p');
     detail.textContent = 'परीक्षा: ' + (record.examName || record.examTitle || 'मुख्य परीक्षा') + ' · रोल नंबर: ' + (roll || 'जारी होना बाकी');
     host.appendChild(detail);
+
+    // Show the complete enrollment submission back to the student.
+    const registeredAt = timestampMillis(record.createdAt);
+    const updatedAt = timestampMillis(record.updatedAt);
+    const registrationFields = [
+      ['पूरा नाम', record.fullName || record.name],
+      ['मोबाइल नंबर', record.phone || record.mobile],
+      ['जन्म तिथि', record.dateOfBirth || record.dob],
+      ['परीक्षा', record.examName || record.examTitle || 'मुख्य परीक्षा'],
+      ['गाँव / शहर / स्थान', record.location || record.village || record.city],
+      ['ईमेल', record.email || state.user.email],
+      ['रोल नंबर', roll || record.rollNumber || 'अभी आवंटित नहीं'],
+      ['पंजीकरण स्थिति', statusText],
+      ['पंजीकरण दिनांक', registeredAt ? new Date(registeredAt).toLocaleString('hi-IN') : '—'],
+      ['अंतिम अपडेट', updatedAt ? new Date(updatedAt).toLocaleString('hi-IN') : '—'],
+      ['पंजीकरण ID', record.uid || state.user.uid]
+    ];
+    const details = document.createElement('div');
+    details.className = 'mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2';
+    registrationFields.forEach(([label, value]) => {
+      const item = document.createElement('div');
+      item.className = 'rounded-lg border border-stone-200 bg-stone-50 p-3';
+      const caption = document.createElement('div');
+      caption.className = 'text-[11px] text-stone-500';
+      caption.textContent = label;
+      const content = document.createElement('div');
+      content.className = 'mt-1 break-words text-sm font-semibold text-stone-800';
+      content.textContent = String(value || '—');
+      item.append(caption, content);
+      details.appendChild(item);
+    });
+    host.appendChild(details);
+
     const cardReleased = record.admitCardReleased === true ||
       (state.examConfig?.admitCardReleased === true && !record.admitCardExamType);
     if (status === 'confirmed' && roll && cardReleased) {
@@ -981,6 +1014,36 @@ try {
   }
 
   async function printStudentAdmitCard(record) {
+    // Re-read the student's enrollment immediately before validating/downloading.
+    // This avoids validating stale UI data after an owner approves/releases a card.
+    if (!state.user || !state.db) {
+      notify('कृपया पहले लॉगिन करें और फिर प्रयास करें।', 'error');
+      return;
+    }
+
+    const studentUid = state.user.uid;
+    try {
+      const freshEnrollment = await state.db
+        .collection('examEnrolledStudents')
+        .doc(studentUid)
+        .get();
+
+      if (!freshEnrollment.exists) {
+        notify('आपका पंजीकरण रिकॉर्ड नहीं मिला। कृपया व्यवस्थापक से संपर्क करें।', 'error');
+        return;
+      }
+
+      record = freshEnrollment.data() || {};
+      if (state.user?.uid !== studentUid) return;
+    } catch (error) {
+      console.error('Admit-card enrollment refresh failed:', {
+        code: error?.code || 'unknown',
+        message: error?.message || String(error)
+      });
+      notify('पंजीकरण की जानकारी लोड नहीं हुई। कृपया दोबारा लॉगिन करके प्रयास करें।', 'error');
+      return;
+    }
+
     const released = record?.admitCardReleased === true ||
       (state.examConfig?.admitCardReleased === true && !record?.admitCardExamType);
 
@@ -1537,17 +1600,59 @@ try {
       const flatKeys = snapshot.docs.filter(doc => doc.data()?.read === true).map(doc => 'flat:' + doc.data().notificationId);
       state.notificationReadKeys = [...new Set([...(state.notificationReadKeys || []).filter(k => !k.startsWith('flat:')), ...flatKeys])];
       window.renderNotificationCenter();
-    }, error => console.error('Flat notification read-marker listener failed:', error.code || error.message, error));
+    }, error => console.error('Flat notification read-marker listener failed. Verify Firebase project, signed-in UID, and published Firestore rules:', {
+      code: error.code || 'unknown',
+      projectId: state.db?.app?.options?.projectId || 'unknown',
+      authUid: state.auth?.currentUser?.uid || null,
+      listenerUid: uid,
+      error
+    }));
     state.personalNotificationsUnsubscribe = state.db.collection('userNotifications').doc(uid).collection('items').onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
       state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
       window.renderNotificationCenter();
     }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; window.renderNotificationCenter(); });
-    state.flatNotificationsUnsubscribe = state.db.collection('userNotifications').where('uid', 'in', [uid, 'ALL']).onSnapshot(snapshot => {
+    // Use two exact-equality queries rather than an "in" query. This makes
+    // each query's security requirement explicit: own notifications and broadcasts.
+    let ownFlatDocs = [];
+    let broadcastFlatDocs = [];
+    const publishFlatNotifications = () => {
       if (state.user?.uid !== uid) return;
-      state.flatNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'flat' }));
+      const byId = new Map();
+      [...ownFlatDocs, ...broadcastFlatDocs].forEach(doc => {
+        byId.set(doc.id, { id: doc.id, ...doc.data(), _scope: 'flat' });
+      });
+      state.flatNotifications = [...byId.values()].sort(
+        (a, b) => notificationTime(b) - notificationTime(a)
+      );
       window.renderNotificationCenter();
-    }, error => { console.error('Flat notification listener failed:', error.code || error.message, error); notify('सूचनाएँ लोड नहीं हुईं (' + (error.code || 'unknown') + ')।', 'error'); });
+    };
+    const onFlatQueryError = label => error => {
+      console.error(label + ' failed. Verify Firebase project, signed-in UID, and published Firestore rules:', {
+        code: error.code || 'unknown',
+        projectId: state.db?.app?.options?.projectId || 'unknown',
+        authUid: state.auth?.currentUser?.uid || null,
+        listenerUid: uid,
+        error
+      });
+      notify('सूचनाएँ लोड नहीं हुईं (' + (error.code || 'unknown') + ')। Firebase Rules और लॉगिन जाँचें।', 'error');
+    };
+    const ownFlatUnsubscribe = state.db.collection('userNotifications')
+      .where('uid', '==', uid)
+      .onSnapshot(snapshot => {
+        ownFlatDocs = snapshot.docs;
+        publishFlatNotifications();
+      }, onFlatQueryError('Own flat notification listener'));
+    const broadcastFlatUnsubscribe = state.db.collection('userNotifications')
+      .where('uid', '==', 'ALL')
+      .onSnapshot(snapshot => {
+        broadcastFlatDocs = snapshot.docs;
+        publishFlatNotifications();
+      }, onFlatQueryError('Broadcast notification listener'));
+    state.flatNotificationsUnsubscribe = () => {
+      ownFlatUnsubscribe();
+      broadcastFlatUnsubscribe();
+    };
   }
 
   window.initPublicNotifications = function initPublicNotifications() {
