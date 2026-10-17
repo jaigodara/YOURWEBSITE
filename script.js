@@ -458,6 +458,11 @@ try {
     });
     state.unsubscribers = [];
   }
+  function maskMobile(value) {
+    const mobile = String(value || '').replace(/\D/g, '');
+    return mobile.length === 10 ? mobile.slice(0, 2) + 'XXXXXX' + mobile.slice(-2) : '';
+  }
+
   async function loadUserProfile(user) {
     state.profile = {};
     try {
@@ -466,21 +471,23 @@ try {
       if (snap.exists) {
         state.profile = snap.data();
         if (!state.profile.verificationStatus) {
+          const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
           await profileRef.set({
             verificationStatus: 'unverified',
-            displayName: state.profile.displayName || user.displayName || '',
-            email: user.email || null,
-            phone: state.profile.phone || user.phoneNumber || '',
+            displayName: state.profile.displayName || state.profile.fullName || user.displayName || '',
+            email: googleData?.email || state.profile.email || user.email || null,
+            ...(googleData && state.profile.gmailVerified !== true ? { gmailVerified: true } : {}),
             updatedAt: serverTimestamp()
           }, { merge: true });
-          state.profile = { ...state.profile, verificationStatus: 'unverified' };
+          state.profile = { ...state.profile, verificationStatus: 'unverified', ...(googleData ? { gmailVerified: true } : {}) };
         }
       } else {
+        const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
         state.profile = {
           displayName: user.displayName || '',
-          email: user.email || null,
-          phone: user.phoneNumber || '',
-          phoneVerified: !!user.phoneNumber,
+          fullName: user.displayName || '',
+          email: googleData?.email || user.email || null,
+          gmailVerified: !!googleData,
           verificationStatus: 'unverified',
           authProvider: user.providerData?.[0]?.providerId || 'unknown',
           createdAt: serverTimestamp()
@@ -519,8 +526,21 @@ try {
       console.warn('Owner UI enabled by Firestore role; protect all writes in rules/backend.');
     }
 
-    setText('userDisplayName', state.profile.displayName || user.displayName || user.email || 'Account');
-    setText('profileName', state.profile.displayName || user.displayName || 'Student');
+    const profileName = state.profile.displayName || state.profile.fullName || user.displayName || 'सदस्य';
+    setText('userDisplayName', profileName);
+    setText('profileName', profileName);
+    const mobileInput = byId('enrollmentPhone');
+    if (mobileInput) {
+      mobileInput.value = state.profile.mobile || '';
+      mobileInput.readOnly = true;
+      mobileInput.setAttribute('aria-readonly', 'true');
+    }
+    const profileMobile = byId('profEditPhone');
+    if (profileMobile) {
+      profileMobile.value = maskMobile(state.profile.mobile || '');
+      profileMobile.readOnly = true;
+      profileMobile.setAttribute('aria-readonly', 'true');
+    }
     setVisible('tab-admin', state.isOwner || state.roles.includes('admin'));
     setVisible('ownerStudio', state.isOwner || state.roles.includes('admin'));
     setVisible('ownerStudioPortalBtn', state.isOwner || state.roles.includes('admin'));
@@ -582,15 +602,17 @@ try {
       // without making posting, exam submissions, or owner actions public.
       startLiveListeners();
 
-      if (user) {
-        // Best-effort login presence for the Owner Studio. Firestore rules must
-        // allow each authenticated user to update only their own users/{uid} document.
+      if (user && !window.__bishnoiRegistrationInProgress) {
+        // Presence updates are deliberately skipped while the three-step registration
+        // is in progress, so an unverified account cannot get a premature profile.
         try {
           const presenceRef = state.db.collection('users').doc(user.uid);
+          const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
           await presenceRef.set({
             uid: user.uid,
-            email: user.email || null,
+            email: googleData?.email || user.email || null,
             displayName: user.displayName || null,
+            ...(googleData ? { gmailVerified: true } : {}),
             presenceStatus: 'online',
             lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
             lastSeenAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -620,9 +642,9 @@ try {
           console.error('Signed-in profile initialization failed:', e);
           notify('Signed in, but your profile could not load. Check Firestore permissions.', 'error');
         }
-      } else {
-        setText('userDisplayName', 'Sign in');
-        setText('profileName', 'Guest');
+      } else if (!user) {
+        setText('userDisplayName', 'लॉगिन करें');
+        setText('profileName', 'अतिथि');
         setVisible('tab-admin', false);
         setVisible('ownerStudio', false);
         setVisible('ownerStudioPortalBtn', false);
@@ -703,19 +725,21 @@ try {
 
   function authErrorMessage(e) {
     return ({
-      'auth/invalid-email': 'Please enter a valid email.',
-      'auth/user-not-found': 'Account not found.',
-      'auth/wrong-password': 'Incorrect email or password.',
-      'auth/invalid-credential': 'Incorrect email or password.',
-      'auth/too-many-requests': 'Too many attempts. Try again later.',
-      'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase.',
-      'auth/unauthorized-domain': 'This website domain is not authorized in Firebase Authentication. Add the exact domain in Firebase Console.',
-      'auth/network-request-failed': 'Network request failed. Check your connection and browser privacy settings, then try again.',
-      'auth/popup-blocked': 'The sign-in popup was blocked. Allow popups for this website and try again.',
-      'auth/invalid-phone-number': 'Please enter a valid phone number with country code.',
-      'auth/invalid-verification-code': 'The SMS code is incorrect. Try again.',
-      'auth/code-expired': 'The SMS code expired. Request a new code.'
-    })[e.code] || 'Sign-in failed. Check your details and try again.';
+      'auth/invalid-email': 'ईमेल पता सही नहीं है।',
+      'auth/user-not-found': 'इस मोबाइल नंबर से कोई खाता नहीं मिला।',
+      'auth/wrong-password': 'पासवर्ड गलत है। दोबारा जाँचें।',
+      'auth/invalid-credential': 'मोबाइल नंबर या पासवर्ड गलत है।',
+      'auth/too-many-requests': 'बहुत अधिक प्रयास हुए हैं। कुछ देर बाद दोबारा प्रयास करें।',
+      'auth/operation-not-allowed': 'यह लॉगिन तरीका Firebase में चालू नहीं है।',
+      'auth/unauthorized-domain': 'Firebase Authentication में इस वेबसाइट का domain जोड़ें।',
+      'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।',
+      'auth/popup-blocked': 'Google पॉप-अप ब्लॉक हुआ है। इस वेबसाइट के लिए अनुमति दें।',
+      'auth/popup-closed-by-user': 'Google सत्यापन पूरा नहीं हुआ। दोबारा प्रयास करें।',
+      'auth/credential-already-in-use': 'यह Google खाता किसी दूसरे खाते से जुड़ा है।',
+      'auth/email-already-in-use': 'यह मोबाइल नंबर पहले से पंजीकृत है, कृपया लॉगिन करें',
+      'auth/weak-password': 'पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।',
+      'auth/requires-recent-login': 'सुरक्षा के लिए Google से दोबारा सत्यापन करें।'
+    })[e?.code] || 'लॉगिन पूरा नहीं हुआ। अपनी जानकारी जाँचकर फिर प्रयास करें।';
   }
 
   function startLiveListeners() {
@@ -1696,12 +1720,17 @@ try {
           window.BishnoiAuth?.openAuthModal?.();
           return;
         }
+        if (state.profile?.gmailVerified !== true) {
+          if (status) status.textContent = 'परीक्षा पंजीकरण के लिए Google सत्यापन पूरा करना ज़रूरी है।';
+          notify('परीक्षा पंजीकरण के लिए Google सत्यापन पूरा करना ज़रूरी है।', 'error');
+          return;
+        }
         const fullName = (byId('enrollmentName')?.value || '').trim();
-        const phone = (byId('enrollmentPhone')?.value || '').trim();
+        const phone = String(state.profile?.mobile || '');
         const dateOfBirth = (byId('enrollmentDob')?.value || '').trim();
         const examName = (byId('enrollmentExam')?.value || 'मुख्य परीक्षा').trim();
         const location = (byId('enrollmentLocation')?.value || '').trim();
-        if (fullName.length < 2 || !/^[+()\d\s-]{10,20}$/.test(phone) || !dateOfBirth || new Date(dateOfBirth).getTime() > Date.now()) {
+        if (fullName.length < 2 || !/^[6-9]\d{9}$/.test(phone) || !dateOfBirth || new Date(dateOfBirth).getTime() > Date.now()) {
           if (status) status.textContent = 'कृपया सही पूरा नाम और मोबाइल नंबर दर्ज करें।';
           return;
         }
@@ -1718,6 +1747,7 @@ try {
             fullName,
             name: fullName,
             phone,
+            mobile: phone,
             dateOfBirth,
             examName,
             location,
@@ -2664,6 +2694,11 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
+    if (state.profile?.gmailVerified !== true) {
+      notify('परीक्षा देने से पहले Google सत्यापन पूरा करना ज़रूरी है।', 'error');
+      authApi.openAuthModal();
+      return;
+    }
 
     // Every exam mode requires an existing, owner-confirmed enrollment.
     // Firestore Rules must enforce the same check to prevent direct API bypasses.
@@ -2900,6 +2935,10 @@ window.renderExamVisibility = function renderExamVisibility() {
   window.submitPortalExam = async function (automatic = false) {
     const exam = state.exam;
 
+    if (!state.user || state.profile?.gmailVerified !== true) {
+      notify('उत्तर जमा करने के लिए Google सत्यापन पूरा करना ज़रूरी है।', 'error');
+      return;
+    }
     if (!exam.active || exam.submitted || exam.submitting) return;
     if (exam.kicked && !automatic) {
       notify('यह प्रयास Owner की अनुमति तक लॉक है।', 'error');
@@ -3369,23 +3408,112 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   };
 
-  // The older HTML calls this namespace for its authentication modal.
+  // The existing HTML and every inline click handler keep this namespace identity.
   window.BishnoiAuth = window.BishnoiAuth || {};
   const authApi = window.BishnoiAuth;
-  authApi.openAuthModal = function () {
+  let authMode = 'login';
+  let forgotPasswordUser = null;
+  let registrationRetry = null;
+  let forgotRetryUsed = false;
+
+  function normalizeMobile(value) {
+    return String(value || '').trim().replace(/^\+91/, '').replace(/[\s()-]/g, '');
+  }
+  function validMobile(value) {
+    return /^[6-9]\d{9}$/.test(value);
+  }
+  function hiddenEmail(mobile) {
+    return '91' + mobile + '@jambh-login.app';
+  }
+  function googleProvider() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    if (typeof provider.setCustomParameters === 'function') provider.setCustomParameters({ prompt: 'select_account' });
+    return provider;
+  }
+  function googleEmailForUser(user, result) {
+    const additionalEmail = result?.additionalUserInfo?.profile?.email;
+    if (typeof additionalEmail === 'string' && additionalEmail.includes('@')) return additionalEmail;
+    const googleData = (user?.providerData || []).find(item => item && item.providerId === 'google.com');
+    return googleData?.email || (user?.providerData || []).some(item => item?.providerId === 'google.com' && item.email) ? (googleData?.email || user?.email || '') : '';
+  }
+  function setAuthMessage(message, kind = 'info') {
+    const el = byId('authStatus');
+    if (el) {
+      el.textContent = message;
+      el.dataset.kind = kind;
+      el.hidden = !message;
+    }
+    if (message) notify(message, kind === 'error' ? 'error' : kind === 'success' ? 'success' : 'info');
+  }
+  function setAuthView(view) {
+    ['authLoginView', 'authForgotView', 'authResetView', 'authLinkMobileView'].forEach(id => {
+      const el = byId(id);
+      if (el) el.classList.toggle('hidden', id !== view);
+    });
+  }
+  function showAuthModal() {
     const modal = byId('authModal');
     if (modal) {
+      modal.hidden = false;
       modal.classList.remove('hidden');
       modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
     } else {
       window.promptUserLogin();
     }
+  }
+  function isGoogleLinked(user) {
+    return (user?.providerData || []).some(item => item && item.providerId === 'google.com');
+  }
+  async function saveVerifiedProfile(user, details, googleEmail) {
+    const userRef = state.db.collection('users').doc(user.uid);
+    await user.getIdToken?.(true);
+    await userRef.set({
+      fullName: details.fullName,
+      mobile: details.mobile,
+      email: googleEmail,
+      gmailVerified: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await state.db.collection('mobileIndex').doc(details.mobile).set({ uid: user.uid });
+    state.profile = { ...(state.profile || {}), ...details, email: googleEmail, gmailVerified: true };
+  }
+  async function cleanupUnverifiedAccount(user, details) {
+    try {
+      await user.delete();
+      return { deleted: true };
+    } catch (deleteError) {
+      console.warn('Unverified account deletion failed; keeping it blocked:', deleteError?.code || deleteError?.message);
+      try {
+        await state.db.collection('users').doc(user.uid).set({
+          fullName: details.fullName,
+          mobile: details.mobile,
+          email: user.email || hiddenEmail(details.mobile),
+          gmailVerified: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (profileError) {
+        console.error('Could not mark unverified registration:', profileError);
+      }
+      try { await state.auth.signOut(); } catch (_) {}
+      return { deleted: false, error: deleteError };
+    }
+  }
+  function showRetryVerification() {
+    const retry = byId('authRetryGoogleButton');
+    if (retry) retry.classList.remove('hidden');
+  }
+
+  authApi.openAuthModal = function () {
+    showAuthModal();
+    authApi.setLoginMethod('login');
   };
   authApi.closeAuthModal = function () {
     const modal = byId('authModal');
     if (modal) {
       modal.classList.add('hidden');
       modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
     }
   };
   authApi.openProfileOrAuth = app.openProfileOrAuth;
@@ -3397,67 +3525,280 @@ window.renderExamVisibility = function renderExamVisibility() {
       modal.style.display = 'none';
     }
   };
-  // Phone/SMS OTP sign-in is intentionally disabled. Use Google sign-in or email/password.
-  authApi.signInWithGoogle = async function () {
-    if (!state.auth || !window.firebase?.auth) {
-      return notify('Google login is unavailable.', 'error');
-    }
-    try {
-      // A popup avoids the redirect round-trip that can lose auth state in
-      // browsers with strict third-party storage/privacy protections.
-      await state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-      const provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await state.auth.signInWithPopup(provider);
-      if (result && result.user) {
-        authApi.closeAuthModal();
-        notify('Google sign-in successful.', 'success');
-      }
-    } catch (error) {
-      console.error('Google sign-in failed:', error);
-      if (error.code === 'auth/popup-blocked') {
-        notify('Google login popup was blocked. Allow popups for this website and try again.', 'error');
-      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        notify('Google login was cancelled. Click Google login and finish selecting your account.', 'info');
-      } else {
-        notify(authErrorMessage(error), 'error');
-      }
-    }
-  };
-  authApi.toggleAuthMode = function () {
-    const row = byId('nameRow');
+  authApi.setLoginMethod = function (method) {
+    authMode = method === 'register' ? 'register' : 'login';
+    setAuthView('authLoginView');
     const title = byId('authTitle');
     const toggle = byId('authToggleBtn');
-    const phoneRow = byId('registerPhoneRow');
-    const register = !!row && row.classList.contains('hidden');
-    if (row) row.classList.toggle('hidden', !register);
-    if (phoneRow) phoneRow.classList.toggle('hidden', !register);
-    const phoneInput = byId('registerPhone');
-    if (phoneInput) phoneInput.required = register;
-    const nameInput = byId('loginName');
-    if (nameInput) nameInput.required = register;
-    if (title) title.textContent = register ? 'पंजीकरण (Sign Up)' : 'लॉगिन (Sign In)';
-    if (toggle) toggle.textContent = register ? 'पहले से सदस्य हैं? लॉगिन करें' : 'नए सदस्य हैं? पंजीकरण करें';
+    const nameRow = byId('nameRow');
+    const confirmRow = byId('registerConfirmRow');
+    const password = byId('loginPass');
+    const name = byId('loginName');
+    const mobile = byId('loginIdentifier');
+    const forgot = byId('forgotPasswordButton');
+    const retry = byId('authRetryGoogleButton');
+    if (title) title.textContent = authMode === 'register' ? 'नया पंजीकरण' : 'लॉगिन करें';
+    if (toggle) toggle.textContent = authMode === 'register' ? 'पहले से सदस्य हैं? लॉगिन करें' : 'नए सदस्य हैं? पंजीकरण करें';
+    if (nameRow) nameRow.classList.toggle('hidden', authMode !== 'register');
+    if (confirmRow) confirmRow.classList.toggle('hidden', authMode !== 'register');
+    if (name) name.required = authMode === 'register';
+    if (password) {
+      password.minLength = authMode === 'register' ? 8 : 1;
+      password.autocomplete = authMode === 'register' ? 'new-password' : 'current-password';
+    }
+    if (mobile) mobile.autocomplete = 'tel';
+    if (forgot) forgot.classList.toggle('hidden', authMode !== 'login');
+    if (retry) retry.classList.add('hidden');
+    setAuthMessage('');
+  };
+  authApi.toggleAuthMode = function () {
+    authApi.setLoginMethod(authMode === 'login' ? 'register' : 'login');
+  };
+  authApi.handleAuthSubmit = async function (event) {
+    event?.preventDefault?.();
+    if (!state.auth || !state.db) return setAuthMessage('लॉगिन सेवा अभी उपलब्ध नहीं है। कृपया दोबारा प्रयास करें।', 'error');
+    const mobile = normalizeMobile(byId('loginIdentifier')?.value);
+    const password = String(byId('loginPass')?.value || '');
+    if (!validMobile(mobile)) return setAuthMessage('कृपया +91 के बिना सही 10 अंकों का मोबाइल नंबर दर्ज करें, जो 6 से 9 से शुरू हो।', 'error');
+    if (!password) return setAuthMessage('कृपया पासवर्ड दर्ज करें।', 'error');
+
+    if (authMode === 'register') {
+      const fullName = String(byId('loginName')?.value || '').trim();
+      const confirm = String(byId('registerPasswordConfirm')?.value || '');
+      if (fullName.length < 2) return setAuthMessage('कृपया अपना पूरा नाम दर्ज करें।', 'error');
+      if (password.length < 8) return setAuthMessage('पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।', 'error');
+      if (password !== confirm) return setAuthMessage('दोनों पासवर्ड एक जैसे नहीं हैं।', 'error');
+      registrationRetry = { mobile, password, fullName };
+      return authApi.registerWithMobile(registrationRetry);
+    }
+
+    try {
+      const credential = await state.auth.signInWithEmailAndPassword(hiddenEmail(mobile), password);
+      authApi.closeAuthModal();
+      setAuthMessage('लॉगिन सफल हुआ।', 'success');
+      const profile = await state.db.collection('users').doc(credential.user.uid).get();
+      const data = profile.exists ? profile.data() || {} : {};
+      if (data.gmailVerified !== true) setAuthMessage('Google सत्यापन पूरा नहीं है। परीक्षा पंजीकरण और परीक्षा देने से पहले Google से सत्यापन करें।', 'error');
+    } catch (error) {
+      console.error('मोबाइल लॉगिन विफल:', error);
+      const messages = {
+        'auth/wrong-password': 'पासवर्ड गलत है। दोबारा जाँचें।',
+        'auth/invalid-credential': 'मोबाइल नंबर या पासवर्ड गलत है।',
+        'auth/user-not-found': 'इस मोबाइल नंबर से कोई खाता नहीं मिला। पहले पंजीकरण करें।',
+        'auth/too-many-requests': 'बहुत अधिक प्रयास हुए हैं। कुछ देर बाद दोबारा प्रयास करें।',
+        'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।',
+        'auth/email-already-in-use': 'यह मोबाइल नंबर पहले से पंजीकृत है, कृपया लॉगिन करें।'
+      };
+      setAuthMessage(messages[error.code] || authErrorMessage(error), 'error');
+    }
+  };
+  authApi.registerWithMobile = async function (details, existingUser = null) {
+    if (!state.auth || !state.db) return setAuthMessage('पंजीकरण सेवा अभी उपलब्ध नहीं है।', 'error');
+    window.__bishnoiRegistrationInProgress = true;
+    let user = existingUser;
+    try {
+      if (!user) {
+        const result = await state.auth.createUserWithEmailAndPassword(hiddenEmail(details.mobile), details.password);
+        user = result.user;
+      }
+      const linked = await user.linkWithPopup(googleProvider());
+      user = linked.user || user;
+      const googleEmail = googleEmailForUser(user, linked);
+      if (!googleEmail) throw Object.assign(new Error('Google खाते का ईमेल नहीं मिला।'), { code: 'auth/google-email-missing' });
+      await user.getIdToken?.(true);
+      await state.db.collection('users').doc(user.uid).set({
+        fullName: details.fullName,
+        mobile: details.mobile,
+        email: googleEmail,
+        gmailVerified: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      await state.db.collection('mobileIndex').doc(details.mobile).set({ uid: user.uid });
+      state.user = user;
+      state.profile = { fullName: details.fullName, mobile: details.mobile, email: googleEmail, gmailVerified: true };
+      registrationRetry = null;
+      window.__bishnoiRegistrationInProgress = false;
+      renderAuthState();
+      authApi.closeAuthModal();
+      setAuthMessage('पंजीकरण सफल हुआ। विश्नोई डिजिटल मंच में आपका स्वागत है।', 'success');
+    } catch (error) {
+      console.error('मोबाइल पंजीकरण/Google सत्यापन विफल:', error);
+      if (user) {
+        await cleanupUnverifiedAccount(user, details);
+      }
+      window.__bishnoiRegistrationInProgress = false;
+      if (error.code === 'auth/email-already-in-use') {
+        return setAuthMessage('यह मोबाइल नंबर पहले से पंजीकृत है, कृपया लॉगिन करें', 'error');
+      }
+      if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
+        return setAuthMessage('यह Google ईमेल किसी दूसरे खाते से जुड़ा है। उस Google खाते से लॉगिन करें या Owner से सहायता लें।', 'error');
+      }
+      setAuthMessage('पंजीकरण पूरा करने के लिए Google से सत्यापन ज़रूरी है।', 'error');
+      showRetryVerification();
+    }
+  };
+  authApi.retryGoogleVerification = async function () {
+    if (!registrationRetry || !state.auth) {
+      setAuthMessage('दोबारा सत्यापन के लिए उसी मोबाइल नंबर और पासवर्ड से लॉगिन करके पंजीकरण फिर शुरू करें।', 'error');
+      return;
+    }
+    try {
+      const credential = await state.auth.signInWithEmailAndPassword(hiddenEmail(registrationRetry.mobile), registrationRetry.password);
+      await authApi.registerWithMobile(registrationRetry, credential.user);
+    } catch (error) {
+      setAuthMessage(error.code === 'auth/user-not-found'
+        ? 'पिछला अस्थायी खाता हट चुका है। कृपया फिर से पंजीकरण करें।'
+        : authErrorMessage(error), 'error');
+    }
+  };
+  authApi.signInWithGoogle = async function () {
+    if (!state.auth || !window.firebase?.auth) return setAuthMessage('Google लॉगिन अभी उपलब्ध नहीं है।', 'error');
+    try {
+      const result = await state.auth.signInWithPopup(googleProvider());
+      const user = result?.user;
+      if (!user) return setAuthMessage('Google लॉगिन पूरा नहीं हुआ। दोबारा प्रयास करें।', 'error');
+      const email = googleEmailForUser(user, result) || user.email || '';
+      const userRef = state.db.collection('users').doc(user.uid);
+      const profileSnap = await userRef.get();
+      const old = profileSnap.exists ? profileSnap.data() || {} : {};
+      if (!profileSnap.exists || old.gmailVerified !== true || !old.email) {
+        await user.getIdToken?.(true);
+        await userRef.set({
+          fullName: old.fullName || user.displayName || '',
+          email,
+          gmailVerified: true,
+          ...(!profileSnap.exists ? { createdAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
+        }, { merge: true });
+      }
+      state.profile = { ...old, email, gmailVerified: true };
+      authApi.closeAuthModal();
+      if (!state.profile.mobile) {
+        showAuthModal();
+        setAuthView('authLinkMobileView');
+        setAuthMessage('आप Google से लॉगिन हो गए हैं। चाहें तो अब मोबाइल नंबर और पासवर्ड जोड़ सकते हैं।', 'info');
+      } else {
+        setAuthMessage('Google लॉगिन सफल हुआ।', 'success');
+      }
+    } catch (error) {
+      console.error('Google लॉगिन विफल:', error);
+      const messages = {
+        'auth/popup-blocked': 'Google पॉप-अप ब्लॉक हुआ है। इस वेबसाइट के लिए पॉप-अप अनुमति दें।',
+        'auth/popup-closed-by-user': 'Google सत्यापन पूरा नहीं हुआ। दोबारा प्रयास करें।',
+        'auth/cancelled-popup-request': 'Google लॉगिन रद्द हुआ। दोबारा प्रयास करें।',
+        'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।',
+        'auth/credential-already-in-use': 'यह Google खाता किसी दूसरे खाते से जुड़ा है। उसी खाते से लॉगिन करें।'
+      };
+      setAuthMessage(messages[error.code] || authErrorMessage(error), 'error');
+    }
+  };
+  authApi.startForgotPassword = function () {
+    authMode = 'forgot';
+    showAuthModal();
+    setAuthView('authForgotView');
+    setAuthMessage('पासवर्ड बदलने के लिए पहले उसी Google खाते से सत्यापन करें।', 'info');
+  };
+  authApi.verifyGoogleForPasswordReset = async function () {
+    try {
+      const result = await state.auth.signInWithPopup(googleProvider());
+      const user = result?.user;
+      if (!user) return setAuthMessage('Google सत्यापन पूरा नहीं हुआ।', 'error');
+      if (result.additionalUserInfo?.isNewUser) {
+        try { await user.delete(); } catch (_) { try { await state.auth.signOut(); } catch (_) {} }
+        return setAuthMessage('इस Google खाते से कोई पंजीकरण नहीं मिला', 'error');
+      }
+      const snap = await state.db.collection('users').doc(user.uid).get();
+      const profile = snap.exists ? snap.data() || {} : {};
+      const hasPassword = (user.providerData || []).some(item => item?.providerId === 'password');
+      if (!profile.mobile || profile.gmailVerified !== true || !hasPassword) {
+        return setAuthMessage('इस Google खाते से कोई पंजीकरण नहीं मिला', 'error');
+      }
+      forgotPasswordUser = user;
+      forgotRetryUsed = false;
+      setAuthView('authResetView');
+      setAuthMessage('Google सत्यापन सफल हुआ। अब नया पासवर्ड बनाएँ।', 'success');
+    } catch (error) {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return setAuthMessage('पासवर्ड बदलने के लिए Google सत्यापन पूरा करें।', 'error');
+      }
+      setAuthMessage(error.code === 'auth/network-request-failed' ? 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।' : 'इस Google खाते से कोई पंजीकरण नहीं मिला', 'error');
+    }
+  };
+  authApi.updateForgottenPassword = async function () {
+    const password = String(byId('newPassword')?.value || '');
+    const confirm = String(byId('confirmNewPassword')?.value || '');
+    if (password.length < 8) return setAuthMessage('नया पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।', 'error');
+    if (password !== confirm) return setAuthMessage('दोनों नए पासवर्ड एक जैसे नहीं हैं।', 'error');
+    if (!forgotPasswordUser) return setAuthMessage('पहले Google से सत्यापन करें।', 'error');
+    try {
+      await forgotPasswordUser.updatePassword(password);
+      forgotPasswordUser = null;
+      authApi.closeAuthModal();
+      setAuthMessage('पासवर्ड सफलतापूर्वक बदल दिया गया।', 'success');
+    } catch (error) {
+      if (error.code === 'auth/requires-recent-login' && !forgotRetryUsed) {
+        forgotRetryUsed = true;
+        try {
+          const result = await state.auth.signInWithPopup(googleProvider());
+          if (!result?.user || result.user.uid !== forgotPasswordUser.uid) {
+            return setAuthMessage('कृपया पहले वाले पंजीकृत Google खाते से ही सत्यापन करें।', 'error');
+          }
+          forgotPasswordUser = result.user;
+          await forgotPasswordUser.updatePassword(password);
+          forgotPasswordUser = null;
+          authApi.closeAuthModal();
+          return setAuthMessage('पासवर्ड सफलतापूर्वक बदल दिया गया।', 'success');
+        } catch (retryError) {
+          return setAuthMessage('Google से दोबारा सत्यापन नहीं हो सका। फिर प्रयास करें।', 'error');
+        }
+      }
+      setAuthMessage(error.code === 'auth/network-request-failed' ? 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।' : 'पासवर्ड नहीं बदला जा सका। Google से दोबारा सत्यापन करें।', 'error');
+    }
+  };
+  authApi.addMobilePassword = async function () {
+    const user = state.auth?.currentUser || state.user;
+    const mobile = normalizeMobile(byId('linkMobile')?.value);
+    const password = String(byId('linkPassword')?.value || '');
+    if (!user) return setAuthMessage('पहले Google से लॉगिन करें।', 'error');
+    if (!validMobile(mobile)) return setAuthMessage('कृपया 6 से 9 से शुरू होने वाला सही 10 अंकों का मोबाइल नंबर दर्ज करें।', 'error');
+    if (password.length < 8) return setAuthMessage('पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।', 'error');
+    try {
+      const credential = firebase.auth.EmailAuthProvider.credential(hiddenEmail(mobile), password);
+      await user.linkWithCredential(credential);
+      await user.getIdToken?.(true);
+      const userRef = state.db.collection('users').doc(user.uid);
+      await userRef.set({ mobile, email: googleEmailForUser(user) || user.email || '', gmailVerified: true }, { merge: true });
+      await state.db.collection('mobileIndex').doc(mobile).set({ uid: user.uid });
+      state.profile = { ...(state.profile || {}), mobile, gmailVerified: true };
+      setAuthMessage('मोबाइल नंबर और पासवर्ड जोड़ दिए गए।', 'success');
+      authApi.closeAuthModal();
+    } catch (error) {
+      console.error('मोबाइल/पासवर्ड जोड़ना विफल:', error);
+      const messages = {
+        'auth/email-already-in-use': 'यह मोबाइल नंबर पहले से पंजीकृत है।',
+        'auth/credential-already-in-use': 'यह मोबाइल नंबर किसी दूसरे खाते से जुड़ा है।',
+        'auth/weak-password': 'पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।',
+        'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।'
+      };
+      setAuthMessage(messages[error.code] || 'मोबाइल नंबर और पासवर्ड नहीं जोड़े जा सके।', 'error');
+    }
+  };
+  authApi.skipMobilePassword = function () {
+    authApi.closeAuthModal();
+    setAuthMessage('आप Google से लॉगिन हैं। मोबाइल/पासवर्ड बाद में भी जोड़ सकते हैं।', 'info');
   };
   authApi.saveProfile = async function () {
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();
     const location = (byId('profEditLocation')?.value || '').trim();
-    const phone = (byId('profEditPhone')?.value || '').trim();
-    const normalizePhone = value => String(value || '').replace(/[\s()-]/g, '');
-    const phoneChanged = normalizePhone(phone) !== normalizePhone(state.profile?.phone || state.user.phoneNumber || '');
     try {
-      const displayName = name || state.profile?.displayName || state.user.displayName || '';
+      const displayName = name || state.profile?.displayName || state.profile?.fullName || state.user.displayName || '';
       const profileUpdate = {
-        displayName, location, phone,
-        phoneVerified: !phoneChanged && state.profile?.phoneVerified === true,
-        email: state.user.email || null,
+        displayName, location,
+        email: googleEmailForUser(state.user) || state.profile?.email || state.user.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      if (phoneChanged) profileUpdate.phoneAuthVerifiedAt = firebase.firestore.FieldValue.delete();
       await state.db.collection('users').doc(state.user.uid).set(profileUpdate, { merge: true });
-      state.profile = { ...(state.profile || {}), displayName, location, phone, phoneVerified: profileUpdate.phoneVerified };
-      if (phoneChanged) delete state.profile.phoneAuthVerifiedAt;
+      state.profile = { ...(state.profile || {}), displayName, location };
       setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {
