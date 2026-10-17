@@ -385,13 +385,11 @@
       const mode = button.getAttribute("data-launch-exam");
       if (!examTitles[mode]) return;
       if (!auth.currentUser && ["main", "mock1", "mock2"].includes(mode)) {
-        byId("authStatus").textContent = "परीक्षा शुरू करने के लिए पहले लॉगिन करें। पंजीकरण और परिणाम देखने के लिए लॉगिन के बाद संबंधित विकल्प खोलें।";
-        byId("googleLogin").focus();
-        setPortalStatus("परीक्षा शुरू करने से पहले विद्यार्थी लॉगिन आवश्यक है।");
-        return;
+        byId("authStatus").textContent = "परीक्षा अनुभाग खुल जाएगा। परीक्षा शुरू करने से पहले लॉगिन और पंजीकरण की पुष्टि आवश्यक होगी।";
+        setPortalStatus("परीक्षा अनुभाग खोल रहे हैं। परीक्षा शुरू करने से पहले लॉगिन आवश्यक होगा।");
       }
-      // Enrollment and result lookup are useful before an exam; do not hide
-      // them behind an exam-start gate. The iframe URL selects the exact panel.
+      // Always open the requested section. Login and eligibility are checked
+      // by the actual exam-start handler, not by this navigation button.
       byId("examFrameTitle").textContent = examTitles[mode];
       framePanel.classList.remove("hide");
       examArea.classList.add("hide");
