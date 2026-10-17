@@ -330,7 +330,7 @@ try {
   const requireUser = () => {
     if (!state.user) {
       notify('Please sign in first.');
-      promptUserLogin();
+      window.promptUserLogin();
       return false;
     }
     return true;
@@ -662,7 +662,7 @@ try {
     if (!state.auth) return notify('Authentication is unavailable.', 'error');
 
     if (state.user) {
-      switchTab('profile');
+      window.switchTab('profile');
       return;
     }
 
@@ -1862,7 +1862,7 @@ function renderExamVisibility() {
     try {
       const snap = await collection('shabadwani').orderBy('num', 'asc').limit(200).get();
       const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderShabadCards(rows);
+      window.renderShabadCards(rows);
     } catch (e) {
       console.warn('Shabad repository not available', e);
     }
@@ -2283,7 +2283,7 @@ function renderExamVisibility() {
     setVisible('nextQuestionBtn', true);
     setVisible('submitExamBtn', true);
     setText('examResult', 'आपकी पिछली परीक्षा उसी प्रश्न और सुरक्षित किए गए उत्तरों से फिर शुरू की गई है।');
-    switchTab('quiz');
+    window.switchTab('quiz');
     renderExamQuestion();
 
     state.exam.timer = setInterval(() => {
@@ -2464,7 +2464,7 @@ function renderExamVisibility() {
       byId('exitExamWorkspace').addEventListener('click', () => {
         setVisible('portalExamWorkspace', false);
         renderExamVisibility();
-        switchTab('quiz');
+        window.switchTab('quiz');
       });
     }
 
@@ -2543,7 +2543,7 @@ function renderExamVisibility() {
         const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
         if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
           notify('क्विज़/मॉक/मुख्य परीक्षा देने के लिए पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ।', 'error');
-          switchTab('quiz');
+          window.switchTab('quiz');
           const enrollmentSection = byId('enrollmentSection');
           if (enrollmentSection) enrollmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
           return;
@@ -2581,7 +2581,7 @@ function renderExamVisibility() {
     if (Date.now() < scheduledStart) {
       const startText = new Date(scheduledStart).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' });
       notify(`यह परीक्षा ${startText} पर शुरू होगी। काउंटडाउन पूरा होने तक प्रवेश बंद है।`, 'error');
-      switchTab('quiz');
+      window.switchTab('quiz');
       renderExamCountdowns();
       return;
     }
@@ -2701,7 +2701,7 @@ function renderExamVisibility() {
       setVisible('previousQuestionBtn', true);
       setVisible('nextQuestionBtn', true);
       setVisible('submitExamBtn', true);
-      switchTab('pariksha');
+      window.switchTab('pariksha');
       renderExamQuestion();
 
       state.exam.timer = setInterval(() => {
