@@ -11,14 +11,16 @@ const ownerHtml = readFileSync(path.join(root, "owner-studio.html"), "utf8");
 
 function makeFirebaseStub(window) {
   const authState = { currentUser: null };
-  const auth = Object.assign(() => authState, {
-    GoogleAuthProvider: function GoogleAuthProvider() {},
-    EmailAuthProvider: { credential: () => ({}) },
+  const authInstance = Object.assign(authState, {
     onAuthStateChanged: callback => { callback(null); return () => {}; },
     signOut: async () => { authState.currentUser = null; },
     signInWithPopup: async () => ({ user: null }),
     signInWithRedirect: async () => {},
     getRedirectResult: async () => ({ user: null })
+  });
+  const auth = Object.assign(() => authInstance, {
+    GoogleAuthProvider: function GoogleAuthProvider() {},
+    EmailAuthProvider: { credential: () => ({}) }
   });
   const emptySnapshot = () => ({ exists: false, id: "missing", data: () => ({}), docs: [], forEach: () => {} });
   const docRef = () => ({
@@ -123,6 +125,7 @@ test("full startup initializes Firebase once and publishes real auth/profile API
   const dom = makeDom();
   const { window } = dom;
   const errors = [];
+  window.addEventListener("error", event => errors.push(event.error?.stack || event.message || "unknown window error"));
   Object.defineProperty(window.document, "readyState", { configurable: true, value: "complete" });
   const evalReadyState = window.document.readyState;
   window.console = Object.assign(Object.create(console), {
@@ -167,6 +170,7 @@ test("inline handler paths in index.html and owner-studio.html resolve after run
   const earlyProfile = appObjectBefore.openProfileOrAuth;
   Object.defineProperty(window.document, "readyState", { configurable: true, value: "complete" });
   const startupErrors = [];
+  window.addEventListener("error", event => startupErrors.push(event.error?.stack || event.message || "unknown window error"));
   window.console = Object.assign(Object.create(console), {
     error: (...args) => startupErrors.push(args.map(value => value instanceof Error ? (value.stack || value.name + ": " + value.message) : String(value)).join(" "))
   });
