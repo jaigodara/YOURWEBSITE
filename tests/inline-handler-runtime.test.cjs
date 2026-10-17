@@ -268,3 +268,12 @@ test("auth/profile handlers and all five navigation tabs run without throwing an
   assert.equal(window.BishnoiApp, appObject);
   dom.window.close();
 });
+
+test("admit-card roll validation and notification cleanup stay consistent", () => {
+  assert.match(script, /JAMBH-2026-\\\\d\{4,\}/);
+  assert.match(script, /seenAdmitExamKeys/);
+  assert.match(script, /Never show legacy internal BIS identifiers/);
+  const ownerHtml = readFileSync(path.join(__dirname, "..", "owner-studio.html"), "utf8");
+  assert.match(ownerHtml, /JAMBH-2026-\\\\d\{4,\}/);
+  assert.match(script, /const cardReleased = record\.admitCardReleased === true/);
+});
