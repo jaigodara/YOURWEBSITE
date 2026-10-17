@@ -292,7 +292,9 @@ test("separate exam portal and owner-controlled availability toggles are wired",
   assert.match(portal, /dailyQuizVisible/);
   assert.match(portal, /mock1Visible/);
   assert.match(portal, /mainExamVisible/);
-  assert.match(script, /signInWithPhonePassword/);
-  assert.match(script, /phonePasswordAlias/);
-  assert.match(index, /id="phoneLoginPassword"/);
+  // SMS OTP and phone/password login are intentionally disabled; supported login is Google or email/password.
+  assert.doesNotMatch(script, /signInWithPhonePassword|phonePasswordAlias|sendPhoneCode|verifyPhoneCode/);
+  assert.doesNotMatch(index, /phoneLoginForm|phoneLoginPassword|phoneLoginCode|OTP भेजें/);
+  assert.match(index, /BishnoiAuth\.signInWithGoogle/);
+  assert.match(index, /id="emailLoginForm"/);
 });
