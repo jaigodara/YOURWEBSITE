@@ -8,8 +8,8 @@ const script = readFileSync(path.join(root, "script.js"), "utf8");
 const rules = readFileSync(path.join(root, "firestore.rules"), "utf8");
 
 const sessionFunctionStart = script.indexOf("function updateExamSession(status, extra = {})");
-const sessionFunctionEnd = script.indexOf("\n  }", sessionFunctionStart);
-const sessionFunction = script.slice(sessionFunctionStart, sessionFunctionEnd + 4);
+const sessionFunctionEnd = script.indexOf("\n  function attachExamSessionListener()", sessionFunctionStart);
+const sessionFunction = script.slice(sessionFunctionStart, sessionFunctionEnd);
 const rulesStart = rules.indexOf("match /examSessions/{sessionId} {");
 const rulesEnd = rules.indexOf("match /admitCards/{cardId}", rulesStart);
 const sessionRules = rules.slice(rulesStart, rulesEnd);
