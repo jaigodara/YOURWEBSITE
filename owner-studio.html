@@ -1421,6 +1421,9 @@ Ans: B"></textarea>
             examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
             status: 'draft',
             published: false,
+            marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
+            subject: String(question.subject || '').trim(),
+            explanation: String(question.explanation || '').trim(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedBy: auth.currentUser?.uid || null
           };
