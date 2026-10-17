@@ -68,6 +68,18 @@ service cloud.firestore {
         );
     }
 
+    function examPortalEnabled() {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return !exists(configPath)
+        || get(configPath).data.get('examPortalVisible', true) == true;
+    }
+
+    function dailyQuizEnabled() {
+      let configPath = /databases/$(database)/documents/examConfig/current;
+      return !exists(configPath)
+        || get(configPath).data.get('dailyQuizVisible', true) == true;
+    }
+
     function examStarted(fieldName) {
       let configPath = /databases/$(database)/documents/examConfig/current;
       return exists(configPath)
