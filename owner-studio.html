@@ -497,6 +497,10 @@ Ans: B"></textarea>
             <label class="font-bold text-stone-700">मुख्य परीक्षा शुरू<input id="ownerMainStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
           </div>
         </div>
+        <label class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-stone-700">
+          <input id="ownerPublishExamNotifications" type="checkbox" class="mt-0.5 accent-forest">
+          <span><strong>विद्यार्थियों को सूचना भी भेजें</strong><br>बंद रहने पर सेटिंग्स केवल सहेजी जाएँगी—परीक्षण के दौरान किसी विद्यार्थी को सूचना नहीं जाएगी।</span>
+        </label>
         <button onclick="saveExamVisibilitySettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 परीक्षा सेटिंग्स सहेजें</button>
       </div>
 
@@ -2205,6 +2209,7 @@ Ans: B"></textarea>
         const previous = previousSnap.exists ? previousSnap.data() || {} : {};
         await configRef.set(config, { merge: true });
 
+        const publishNotifications = document.getElementById('ownerPublishExamNotifications')?.checked === true;
         const scheduledText = ms => ms ? new Date(ms).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय Owner Studio में निर्धारित किया जाएगा';
         const notices = [];
         if (config.enrollmentVisible && previous.enrollmentVisible !== true) {
@@ -2224,7 +2229,7 @@ Ans: B"></textarea>
         if (config.mainExamVisible && (previous.mainExamVisible !== true || previous.mainStartAtMs !== config.mainStartAtMs)) {
           notices.push(['मुख्य परीक्षा की सूचना', 'मुख्य परीक्षा की निर्धारित शुरुआत: ' + scheduledText(config.mainStartAtMs) + '। प्रवेश के लिए पंजीकरण की Owner द्वारा पुष्टि आवश्यक है।']);
         }
-        for (const [title, message] of notices) {
+        if (publishNotifications) for (const [title, message] of notices) {
           try {
             await pushNotification('ALL', {
               id: 'exam-announcement-' +
@@ -2245,13 +2250,20 @@ Ans: B"></textarea>
           ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, 'मॉक परीक्षा 2 शुरू हो गई', 'मॉक परीक्षा 2 का निर्धारित समय शुरू हो गया है।'],
           ['main', config.mainStartAtMs, previous.mainStartAtMs, 'मुख्य परीक्षा शुरू हो गई', 'मुख्य परीक्षा का निर्धारित समय शुरू हो गया है।']
         ];
-        for (const [mode, startAt, oldStartAt, title, body] of startEvents) {
+        if (publishNotifications) for (const [mode, startAt, oldStartAt, title, body] of startEvents) {
           if (startAt && startAt <= Date.now() && (!oldStartAt || oldStartAt > Date.now())) {
             try { await pushNotification('ALL', { id: 'exam-start-' + mode + '-' + startAt, title: '⏱️ ' + title, body, type: 'exam-start' }); }
             catch (notificationError) { console.warn('Exam-start notification failed:', notificationError); }
           }
         }
-        showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (notices.length ? notices.length + ' स्वचालित सूचना भेजी गईं।' : 'कोई नई सूचना आवश्यक नहीं थी।'));
+        const sentCount = publishNotifications
+          ? notices.length + startEvents.filter(([, startAt, oldStartAt]) => startAt && startAt <= Date.now() && (!oldStartAt || oldStartAt > Date.now())).length
+          : 0;
+        const publishControl = document.getElementById('ownerPublishExamNotifications');
+        if (publishControl) publishControl.checked = false;
+        showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (publishNotifications
+          ? sentCount + ' सूचना/सूचनाएँ भेजने का प्रयास किया गया।'
+          : 'केवल परीक्षण/सेटिंग्स अपडेट हुआ; विद्यार्थियों को कोई सूचना नहीं भेजी गई।'));
       } catch (e) {
         showToast('सेटिंग्स सहेज नहीं सकीं: ' + e.message);
       }
