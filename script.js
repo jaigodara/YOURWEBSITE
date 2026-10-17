@@ -3347,6 +3347,31 @@ window.renderExamVisibility = function renderExamVisibility() {
       notify(authErrorMessage(error), 'error');
     }
   };
+  function phonePasswordAlias(rawPhone) {
+    const digits = String(rawPhone || '').replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) throw new Error('देश कोड सहित सही मोबाइल नंबर दर्ज करें।');
+    return 'phone-' + digits + '@login.bishnoism.invalid';
+  }
+  authApi.signInWithPhonePassword = async function () {
+    if (!state.auth) return notify('Authentication is unavailable.', 'error');
+    const rawPhone = (byId('phoneLoginNumber')?.value || '').trim();
+    const password = byId('phoneLoginPassword')?.value || '';
+    if (!/^\+[1-9]\d{7,14}$/.test(rawPhone.replace(/[\s()-]/g, ''))) {
+      return notify('देश कोड सहित मोबाइल नंबर लिखें, जैसे +919876543210।', 'error');
+    }
+    if (password.length < 6) return notify('कम से कम 6 अक्षर का पासवर्ड दर्ज करें।', 'error');
+    try {
+      await state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      await state.auth.signInWithEmailAndPassword(phonePasswordAlias(rawPhone), password);
+      authApi.closeAuthModal();
+      notify('मोबाइल नंबर और पासवर्ड से लॉगिन सफल।', 'success');
+    } catch (error) {
+      console.error('Phone/password sign-in failed:', error);
+      notify(error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password'
+        ? 'लॉगिन नहीं हुआ। पहली बार उपयोग करने पर पहले OTP सत्यापित करके पासवर्ड सेट करें।'
+        : authErrorMessage(error), 'error');
+    }
+  };
   authApi.sendPhoneCode = async function () {
     if (!state.auth || !window.firebase?.auth) return notify('Authentication is unavailable.', 'error');
     const phone = (byId('phoneLoginNumber')?.value || '').replace(/[\s()-]/g, '');
@@ -3374,10 +3399,31 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!phoneConfirmation) return notify('पहले OTP भेजें।', 'error');
     if (!/^\d{6}$/.test(code)) return notify('6 अंकों का OTP दर्ज करें।', 'error');
     try {
-      await phoneConfirmation.confirm(code);
+      const rawPhone = (byId('phoneLoginNumber')?.value || '').trim();
+      const password = byId('phoneLoginPassword')?.value || '';
+      if (password.length < 6) return notify('मोबाइल पासवर्ड कम से कम 6 अक्षर का होना चाहिए।', 'error');
+      const credentialResult = await phoneConfirmation.confirm(code);
+      const user = credentialResult.user;
+      const alias = phonePasswordAlias(rawPhone);
+      if (user.email === alias) {
+        await user.updatePassword(password);
+      } else {
+        const emailCredential = firebase.auth.EmailAuthProvider.credential(alias, password);
+        await user.linkWithCredential(emailCredential);
+      }
+      try {
+        await state.db.collection('users').doc(user.uid).set({
+          phone: rawPhone,
+          phoneVerified: true,
+          phoneAuthVerifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (profileError) {
+        console.warn('Verified phone profile sync was blocked by Firestore rules:', profileError);
+      }
       phoneConfirmation = null;
       authApi.closeAuthModal();
-      notify('मोबाइल नंबर सत्यापित हो गया।', 'success');
+      notify('मोबाइल सत्यापित है और पासवर्ड सेट हो गया। अब अगली बार मोबाइल + पासवर्ड से लॉगिन कर सकते हैं।', 'success');
     } catch (error) {
       console.error('Phone OTP verification failed:', error);
       notify(authErrorMessage(error), 'error');
