@@ -108,3 +108,13 @@
 
 - Follow-up CI fixes: removed two unmatched closing braces in `owner-studio.html` around the individual admit-card release handler and removed a duplicate `wasConfirmed` declaration in the enrollment-status save handler. The inline owner script now parses.
 - Tightened the pre-initialization regression assertion to verify the auth modal's hidden class is actually removed.
+
+
+## 2026-10-17 — Admit-card validation, notification cleanup, and exam-review access
+
+- Student and owner admit-card checks now accept the established `JAMBH-2026-` roll format with four or more digits, including existing `JAMBH-2026-0001` records.
+- The enrollment status panel only shows the PDF download action when the student's admit card is actually released; otherwise it explains that the card is awaiting release.
+- Combined notification feeds hide legacy admit-card messages that expose `BIS-...` internal IDs and deduplicate copies of the same exam release across legacy and flat feeds.
+- Editors explicitly granted `examReview` can read main/mock question documents and the separately protected answer-key collection for reviewing submissions. Student access to unpublished questions and private answer keys remains denied.
+- Self-service profile updates now permit phone, location, and village fields without permitting users to self-assert `phoneVerified`.
+- Added Firestore rules tests for reviewer access, student denial, and profile-field permissions. CI/live-browser results are pending.
