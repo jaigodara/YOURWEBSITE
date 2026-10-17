@@ -206,7 +206,7 @@ service cloud.firestore {
     }
 
     match /mobileIndex/{mobile} {
-      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
+      allow read: if owner() || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
       allow create: if signedIn()
         && mobile.matches('^[6-9][0-9]{9}$')
         && !exists(/databases/$(database)/documents/mobileIndex/$(mobile))
