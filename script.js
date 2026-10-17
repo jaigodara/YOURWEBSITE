@@ -3476,15 +3476,19 @@ window.renderExamVisibility = function renderExamVisibility() {
     const name = (byId('profEditName')?.value || '').trim();
     const location = (byId('profEditLocation')?.value || '').trim();
     const phone = (byId('profEditPhone')?.value || '').trim();
+    const normalizePhone = value => String(value || '').replace(/[\s()-]/g, '');
+    const phoneChanged = normalizePhone(phone) !== normalizePhone(state.profile?.phone || state.user.phoneNumber || '');
     try {
       const displayName = name || state.profile?.displayName || state.user.displayName || '';
-      await state.db.collection('users').doc(state.user.uid).set({
+      const profileUpdate = {
         displayName, location, phone,
-        phoneVerified: state.profile?.phoneVerified === true,
+        phoneVerified: !phoneChanged && state.profile?.phoneVerified === true,
         email: state.user.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      state.profile = { ...(state.profile || {}), displayName, location, phone };
+      };
+      if (phoneChanged) profileUpdate.phoneAuthVerifiedAt = firebase.firestore.FieldValue.delete();
+      await state.db.collection('users').doc(state.user.uid).set(profileUpdate, { merge: true });
+      state.profile = { ...(state.profile || {}), ...profileUpdate, phone, phoneVerified: profileUpdate.phoneVerified };
       setText('profHeaderNameDisplay', displayName || 'मेरी प्रोफ़ाइल');
       notify('प्रोफ़ाइल सहेजी गई।', 'success');
     } catch (error) {
