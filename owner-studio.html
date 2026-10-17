@@ -2472,7 +2472,13 @@ Ans: B"></textarea>
       examReviewQueue.forEach((row, index) => {
         const option = document.createElement('option');
         option.value = String(index);
-        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' + (row.name || row.fullName || row.displayName || 'विद्यार्थी');
+        const submittedAt = row.submittedAt || row.createdAt;
+        const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
+        const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'समय अज्ञात';
+        option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' +
+          (row.name || row.fullName || row.displayName || 'विद्यार्थी') + ' · ' +
+          (row.mode || examReviewCollection) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
+        option.title = 'सबमिशन ID: ' + row.id + ' · जमा: ' + submittedLabel;
         jump.appendChild(option);
       });
       jump.value = String(examReviewIndex);
@@ -2490,10 +2496,14 @@ Ans: B"></textarea>
       name.textContent = d.name || d.fullName || d.displayName || 'प्रतिभागी';
       const meta = document.createElement('div');
       meta.className = 'text-xs text-stone-600';
+      const submittedAt = d.submittedAt || d.createdAt;
+      const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
+      const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय अज्ञात';
       meta.textContent = 'मोबाइल: ' + (d.phone || d.mobile || '—') + ' · ईमेल: ' + (d.email || '—') +
         ' · परीक्षा: ' + (d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
         (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
-        ' · वर्तमान स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी');
+        ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी') +
+        ' · जमा: ' + submittedLabel + ' · रिकॉर्ड ID: ' + String(d.id).slice(0, 10);
       card.append(name, meta);
 
       const answers = d.answers || d.responses || {};
