@@ -111,7 +111,14 @@ service cloud.firestore {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
       allow create: if signedIn()
         && request.auth.uid == uid
-        && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner']);
+        && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner'])
+        && (
+          request.resource.data.get('phoneVerified', false) != true
+          || (
+            request.auth.token.keys().hasAny(['phone_number'])
+            && request.auth.token.phone_number == request.resource.data.get('phone', '')
+          )
+        );
       allow update: if owner()
         || (
           signedIn()
