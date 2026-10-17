@@ -103,7 +103,7 @@ service cloud.firestore {
           signedIn()
           && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village', 'phone', 'phoneVerified', 'updatedAt'
+            'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village', 'phone', 'updatedAt'
           ])
         );
       allow delete: if owner();
