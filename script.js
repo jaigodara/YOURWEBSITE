@@ -428,11 +428,9 @@ try {
     return true;
   };
 
-  window.switchPortalTab = window.switchTab;
   window.BishnoiPortal = window.BishnoiPortal || {};
   window.BishnoiPortal.switchTab = window.switchTab;
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
-  window.Bishnoi.switchTab = window.switchTab;
 
   function subscribe(ref, next, errorLabel = 'Live data') {
     const unsub = ref.onSnapshot(next, err => {
@@ -3412,7 +3410,6 @@ function renderExamVisibility() {
 
   // Keep the public aliases available to inline HTML event handlers.
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
-  window.Bishnoi.switchTab = window.switchTab;
 
   // Start only after all real public API methods have been attached.
   if (document.readyState === 'loading') {
