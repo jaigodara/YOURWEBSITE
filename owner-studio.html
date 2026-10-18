@@ -1331,7 +1331,6 @@ Ans: B"></textarea>
       const duplicates = [];
       questions.forEach((question, index) => {
         const key = String(question.q || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
-        const key = String(question.q || '').trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
         if (!key) return;
         if (seen.has(key)) duplicates.push({ first: seen.get(key) + 1, duplicate: index + 1 });
         else seen.set(key, index);
@@ -1433,7 +1432,7 @@ Ans: B"></textarea>
       if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
       if (file.size > 8388608) return showToast('फ़ाइल 8 MB से छोटी रखें।');
       const reader = new FileReader();
-      const isJson = /\\.json$/i.test(file.name || '');
+     const isJson = /\.json$/i.test(file.name || '');
       reader.onload = function() {
         try {
           let rows;
