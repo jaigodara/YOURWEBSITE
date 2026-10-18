@@ -2411,35 +2411,71 @@ window.renderExamVisibility = function renderExamVisibility() {
   // Exam utilities
   const ACTIVE_EXAM_STORAGE_KEY = 'bishnoi_active_exam_v1';
 
+  // Android WebView may destroy its renderer while the app is backgrounded.
+  // Keep a local copy as well as the legacy sessionStorage copy; the deadline
+  // remains the original endAt timestamp and is never extended on recovery.
+  function readPersistedExam() {
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      try {
+        const raw = storage && storage.getItem(ACTIVE_EXAM_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (error) {
+        console.warn('Could not read saved exam progress from browser storage.', error);
+      }
+    }
+    return null;
+  }
+
   function persistActiveExam() {
     const exam = state.exam;
     if (!state.user || !exam?.active || exam.submitted) return;
-    try {
-      sessionStorage.setItem(ACTIVE_EXAM_STORAGE_KEY, JSON.stringify({
-        uid: state.user.uid,
-        mode: exam.mode,
-        questions: exam.questions,
-        index: exam.index,
-        answers: exam.answers,
-        review: exam.review,
-        endAt: exam.endAt,
-        durationMinutes: exam.durationMinutes,
-        tabSwitches: exam.tabSwitches || 0,
-        kicked: exam.kicked === true
-      }));
-    } catch (error) {
-      console.warn('Active exam progress could not be stored in this tab.', error);
+    const payload = JSON.stringify({
+      uid: state.user.uid,
+      mode: exam.mode,
+      questions: exam.questions,
+      index: exam.index,
+      answers: exam.answers,
+      review: exam.review,
+      endAt: exam.endAt,
+      durationMinutes: exam.durationMinutes,
+      tabSwitches: exam.tabSwitches || 0,
+      kicked: exam.kicked === true
+    });
+    let saved = false;
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      try {
+        if (storage) {
+          storage.setItem(ACTIVE_EXAM_STORAGE_KEY, payload);
+          saved = true;
+        }
+      } catch (error) {
+        console.warn('Active exam progress could not be stored in browser storage.', error);
+      }
     }
+    if (!saved) console.warn('Exam progress could not be persisted; browser storage is unavailable.');
   }
 
   function clearPersistedExam() {
-    try { sessionStorage.removeItem(ACTIVE_EXAM_STORAGE_KEY); } catch (_) {}
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      try { storage?.removeItem(ACTIVE_EXAM_STORAGE_KEY); } catch (_) {}
+    }
+  }
+
+  // pagehide fires more reliably than beforeunload in WebViews and when a
+  // browser suspends a page. Persist locally only; do not depend on a network
+  // request completing during teardown.
+  if (!window.__bishnoiExamPageHideBound) {
+    window.addEventListener('pagehide', () => {
+      try { persistActiveExam(); } catch (error) {
+        console.warn('Could not save exam progress on pagehide.', error);
+      }
+    });
+    window.__bishnoiExamPageHideBound = true;
   }
 
   window.restoreActiveExamForUser = function restoreActiveExamForUser() {
     if (!state.user) return;
-    let saved;
-    try { saved = JSON.parse(sessionStorage.getItem(ACTIVE_EXAM_STORAGE_KEY) || 'null'); } catch (_) { saved = null; }
+    const saved = readPersistedExam();
     if (!saved) return;
     if (saved.uid !== state.user.uid) {
       clearPersistedExam();
