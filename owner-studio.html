@@ -1483,8 +1483,9 @@ Ans: B"></textarea>
             }
             const q = get(['question','questiontext','q','प्रश्न']);
             const opts = [get(['option a','a']),get(['option b','b']),get(['option c','c']),get(['option d','d'])];
+            const indexColumn = keys.some(function(k) { return String(k).trim().toLowerCase() === 'correctoptionindex'; });
             const a = get(['correct answer','correctoptionindex','answer','ans']).toUpperCase();
-            const ans = /^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[0-3]$/.test(a) ? Number(a) : (/^[1-4]$/.test(a) ? Number(a)-1 : -1));
+            const ans = indexColumn && /^[0-3]$/.test(a) ? Number(a) : (/^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[1-4]$/.test(a) ? Number(a)-1 : -1));
             if (!q && opts.every(function(x){return !x;})) return;
             if (!q || opts.some(function(x){return !x;}) || ans < 0 || ans > 3) throw new Error('हर पंक्ति में Question, Option A-D और Correct Answer A/B/C/D भरें।');
             parsed.push({q:q,opts:opts,ans:ans,marks:Number(get(['marks','अंक']) || 1),subject:get(['subject','topic','विषय']),explanation:get(['explanation','व्याख्या'])});
