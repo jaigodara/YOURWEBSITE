@@ -472,7 +472,7 @@ body {
     color: #143622;
   }
 
-  .bnav-mobile > div > button > span:not(.bnav-icon) {
+  .bnav-mobile .bnav-label {
     display: block;
     width: 100%;
     max-width: 100%;
