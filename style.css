@@ -173,3 +173,71 @@ textarea:focus-visible {
   .results-published { font-size: 9px; padding: 4px 6px; }
   .results-meta { display: grid; gap: 5px; }
 }
+
+
+/* Mobile/WebView fit: prevent flex/grid children and long content from widening the screen. */
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+body {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+*, *::before, *::after { box-sizing: border-box; }
+img, video, canvas, iframe, svg { max-width: 100%; }
+input, select, textarea, button { min-width: 0; }
+pre, code, table { max-width: 100%; }
+pre, code { overflow-wrap: anywhere; }
+main, section, article, header, footer, nav, form, fieldset { min-width: 0; }
+.flex > *, .grid > * { min-width: 0; }
+#tab-home, #tab-sahitya, #tab-pariksha, #tab-community, #tab-profile {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+#myResultsPanel, .results-card, .results-card-top, .results-score-row, .results-meta {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bnav-mobile {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+}
+.bnav-mobile > * { min-width: 0; max-width: 100%; }
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+  body { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important; }
+  h1 { overflow-wrap: anywhere; }
+  button, a, input, select, textarea { max-width: 100%; }
+  .bnav-mobile {
+    gap: 2px;
+    padding-left: max(4px, env(safe-area-inset-left, 0px));
+    padding-right: max(4px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  }
+  .bnav-mobile > * {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+    font-size: 10px !important;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    justify-content: center;
+  }
+  .results-heading { gap: 8px; align-items: flex-start; }
+  .results-icon { flex-basis: 36px; width: 36px; height: 36px; font-size: 18px; }
+  .results-lock { width: 26px; height: 26px; flex-basis: 26px; }
+  .results-card-top, .results-score-row { flex-wrap: wrap; }
+  .results-published { white-space: normal; }
+  .results-score-side { margin-left: auto; }
+}
+@media (max-width: 360px) {
+  .bnav-mobile > * { font-size: 9px !important; }
+  .results-panel { padding: 12px !important; }
+}
