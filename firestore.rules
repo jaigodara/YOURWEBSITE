@@ -371,12 +371,13 @@ service cloud.firestore {
 
     match /examSessions/{sessionId} {
       function isOwnSession() {
-        // Match only the four supported session IDs without reading resource.data,
-        // so a signed-in student can safely check whether their session exists.
-        return signedIn()
-          && sessionId.matches(
-            '^' + request.auth.uid + '_(quiz|mock1|mock2|main)
-
+  return signedIn() && (
+    sessionId == request.auth.uid + '_quiz' ||
+    sessionId == request.auth.uid + '_mock1' ||
+    sessionId == request.auth.uid + '_mock2' ||
+    sessionId == request.auth.uid + '_main'
+  );
+}
       allow create: if signedIn()
         && sessionId == request.auth.uid + '_' + request.resource.data.get('mode', '')
         && examEnabled(request.resource.data.get('mode', ''))
