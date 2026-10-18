@@ -440,12 +440,12 @@ B) 29
 C) 36
 D) 108
 Ans: B"></textarea>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <button type="button" onclick="downloadQuestionTemplate()" class="min-h-[44px] rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-bold text-forest">⬇️ Excel Template डाउनलोड</button>
-          <label class="flex min-h-[44px] cursor-pointer items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-center text-xs font-bold text-white">📤 Excel प्रश्न अपलोड करें
-            <input id="questionExcelFile" type="file" accept=".xlsx,.xls,.csv" class="sr-only" onchange="importQuestionExcel(event)">
+        <div id="questionImportDropzone" class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-dashed border-emerald-500 bg-emerald-50 p-3 transition-colors">
+          <button type="button" onclick="downloadQuestionTemplate()" class="min-h-[48px] rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-bold text-forest">⬇️ Excel Template डाउनलोड</button>
+          <label class="flex min-h-[48px] cursor-pointer items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-center text-xs font-bold text-white">📤 JSON / Excel / CSV चुनें
+            <input id="questionExcelFile" type="file" accept=".json,.xlsx,.xls,.csv,application/json" class="sr-only" onchange="importQuestionExcel(event)">
           </label>
-          <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] text-emerald-950">Excel upload पहले Preview बनाएगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
+          <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] leading-relaxed text-emerald-950">फ़ाइल यहाँ drag-and-drop करें या चुनें। पहले Preview और validation होगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
         </div>
         <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
           👀 पहले सभी प्रश्नों का Preview / जाँच करें
@@ -1432,10 +1432,44 @@ Ans: B"></textarea>
       if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
       if (file.size > 8388608) return showToast('फ़ाइल 8 MB से छोटी रखें।');
       const reader = new FileReader();
+      const isJson = /\\.json$/i.test(file.name || '');
       reader.onload = function() {
         try {
-          const wb = XLSX.read(reader.result, {type:'binary'});
-          const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+          let rows;
+          if (isJson) {
+            const source = JSON.parse(String(reader.result || ''));
+            rows = Array.isArray(source) ? source : (Array.isArray(source.questions) ? source.questions : null);
+            if (!rows) throw new Error('JSON में questions array या प्रश्नों की array आवश्यक है।');
+            const ids = new Set();
+            rows = rows.map(function(row, index) {
+              const questionText = String(row.questionText ?? row.question ?? row.q ?? '').trim();
+              const options = Array.isArray(row.options) ? row.options : (Array.isArray(row.opts) ? row.opts : []);
+              const answerRaw = row.correctOptionIndex ?? row.ans ?? row.correctAnswer ?? row.answer;
+              let ans = Number(answerRaw);
+              if (!Number.isInteger(ans) || ans < 0 || ans > 3) {
+                const letter = String(answerRaw ?? '').trim().toUpperCase();
+                ans = /^[A-D]$/.test(letter) ? letter.charCodeAt(0) - 65 : (/^[1-4]$/.test(letter) ? Number(letter) - 1 : -1);
+              }
+              const id = String(row.id ?? '').trim();
+              if (id && ids.has(id)) throw new Error('डुप्लिकेट ID: ' + id + ' (पंक्ति ' + (index + 1) + ')');
+              if (id) ids.add(id);
+              if (!questionText || options.length < 4 || options.slice(0, 4).some(option => !String(option ?? '').trim()) || ans < 0 || ans > 3) {
+                throw new Error('पंक्ति ' + (index + 1) + ': questionText, चार भरे विकल्प और correctOptionIndex (0–3) आवश्यक हैं।');
+              }
+              return {
+                q: questionText,
+                opts: options.slice(0, 4).map(option => String(option ?? '').trim()),
+                ans: ans,
+                marks: Number(row.marks || 1),
+                subject: String(row.subject ?? row.topic ?? '').trim(),
+                explanation: String(row.explanation ?? '').trim()
+              };
+            });
+          } else {
+            if (!window.XLSX) throw new Error('Excel/CSV library लोड नहीं हुई।');
+            const wb = XLSX.read(reader.result, {type:'binary'});
+            rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+          }
           const parsed = [];
           rows.forEach(function(row) {
             const keys = Object.keys(row);
@@ -1443,13 +1477,17 @@ Ans: B"></textarea>
               const key = keys.find(function(k) { return names.indexOf(String(k).trim().toLowerCase()) >= 0; });
               return key == null ? '' : String(row[key] == null ? '' : row[key]).trim();
             };
-            const q = get(['question','q','प्रश्न']);
+            if (isJson) {
+              parsed.push(row);
+              return;
+            }
+            const q = get(['question','questiontext','q','प्रश्न']);
             const opts = [get(['option a','a']),get(['option b','b']),get(['option c','c']),get(['option d','d'])];
-            const a = get(['correct answer','answer','ans']).toUpperCase();
-            const ans = /^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[1-4]$/.test(a) ? Number(a)-1 : -1);
+            const a = get(['correct answer','correctoptionindex','answer','ans']).toUpperCase();
+            const ans = /^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[0-3]$/.test(a) ? Number(a) : (/^[1-4]$/.test(a) ? Number(a)-1 : -1));
             if (!q && opts.every(function(x){return !x;})) return;
             if (!q || opts.some(function(x){return !x;}) || ans < 0 || ans > 3) throw new Error('हर पंक्ति में Question, Option A-D और Correct Answer A/B/C/D भरें।');
-            parsed.push({q:q,opts:opts,ans:ans,marks:Number(get(['marks','अंक']) || 1),subject:get(['subject','विषय']),explanation:get(['explanation','व्याख्या'])});
+            parsed.push({q:q,opts:opts,ans:ans,marks:Number(get(['marks','अंक']) || 1),subject:get(['subject','topic','विषय']),explanation:get(['explanation','व्याख्या'])});
           });
           if (!parsed.length) throw new Error('कोई प्रश्न नहीं मिला।');
           if (parsed.length > 450) throw new Error('एक बार में अधिकतम 450 प्रश्न अपलोड करें।');
@@ -1465,10 +1503,33 @@ Ans: B"></textarea>
           showToast('Excel import असफल: ' + error.message);
         }
       };
-      reader.readAsBinaryString(file);
-      event.target.value = '';
+      if (isJson) reader.readAsText(file);
+      else reader.readAsBinaryString(file);
+      if (event.target) event.target.value = '';
     }
     window.importQuestionExcel = importQuestionExcel;
+
+    // The same import/validation path is used for file-picker and drag-and-drop.
+    (function bindQuestionImportDropzone() {
+      const zone = document.getElementById('questionImportDropzone');
+      if (!zone || zone.dataset.dropBound === 'true') return;
+      zone.dataset.dropBound = 'true';
+      zone.addEventListener('dragover', function(event) {
+        event.preventDefault();
+        zone.classList.add('ring-2', 'ring-emerald-600');
+      });
+      zone.addEventListener('dragleave', function(event) {
+        if (!zone.contains(event.relatedTarget)) zone.classList.remove('ring-2', 'ring-emerald-600');
+      });
+      zone.addEventListener('drop', function(event) {
+        event.preventDefault();
+        zone.classList.remove('ring-2', 'ring-emerald-600');
+        const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+        if (!file) return;
+        if (!/\\.(json|xlsx|xls|csv)$/i.test(file.name || '')) return showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
+        importQuestionExcel({ target: { files: [file], value: '' } });
+      });
+    })();
 
     async function importBulkQuestions() {
       const raw = document.getElementById('bulkQuizInput')?.value.trim();
