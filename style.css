@@ -204,10 +204,10 @@ main, section, article, header, footer, nav, form, fieldset { min-width: 0; }
   overflow-wrap: anywhere;
 }
 .bnav-mobile {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: stretch;
+  display: block;
   width: 100%;
+  max-width: 100%;
+}
 }
 .bnav-mobile > * { min-width: 0; max-width: 100%; }
 @media (max-width: 640px) {
