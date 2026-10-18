@@ -88,9 +88,35 @@
       }
     })();
   </script>
+  
+<script>
+(() => {
+  const banner = document.getElementById('offlineIndicator');
+  if (!banner) return;
+
+  function updateOfflineStatus() {
+    const offline = navigator.onLine === false;
+    banner.hidden = !offline;
+  }
+
+  window.addEventListener('online', updateOfflineStatus);
+  window.addEventListener('offline', updateOfflineStatus);
+  updateOfflineStatus();
+})();
+</script>
+
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
+
+  
+<div id="offlineIndicator"
+     class="offline-indicator"
+     role="status"
+     aria-live="polite"
+     hidden>
+  ⚠️ इंटरनेट कनेक्शन उपलब्ध नहीं है। कुछ सुविधाएँ सीमित हो सकती हैं।
+</div>
 
   
   <div id="offlineIndicator" class="offline-indicator" role="status" aria-live="polite" hidden>
