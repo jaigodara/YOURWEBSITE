@@ -1330,7 +1330,7 @@ Ans: B"></textarea>
       const seen = new Map();
       const duplicates = [];
       questions.forEach((question, index) => {
-        const key = String(question.q || '').trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
+        const key = String(question.q || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
         if (!key) return;
         if (seen.has(key)) duplicates.push({ first: seen.get(key) + 1, duplicate: index + 1 });
         else seen.set(key, index);
