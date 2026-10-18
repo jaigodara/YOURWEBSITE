@@ -1797,25 +1797,40 @@ try {
   window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
     if (!host) return;
-    const rows = state.myResults || [];
+    const rows = Array.isArray(state.myResults) ? state.myResults : [];
+    const intro = byId('myResultsIntro');
     if (!rows.length) {
-      host.innerHTML = '<p class="text-xs text-stone-500">आपके लिए परिणाम प्रकाशित होने पर वे यहाँ दिखाई देंगे। जाँच के दौरान अंक इस सूची में उपलब्ध नहीं होंगे।</p>';
+      if (intro) intro.textContent = state.user
+        ? 'अभी आपके खाते के लिए कोई परिणाम प्रकाशित नहीं हुआ है। परिणाम परीक्षक द्वारा घोषित होने के बाद यहाँ दिखाई देंगे।'
+        : 'अपने परिणाम देखने के लिए लॉगिन करें। प्रकाशित परिणाम ही यहाँ दिखाए जाते हैं।';
+      host.innerHTML = '<div class="results-empty"><span class="results-empty-icon" aria-hidden="true">📘</span><p class="font-bold text-sm text-forest">अभी कोई घोषित परिणाम नहीं</p><p class="mt-1 text-xs leading-relaxed text-stone-500">जैसे ही परीक्षक आपका परिणाम प्रकाशित करेंगे, अंक और परिणाम का समय यहाँ दिखाई देगा।</p></div>';
       return;
     }
-    const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'Mock Exam 1', mock2: 'Mock Exam 2', main: 'Main Exam' };
+    if (intro) intro.textContent = 'नीचे केवल आपके लिए प्रकाशित परिणाम हैं। लंबित या जाँचाधीन प्रयासों के अंक यहाँ नहीं दिखाए जाते।';
+    const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा' };
     host.innerHTML = rows.map(row => {
-      const score = row.score;
       const scoreVisible = row.mode === 'quiz' || state.resultsIdentityVerified === true;
-      const scoreText = scoreVisible
-        ? 'अंतिम अंक: ' + escapeHtml(score ?? '—') + '/' + escapeHtml(row.total ?? '—')
-        : 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।';
+      const score = Number(row.score);
+      const total = Number(row.total);
+      const validScore = scoreVisible && row.score !== null && row.score !== '' && Number.isFinite(score) &&
+        row.total !== null && row.total !== '' && Number.isFinite(total) && total > 0;
+      const percentage = validScore ? Math.max(0, Math.min(100, Math.round((score / total) * 100))) : 0;
+      const scoreText = validScore
+        ? '<div class="results-score"><span class="results-score-value">' + escapeHtml(score) + '</span><span class="results-score-total">/ ' + escapeHtml(total) + ' अंक</span></div>'
+        : '<p class="text-xs leading-relaxed text-stone-600">' + (scoreVisible ? 'अंक उपलब्ध नहीं हैं। कृपया परीक्षक से संपर्क करें।' : 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।') + '</p>';
       const feedback = scoreVisible && row.feedback
-        ? '<p class="text-[11px] text-stone-600">टिप्पणी: ' + escapeHtml(row.feedback) + '</p>'
+        ? '<div class="results-feedback"><span aria-hidden="true">💬</span><p><strong>परीक्षक की टिप्पणी</strong><br>' + escapeHtml(row.feedback) + '</p></div>'
         : '';
-      const publishedAt = row.publishedAt?.toDate ? row.publishedAt.toDate().toLocaleString('hi-IN') : '';
-      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1"><div class="flex items-center justify-between gap-2"><strong class="text-xs text-forest">' + escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा') + '</strong><span class="text-[10px] font-bold text-emerald-700">परिणाम घोषित</span></div><p class="text-[11px] text-stone-600">' + scoreText + '</p>' + feedback + '<p class="text-[10px] text-stone-400">' + escapeHtml(row.rollNumber ? 'रोल नंबर: ' + row.rollNumber + ' · ' : '') + escapeHtml(publishedAt) + '</p></article>';
+      const dateValue = row.publishedAt;
+      const publishedAt = dateValue?.toDate ? dateValue.toDate().toLocaleString('hi-IN') : (dateValue ? new Date(dateValue).toLocaleString('hi-IN') : '');
+      const safeDate = publishedAt && publishedAt !== 'Invalid Date' ? escapeHtml(publishedAt) : '';
+      const roll = row.rollNumber ? escapeHtml(row.rollNumber) : '';
+      const mode = escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा');
+      return '<article class="results-card"><div class="results-card-top"><div class="min-w-0"><p class="results-eyebrow">परीक्षा परिणाम</p><h4 class="results-exam-name">' + mode + '</h4></div><span class="results-published"><span class="results-status-dot" aria-hidden="true"></span> परिणाम घोषित</span></div>' +
+        (validScore ? '<div class="results-score-row">' + scoreText + '<div class="results-score-side"><span>प्राप्तांक</span><strong>' + percentage + '%</strong></div></div><div class="results-progress" role="progressbar" aria-label="प्राप्त अंक प्रतिशत" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + percentage + '"><span style="width:' + percentage + '%"></span></div>' : '<div class="results-score-locked">' + scoreText + '</div>') +
+        feedback + '<div class="results-meta">' + (roll ? '<span><span aria-hidden="true">🎫</span> रोल नंबर: <strong>' + roll + '</strong></span>' : '') + (safeDate ? '<span><span aria-hidden="true">🕒</span> ' + safeDate + '</span>' : '') + '</div></article>';
     }).join('');
-  }
+  };
 
   window.renderHistoryItems = function renderHistoryItems() {
     const historyHost = byId('historySubView');

@@ -19,6 +19,7 @@
 
   <!-- Tailwind CSS is compiled at build time for production. -->
   <link rel="stylesheet" href="/tailwind.generated.css">
+  <link rel="stylesheet" href="/style.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <!-- Google Fonts: Yatra One (Devanagari) & Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -172,7 +173,7 @@
   </header>
 
   <!-- FIXED 5-TAB BOTTOM NAVIGATION -->
-  <nav class="fixed bottom-0 left-0 right-0 z-[95] bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-2xl px-3 py-1.5">
+  <nav class="bnav-mobile fixed bottom-0 left-0 right-0 z-[95] bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-2xl px-3 py-1.5">
     <div class="max-w-xl mx-auto grid grid-cols-5 gap-1.5 text-center">
       <button onclick="window.switchTab('home')" id="bnav-home" class="bnav-active flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] text-stone-600 transition-all">
         <span class="text-base mb-0.5">🏡</span>
@@ -416,9 +417,13 @@
         </form>
       </section>
 
-      <div id="myResultsPanel" class="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm space-y-3">
-        <div><h3 class="font-yatra text-base text-forest">📋 मेरे परीक्षा परिणाम</h3><p class="text-[11px] text-stone-500">अंतिम परिणाम परीक्षक द्वारा घोषित होने पर दिखाई देंगे।</p></div>
-        <div id="myResultsList" class="space-y-2"><p class="text-xs text-stone-500">लॉगिन करने पर आपके प्रयास यहाँ दिखाई देंगे।</p></div>
+      <section id="myResultsPanel" class="results-panel rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5 shadow-sm space-y-4" aria-labelledby="myResultsHeading">
+        <div class="results-heading flex items-start gap-3">
+          <div class="results-icon" aria-hidden="true">🏆</div>
+          <div class="min-w-0 flex-1"><h3 id="myResultsHeading" class="font-yatra text-base sm:text-lg text-forest">मेरे परीक्षा परिणाम</h3><p id="myResultsIntro" class="mt-1 text-xs leading-relaxed text-stone-500">आपके घोषित परिणाम यहाँ सुरक्षित रूप से दिखाई देंगे।</p></div>
+          <span class="results-lock" aria-hidden="true">🔐</span>
+        </div>
+        <div id="myResultsList" class="results-list space-y-3" aria-live="polite"><p class="text-xs text-stone-500">लॉगिन करने पर आपके प्रयास यहाँ दिखाई देंगे।</p></div>
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">🔐 घोषित परिणाम देखने के लिए पहचान सत्यापित करें</h4>
           <p class="text-[11px] text-stone-600">लॉगिन खाते के साथ अपना रोल नंबर, पंजीकरण वाला पूरा नाम और जन्म तिथि भरें। यह जाँच केवल आपके अपने परिणाम खोलेगी।</p>
