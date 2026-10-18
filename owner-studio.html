@@ -337,7 +337,12 @@
           <h3 class="font-yatra text-base text-forest">📄 PDF साहित्य ग्रंथ जोड़ें</h3>
           <input type="text" id="adminPdfTag" placeholder="श्रेणी टैग (उदा: पवित्र ग्रंथ / आरती)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
           <input type="text" id="adminPdfTitle" placeholder="पुस्तक अथवा ग्रंथ का नाम" class="w-full p-2.5 text-xs rounded-xl border border-stone-300 font-semibold">
-          <input type="text" id="adminPdfLink" placeholder="PDF फाइल लिंक (उदा: ./shabadwani.pdf या URL)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <input type="text" id="adminPdfLink" placeholder="वैकल्पिक: पहले से मौजूद PDF का HTTPS लिंक" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <label class="block rounded-xl border border-dashed border-emerald-700 bg-emerald-50 p-3 text-xs font-bold text-forest">
+            📤 PDF फ़ाइल चुनें (अधिकतम 25 MB)
+            <input type="file" id="adminPdfFile" accept="application/pdf,.pdf" class="mt-2 block w-full text-xs font-normal">
+          </label>
+          <p class="text-[11px] text-stone-500">फ़ाइल चुनें या HTTPS लिंक दें। अपलोड Firebase Storage की अनुमति पर निर्भर है।</p>
           <button onclick="saveAdminPdf()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
             ➕ PDF साहित्य जोड़ें
           </button>
@@ -351,7 +356,12 @@
         <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
           <h3 class="font-yatra text-base text-forest">🎵 ऑडियो भजन व आरती जोड़ें</h3>
           <input type="text" id="adminAudioTitle" placeholder="भजन / आरती का पावन शीर्षक" class="w-full p-2.5 text-xs rounded-xl border border-stone-300 font-semibold">
-          <input type="text" id="adminAudioLink" placeholder="ऑडियो फाइल लिंक (उदा: ./bhajan1.mp3 या URL)" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <input type="text" id="adminAudioLink" placeholder="वैकल्पिक: पहले से मौजूद HTTPS ऑडियो लिंक" class="w-full p-2.5 text-xs rounded-xl border border-stone-300">
+          <label class="block rounded-xl border border-dashed border-emerald-700 bg-emerald-50 p-3 text-xs font-bold text-forest">
+            🎧 ऑडियो फ़ाइल चुनें (अधिकतम 30 MB)
+            <input type="file" id="adminAudioFile" accept="audio/*,.mp3,.m4a,.ogg,.wav" class="mt-2 block w-full text-xs font-normal">
+          </label>
+          <p class="text-[11px] text-stone-500">फ़ाइल चुनें या HTTPS लिंक दें। अपलोड Firebase Storage की अनुमति पर निर्भर है।</p>
           <button onclick="saveAdminAudio()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
             ➕ ऑडियो भजन जोड़ें
           </button>
@@ -1119,42 +1129,73 @@ Ans: B"></textarea>
     }
 
     // 4. LITERATURE & AUDIO
+    async function uploadPublicMedia(file, kind) {
+      if (!file) return '';
+      if (!firebase.storage) throw new Error('Firebase Storage SDK लोड नहीं हुआ।');
+      const isPdf = kind === 'pdf';
+      const maxBytes = (isPdf ? 25 : 30) * 1024 * 1024;
+      const validPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      const validAudio = /^audio\//i.test(file.type) || /\.(mp3|m4a|ogg|wav|aac|mp4)$/i.test(file.name);
+      if (file.size > maxBytes) throw new Error(isPdf ? 'PDF 25 MB से छोटी होनी चाहिए।' : 'ऑडियो 30 MB से छोटी होनी चाहिए।');
+      if (isPdf ? !validPdf : !validAudio) throw new Error(isPdf ? 'कृपया सही PDF फ़ाइल चुनें।' : 'कृपया सही ऑडियो फ़ाइल चुनें।');
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-90) || (isPdf ? 'document.pdf' : 'bhajan.mp3');
+      const path = 'publicMedia/' + (isPdf ? 'pdfs' : 'audios') + '/' + Date.now() + '-' + safeName;
+      const ref = firebase.storage().ref().child(path);
+      await ref.put(file, { contentType: isPdf ? 'application/pdf' : (file.type || 'audio/mpeg') });
+      return await ref.getDownloadURL();
+    }
+
     async function saveAdminPdf() {
       if (!isPrimaryOwner() && !hasEditorPermission('media')) return showToast('PDF लाइब्रेरी संपादन की अनुमति नहीं है।');
       const tag = document.getElementById('adminPdfTag')?.value.trim() || 'पवित्र ग्रंथ';
       const title = document.getElementById('adminPdfTitle')?.value.trim();
-      const link = document.getElementById('adminPdfLink')?.value.trim();
-      if (!title || !link) return showToast("कृपया शीर्षक और लिंक दोनों दर्ज करें!");
-
+      const file = document.getElementById('adminPdfFile')?.files?.[0] || null;
+      let link = document.getElementById('adminPdfLink')?.value.trim() || '';
+      if (!title || (!link && !file)) return showToast('शीर्षक भरें और PDF फ़ाइल चुनें या HTTPS लिंक दें।');
       try {
+        if (file) link = await uploadPublicMedia(file, 'pdf');
+        const parsed = new URL(link, window.location.href);
+        if (parsed.protocol !== 'https:' && parsed.origin !== window.location.origin) throw new Error('सुरक्षित HTTPS लिंक इस्तेमाल करें।');
         await db.collection('pdfs').add({
-          tag, title, link,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          tag, title, link: parsed.href, url: parsed.href, pdfUrl: parsed.href,
+          fileName: file?.name || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.currentUser?.uid || null
         });
         document.getElementById('adminPdfTitle').value = '';
         document.getElementById('adminPdfLink').value = '';
-        showToast("✅ PDF ग्रंथ जोड़ा गया!");
+        document.getElementById('adminPdfFile').value = '';
+        showToast('✅ PDF साहित्य प्रकाशित हो गया।');
       } catch (e) {
-        showToast("त्रुटि: " + e.message);
+        console.error('PDF upload failed:', e);
+        showToast('PDF नहीं जुड़ा: ' + (e.message || 'Storage/Firestore अनुमति जाँचें।'));
       }
     }
 
     async function saveAdminAudio() {
       if (!isPrimaryOwner() && !hasEditorPermission('media')) return showToast('ऑडियो लाइब्रेरी संपादन की अनुमति नहीं है।');
       const title = document.getElementById('adminAudioTitle')?.value.trim();
-      const link = document.getElementById('adminAudioLink')?.value.trim();
-      if (!title || !link) return showToast("कृपया शीर्षक और ऑडियो लिंक दर्ज करें!");
-
+      const file = document.getElementById('adminAudioFile')?.files?.[0] || null;
+      let link = document.getElementById('adminAudioLink')?.value.trim() || '';
+      if (!title || (!link && !file)) return showToast('शीर्षक भरें और ऑडियो फ़ाइल चुनें या HTTPS लिंक दें।');
       try {
+        if (file) link = await uploadPublicMedia(file, 'audio');
+        const parsed = new URL(link, window.location.href);
+        if (parsed.protocol !== 'https:' && parsed.origin !== window.location.origin) throw new Error('सुरक्षित HTTPS लिंक इस्तेमाल करें।');
         await db.collection('audios').add({
-          title, link,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          title, link: parsed.href, audioUrl: parsed.href, url: parsed.href,
+          order: Date.now(),
+          fileName: file?.name || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.currentUser?.uid || null
         });
         document.getElementById('adminAudioTitle').value = '';
         document.getElementById('adminAudioLink').value = '';
-        showToast("✅ ऑडियो भजन जोड़ा गया!");
+        document.getElementById('adminAudioFile').value = '';
+        showToast('✅ भजन/आरती प्लेयर में प्रकाशित हो गया।');
       } catch (e) {
-        showToast("त्रुटि: " + e.message);
+        console.error('Audio upload failed:', e);
+        showToast('ऑडियो नहीं जुड़ा: ' + (e.message || 'Storage/Firestore अनुमति जाँचें।'));
       }
     }
 

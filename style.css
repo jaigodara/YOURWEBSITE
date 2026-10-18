@@ -241,3 +241,8 @@ main, section, article, header, footer, nav, form, fieldset { min-width: 0; }
   .bnav-mobile > * { font-size: 9px !important; }
   .results-panel { padding: 12px !important; }
 }
+/* Karaoke lyrics: visible, readable, and synchronized with the current audio track. */
+#karaokeLyrics:not(.hidden) { display: block; }
+.karaoke-line { margin: .2rem 0; padding: .25rem .5rem; border-radius: .5rem; color: #fef3c7; transition: background-color .15s ease, color .15s ease; }
+.karaoke-line.karaoke-active { background: #fbbf24; color: #143622; font-weight: 800; }
+.audio-item:disabled { opacity: .55; cursor: not-allowed; }
