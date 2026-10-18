@@ -1280,6 +1280,63 @@ Ans: B"></textarea>
 
     let bulkQuestionDrafts = [];
     let bulkEditingQuestionId = null;
+    const BULK_QUESTION_DRAFT_KEY = 'bishnoism_owner_question_draft_v1';
+
+    function persistBulkQuestionDrafts() {
+      try {
+        const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+        localStorage.setItem(BULK_QUESTION_DRAFT_KEY, JSON.stringify({
+          target,
+          drafts: bulkQuestionDrafts.map(question => ({
+            q: String(question.q || ''),
+            opts: Array.isArray(question.opts) ? question.opts.map(option => String(option || '')) : ['', '', '', ''],
+            ans: Number(question.ans) || 0,
+            marks: Number(question.marks) || 1,
+            subject: String(question.subject || ''),
+            explanation: String(question.explanation || ''),
+            ...(question.id ? { id: String(question.id) } : {})
+          }))
+        }));
+      } catch (error) {
+        console.warn('Question draft could not be saved locally:', error);
+      }
+    }
+
+    function restoreBulkQuestionDrafts() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(BULK_QUESTION_DRAFT_KEY) || 'null');
+        if (!saved || !Array.isArray(saved.drafts) || !saved.drafts.length) return;
+        const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+        const target = document.getElementById('bulkQuestionTarget');
+        if (target && allowed.has(saved.target)) target.value = saved.target;
+        bulkQuestionDrafts = saved.drafts.slice(0, 450).map(question => ({
+          q: String(question.q || ''),
+          opts: Array.isArray(question.opts) ? question.opts.slice(0, 4).map(option => String(option || '')) : ['', '', '', ''],
+          ans: Number.isInteger(Number(question.ans)) && Number(question.ans) >= 0 && Number(question.ans) <= 3 ? Number(question.ans) : 0,
+          marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
+          subject: String(question.subject || ''),
+          explanation: String(question.explanation || ''),
+          ...(question.id ? { id: String(question.id) } : {})
+        }));
+        renderBulkQuestionPreview();
+        const status = document.getElementById('questionExcelStatus');
+        if (status) status.textContent = 'पिछला Draft इस डिवाइस से वापस लाया गया। सहेजने से पहले जाँच लें।';
+      } catch (error) {
+        console.warn('Saved question draft could not be restored:', error);
+      }
+    }
+
+    function duplicateQuestionIndexes(questions) {
+      const seen = new Map();
+      const duplicates = [];
+      questions.forEach((question, index) => {
+        const key = String(question.q || '').trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
+        if (!key) return;
+        if (seen.has(key)) duplicates.push({ first: seen.get(key) + 1, duplicate: index + 1 });
+        else seen.set(key, index);
+      });
+      return duplicates;
+    }
 
     function renderBulkQuestionPreview() {
       const section = document.getElementById('bulkQuestionPreviewSection');
@@ -1304,6 +1361,7 @@ Ans: B"></textarea>
         remove.textContent = '✕ प्रश्न हटाएँ';
         remove.addEventListener('click', () => {
           bulkQuestionDrafts.splice(index, 1);
+          persistBulkQuestionDrafts();
           renderBulkQuestionPreview();
         });
         heading.append(label, remove);
@@ -1316,7 +1374,7 @@ Ans: B"></textarea>
         qInput.maxLength = 5000;
         qInput.value = question.q || '';
         qInput.className = 'w-full rounded-xl border border-stone-300 p-2.5 text-sm';
-        qInput.addEventListener('input', () => { question.q = qInput.value; });
+        qInput.addEventListener('input', () => { question.q = qInput.value; persistBulkQuestionDrafts(); });
         qLabel.appendChild(qInput);
         card.append(heading, qLabel);
 
@@ -1330,7 +1388,7 @@ Ans: B"></textarea>
           input.maxLength = 2000;
           input.value = question.opts[optionIndex] || '';
           input.className = 'mt-1 w-full rounded-xl border border-stone-300 p-2.5 text-sm font-normal';
-          input.addEventListener('input', () => { question.opts[optionIndex] = input.value; });
+          input.addEventListener('input', () => { question.opts[optionIndex] = input.value; persistBulkQuestionDrafts(); });
           labelEl.appendChild(input);
           card.appendChild(labelEl);
         });
@@ -1347,13 +1405,17 @@ Ans: B"></textarea>
           answerSelect.appendChild(option);
         });
         answerSelect.value = String(Number(question.ans) || 0);
-        answerSelect.addEventListener('change', () => { question.ans = Number(answerSelect.value); });
+        answerSelect.addEventListener('change', () => { question.ans = Number(answerSelect.value); persistBulkQuestionDrafts(); });
         answerLabel.appendChild(answerSelect);
         card.appendChild(answerLabel);
         host.appendChild(card);
       });
+      persistBulkQuestionDrafts();
       if (bulkQuestionDrafts.length) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+
+    // Restore unsaved work when the Owner Studio is reopened or its WebView reloads.
+    restoreBulkQuestionDrafts();
 
     function downloadQuestionTemplate() {
       if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
@@ -1391,6 +1453,8 @@ Ans: B"></textarea>
           });
           if (!parsed.length) throw new Error('कोई प्रश्न नहीं मिला।');
           if (parsed.length > 450) throw new Error('एक बार में अधिकतम 450 प्रश्न अपलोड करें।');
+          const duplicates = duplicateQuestionIndexes(parsed);
+          if (duplicates.length) throw new Error('डुप्लिकेट प्रश्न मिले: ' + duplicates.slice(0, 5).map(item => 'पंक्ति ' + item.duplicate + ' (पहली पंक्ति ' + item.first + ')').join(', ') + '। डुप्लिकेट हटाकर फिर अपलोड करें।');
           bulkEditingQuestionId = null;
           bulkQuestionDrafts = parsed;
           renderBulkQuestionPreview();
@@ -1433,6 +1497,8 @@ Ans: B"></textarea>
       }
       if (!parsed.length) return showToast('प्रारूप अमान्य है।');
       if (parsed.length > 450) return showToast('एक बार में अधिकतम 450 प्रश्न जोड़ें।');
+      const duplicates = duplicateQuestionIndexes(parsed);
+      if (duplicates.length) return showToast('डुप्लिकेट प्रश्न मिले: ' + duplicates.slice(0, 5).map(item => 'प्रश्न ' + item.duplicate + ' (पहला ' + item.first + ')').join(', ') + '। डुप्लिकेट हटाकर फिर Preview बनाएँ।');
       bulkEditingQuestionId = null;
       bulkQuestionDrafts = parsed;
       renderBulkQuestionPreview();
@@ -1495,6 +1561,7 @@ Ans: B"></textarea>
         const count = bulkQuestionDrafts.length;
         bulkQuestionDrafts = [];
         bulkEditingQuestionId = null;
+        try { localStorage.removeItem(BULK_QUESTION_DRAFT_KEY); } catch (_) {}
         document.getElementById('bulkQuizInput').value = '';
         renderBulkQuestionPreview();
         listenQuizQuestions();
