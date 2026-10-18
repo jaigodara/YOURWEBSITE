@@ -1567,71 +1567,138 @@ Ans: B"></textarea>
       showToast(parsed.length + ' प्रश्न Preview में हैं। सही उत्तर और विकल्प जाँचकर Draft में सहेजें।');
     }
 
-    async function saveBulkQuestionDrafts() {
-      if (!isPrimaryOwner() && !hasEditorPermission('quizDrafts')) return showToast('दैनिक क्विज़ Draft संपादन की अनुमति नहीं है।');
-      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
-      if (!isPrimaryOwner() && target !== 'quiz') return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
-      const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
-      if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
-      if (!bulkQuestionDrafts.length) return showToast('पहले प्रश्नों का Preview तैयार करें।');
-      if (bulkQuestionDrafts.some(q => !String(q.q || '').trim() || !Array.isArray(q.opts) || q.opts.length !== 4 || q.opts.some(x => !String(x || '').trim()) || !Number.isInteger(Number(q.ans)) || Number(q.ans) < 0 || Number(q.ans) > 3)) {
-        return showToast('हर प्रश्न में पूरा पाठ, चार विकल्प और सही उत्तर होना चाहिए।');
+    
+async function saveBulkQuestionDrafts() {
+  if (!isPrimaryOwner() && !hasEditorPermission('quizDrafts')) {
+    return showToast('दैनिक क्विज़ Draft संपादन की अनुमति नहीं है।');
+  }
+
+  const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+
+  if (!isPrimaryOwner() && target !== 'quiz') {
+    return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
+  }
+
+  const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+  if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
+  if (!Array.isArray(bulkQuestionDrafts) || !bulkQuestionDrafts.length) {
+    return showToast('पहले प्रश्नों का Preview तैयार करें।');
+  }
+
+  const drafts = bulkQuestionDrafts;
+
+  if (drafts.some(q =>
+    !String(q.q || '').trim() ||
+    !Array.isArray(q.opts) ||
+    q.opts.length !== 4 ||
+    q.opts.some(x => !String(x || '').trim()) ||
+    !Number.isInteger(Number(q.ans)) ||
+    Number(q.ans) < 0 ||
+    Number(q.ans) > 3
+  )) {
+    return showToast('हर प्रश्न में पूरा पाठ, चार विकल्प और सही उत्तर होना चाहिए।');
+  }
+
+  // Each non-quiz question needs two writes: question + answer key.
+  const writesPerQuestion = target === 'quiz' ? 1 : 2;
+  if (drafts.length * writesPerQuestion > 500) {
+    return showToast(
+      `एक बार में अधिकतम ${Math.floor(500 / writesPerQuestion)} प्रश्न सहेजें।`
+    );
+  }
+
+  try {
+    const batch = db.batch();
+    const uid = auth.currentUser?.uid || null;
+
+    drafts.forEach(question => {
+      const ref = question.id
+        ? db.collection(target).doc(question.id)
+        : db.collection(target).doc();
+
+      const questionText = String(question.q).trim();
+      const options = question.opts.map(x => String(x).trim());
+      const answerIndex = Number(question.ans);
+
+      const data = {
+        q: questionText,
+        question: questionText,
+        text: questionText,
+        opts: options,
+        options,
+        examMode: target === 'quiz'
+          ? 'quiz'
+          : target === 'mockExam_1'
+            ? 'mock1'
+            : target === 'mockExam_2'
+              ? 'mock2'
+              : 'main',
+        status: 'draft',
+        published: false,
+        marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
+        subject: String(question.subject || '').trim(),
+        explanation: String(question.explanation || '').trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: uid
+      };
+
+      if (!question.id) {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        data.createdBy = uid;
       }
-      try {
-        const batch = db.batch();
-        bulkQuestionDrafts.forEach(question => {
-          const ref = question.id ? db.collection(target).doc(question.id) : db.collection(target).doc();
-          const data = {
-            q: question.q.trim(),
-            question: question.q.trim(),
-            text: question.q.trim(),
-            opts: question.opts.map(x => String(x).trim()),
-            options: question.opts.map(x => String(x).trim()),
-            examMode: target === 'quiz' ? 'quiz' : target === 'mockExam_1' ? 'mock1' : target === 'mockExam_2' ? 'mock2' : 'main',
-            status: 'draft',
-            published: false,
-            marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
-            subject: String(question.subject || '').trim(),
-            explanation: String(question.explanation || '').trim(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedBy: auth.currentUser?.uid || null
-          };
-          if (!question.id) {
-            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            data.createdBy = auth.currentUser?.uid || null;
-          }
-          if (target === 'quiz') {
-            // Daily quiz keeps instant client-side scoring; high-stakes main/mock
-            // exams store answer keys in an owner-only collection instead.
-            data.ans = Number(question.ans);
-            data.correctAnswer = Number(question.ans);
-            data.answerIndex = Number(question.ans);
-          } else {
-            data.ans = firebase.firestore.FieldValue.delete();
-            data.correctAnswer = firebase.firestore.FieldValue.delete();
-            data.answerIndex = firebase.firestore.FieldValue.delete();
-            const keyRef = db.collection('examAnswerKeys').doc(target).collection('items').doc(ref.id);
-            batch.set(keyRef, {
-              answerIndex: Number(question.ans),
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-              updatedBy: auth.currentUser?.uid || null
-            }, { merge: true });
-          }
-          batch.set(ref, data, { merge: true });
-        });
-        await batch.commit();
-        const count = bulkQuestionDrafts.length;
-        bulkQuestionDrafts = [];
-        bulkEditingQuestionId = null;
-        try { localStorage.removeItem(BULK_QUESTION_DRAFT_KEY); } catch (_) {}
-        document.getElementById('bulkQuizInput').value = '';
-        renderBulkQuestionPreview();
-        listenQuizQuestions();
-        showToast(count + ' प्रश्न Draft में सहेजे गए। विद्यार्थियों को दिखाने के लिए नीचे से प्रकाशित करें।');
-      } catch (err) {
-        showToast('Draft सहेजने में त्रुटि: ' + err.message);
+
+      if (target === 'quiz') {
+        data.ans = answerIndex;
+        data.correctAnswer = answerIndex;
+        data.answerIndex = answerIndex;
+      } else {
+        data.ans = firebase.firestore.FieldValue.delete();
+        data.correctAnswer = firebase.firestore.FieldValue.delete();
+        data.answerIndex = firebase.firestore.FieldValue.delete();
+
+        const keyRef = db.collection('examAnswerKeys')
+          .doc(target)
+          .collection('items')
+          .doc(ref.id);
+
+        batch.set(keyRef, {
+          answerIndex,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: uid
+        }, { merge: true });
       }
+
+      batch.set(ref, data, { merge: true });
+    });
+
+    await batch.commit();
+
+    // Clear the local draft only after Firebase confirms success.
+    const count = drafts.length;
+    bulkQuestionDrafts = [];
+    bulkEditingQuestionId = null;
+
+    try {
+      localStorage.removeItem(BULK_QUESTION_DRAFT_KEY);
+    } catch (storageError) {
+      console.warn('Could not clear local question draft:', storageError);
     }
+
+    const input = document.getElementById('bulkQuizInput');
+    if (input) input.value = '';
+
+    renderBulkQuestionPreview();
+    listenQuizQuestions();
+
+    showToast(
+      count + ' प्रश्न Draft में सहेजे गए। विद्यार्थियों को दिखाने के लिए प्रकाशित करें।'
+    );
+  } catch (err) {
+    console.error('Question draft save failed:', err);
+    showToast('Draft सहेजने में त्रुटि: ' + (err.message || 'अज्ञात त्रुटि'));
+  }
+}
+
 
     async function editQuestionDoc(target, id) {
       if (!isPrimaryOwner() && (!hasEditorPermission('quizDrafts') || target !== 'quiz')) return showToast('इस प्रश्न को संपादित करने की अनुमति नहीं है।');
