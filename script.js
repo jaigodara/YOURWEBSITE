@@ -4180,7 +4180,19 @@ authApi.changeProfileMobile = async function () {
     );
   }
 };
+window.toggleProfileMobilePassword = function (id, button) {
+  const field = document.getElementById(id);
+  if (!field || !button) return;
 
+  const showPassword = field.type === 'password';
+
+  field.type = showPassword ? 'text' : 'password';
+  button.textContent = showPassword
+    ? 'Hide password'
+    : 'Show password';
+
+  button.setAttribute('aria-pressed', String(showPassword));
+};
   authApi.saveProfile = async function () {
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();
