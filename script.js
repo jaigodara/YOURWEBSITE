@@ -4098,15 +4098,8 @@ authApi.changeProfileMobile = async function () {
       : null;
     const userRef = state.db.collection('users').doc(user.uid);
 
-    const newIndex = await newIndexRef.get();
-
-    if (newIndex.exists && newIndex.data()?.uid !== user.uid) {
-      return setStatus('यह मोबाइल नंबर पहले से किसी दूसरे खाते से जुड़ा है।');
-    }
-
-    if (newIndex.exists && newIndex.data()?.uid === user.uid && newMobile !== oldMobile) {
-      return setStatus('इस नंबर का रिकॉर्ड पहले से मौजूद है। Owner से सहायता लें।');
-    }
+    // Do not read the new mobile index before the batch.
+// Firestore rules enforce ownership and uniqueness atomically.
 
     if (hasPasswordProvider) {
       await user.updateEmail(newEmail);
