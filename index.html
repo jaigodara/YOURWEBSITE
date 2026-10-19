@@ -664,7 +664,20 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- PROFILE MODAL -->
-     <h4 class="font-bold text-forest text-sm">🔐 पासवर्ड बदलें</h4>
+  
+  <!-- PROFILE MODAL -->
+  <div id="userProfileModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto z-[9980]">
+    <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
+      <div class="bg-forest text-white p-5 flex justify-between items-center">
+        <div>
+          <span id="profileRoleBadge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-400 text-stone-950 uppercase">सदस्य</span>
+          <h3 id="profHeaderNameDisplay" class="font-yatra text-lg text-white mt-1">मेरी प्रोफ़ाइल</h3>
+        </div>
+        <button onclick="window.BishnoiAuth.closeProfileModal()" class="w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+
   <p class="text-[11px] text-stone-500">
     केवल ईमेल/पासवर्ड से जुड़े खातों के लिए। Google-only खाते का पासवर्ड Google में बदलें।
   </p>
