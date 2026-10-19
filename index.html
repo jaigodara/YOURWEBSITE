@@ -683,11 +683,36 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="p-3 rounded-xl bg-amber-50 border border-amber-200"><div id="statMalaTotal" class="font-extrabold text-base text-forest">0</div><div>मंत्र जप</div></div>
           <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200"><div id="statMalaLaps" class="font-extrabold text-base text-forest">0</div><div>पूर्ण माला</div></div>
         </div>
-        <input type="text" id="profEditName" class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold" placeholder="नाम">
-        <input type="tel" id="profEditPhone" readonly aria-readonly="true" class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-100" placeholder="पंजीकृत मोबाइल नंबर">
-        <input type="text" id="profEditLocation" class="w-full p-2.5 rounded-xl border border-stone-300" placeholder="गाँव / ज़िला">
-        <button onclick="window.BishnoiAuth.saveProfile()" class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">💾 प्रोफ़ाइल सहेजें</button>
-        <button id="profileAdmitCardButton" type="button" onclick="window.BishnoiApp.downloadMyAdmitCard()" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 font-extrabold rounded-xl shadow">🎟️ प्रवेश-पत्र डाउनलोड करें</button>
+       
+<label for="profEditName" class="block font-bold text-stone-700">पूरा नाम</label>
+<input type="text" id="profEditName" maxlength="100"
+  autocomplete="name"
+  class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold"
+  placeholder="पूरा नाम">
+
+<label for="profEditPhone" class="block font-bold text-stone-700">पंजीकृत मोबाइल नंबर</label>
+<input type="tel" id="profEditPhone" readonly aria-readonly="true"
+  class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-100"
+  placeholder="पंजीकृत मोबाइल नंबर">
+<p class="text-[11px] text-stone-500">
+  मोबाइल नंबर बदलने के लिए नया नंबर सत्यापित करना आवश्यक है।
+</p>
+
+<button type="button"
+  onclick="window.BishnoiAuth.openMobileAccountSettings()"
+  class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
+  📱 मोबाइल / पासवर्ड सेटिंग्स
+</button>
+
+<label for="profEditLocation" class="block font-bold text-stone-700">गाँव / ज़िला</label>
+<input type="text" id="profEditLocation" maxlength="120"
+  class="w-full p-2.5 rounded-xl border border-stone-300"
+  placeholder="गाँव / ज़िला">
+
+<button type="button" onclick="window.BishnoiAuth.saveProfile()"
+  class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">
+  💾 प्रोफ़ाइल सहेजें
+</button>
         <a id="profileOwnerStudioLink" href="owner-studio.html" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 text-center font-extrabold rounded-xl shadow">🛡️ ओनर स्टूडियो खोलें</a>
         <button onclick="window.BishnoiAuth.logout()" class="w-full py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200">लॉगआउट</button>
       </div>
