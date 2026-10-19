@@ -92,21 +92,22 @@
     })();
   </script>
   
+
 <script>
-(() => {
+document.addEventListener('DOMContentLoaded', () => {
   const banner = document.getElementById('offlineIndicator');
   if (!banner) return;
 
   function updateOfflineStatus() {
-    const offline = navigator.onLine === false;
-    banner.hidden = !offline;
+    banner.hidden = navigator.onLine !== false;
   }
 
   window.addEventListener('online', updateOfflineStatus);
   window.addEventListener('offline', updateOfflineStatus);
   updateOfflineStatus();
-})();
+});
 </script>
+
 
 </head>
 
