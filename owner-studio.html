@@ -3607,17 +3607,24 @@ next.addEventListener('click', async () => {
       if (status) status.textContent = 'परीक्षा चुनी गई है; रिकॉर्ड अभी लोड नहीं हुए हैं।';
     }
     window.resetExamSubmissionQueue = resetExamSubmissionQueue;
+
 function clearExamReviewFilters() {
   const dateInput = document.getElementById('reviewSubmissionDate');
   const statusInput = document.getElementById('reviewSubmissionStatus');
   const searchInput = document.getElementById('reviewSubmissionSearch');
 
   if (dateInput) dateInput.value = '';
-  if (statusInput) statusInput.value = 'all';
+  if (statusInput) statusInput.value = 'pending';
   if (searchInput) searchInput.value = '';
+
+  examReviewIndex = 0;
+  examReviewQueue = [];
 
   loadExamSubmissions();
 }
+
+window.clearExamReviewFilters = clearExamReviewFilters;
+
 
 window.clearExamReviewFilters = clearExamReviewFilters;
     function printAllExamReviewSheets() {
