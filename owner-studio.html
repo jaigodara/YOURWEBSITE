@@ -3173,15 +3173,45 @@ async function saveBulkQuestionDrafts() {
       next.type = 'button';
       next.className = 'p-3 rounded-lg bg-forest text-white text-xs font-bold';
       next.textContent = examReviewIndex === totalStudents - 1 ? '✓ अंतिम विद्यार्थी सहेजें' : 'सहेजें और अगला →';
-      next.addEventListener('click', async () => {
-        if (!await saveCurrentExamReview(true)) return;
-        if (examReviewIndex < totalStudents - 1) {
-          examReviewIndex++;
-          renderCurrentExamReview();
-        } else {
-          showToast('सभी ' + totalStudents + ' उत्तर-पत्रों की सूची पूरी हो गई।');
-        }
-      });
+      
+next.addEventListener('click', async () => {
+  const saved = await saveCurrentExamReview(true);
+  if (!saved) return;
+
+  const isChecked = student =>
+    student.manualReviewStatus === 'published' ||
+    student.manualReviewStatus === 'verified';
+
+  let nextIndex = -1;
+
+  // Find the next unchecked answer sheet.
+  for (let i = examReviewIndex + 1; i < totalStudents; i++) {
+    if (!isChecked(examReviewQueue[i])) {
+      nextIndex = i;
+      break;
+    }
+  }
+
+  // If none remain ahead, search from the beginning.
+  if (nextIndex === -1) {
+    for (let i = 0; i < examReviewIndex; i++) {
+      if (!isChecked(examReviewQueue[i])) {
+        nextIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (nextIndex !== -1) {
+    examReviewIndex = nextIndex;
+    renderCurrentExamReview();
+    showToast('अगला लंबित उत्तर-पत्र खोला गया।');
+  } else {
+    showToast('इस सूची में कोई अन्य लंबित उत्तर-पत्र नहीं मिला।');
+    renderCurrentExamReview();
+  }
+});
+
       controls.append(previous, save, next);
       card.append(scoreLabel, decisionLabel, feedback, controls);
       list.append(top, card);
