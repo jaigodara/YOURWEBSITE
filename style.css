@@ -485,3 +485,49 @@ body {
     overflow-wrap: anywhere;
   }
 }
+
+/* Final mobile/WebView safety overrides: keep Devanagari labels outside the active icon pill. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+@media (max-width: 640px) {
+  .bnav-mobile {
+    padding-bottom: max(env(safe-area-inset-bottom, 12px), 10px) !important;
+    overflow: visible !important;
+  }
+  .bnav-mobile > div {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: visible !important;
+  }
+  .bnav-mobile > div > button {
+    min-width: 48px;
+    min-height: 48px;
+    line-height: 1.4 !important;
+    overflow: visible !important;
+  }
+  .bnav-mobile .bnav-active {
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .bnav-mobile .bnav-active .bnav-icon {
+    background: #e8f0e8 !important;
+    border-radius: 9999px;
+  }
+  .bnav-mobile .bnav-label {
+    display: block;
+    width: 100%;
+    min-height: 1.4em;
+    line-height: 1.4 !important;
+    overflow: visible !important;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
