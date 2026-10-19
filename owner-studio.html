@@ -1543,17 +1543,21 @@ Ans: B"></textarea>
               return '';
             };
 
-            const questionText = get(['question', 'questiontext', 'q', 'प्रश्न']);
-            const options = [
-              get(['optiona', 'a', 'option1']),
-              get(['optionb', 'b', 'option2']),
-              get(['optionc', 'c', 'option3']),
-              get(['optiond', 'd', 'option4'])
-            ];
+            const questionText = String(isJson ? (row.questionText ?? row.question ?? row.q ?? row.text ?? '') : get(['question', 'questiontext', 'q', 'प्रश्न'])).trim();
+            const jsonOptions = Array.isArray(row.options) ? row.options : (Array.isArray(row.opts) ? row.opts : null);
+            const options = jsonOptions
+              ? jsonOptions.slice(0, 4).map(option => String(option ?? '').trim())
+              : [
+                  get(['optiona', 'a', 'option1']),
+                  get(['optionb', 'b', 'option2']),
+                  get(['optionc', 'c', 'option3']),
+                  get(['optiond', 'd', 'option4'])
+                ];
             const hasIndex = normalized.has('correctoptionindex');
-            const answerRaw = get(['correctoptionindex', 'correctanswer', 'answer', 'ans', 'उत्तर']).toUpperCase();
+            const rawAnswer = isJson ? (row.correctOptionIndex ?? row.ans ?? row.correctAnswer ?? row.answer ?? '') : get(['correctoptionindex', 'correctanswer', 'answer', 'ans', 'उत्तर']);
+            const answerRaw = String(rawAnswer ?? '').trim().toUpperCase();
             let answerIndex = -1;
-            if (hasIndex && /^[0-3]$/.test(answerRaw)) answerIndex = Number(answerRaw);
+            if ((hasIndex || isJson && row.correctOptionIndex != null) && /^[0-3]$/.test(answerRaw)) answerIndex = Number(answerRaw);
             else if (/^[A-D]$/.test(answerRaw)) answerIndex = answerRaw.charCodeAt(0) - 65;
             else if (/^[1-4]$/.test(answerRaw)) answerIndex = Number(answerRaw) - 1;
 
