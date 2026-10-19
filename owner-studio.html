@@ -825,13 +825,44 @@ Ans: B"></textarea>
       </div>
 
       <!-- TRUSTED EDITORS ROLE MANAGER -->
-      <div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
-        <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक (Trusted Editor) नियुक्त करें</h3>
-        <p class="text-xs text-stone-500">संपादक को Firebase Authentication का UID दें। यह सुविधा roles/{UID} में role=editor लिखेगी; Firestore rules को owner-only role writes की अनुमति देनी चाहिए। केवल मोबाइल नंबर जोड़ना login अधिकार नहीं देता।</p>
-        <div class="flex gap-2 text-xs">
-          <input type="text" id="newEditorUidInput" placeholder="Firebase Auth UID (मोबाइल नंबर नहीं)" class="flex-1 min-w-0 p-2.5 rounded-xl border border-stone-300 font-semibold">
-          <button onclick="addTrustedEditor()" class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">➕ UID नियुक्त करें</button>
-        </div>
+     
+<!-- TRUSTED EDITORS ROLE MANAGER -->
+<div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+  <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक नियुक्त करें</h3>
+  <p class="text-xs text-stone-500">
+    मोबाइल नंबर या ईमेल से आमंत्रण भेजें। आमंत्रण मिलने से अपने-आप लॉगिन अधिकार नहीं मिलेंगे; खाते की पहचान सत्यापित होने के बाद ही भूमिका सक्रिय होगी।
+  </p>
+
+  <div class="flex flex-col sm:flex-row gap-2 text-xs">
+    <input
+      type="text"
+      id="newEditorContactInput"
+      autocomplete="off"
+      placeholder="मोबाइल नंबर (+91...) या ईमेल"
+      class="flex-1 min-w-0 p-2.5 rounded-xl border border-stone-300 font-semibold"
+    >
+    <button
+      type="button"
+      onclick="addTrustedEditor()"
+      class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition"
+    >➕ सहायक संपादक जोड़ें</button>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-xs">
+    <label class="flex items-center gap-2"><input id="editorPermissionMedia" type="checkbox"> मीडिया/PDF/ऑडियो संपादन</label>
+    <label class="flex items-center gap-2"><input id="editorPermissionQuizDrafts" type="checkbox"> दैनिक क्विज़ Draft संपादन</label>
+    <label class="flex items-center gap-2"><input id="editorPermissionExamReview" type="checkbox"> परीक्षा जाँच/परिणाम प्रकाशित करना</label>
+    <label class="flex items-center gap-2"><input id="editorPermissionNotifications" type="checkbox"> सूचनाएँ भेजना</label>
+  </div>
+
+  <p class="text-[10px] text-stone-500">
+    Owner के पास भूमिका प्रबंधन, परीक्षा शेड्यूल, नामांकन और प्रवेश-पत्र रिलीज़ के अधिकार बने रहेंगे।
+  </p>
+
+  <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
+  <div id="pendingEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
+</div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-xs">
           <label class="flex items-center gap-2"><input id="editorPermissionMedia" type="checkbox"> मीडिया/PDF/ऑडियो संपादन</label>
           <label class="flex items-center gap-2"><input id="editorPermissionQuizDrafts" type="checkbox"> दैनिक क्विज़ Draft बनाना/संपादित करना</label>
@@ -4185,30 +4216,67 @@ return review ? {
       }, error => showToast('Editor सूची नहीं पढ़ी जा सकी: ' + error.message + ' — roles rules जाँचें।'));
     }
 
-    async function addTrustedEditor() {
-      if (!isPrimaryOwner()) return showToast('Trusted Editor नियुक्त करने का अधिकार केवल Owner को है।');
-      const uid = document.getElementById('newEditorUidInput')?.value.trim();
-      if (!uid || uid.length < 20 || /\s/.test(uid)) return showToast('सही Firebase Authentication UID दर्ज करें।');
-      if (uid === auth.currentUser?.uid) return showToast('अपने UID को editor के रूप में दोबारा जोड़ने की आवश्यकता नहीं है।');
-      try {
-        await db.collection('roles').doc(uid).set({
-          role: 'editor',
-          permissions: {
-            media: !!document.getElementById('editorPermissionMedia')?.checked,
-            quizDrafts: !!document.getElementById('editorPermissionQuizDrafts')?.checked,
-            examReview: !!document.getElementById('editorPermissionExamReview')?.checked,
-            notifications: !!document.getElementById('editorPermissionNotifications')?.checked
-          },
-          grantedBy: auth.currentUser?.uid || null,
-          grantedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        document.getElementById('newEditorUidInput').value = '';
-        ['editorPermissionMedia','editorPermissionQuizDrafts','editorPermissionExamReview','editorPermissionNotifications'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
-        showToast('Editor role सहेज दिया गया। अगर permission denied आए तो Firestore rules में owner-only role write जोड़ना होगा।');
-      } catch (e) {
-        showToast('Editor role नहीं सहेजा गया: ' + e.message + ' — यह UID-based role write Firestore rules से अनुमति प्राप्त होना चाहिए।');
-      }
-    }
+    
+async function addTrustedEditor() {
+  if (!isPrimaryOwner()) {
+    return showToast('सहायक संपादक नियुक्त करने का अधिकार केवल Owner को है।');
+  }
+
+  const input = document.getElementById('newEditorContactInput');
+  const raw = (input?.value || '').trim();
+
+  if (!raw) {
+    return showToast('मोबाइल नंबर या ईमेल दर्ज करें।');
+  }
+
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+  const digits = raw.replace(/\D/g, '');
+  const isPhone = !isEmail && digits.length >= 10 && digits.length <= 15;
+
+  if (!isEmail && !isPhone) {
+    return showToast('सही ईमेल या मोबाइल नंबर दर्ज करें।');
+  }
+
+  const contactType = isEmail ? 'email' : 'phone';
+  const contactValue = isEmail ? raw.toLowerCase() : digits;
+  const docId = contactType + '_' + contactValue.replace(/[^a-z0-9]/g, '_');
+
+  const permissions = {
+    media: !!document.getElementById('editorPermissionMedia')?.checked,
+    quizDrafts: !!document.getElementById('editorPermissionQuizDrafts')?.checked,
+    examReview: !!document.getElementById('editorPermissionExamReview')?.checked,
+    notifications: !!document.getElementById('editorPermissionNotifications')?.checked
+  };
+
+  try {
+    await db.collection('pending_editors').doc(docId).set({
+      contactType,
+      contactValue,
+      permissions,
+      status: 'pending',
+      grantedBy: auth.currentUser.uid,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    if (input) input.value = '';
+
+    [
+      'editorPermissionMedia',
+      'editorPermissionQuizDrafts',
+      'editorPermissionExamReview',
+      'editorPermissionNotifications'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+
+    showToast('आमंत्रण सहेजा गया। खाते का सुरक्षित सत्यापन अगला चरण है।');
+  } catch (error) {
+    console.error('Editor invitation save failed:', error);
+    showToast('आमंत्रण नहीं सहेजा गया: ' + error.message);
+  }
+}
+
 
     async function removeTrustedEditor(uid) {
       if (!isPrimaryOwner()) return showToast('Trusted Editor हटाने का अधिकार केवल Owner को है।');
