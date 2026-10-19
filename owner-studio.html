@@ -2934,6 +2934,7 @@ async function saveBulkQuestionDrafts() {
         d.resultPublished = published;
         d.manualFeedback = feedback.value.trim();
         d.manualReviewStatus = status;
+        d.manualReviewCompleted = true;
 
         if (published && d.uid) {
           try {
@@ -3179,8 +3180,9 @@ next.addEventListener('click', async () => {
   if (!saved) return;
 
   const isChecked = student =>
-    student.manualReviewStatus === 'published' ||
-    student.manualReviewStatus === 'verified';
+  student.manualReviewCompleted === true ||
+  student.manualReviewStatus === 'published' ||
+  student.manualReviewStatus === 'verified';
 
   let nextIndex = -1;
 
@@ -3621,12 +3623,18 @@ window.clearExamReviewFilters = clearExamReviewFilters;
           });
           rows = rows.map(row => {
             const review = reviewBySubmission.get(row.id);
-            return review ? {
-              ...row,
-              manualScore: review.manualScore,
-              manualReviewStatus: review.status,
-              manualFeedback: review.feedback || ''
-            } : row;
+            
+return review ? {
+  ...row,
+  manualScore: review.manualScore,
+  manualReviewStatus: review.status,
+  manualFeedback: review.feedback || '',
+  manualReviewCompleted:
+    review.manualScore !== undefined &&
+    review.manualScore !== null &&
+    !!review.reviewedAt
+} : row;
+
           });
         } catch (reviewLoadError) {
           console.warn('Private review state could not be loaded:', reviewLoadError);
@@ -3690,9 +3698,9 @@ window.clearExamReviewFilters = clearExamReviewFilters;
           }
 
           const isEvaluated =
-            d.manualReviewStatus === 'published' ||
-            d.manualReviewStatus === 'verified';
-
+  d.manualReviewCompleted === true ||
+  d.manualReviewStatus === 'published' ||
+  d.manualReviewStatus === 'verified';
           if (selectedStatus === 'evaluated' && !isEvaluated) {
             return false;
           }
