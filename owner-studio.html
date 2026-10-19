@@ -2924,10 +2924,7 @@ async function saveBulkQuestionDrafts() {
           batch.delete(resultRef);
         }
         await batch.commit();
-        if (published && d.uid) {
-          try { await pushNotification(d.uid, { title: 'परीक्षा परिणाम प्रकाशित', body: 'आपका परिणाम प्रकाशित हो गया है। वेबसाइट के परीक्षा अनुभाग में देखें।', type: 'result-published', important: true, pinnedByOwner: true }); }
-          catch (noticeError) { console.warn('परिणाम सूचना नहीं भेजी गई:', noticeError); }
-        }
+        
 
         d.manualScore = value;
         d.finalScore = published ? value : null;
