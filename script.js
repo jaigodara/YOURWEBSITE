@@ -463,6 +463,66 @@ try {
     return mobile.length === 10 ? mobile.slice(0, 2) + 'XXXXXX' + mobile.slice(-2) : '';
   }
 
+async function claimPendingEditorInvitation(user) {
+  if (!user || !user.uid || !user.phoneNumber) return null;
+
+  const normalizedPhone = String(user.phoneNumber).replace(/\s/g, '');
+  if (!/^\+91[6-9]\d{9}$/.test(normalizedPhone)) return null;
+
+  const inviteId = 'phone_' + normalizedPhone;
+  const inviteRef = collection('pending_editors').doc(inviteId);
+  const roleRef = collection('roles').doc(user.uid);
+
+  try {
+    const roleSnapshot = await roleRef.get();
+    if (roleSnapshot.exists) return roleSnapshot.data() || null;
+
+    const inviteSnapshot = await inviteRef.get();
+    if (!inviteSnapshot.exists) return null;
+
+    const invitation = inviteSnapshot.data() || {};
+    if (
+      invitation.status !== 'pending' ||
+      invitation.phoneE164 !== normalizedPhone ||
+      invitation.invitationId !== inviteId ||
+      !invitation.permissions ||
+      typeof invitation.permissions !== 'object'
+    ) {
+      return null;
+    }
+
+    const roleData = {
+      role: 'editor',
+      fullName: String(invitation.fullName || '').slice(0, 100),
+      phone: String(invitation.phone || ''),
+      email: String(invitation.email || user.email || ''),
+      permissions: {
+        media: invitation.permissions.media === true,
+        quizDrafts: invitation.permissions.quizDrafts === true,
+        examReview: invitation.permissions.examReview === true,
+        notifications: invitation.permissions.notifications === true
+      },
+      invitationId: inviteId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await roleRef.set(roleData);
+
+    await inviteRef.update({
+      status: 'claimed',
+      claimedUid: user.uid,
+      claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    return roleData;
+  } catch (error) {
+    if (error.code !== 'permission-denied') {
+      console.warn('Pending editor invitation could not be claimed:', error);
+    }
+    return null;
+  }
+}
+
   async function loadUserProfile(user) {
     state.profile = {};
     try {
@@ -497,6 +557,7 @@ try {
     } catch (profileError) {
       console.warn('User profile could not be created/read; check users Firestore rules:', profileError);
     }
+    await claimPendingEditorInvitation(user);
     let roleData = {};
     try {
       const roleSnap = await collection('roles').doc(user.uid).get();
