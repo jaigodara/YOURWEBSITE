@@ -446,6 +446,14 @@ Ans: B"></textarea>
             <input id="questionExcelFile" type="file" accept=".json,.xlsx,.xls,.csv,application/json" class="sr-only" onchange="importQuestionExcel(event)">
           </label>
           <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] leading-relaxed text-emerald-950">फ़ाइल यहाँ drag-and-drop करें या चुनें। पहले Preview और validation होगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
+          <div id="questionImportValidation" class="sm:col-span-2 hidden rounded-xl border border-stone-200 bg-white p-3 text-xs text-stone-700" aria-live="polite">
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="rounded-lg bg-stone-100 p-2"><strong id="questionImportTotal" class="block text-base">0</strong><span>कुल पंक्तियाँ</span></div>
+              <div class="rounded-lg bg-emerald-50 p-2"><strong id="questionImportValid" class="block text-base text-emerald-800">0</strong><span>सही</span></div>
+              <div class="rounded-lg bg-red-50 p-2"><strong id="questionImportInvalid" class="block text-base text-red-800">0</strong><span>त्रुटियाँ</span></div>
+            </div>
+            <div id="questionImportValidationRows" class="mt-3 max-h-64 space-y-2 overflow-auto"></div>
+          </div>
         </div>
         <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
           👀 पहले सभी प्रश्नों का Preview / जाँच करें
@@ -1426,86 +1434,197 @@ Ans: B"></textarea>
     }
     window.downloadQuestionTemplate = downloadQuestionTemplate;
 
+    function renderQuestionImportValidation(rows) {
+      const panel = document.getElementById('questionImportValidation');
+      const total = document.getElementById('questionImportTotal');
+      const valid = document.getElementById('questionImportValid');
+      const invalid = document.getElementById('questionImportInvalid');
+      const host = document.getElementById('questionImportValidationRows');
+      if (!panel || !total || !valid || !invalid || !host) return;
+      panel.classList.remove('hidden');
+      total.textContent = String(rows.length);
+      valid.textContent = String(rows.filter(row => row.valid).length);
+      invalid.textContent = String(rows.filter(row => !row.valid).length);
+      host.replaceChildren();
+      rows.slice(0, 500).forEach(row => {
+        const item = document.createElement('div');
+        item.className = 'rounded-lg border p-2 ' + (row.valid ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50');
+        const title = document.createElement('strong');
+        title.textContent = 'पंक्ति ' + row.row + ': ' + (row.valid ? 'सही' : 'सुधार आवश्यक');
+        const detail = document.createElement('p');
+        detail.className = 'mt-1 whitespace-normal break-words';
+        detail.textContent = row.valid ? String(row.question || '').slice(0, 180) : row.error;
+        item.append(title, detail);
+        host.appendChild(item);
+      });
+      if (rows.length > 500) {
+        const note = document.createElement('p');
+        note.className = 'text-stone-500';
+        note.textContent = 'बाकी ' + (rows.length - 500) + ' पंक्तियाँ सूची में नहीं दिखाई गईं।';
+        host.appendChild(note);
+      }
+    }
+
     function importQuestionExcel(event) {
       const file = event && event.target && event.target.files && event.target.files[0];
       if (!file) return;
-      if (!window.XLSX) return showToast('Excel library लोड नहीं हुई।');
-      if (file.size > 8388608) return showToast('फ़ाइल 8 MB से छोटी रखें।');
+      const status = document.getElementById('questionExcelStatus');
+      const extensionMatch = String(file.name || '').match(/\.([^.]+)$/);
+      const extension = extensionMatch ? extensionMatch[1].toLowerCase() : '';
+      if (!['json', 'xlsx', 'xls', 'csv'].includes(extension)) {
+        if (status) status.textContent = 'केवल JSON, Excel (.xlsx/.xls) या CSV फ़ाइल चुनें।';
+        showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
+        if (event.target) event.target.value = '';
+        return;
+      }
+      if (file.size > 8388608) {
+        if (status) status.textContent = 'फ़ाइल 8 MB से छोटी रखें।';
+        showToast('फ़ाइल 8 MB से छोटी रखें।');
+        if (event.target) event.target.value = '';
+        return;
+      }
+      if (!window.XLSX) {
+        showToast('Excel/CSV library लोड नहीं हुई।');
+        if (event.target) event.target.value = '';
+        return;
+      }
+
+      const isJson = extension === 'json';
       const reader = new FileReader();
-     const isJson = /\.json$/i.test(file.name || '');
+      if (status) status.textContent = 'फ़ाइल पढ़ी जा रही है और हर पंक्ति की जाँच हो रही है…';
+      const panel = document.getElementById('questionImportValidation');
+      if (panel) panel.classList.add('hidden');
+
+      reader.onerror = function() {
+        if (status) status.textContent = 'फ़ाइल पढ़ी नहीं जा सकी। दूसरी फ़ाइल चुनकर प्रयास करें।';
+        showToast('फ़ाइल पढ़ने में त्रुटि हुई।');
+      };
+
       reader.onload = function() {
         try {
-          let rows;
+          let sourceRows;
           if (isJson) {
             const source = JSON.parse(String(reader.result || ''));
-            rows = Array.isArray(source) ? source : (Array.isArray(source.questions) ? source.questions : null);
-            if (!rows) throw new Error('JSON में questions array या प्रश्नों की array आवश्यक है।');
-            const ids = new Set();
-            rows = rows.map(function(row, index) {
-              const questionText = String(row.questionText ?? row.question ?? row.q ?? '').trim();
-              const options = Array.isArray(row.options) ? row.options : (Array.isArray(row.opts) ? row.opts : []);
-              const answerRaw = row.correctOptionIndex ?? row.ans ?? row.correctAnswer ?? row.answer;
-              let ans = Number(answerRaw);
-              if (!Number.isInteger(ans) || ans < 0 || ans > 3) {
-                const letter = String(answerRaw ?? '').trim().toUpperCase();
-                ans = /^[A-D]$/.test(letter) ? letter.charCodeAt(0) - 65 : (/^[1-4]$/.test(letter) ? Number(letter) - 1 : -1);
-              }
-              const id = String(row.id ?? '').trim();
-              if (id && ids.has(id)) throw new Error('डुप्लिकेट ID: ' + id + ' (पंक्ति ' + (index + 1) + ')');
-              if (id) ids.add(id);
-              if (!questionText || options.length < 4 || options.slice(0, 4).some(option => !String(option ?? '').trim()) || ans < 0 || ans > 3) {
-                throw new Error('पंक्ति ' + (index + 1) + ': questionText, चार भरे विकल्प और correctOptionIndex (0–3) आवश्यक हैं।');
-              }
-              return {
-                q: questionText,
-                opts: options.slice(0, 4).map(option => String(option ?? '').trim()),
-                ans: ans,
-                marks: Number(row.marks || 1),
-                subject: String(row.subject ?? row.topic ?? '').trim(),
-                explanation: String(row.explanation ?? '').trim()
-              };
-            });
+            sourceRows = Array.isArray(source) ? source : (Array.isArray(source.questions) ? source.questions : null);
+            if (!sourceRows) throw new Error('JSON में प्रश्नों की array या { "questions": [...] } आवश्यक है।');
           } else {
-            if (!window.XLSX) throw new Error('Excel/CSV library लोड नहीं हुई।');
-            const wb = XLSX.read(reader.result, {type:'binary'});
-            rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+            const workbook = XLSX.read(reader.result, { type: 'array' });
+            const firstSheet = workbook.SheetNames && workbook.SheetNames[0];
+            if (!firstSheet) throw new Error('फ़ाइल में कोई worksheet नहीं मिली।');
+            sourceRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '', raw: false });
           }
+
+          if (!Array.isArray(sourceRows) || !sourceRows.length) throw new Error('फ़ाइल में कोई प्रश्न-पंक्ति नहीं मिली।');
+          if (sourceRows.length > 450) throw new Error('एक बार में अधिकतम 450 प्रश्न अपलोड करें।');
+
+          const reports = [];
           const parsed = [];
-          rows.forEach(function(row) {
-            const keys = Object.keys(row);
-            const get = function(names) {
-              const key = keys.find(function(k) { return names.indexOf(String(k).trim().toLowerCase()) >= 0; });
-              return key == null ? '' : String(row[key] == null ? '' : row[key]).trim();
-            };
-            if (isJson) {
-              parsed.push(row);
+          const seenIds = new Set();
+          sourceRows.forEach(function(row, index) {
+            const rowNumber = index + 2;
+            const errors = [];
+            if (!row || typeof row !== 'object' || Array.isArray(row)) {
+              reports.push({ row: rowNumber, valid: false, error: 'पंक्ति का डेटा object/record होना चाहिए।' });
               return;
             }
-            const q = get(['question','questiontext','q','प्रश्न']);
-            const opts = [get(['option a','a']),get(['option b','b']),get(['option c','c']),get(['option d','d'])];
-            const indexColumn = keys.some(function(k) { return String(k).trim().toLowerCase() === 'correctoptionindex'; });
-            const a = get(['correct answer','correctoptionindex','answer','ans']).toUpperCase();
-            const ans = indexColumn && /^[0-3]$/.test(a) ? Number(a) : (/^[A-D]$/.test(a) ? a.charCodeAt(0)-65 : (/^[1-4]$/.test(a) ? Number(a)-1 : -1));
-            if (!q && opts.every(function(x){return !x;})) return;
-            if (!q || opts.some(function(x){return !x;}) || ans < 0 || ans > 3) throw new Error('हर पंक्ति में Question, Option A-D और Correct Answer A/B/C/D भरें।');
-            parsed.push({q:q,opts:opts,ans:ans,marks:Number(get(['marks','अंक']) || 1),subject:get(['subject','topic','विषय']),explanation:get(['explanation','व्याख्या'])});
+            const entries = Object.entries(row);
+            const normalized = new Map(entries.map(([key, value]) => [
+              String(key).trim().toLowerCase().replace(/[\s_-]+/g, ''),
+              value
+            ]));
+            const get = names => {
+              for (const name of names) {
+                const key = String(name).trim().toLowerCase().replace(/[\s_-]+/g, '');
+                if (normalized.has(key)) {
+                  const value = normalized.get(key);
+                  return value == null ? '' : String(value).trim();
+                }
+              }
+              return '';
+            };
+
+            const questionText = String(isJson ? (row.questionText ?? row.question ?? row.q ?? row.text ?? '') : get(['question', 'questiontext', 'q', 'प्रश्न'])).trim();
+            const jsonOptions = Array.isArray(row.options) ? row.options : (Array.isArray(row.opts) ? row.opts : null);
+            const options = jsonOptions
+              ? jsonOptions.slice(0, 4).map(option => String(option ?? '').trim())
+              : [
+                  get(['optiona', 'a', 'option1']),
+                  get(['optionb', 'b', 'option2']),
+                  get(['optionc', 'c', 'option3']),
+                  get(['optiond', 'd', 'option4'])
+                ];
+            const hasIndex = normalized.has('correctoptionindex');
+            const rawAnswer = isJson ? (row.correctOptionIndex ?? row.ans ?? row.correctAnswer ?? row.answer ?? '') : get(['correctoptionindex', 'correctanswer', 'answer', 'ans', 'उत्तर']);
+            const answerRaw = String(rawAnswer ?? '').trim().toUpperCase();
+            let answerIndex = -1;
+            if ((hasIndex || isJson && row.correctOptionIndex != null) && /^[0-3]$/.test(answerRaw)) answerIndex = Number(answerRaw);
+            else if (/^[A-D]$/.test(answerRaw)) answerIndex = answerRaw.charCodeAt(0) - 65;
+            else if (/^[1-4]$/.test(answerRaw)) answerIndex = Number(answerRaw) - 1;
+
+            if (!questionText) errors.push('प्रश्न का पाठ खाली है।');
+            if (options.some(option => !option)) errors.push('चारों विकल्प (A–D) भरें।');
+            if (answerIndex < 0 || answerIndex > 3) errors.push('सही उत्तर A–D, 1–4 या correctOptionIndex 0–3 होना चाहिए।');
+
+            const id = get(['id', 'questionid']);
+            if (id && seenIds.has(id)) errors.push('डुप्लिकेट प्रश्न ID: ' + id + '।');
+            if (id) seenIds.add(id);
+
+            const marksRaw = get(['marks', 'अंक']);
+            const marks = marksRaw ? Number(marksRaw) : 1;
+            if (!Number.isFinite(marks) || marks <= 0) errors.push('Marks शून्य से बड़ी संख्या होनी चाहिए।');
+
+            const question = {
+              q: questionText,
+              opts: options,
+              ans: answerIndex,
+              marks: Number.isFinite(marks) && marks > 0 ? marks : 1,
+              subject: get(['subject', 'topic', 'विषय']),
+              explanation: get(['explanation', 'व्याख्या'])
+            };
+            if (id) question.id = id;
+            reports.push({
+              row: rowNumber,
+              valid: errors.length === 0,
+              question: questionText,
+              error: errors.join(' ')
+            });
+            if (!errors.length) parsed.push(question);
           });
-          if (!parsed.length) throw new Error('कोई प्रश्न नहीं मिला।');
-          if (parsed.length > 450) throw new Error('एक बार में अधिकतम 450 प्रश्न अपलोड करें।');
-          const duplicates = duplicateQuestionIndexes(parsed);
-          if (duplicates.length) throw new Error('डुप्लिकेट प्रश्न मिले: ' + duplicates.slice(0, 5).map(item => 'पंक्ति ' + item.duplicate + ' (पहली पंक्ति ' + item.first + ')').join(', ') + '। डुप्लिकेट हटाकर फिर अपलोड करें।');
+
+          const seenQuestionText = new Map();
+          reports.forEach(report => {
+            if (!report.valid) return;
+            const key = String(report.question || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+            if (!key) return;
+            if (seenQuestionText.has(key)) {
+              report.valid = false;
+              report.error = 'डुप्लिकेट प्रश्न-पाठ; पहली बार पंक्ति ' + seenQuestionText.get(key) + ' पर मिला।';
+            } else {
+              seenQuestionText.set(key, report.row);
+            }
+          });
+          const invalidCount = reports.filter(item => !item.valid).length;
+          renderQuestionImportValidation(reports);
+
+          if (invalidCount) {
+            if (status) status.textContent = invalidCount + ' पंक्तियों में त्रुटियाँ मिलीं। कोई प्रश्न Draft में नहीं जोड़ा गया। त्रुटियाँ सुधारकर फ़ाइल फिर अपलोड करें।';
+            showToast(invalidCount + ' पंक्तियों में त्रुटियाँ मिलीं। कोई प्रश्न सहेजा नहीं गया।');
+            return;
+          }
+
           bulkEditingQuestionId = null;
           bulkQuestionDrafts = parsed;
           renderBulkQuestionPreview();
-          const status = document.getElementById('questionExcelStatus');
-          if (status) status.textContent = parsed.length + ' प्रश्न Preview में हैं। जाँचकर Draft में सहेजें।';
-          showToast(parsed.length + ' प्रश्न Preview में लोड हुए।');
+          if (status) status.textContent = 'कुल ' + reports.length + ' · सही ' + parsed.length + ' · त्रुटियाँ 0। Preview जाँचकर Draft में सहेजें।';
+          showToast(parsed.length + ' प्रश्न सत्यापित हुए और Preview में लोड हैं।');
         } catch (error) {
-          showToast('Excel import असफल: ' + error.message);
+          renderQuestionImportValidation([{ row: 1, valid: false, error: error.message || 'फ़ाइल का प्रारूप अमान्य है।' }]);
+          if (status) status.textContent = 'Import असफल: ' + (error.message || 'फ़ाइल का प्रारूप अमान्य है।');
+          showToast('Import असफल: ' + (error.message || 'फ़ाइल का प्रारूप अमान्य है।'));
         }
       };
       if (isJson) reader.readAsText(file);
-      else reader.readAsBinaryString(file);
+      else reader.readAsArrayBuffer(file);
       if (event.target) event.target.value = '';
     }
     window.importQuestionExcel = importQuestionExcel;
@@ -1527,7 +1646,7 @@ Ans: B"></textarea>
         zone.classList.remove('ring-2', 'ring-emerald-600');
         const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
         if (!file) return;
-        if (!/\\.(json|xlsx|xls|csv)$/i.test(file.name || '')) return showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
+        if (!/\.(json|xlsx|xls|csv)$/i.test(file.name || '')) return showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
         importQuestionExcel({ target: { files: [file], value: '' } });
       });
     })();
