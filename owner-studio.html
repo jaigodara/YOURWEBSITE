@@ -2997,6 +2997,89 @@ async function saveBulkQuestionDrafts() {
       });
       d.autoScore = canComputeAutoScore ? computedAutoScore : null;
       const totalStudents = examReviewQueue.length;
+      
+      // Live search for already-loaded answer sheets.
+      const searchWrap = document.createElement('div');
+      searchWrap.className = 'rounded-xl border border-stone-200 bg-white p-3 space-y-2';
+
+      const searchLabel = document.createElement('label');
+      searchLabel.className = 'block text-xs font-bold text-forest';
+      searchLabel.textContent = '🔎 विद्यार्थी को तुरंत खोजें';
+
+      const searchInput = document.createElement('input');
+      searchInput.type = 'search';
+      searchInput.placeholder = 'नाम / रोल नंबर / मोबाइल नंबर';
+      searchInput.autocomplete = 'off';
+      searchInput.className =
+        'mt-2 w-full rounded-lg border border-stone-300 bg-white p-3 text-sm text-stone-900';
+      searchInput.setAttribute('aria-label', 'नाम, रोल नंबर या मोबाइल से विद्यार्थी खोजें');
+
+      const searchResults = document.createElement('div');
+      searchResults.className = 'space-y-1';
+      searchResults.setAttribute('aria-live', 'polite');
+
+      searchLabel.appendChild(searchInput);
+      searchWrap.append(searchLabel, searchResults);
+
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim().toLowerCase();
+        searchResults.replaceChildren();
+        if (!query) return;
+
+        const matches = examReviewQueue
+          .map((student, index) => ({ student, index }))
+          .filter(({ student }) => {
+            const searchable = [
+              student.name,
+              student.fullName,
+              student.displayName,
+              student.rollNumber,
+              student.rollNo,
+              student.phone,
+              student.mobile
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            return searchable.includes(query);
+          })
+          .slice(0, 10);
+
+        if (!matches.length) {
+          const empty = document.createElement('p');
+          empty.className = 'text-xs text-stone-500 p-2';
+          empty.textContent = 'कोई मेल खाता विद्यार्थी नहीं मिला।';
+          searchResults.appendChild(empty);
+          return;
+        }
+
+        matches.forEach(({ student, index }) => {
+          const resultButton = document.createElement('button');
+          resultButton.type = 'button';
+          resultButton.className =
+            'block w-full rounded-lg border border-stone-200 bg-stone-50 p-3 text-left text-xs hover:bg-emerald-50';
+
+          resultButton.textContent =
+            (student.name || student.fullName || student.displayName || 'विद्यार्थी') +
+            ' · रोल: ' + (student.rollNumber || student.rollNo || 'नहीं') +
+            ' · मोबाइल: ' + (student.phone || student.mobile || 'नहीं');
+
+          resultButton.addEventListener('click', async () => {
+            if (index === examReviewIndex) {
+              searchResults.replaceChildren();
+              searchInput.value = '';
+              return;
+            }
+
+            if (!await saveCurrentExamReview(false)) return;
+
+            examReviewIndex = index;
+            renderCurrentExamReview();
+            showToast('चुना गया विद्यार्थी खोल दिया गया।');
+          });
+
+          searchResults.appendChild(resultButton);
+        });
+      });
+
       const top = document.createElement('div');
       top.className = 'sticky top-0 z-10 p-3 rounded-xl bg-forest text-white flex items-center justify-between gap-3';
       const progress = document.createElement('div');
@@ -3216,7 +3299,7 @@ next.addEventListener('click', async () => {
 
       controls.append(previous, save, next);
       card.append(scoreLabel, decisionLabel, feedback, controls);
-      list.append(top, card);
+      list.append(searchWrap, top, card);
     }
 
     async function setExamSessionDecision(sessionId, status) {
