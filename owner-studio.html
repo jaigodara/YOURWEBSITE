@@ -826,26 +826,35 @@ Ans: B"></textarea>
 
       <!-- TRUSTED EDITORS ROLE MANAGER -->
      
+
 <!-- TRUSTED EDITORS ROLE MANAGER -->
-<div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+<div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-4">
   <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक नियुक्त करें</h3>
-  <p class="text-xs text-stone-500">
-    मोबाइल नंबर या ईमेल से आमंत्रण भेजें। आमंत्रण मिलने से अपने-आप लॉगिन अधिकार नहीं मिलेंगे; खाते की पहचान सत्यापित होने के बाद ही भूमिका सक्रिय होगी।
+  <p class="text-xs text-stone-600">
+    मोबाइल नंबर से प्राथमिक पहचान करें। ईमेल वैकल्पिक है। खाता सत्यापित होने पर ही संपादक की भूमिका सक्रिय होगी।
   </p>
 
-  <div class="flex flex-col sm:flex-row gap-2 text-xs">
-    <input
-      type="text"
-      id="newEditorContactInput"
-      autocomplete="off"
-      placeholder="मोबाइल नंबर (+91...) या ईमेल"
-      class="flex-1 min-w-0 p-2.5 rounded-xl border border-stone-300 font-semibold"
-    >
-    <button
-      type="button"
-      onclick="addTrustedEditor()"
-      class="px-4 py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition"
-    >➕ सहायक संपादक जोड़ें</button>
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div>
+      <label for="newEditorPhoneInput" class="block text-xs font-bold mb-1">मोबाइल नंबर (10 अंक)</label>
+      <input id="newEditorPhoneInput" type="tel" inputmode="numeric"
+        autocomplete="tel-national" maxlength="10" pattern="[6-9][0-9]{9}"
+        placeholder="9876543210"
+        class="w-full p-3 rounded-xl border border-stone-300 text-sm">
+    </div>
+    <div>
+      <label for="newEditorEmailInput" class="block text-xs font-bold mb-1">ईमेल (वैकल्पिक)</label>
+      <input id="newEditorEmailInput" type="email" autocomplete="email"
+        placeholder="editor@example.com"
+        class="w-full p-3 rounded-xl border border-stone-300 text-sm">
+    </div>
+  </div>
+
+  <div>
+    <label for="newEditorFullNameInput" class="block text-xs font-bold mb-1">पूरा नाम</label>
+    <input id="newEditorFullNameInput" type="text" maxlength="100"
+      autocomplete="name" placeholder="सहायक संपादक का नाम"
+      class="w-full p-3 rounded-xl border border-stone-300 text-sm">
   </div>
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-xs">
@@ -855,24 +864,15 @@ Ans: B"></textarea>
     <label class="flex items-center gap-2"><input id="editorPermissionNotifications" type="checkbox"> सूचनाएँ भेजना</label>
   </div>
 
-  <p class="text-[10px] text-stone-500">
-    Owner के पास भूमिका प्रबंधन, परीक्षा शेड्यूल, नामांकन और प्रवेश-पत्र रिलीज़ के अधिकार बने रहेंगे।
-  </p>
+  <button type="button" onclick="addTrustedEditor()"
+    class="w-full px-4 py-3 bg-forest hover:bg-emerald-950 text-white font-bold rounded-xl shadow transition">
+    ➕ सहायक संपादक आमंत्रित करें
+  </button>
 
-  <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
-  <div id="pendingEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
+  <p id="trustedEditorStatus" role="status" aria-live="polite" class="text-xs text-stone-600"></p>
+  <div id="trustedEditorsListBox" class="space-y-2 pt-1 text-xs"></div>
+  <div id="pendingEditorsListBox" class="space-y-2 pt-1 text-xs"></div>
 </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 text-xs">
-          <label class="flex items-center gap-2"><input id="editorPermissionMedia" type="checkbox"> मीडिया/PDF/ऑडियो संपादन</label>
-          <label class="flex items-center gap-2"><input id="editorPermissionQuizDrafts" type="checkbox"> दैनिक क्विज़ Draft बनाना/संपादित करना</label>
-          <label class="flex items-center gap-2"><input id="editorPermissionExamReview" type="checkbox"> परीक्षा उत्तर-पत्र जाँच/परिणाम प्रकाशित करना</label>
-          <label class="flex items-center gap-2"><input id="editorPermissionNotifications" type="checkbox"> लॉगिन उपयोगकर्ताओं को सूचना भेजना</label>
-        </div>
-        <p class="text-[10px] text-stone-500">चयनित अधिकार roles/{UID}.permissions में सहेजे जाएँगे। संवेदनशील शेड्यूल, नामांकन, प्रवेश-पत्र रिलीज़ और भूमिका प्रबंधन केवल Owner के पास रहेगा।
-        <div id="trustedEditorsListBox" class="space-y-1.5 pt-1 text-xs"></div>
-
-      </div>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
       <div id="ownerExportPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
@@ -4170,95 +4170,170 @@ return review ? {
       } catch (e) { showToast('प्रकाशित नहीं हुआ: ' + e.message + ' — Firestore rules में historyItems write जाँचें।'); }
     }
 
-    function listenTrustedEditors() {
-      db.collection('roles').where('role', '==', 'editor').onSnapshot(snapshot => {
-        const box = document.getElementById('trustedEditorsListBox');
-        if (!box) return;
-        if (snapshot.empty) {
-          box.innerHTML = '<div class="text-stone-400">कोई UID-आधारित सहायक संपादक नियुक्त नहीं है।</div>';
-          return;
-        }
-        box.innerHTML = '';
-        snapshot.forEach(doc => {
-          const row = document.createElement('div');
-          row.className = 'flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200';
-          const data = doc.data() || {};
-          const permissions = data.permissions || {};
-          const enabled = [
-            permissions.media ? 'मीडिया' : '',
-            permissions.quizDrafts ? 'क्विज़ Draft' : '',
-            permissions.examReview ? 'परीक्षा जाँच' : '',
-            permissions.notifications ? 'सूचनाएँ' : ''
-          ].filter(Boolean);
-          const label = document.createElement('span');
-          label.className = 'min-w-0 flex-1 font-bold text-forest break-all';
-          label.textContent = '✍️ UID: ' + doc.id + ' · अनुमति: ' + (enabled.join(', ') || 'केवल Overview/Drafts');
-          const edit = document.createElement('button');
-          edit.type = 'button';
-          edit.className = 'rounded-lg border border-emerald-300 bg-white px-2 py-1 text-[10px] font-bold text-emerald-900';
-          edit.textContent = 'अधिकार बदलें';
-          edit.addEventListener('click', () => {
-            document.getElementById('newEditorUidInput').value = doc.id;
-            document.getElementById('editorPermissionMedia').checked = permissions.media === true;
-            document.getElementById('editorPermissionQuizDrafts').checked = permissions.quizDrafts === true;
-            document.getElementById('editorPermissionExamReview').checked = permissions.examReview === true;
-            document.getElementById('editorPermissionNotifications').checked = permissions.notifications === true;
-            document.getElementById('newEditorUidInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
-          });
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'text-red-600 font-bold hover:underline shrink-0';
-          remove.textContent = 'हटाएं';
-          remove.addEventListener('click', () => removeTrustedEditor(doc.id));
-          row.append(label, edit, remove);
-          box.appendChild(row);
-        });
-      }, error => showToast('Editor सूची नहीं पढ़ी जा सकी: ' + error.message + ' — roles rules जाँचें।'));
-    }
-
     
-async function addTrustedEditor() {
-  if (!isPrimaryOwner()) {
-    return showToast('सहायक संपादक नियुक्त करने का अधिकार केवल Owner को है।');
+function setTrustedEditorStatus(message, isError = false) {
+  const status = document.getElementById('trustedEditorStatus');
+  if (status) {
+    status.textContent = message;
+    status.className = 'text-xs ' + (isError ? 'text-red-700' : 'text-stone-600');
   }
+}
 
-  const input = document.getElementById('newEditorContactInput');
-  const raw = (input?.value || '').trim();
-
-  if (!raw) {
-    return showToast('मोबाइल नंबर या ईमेल दर्ज करें।');
-  }
-
-  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
-  const digits = raw.replace(/\D/g, '');
-  const isPhone = !isEmail && digits.length >= 10 && digits.length <= 15;
-
-  if (!isEmail && !isPhone) {
-    return showToast('सही ईमेल या मोबाइल नंबर दर्ज करें।');
-  }
-
-  const contactType = isEmail ? 'email' : 'phone';
-  const contactValue = isEmail ? raw.toLowerCase() : digits;
-  const docId = contactType + '_' + contactValue.replace(/[^a-z0-9]/g, '_');
-
-  const permissions = {
+function editorPermissionsFromForm() {
+  return {
     media: !!document.getElementById('editorPermissionMedia')?.checked,
     quizDrafts: !!document.getElementById('editorPermissionQuizDrafts')?.checked,
     examReview: !!document.getElementById('editorPermissionExamReview')?.checked,
     notifications: !!document.getElementById('editorPermissionNotifications')?.checked
   };
+}
+
+function listenTrustedEditors() {
+  if (!isPrimaryOwner()) return;
+
+  db.collection('roles').where('role', '==', 'editor').onSnapshot(snapshot => {
+    const box = document.getElementById('trustedEditorsListBox');
+    if (!box) return;
+
+    box.replaceChildren();
+
+    if (snapshot.empty) {
+      box.textContent = 'अभी कोई सक्रिय सहायक संपादक नहीं है।';
+      return;
+    }
+
+    snapshot.forEach(doc => {
+      const data = doc.data() || {};
+      const row = document.createElement('div');
+      row.className = 'p-3 rounded-xl bg-emerald-50 border border-emerald-200';
+
+      const name = document.createElement('div');
+      name.className = 'font-bold text-forest';
+      name.textContent = data.fullName || data.displayName || 'सहायक संपादक';
+
+      const contact = document.createElement('div');
+      contact.className = 'text-stone-600 mt-1';
+      contact.textContent = [
+        data.phone || '',
+        data.email || ''
+      ].filter(Boolean).join(' · ') || 'संपर्क विवरण उपलब्ध नहीं';
+
+      const p = data.permissions || {};
+      const access = document.createElement('div');
+      access.className = 'text-stone-600 mt-1';
+      access.textContent = 'अधिकार: ' + [
+        p.media && 'मीडिया',
+        p.quizDrafts && 'क्विज़ Draft',
+        p.examReview && 'परीक्षा जाँच',
+        p.notifications && 'सूचनाएँ'
+      ].filter(Boolean).join(', ') || 'कोई अतिरिक्त अधिकार नहीं';
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'mt-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-red-700 font-bold';
+      remove.textContent = 'संपादक हटाएँ';
+      remove.addEventListener('click', () => removeTrustedEditor(doc.id));
+
+      row.append(name, contact, access, remove);
+      box.appendChild(row);
+    });
+  }, error => {
+    console.error('Editor list failed:', error);
+    setTrustedEditorStatus('संपादक सूची लोड नहीं हुई: ' + error.message, true);
+  });
+
+  db.collection('pending_editors').onSnapshot(snapshot => {
+    const box = document.getElementById('pendingEditorsListBox');
+    if (!box) return;
+
+    box.replaceChildren();
+
+    const pending = snapshot.docs.filter(doc =>
+      (doc.data() || {}).status === 'pending'
+    );
+
+    const heading = document.createElement('div');
+    heading.className = 'font-bold text-amber-800';
+    heading.textContent = 'लंबित आमंत्रण: ' + pending.length;
+    box.appendChild(heading);
+
+    pending.forEach(doc => {
+      const d = doc.data() || {};
+      const row = document.createElement('div');
+      row.className = 'p-2 rounded-lg bg-amber-50 border border-amber-200';
+      row.textContent = [
+        d.fullName || 'नाम नहीं',
+        d.phone || '',
+        d.email || '',
+        'खाता सत्यापन लंबित'
+      ].filter(Boolean).join(' · ');
+      box.appendChild(row);
+    });
+  }, error => {
+    console.error('Pending editor list failed:', error);
+    setTrustedEditorStatus('लंबित आमंत्रण नहीं पढ़ सके: ' + error.message, true);
+  });
+}
+
+async function addTrustedEditor() {
+  if (!isPrimaryOwner()) {
+    return setTrustedEditorStatus('यह कार्य केवल Owner कर सकता है।', true);
+  }
+
+  const phoneInput = document.getElementById('newEditorPhoneInput');
+  const emailInput = document.getElementById('newEditorEmailInput');
+  const nameInput = document.getElementById('newEditorFullNameInput');
+
+  const phone = (phoneInput?.value || '').replace(/\D/g, '');
+  const email = (emailInput?.value || '').trim().toLowerCase();
+  const fullName = (nameInput?.value || '').trim();
+
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    return setTrustedEditorStatus('वैध 10 अंकों का भारतीय मोबाइल नंबर दर्ज करें।', true);
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return setTrustedEditorStatus('ईमेल पता सही नहीं है।', true);
+  }
+
+  if (fullName.length < 2 || fullName.length > 100) {
+    return setTrustedEditorStatus('पूरा नाम 2 से 100 अक्षरों के बीच दर्ज करें।', true);
+  }
+
+  const permissions = editorPermissionsFromForm();
+  if (!Object.values(permissions).some(Boolean)) {
+    return setTrustedEditorStatus('कम-से-कम एक संपादन अधिकार चुनें।', true);
+  }
+
+  const inviteId = 'phone_+91' + phone;
+  const invitation = {
+    contactType: 'phone',
+    contactValue: '+91' + phone,
+    phone,
+    phoneE164: '+91' + phone,
+    email: email || '',
+    fullName,
+    permissions,
+    status: 'pending',
+    invitationId: inviteId,
+    grantedBy: auth.currentUser?.uid || null,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
 
   try {
-    await db.collection('pending_editors').doc(docId).set({
-      contactType,
-      contactValue,
-      permissions,
-      status: 'pending',
-      grantedBy: auth.currentUser.uid,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    const ref = db.collection('pending_editors').doc(inviteId);
+    const existing = await ref.get();
 
-    if (input) input.value = '';
+    if (existing.exists && existing.data()?.status === 'claimed') {
+      return setTrustedEditorStatus('इस आमंत्रण का उपयोग हो चुका है। पहले सक्रिय भूमिका जाँचें।', true);
+    }
+
+    await ref.set(invitation);
+
+    if (phoneInput) phoneInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (nameInput) nameInput.value = '';
 
     [
       'editorPermissionMedia',
@@ -4270,22 +4345,28 @@ async function addTrustedEditor() {
       if (el) el.checked = false;
     });
 
-    showToast('आमंत्रण सहेजा गया। खाते का सुरक्षित सत्यापन अगला चरण है।');
+    setTrustedEditorStatus('आमंत्रण सहेजा गया। सत्यापित मोबाइल वाले खाते के लॉगिन पर भूमिका सक्रिय होगी।');
   } catch (error) {
     console.error('Editor invitation save failed:', error);
-    showToast('आमंत्रण नहीं सहेजा गया: ' + error.message);
+    setTrustedEditorStatus('आमंत्रण नहीं सहेजा गया: ' + error.message, true);
   }
 }
 
+async function removeTrustedEditor(uid) {
+  if (!isPrimaryOwner()) {
+    return setTrustedEditorStatus('संपादक हटाने का अधिकार केवल Owner के पास है।', true);
+  }
 
-    async function removeTrustedEditor(uid) {
-      if (!isPrimaryOwner()) return showToast('Trusted Editor हटाने का अधिकार केवल Owner को है।');
-      if (!confirm('इस UID का editor role हटाएँ?')) return;
-      try {
-        await db.collection('roles').doc(uid).delete();
-        showToast('Editor role हटा दिया गया।');
-      } catch (e) { showToast('Editor role नहीं हटाया गया: ' + e.message); }
-    }
+  if (!uid || !confirm('इस सहायक संपादक की भूमिका हटाएँ?')) return;
+
+  try {
+    await db.collection('roles').doc(uid).delete();
+    setTrustedEditorStatus('संपादक की भूमिका हटा दी गई।');
+  } catch (error) {
+    console.error('Editor role removal failed:', error);
+    setTrustedEditorStatus('भूमिका नहीं हटाई गई: ' + error.message, true);
+  }
+}
 
     // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
     async function exportQuizResultsPdf() {
