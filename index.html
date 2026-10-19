@@ -740,7 +740,11 @@ document.addEventListener('DOMContentLoaded', () => {
             autocomplete="current-password"
             class="w-full p-2.5 rounded-xl border border-stone-300"
             placeholder="वर्तमान पासवर्ड">
-
+            <button type="button"
+  onclick="window.toggleProfileMobilePassword('profileMobileCurrentPassword', this)"
+  class="mt-1 text-sm font-semibold text-forest underline">
+  Show password
+</button>
           <label for="profileMobileNewPassword"
             class="block font-semibold text-stone-700">
             नया पासवर्ड (पहली बार मोबाइल जोड़ने के लिए)
@@ -787,6 +791,11 @@ document.addEventListener('DOMContentLoaded', () => {
               autocomplete="current-password"
               class="w-full p-2.5 rounded-xl border border-stone-300"
               placeholder="वर्तमान पासवर्ड">
+            <button type="button"
+  onclick="window.toggleProfileMobilePassword('profileMobileNewPassword', this)"
+  class="mt-1 text-sm font-semibold text-forest underline">
+  Show password
+</button>
           </div>
 
           <div>
