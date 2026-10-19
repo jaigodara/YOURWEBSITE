@@ -668,145 +668,123 @@ document.addEventListener('DOMContentLoaded', () => {
   <!-- PROFILE MODAL -->
   <div id="userProfileModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto z-[9980]">
     <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
+
+      <!-- Header -->
       <div class="bg-forest text-white p-5 flex justify-between items-center">
         <div>
           <span id="profileRoleBadge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-400 text-stone-950 uppercase">सदस्य</span>
           <h3 id="profHeaderNameDisplay" class="font-yatra text-lg text-white mt-1">मेरी प्रोफ़ाइल</h3>
         </div>
-        <button onclick="window.BishnoiAuth.closeProfileModal()" class="w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center">✕</button>
+        <button type="button" onclick="window.BishnoiAuth.closeProfileModal()" class="w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center" aria-label="प्रोफ़ाइल बंद करें">✕</button>
       </div>
 
+      <!-- Profile Content -->
       <div class="p-5 space-y-4 text-xs">
 
-  <p class="text-[11px] text-stone-500">
-    केवल ईमेल/पासवर्ड से जुड़े खातों के लिए। Google-only खाते का पासवर्ड Google में बदलें।
-  </p>
-  <input id="profileCurrentPassword" type="password"
-    autocomplete="current-password" minlength="8"
-    class="w-full p-2.5 rounded-xl border border-stone-300"
-    placeholder="वर्तमान पासवर्ड">
-  <input id="profileNewPassword" type="password"
-    autocomplete="new-password" minlength="8"
-    class="w-full p-2.5 rounded-xl border border-stone-300"
-    placeholder="नया पासवर्ड (कम-से-कम 8 अक्षर)">
-  <input id="profileConfirmPassword" type="password"
-    autocomplete="new-password" minlength="8"
-    class="w-full p-2.5 rounded-xl border border-stone-300"
-    placeholder="नया पासवर्ड दोबारा लिखें">
-  <button type="button" onclick="window.BishnoiAuth.changeProfilePassword()"
-    class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
-    🔑 पासवर्ड अपडेट करें
-  </button>
-  <p id="profilePasswordStatus" role="status" aria-live="polite"
-    class="text-xs text-stone-600"></p>
-</div>
-    <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
-      <div class="bg-forest text-white p-5 flex justify-between items-center">
-        <div>
-          <span id="profileRoleBadge" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-400 text-stone-950 uppercase">सदस्य</span>
-          <h3 id="profHeaderNameDisplay" class="font-yatra text-lg text-white mt-1">मेरी प्रोफ़ाइल</h3>
-        </div>
-        <button onclick="window.BishnoiAuth.closeProfileModal()" class="w-8 h-8 rounded-full bg-white/10 text-white font-bold flex items-center justify-center">✕</button>
-      </div>
-      <div class="p-5 space-y-4 text-xs">
         <div class="rounded-2xl bg-stone-50 border border-stone-200 p-3">
           <p class="text-[10px] uppercase tracking-wide text-stone-500 font-bold">लॉगिन खाता</p>
           <p id="profileEmailDisplay" class="mt-1 text-sm font-bold text-forest break-all">—</p>
           <p id="profileAccountStatus" class="mt-1 text-[11px] text-stone-500">अपनी जानकारी यहाँ अपडेट करें।</p>
         </div>
+
+        <!-- Jaap Statistics -->
         <div class="grid grid-cols-2 gap-2 text-center">
-          <div class="p-3 rounded-xl bg-amber-50 border border-amber-200"><div id="statMalaTotal" class="font-extrabold text-base text-forest">0</div><div>मंत्र जप</div></div>
-          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200"><div id="statMalaLaps" class="font-extrabold text-base text-forest">0</div><div>पूर्ण माला</div></div>
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-200">
+            <div id="statMalaTotal" class="font-extrabold text-base text-forest">0</div>
+            <div>मंत्र जप</div>
+          </div>
+          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+            <div id="statMalaLaps" class="font-extrabold text-base text-forest">0</div>
+            <div>पूर्ण माला</div>
+          </div>
         </div>
-       
-<label for="profEditName" class="block font-bold text-stone-700">पूरा नाम</label>
-<input type="text" id="profEditName" maxlength="100"
-  autocomplete="name"
-  class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold"
-  placeholder="पूरा नाम">
 
-<label for="profEditPhone" class="block font-bold text-stone-700">पंजीकृत मोबाइल नंबर</label>
-<input type="tel" id="profEditPhone" readonly aria-readonly="true"
-  class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-100"
-  placeholder="पंजीकृत मोबाइल नंबर">
-<p class="text-[11px] text-stone-500">
-  मोबाइल नंबर बदलने के लिए नया नंबर सत्यापित करना आवश्यक है।
-</p>
+        <!-- Edit Profile -->
+        <div>
+          <label for="profEditName" class="block font-bold text-stone-700 mb-1">पूरा नाम</label>
+          <input type="text" id="profEditName" maxlength="100" autocomplete="name"
+            class="w-full p-2.5 rounded-xl border border-stone-300 font-semibold"
+            placeholder="पूरा नाम">
+        </div>
 
+        <div>
+          <label for="profEditPhone" class="block font-bold text-stone-700 mb-1">पंजीकृत मोबाइल नंबर</label>
+          <input type="tel" id="profEditPhone" readonly aria-readonly="true"
+            class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-100"
+            placeholder="पंजीकृत मोबाइल नंबर">
+          <p class="text-[11px] text-stone-500 mt-1">
+            मोबाइल नंबर बदलने के लिए नए नंबर का सत्यापन आवश्यक है।
+          </p>
+        </div>
 
-<p class="text-[11px] text-stone-500">
-  मोबाइल नंबर बदलने की सुविधा नंबर सत्यापन लागू होने के बाद उपलब्ध होगी।
-</p>
+        <div>
+          <label for="profEditLocation" class="block font-bold text-stone-700 mb-1">गाँव / ज़िला</label>
+          <input type="text" id="profEditLocation" maxlength="120"
+            class="w-full p-2.5 rounded-xl border border-stone-300"
+            placeholder="गाँव / ज़िला">
+        </div>
 
+        <button type="button" onclick="window.BishnoiAuth.saveProfile()"
+          class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">
+          💾 प्रोफ़ाइल सहेजें
+        </button>
 
-<label for="profEditLocation" class="block font-bold text-stone-700">गाँव / ज़िला</label>
-<input type="text" id="profEditLocation" maxlength="120"
-  class="w-full p-2.5 rounded-xl border border-stone-300"
-  placeholder="गाँव / ज़िला">
+        <!-- Change Password -->
+        <div class="border-t border-stone-200 pt-4 space-y-3">
+          <h4 class="font-bold text-forest text-sm">🔐 पासवर्ड बदलें</h4>
 
-<button type="button" onclick="window.BishnoiAuth.saveProfile()"
-  class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">
-  💾 प्रोफ़ाइल सहेजें
-</button>
-        
-<div class="border-t border-stone-200 pt-4 space-y-3">
-  <h4 class="font-bold text-forest text-sm">
-    🔐 पासवर्ड बदलें
-  </h4>
+          <p class="text-[11px] text-stone-500">
+            केवल ईमेल/पासवर्ड वाले खातों के लिए। Google-only खाते का पासवर्ड Google खाते में बदलें।
+          </p>
 
-  <p class="text-[11px] text-stone-500">
-    केवल ईमेल/पासवर्ड वाले खातों के लिए। Google-only खाते का पासवर्ड Google खाते में बदलें।
-  </p>
+          <div>
+            <label for="profileCurrentPassword" class="block font-semibold text-stone-700 mb-1">वर्तमान पासवर्ड</label>
+            <input id="profileCurrentPassword" type="password"
+              autocomplete="current-password"
+              class="w-full p-2.5 rounded-xl border border-stone-300"
+              placeholder="वर्तमान पासवर्ड">
+          </div>
 
-  <label for="profileCurrentPassword"
-    class="block font-semibold text-stone-700">
-    वर्तमान पासवर्ड
-  </label>
-  <input id="profileCurrentPassword"
-    type="password"
-    autocomplete="current-password"
-    class="w-full p-2.5 rounded-xl border border-stone-300"
-    placeholder="वर्तमान पासवर्ड">
+          <div>
+            <label for="profileNewPassword" class="block font-semibold text-stone-700 mb-1">नया पासवर्ड</label>
+            <input id="profileNewPassword" type="password" minlength="8"
+              autocomplete="new-password"
+              class="w-full p-2.5 rounded-xl border border-stone-300"
+              placeholder="कम-से-कम 8 अक्षर">
+          </div>
 
-  <label for="profileNewPassword"
-    class="block font-semibold text-stone-700">
-    नया पासवर्ड
-  </label>
-  <input id="profileNewPassword"
-    type="password"
-    minlength="8"
-    autocomplete="new-password"
-    class="w-full p-2.5 rounded-xl border border-stone-300"
-    placeholder="कम-से-कम 8 अक्षर">
+          <div>
+            <label for="profileConfirmPassword" class="block font-semibold text-stone-700 mb-1">नए पासवर्ड की पुष्टि करें</label>
+            <input id="profileConfirmPassword" type="password" minlength="8"
+              autocomplete="new-password"
+              class="w-full p-2.5 rounded-xl border border-stone-300"
+              placeholder="नया पासवर्ड दोबारा लिखें">
+          </div>
 
-  <label for="profileConfirmPassword"
-    class="block font-semibold text-stone-700">
-    नए पासवर्ड की पुष्टि करें
-  </label>
-  <input id="profileConfirmPassword"
-    type="password"
-    minlength="8"
-    autocomplete="new-password"
-    class="w-full p-2.5 rounded-xl border border-stone-300"
-    placeholder="नया पासवर्ड दोबारा लिखें">
+          <button type="button" onclick="window.BishnoiAuth.changeProfilePassword()"
+            class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
+            🔑 पासवर्ड अपडेट करें
+          </button>
 
-  <button type="button"
-    onclick="window.BishnoiAuth.changeProfilePassword()"
-    class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
-    🔑 पासवर्ड अपडेट करें
-  </button>
+          <p id="profilePasswordStatus" role="status" aria-live="polite"
+            class="text-xs text-stone-600"></p>
+        </div>
 
-  <p id="profilePasswordStatus"
-    role="status"
-    aria-live="polite"
-    class="text-xs text-stone-600"></p>
-</div>
+        <!-- Owner Access and Logout -->
+        <a id="profileOwnerStudioLink" href="owner-studio.html"
+          class="hidden w-full py-2.5 bg-amber-400 text-stone-950 text-center font-extrabold rounded-xl shadow">
+          🛡️ ओनर स्टूडियो खोलें
+        </a>
 
-        <a id="profileOwnerStudioLink" href="owner-studio.html" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 text-center font-extrabold rounded-xl shadow">🛡️ ओनर स्टूडियो खोलें</a>
-        <button onclick="window.BishnoiAuth.logout()" class="w-full py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200">लॉगआउट</button>
+        <button type="button" onclick="window.BishnoiAuth.logout()"
+          class="w-full py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200">
+          लॉगआउट
+        </button>
+
       </div>
     </div>
   </div>
+
 
   <!-- INBUILT PDF VIEWER MODAL WITH RESPONSIVE EMBED -->
   <div id="inbuiltPdfModal" class="fixed inset-0 z-[9990] bg-stone-950/90 hidden flex-col select-none p-2 sm:p-4">
