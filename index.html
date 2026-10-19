@@ -665,6 +665,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <!-- PROFILE MODAL -->
   <div id="userProfileModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto z-[9980]">
+   
+<div class="border-t border-stone-200 pt-4 space-y-2">
+  <h4 class="font-bold text-forest text-sm">🔐 पासवर्ड बदलें</h4>
+  <p class="text-[11px] text-stone-500">
+    केवल ईमेल/पासवर्ड से जुड़े खातों के लिए। Google-only खाते का पासवर्ड Google में बदलें।
+  </p>
+  <input id="profileCurrentPassword" type="password"
+    autocomplete="current-password" minlength="8"
+    class="w-full p-2.5 rounded-xl border border-stone-300"
+    placeholder="वर्तमान पासवर्ड">
+  <input id="profileNewPassword" type="password"
+    autocomplete="new-password" minlength="8"
+    class="w-full p-2.5 rounded-xl border border-stone-300"
+    placeholder="नया पासवर्ड (कम-से-कम 8 अक्षर)">
+  <input id="profileConfirmPassword" type="password"
+    autocomplete="new-password" minlength="8"
+    class="w-full p-2.5 rounded-xl border border-stone-300"
+    placeholder="नया पासवर्ड दोबारा लिखें">
+  <button type="button" onclick="window.BishnoiAuth.changeProfilePassword()"
+    class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
+    🔑 पासवर्ड अपडेट करें
+  </button>
+  <p id="profilePasswordStatus" role="status" aria-live="polite"
+    class="text-xs text-stone-600"></p>
+</div>
     <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-stone-200 shadow-2xl my-auto">
       <div class="bg-forest text-white p-5 flex justify-between items-center">
         <div>
