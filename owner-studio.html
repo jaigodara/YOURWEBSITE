@@ -3608,6 +3608,7 @@ next.addEventListener('click', async () => {
     }
     window.resetExamSubmissionQueue = resetExamSubmissionQueue;
 
+
 function clearExamReviewFilters() {
   const dateInput = document.getElementById('reviewSubmissionDate');
   const statusInput = document.getElementById('reviewSubmissionStatus');
@@ -3625,8 +3626,6 @@ function clearExamReviewFilters() {
 
 window.clearExamReviewFilters = clearExamReviewFilters;
 
-
-window.clearExamReviewFilters = clearExamReviewFilters;
     function printAllExamReviewSheets() {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र निर्यात की अनुमति नहीं है।');
       if (!Array.isArray(examReviewQueue) || !examReviewQueue.length) {
