@@ -118,7 +118,39 @@
       </button>
     </div>
   </header>
+<!-- OWNER STUDIO STATUS BAR: insert immediately after the existing header -->
+<section id="studioStatusBar"
+  class="mx-auto mt-4 flex w-full max-w-7xl flex-col gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+  aria-label="Owner Studio status">
 
+  <div class="min-w-0">
+    <p class="text-xs font-extrabold uppercase tracking-wide text-stone-500">
+      Bishnoism · Management Workspace
+    </p>
+    <p id="studioAdminEmail"
+      class="mt-1 break-all text-sm font-bold text-[#143622]"
+      aria-live="polite">
+      Administrator: verifying access…
+    </p>
+  </div>
+
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <span id="studioEnvironment"
+      class="inline-flex min-h-9 items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-3 text-xs font-extrabold text-amber-900">
+      Checking environment…
+    </span>
+
+    <label class="block">
+      <span class="sr-only">Search Owner Studio sections</span>
+      <input id="studioMenuSearch"
+        type="search"
+        placeholder="Search sections…"
+        autocomplete="off"
+        class="min-h-11 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 text-sm text-stone-900 outline-none focus:border-[#143622] sm:w-64"
+      >
+    </label>
+  </div>
+</section>
   <!-- MAIN ADMIN DASHBOARD CONTENT -->
   <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-4 py-5">
     <div class="grid grid-cols-1 md:grid-cols-[210px_minmax(0,1fr)] gap-4 md:gap-6 items-start">
@@ -870,6 +902,31 @@ Ans: B"></textarea>
           }
 
           currentAdminUser = { uid: user.uid, role: role || 'owner', permissions: roleData.permissions || {} };
+          // Display the authenticated account without changing existing access checks.
+const adminEmailEl = document.getElementById('studioAdminEmail');
+if (adminEmailEl) {
+  adminEmailEl.textContent = user.email
+    ? `Administrator: ${user.email}`
+    : `Administrator UID: ${user.uid}`;
+}
+
+// Identify the production hostname explicitly; other hosts are treated as staging.
+const environmentEl = document.getElementById('studioEnvironment');
+if (environmentEl) {
+  const isProductionHost = window.location.hostname === 'bishnoism.vercel.app';
+
+  environmentEl.textContent = isProductionHost
+    ? '● LIVE WEBSITE'
+    : '● STAGING / PREVIEW';
+
+  environmentEl.classList.toggle('bg-emerald-50', isProductionHost);
+  environmentEl.classList.toggle('text-emerald-800', isProductionHost);
+  environmentEl.classList.toggle('border-emerald-200', isProductionHost);
+
+  environmentEl.classList.toggle('bg-amber-50', !isProductionHost);
+  environmentEl.classList.toggle('text-amber-900', !isProductionHost);
+  environmentEl.classList.toggle('border-amber-200', !isProductionHost);
+}
           const hasOwnerRole = role === 'owner' || user.uid === SUPER_OWNER_UID || user.uid === RECOVERED_OWNER_UID;
           if (!hasOwnerRole) {
             const panePermissions = {
@@ -952,7 +1009,19 @@ Ans: B"></textarea>
     document.querySelectorAll('[data-studio-page]').forEach(button => {
       button.addEventListener('click', () => openStudioPage(button.dataset.studioPage));
     });
+    // Filter the existing sidebar sections as the administrator types.
+const studioSearch = document.getElementById('studioMenuSearch');
 
+if (studioSearch) {
+  studioSearch.addEventListener('input', () => {
+    const query = studioSearch.value.trim().toLocaleLowerCase();
+
+    document.querySelectorAll('[data-studio-page]').forEach(button => {
+      const matches = button.textContent.toLocaleLowerCase().includes(query);
+      button.hidden = !matches;
+    });
+  });
+}
     function switchStudioPane(paneId) {
       const isOwner = isPrimaryOwner();
       const panePermission = {
