@@ -723,11 +723,11 @@ document.addEventListener('DOMContentLoaded', () => {
   मोबाइल नंबर बदलने के लिए नया नंबर सत्यापित करना आवश्यक है।
 </p>
 
-<button type="button"
-  onclick="window.BishnoiAuth.openMobileAccountSettings()"
-  class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
-  📱 मोबाइल / पासवर्ड सेटिंग्स
-</button>
+
+<p class="text-[11px] text-stone-500">
+  मोबाइल नंबर बदलने की सुविधा नंबर सत्यापन लागू होने के बाद उपलब्ध होगी।
+</p>
+
 
 <label for="profEditLocation" class="block font-bold text-stone-700">गाँव / ज़िला</label>
 <input type="text" id="profEditLocation" maxlength="120"
@@ -738,6 +738,60 @@ document.addEventListener('DOMContentLoaded', () => {
   class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">
   💾 प्रोफ़ाइल सहेजें
 </button>
+        
+<div class="border-t border-stone-200 pt-4 space-y-3">
+  <h4 class="font-bold text-forest text-sm">
+    🔐 पासवर्ड बदलें
+  </h4>
+
+  <p class="text-[11px] text-stone-500">
+    केवल ईमेल/पासवर्ड वाले खातों के लिए। Google-only खाते का पासवर्ड Google खाते में बदलें।
+  </p>
+
+  <label for="profileCurrentPassword"
+    class="block font-semibold text-stone-700">
+    वर्तमान पासवर्ड
+  </label>
+  <input id="profileCurrentPassword"
+    type="password"
+    autocomplete="current-password"
+    class="w-full p-2.5 rounded-xl border border-stone-300"
+    placeholder="वर्तमान पासवर्ड">
+
+  <label for="profileNewPassword"
+    class="block font-semibold text-stone-700">
+    नया पासवर्ड
+  </label>
+  <input id="profileNewPassword"
+    type="password"
+    minlength="8"
+    autocomplete="new-password"
+    class="w-full p-2.5 rounded-xl border border-stone-300"
+    placeholder="कम-से-कम 8 अक्षर">
+
+  <label for="profileConfirmPassword"
+    class="block font-semibold text-stone-700">
+    नए पासवर्ड की पुष्टि करें
+  </label>
+  <input id="profileConfirmPassword"
+    type="password"
+    minlength="8"
+    autocomplete="new-password"
+    class="w-full p-2.5 rounded-xl border border-stone-300"
+    placeholder="नया पासवर्ड दोबारा लिखें">
+
+  <button type="button"
+    onclick="window.BishnoiAuth.changeProfilePassword()"
+    class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
+    🔑 पासवर्ड अपडेट करें
+  </button>
+
+  <p id="profilePasswordStatus"
+    role="status"
+    aria-live="polite"
+    class="text-xs text-stone-600"></p>
+</div>
+
         <a id="profileOwnerStudioLink" href="owner-studio.html" class="hidden w-full py-2.5 bg-amber-400 text-stone-950 text-center font-extrabold rounded-xl shadow">🛡️ ओनर स्टूडियो खोलें</a>
         <button onclick="window.BishnoiAuth.logout()" class="w-full py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200">लॉगआउट</button>
       </div>
