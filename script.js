@@ -3959,6 +3959,79 @@ window.renderExamVisibility = function renderExamVisibility() {
     authApi.closeAuthModal();
     setAuthMessage('आप Google से लॉगिन हैं। मोबाइल/पासवर्ड बाद में भी जोड़ सकते हैं।', 'info');
   };
+  
+authApi.changeProfilePassword = async function () {
+  const user = state.auth?.currentUser || state.user;
+  const status = byId('profilePasswordStatus');
+  const setStatus = message => {
+    if (status) status.textContent = message;
+  };
+
+  if (!user) return setStatus('पहले लॉगिन करें।');
+
+  const currentPassword = String(byId('profileCurrentPassword')?.value || '');
+  const newPassword = String(byId('profileNewPassword')?.value || '');
+  const confirmPassword = String(byId('profileConfirmPassword')?.value || '');
+
+  if (newPassword.length < 8) {
+    return setStatus('नया पासवर्ड कम-से-कम 8 अक्षरों का होना चाहिए।');
+  }
+
+  if (newPassword !== confirmPassword) {
+    return setStatus('दोनों नए पासवर्ड मेल नहीं खाते।');
+  }
+
+  const passwordProvider = (user.providerData || []).find(
+    item => item && item.providerId === 'password'
+  );
+
+  if (!passwordProvider) {
+    return setStatus('इस खाते में पासवर्ड लॉगिन सक्रिय नहीं है। Google खाते का पासवर्ड Google में बदलें।');
+  }
+
+  if (!currentPassword) {
+    return setStatus('वर्तमान पासवर्ड दर्ज करें।');
+  }
+
+  try {
+    const profile = state.profile || {};
+    const mobile = normalizeMobile(profile.mobile || '');
+    const loginEmail = user.email || (validMobile(mobile) ? hiddenEmail(mobile) : '');
+
+    if (!loginEmail) {
+      return setStatus('लॉगिन पहचान नहीं मिली। दोबारा लॉगिन करके प्रयास करें।');
+    }
+
+    const credential = firebase.auth.EmailAuthProvider.credential(
+      loginEmail,
+      currentPassword
+    );
+
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword);
+
+    ['profileCurrentPassword', 'profileNewPassword', 'profileConfirmPassword']
+      .forEach(id => {
+        const input = byId(id);
+        if (input) input.value = '';
+      });
+
+    setStatus('पासवर्ड सफलतापूर्वक बदल दिया गया।');
+  } catch (error) {
+    console.error('Profile password change failed:', error);
+
+    const messages = {
+      'auth/wrong-password': 'वर्तमान पासवर्ड गलत है।',
+      'auth/invalid-credential': 'वर्तमान पासवर्ड सही नहीं है।',
+      'auth/weak-password': 'नया पासवर्ड अधिक मजबूत रखें।',
+      'auth/requires-recent-login': 'दोबारा लॉगिन करके फिर प्रयास करें।',
+      'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचें।'
+    };
+
+    setStatus(messages[error.code] || 'पासवर्ड नहीं बदला जा सका। कृपया दोबारा लॉगिन करके प्रयास करें।');
+  }
+};
+
   authApi.saveProfile = async function () {
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();
