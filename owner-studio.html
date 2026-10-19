@@ -2933,19 +2933,6 @@ async function saveBulkQuestionDrafts() {
         d.manualReviewStatus = status;
         d.manualReviewCompleted = true;
 
-        if (published && d.uid) {
-          try {
-            // Deterministic ID prevents duplicate notices when a result is republished.
-            await pushNotification(d.uid, {
-              id: resultId + '_result_published',
-              title: '📣 आपका परीक्षा परिणाम घोषित हो गया',
-              body: (d.mode || examReviewCollection) + ' · अंतिम अंक: ' + value + '/' + total + (feedback.value.trim() ? ' · टिप्पणी: ' + feedback.value.trim() : ''),
-              type: 'exam-result'
-            });
-          } catch (notificationError) {
-            console.warn('Result saved but private result notification failed:', notificationError);
-          }
-        }
         if (showMessage) {
           showToast(published ? 'परिणाम अलग सुरक्षित संग्रह में प्रकाशित कर दिया गया।' :
             status === 'held' ? 'निजी जाँच सहेजी गई; परिणाम प्रकाशित नहीं है।' : 'निजी जाँच सहेजी गई; प्रकाशित परिणाम हटाया गया।');
