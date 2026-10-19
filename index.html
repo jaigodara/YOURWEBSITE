@@ -41,11 +41,14 @@
     body { background-color: #FAF6EE !important; padding-bottom: 90px !important; }
     .bnav-active {
       color: #143622 !important;
-      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
-      border-color: #F59E0B !important;
       font-weight: 800 !important;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
+    /* The selected background belongs to the icon pill, never the full tab/label. */
+    .bnav-mobile .bnav-active {
+      background: transparent !important;
+      border-color: transparent !important;
+      transform: none !important;
+      box-shadow: none !important;
     }
     .custom-scrollbar::-webkit-scrollbar { width: 5px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
