@@ -1587,12 +1587,16 @@ Ans: B"></textarea>
             if (!errors.length) parsed.push(question);
           });
 
-          const duplicates = duplicateQuestionIndexes(parsed);
-          duplicates.forEach(duplicate => {
-            const report = reports.find(item => item.row === duplicate.duplicate + 1);
-            if (report) {
+          const seenQuestionText = new Map();
+          reports.forEach(report => {
+            if (!report.valid) return;
+            const key = String(report.question || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+            if (!key) return;
+            if (seenQuestionText.has(key)) {
               report.valid = false;
-              report.error = 'डुप्लिकेट प्रश्न-पाठ; पहली बार पंक्ति ' + (duplicate.first + 1) + ' पर मिला।';
+              report.error = 'डुप्लिकेट प्रश्न-पाठ; पहली बार पंक्ति ' + seenQuestionText.get(key) + ' पर मिला।';
+            } else {
+              seenQuestionText.set(key, report.row);
             }
           });
           const invalidCount = reports.filter(item => !item.valid).length;
@@ -1638,7 +1642,7 @@ Ans: B"></textarea>
         zone.classList.remove('ring-2', 'ring-emerald-600');
         const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
         if (!file) return;
-        if (!/\\.(json|xlsx|xls|csv)$/i.test(file.name || '')) return showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
+        if (!/\.(json|xlsx|xls|csv)$/i.test(file.name || '')) return showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
         importQuestionExcel({ target: { files: [file], value: '' } });
       });
     })();
