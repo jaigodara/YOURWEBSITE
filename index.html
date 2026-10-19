@@ -707,15 +707,59 @@ document.addEventListener('DOMContentLoaded', () => {
             placeholder="पूरा नाम">
         </div>
 
-        <div>
-          <label for="profEditPhone" class="block font-bold text-stone-700 mb-1">पंजीकृत मोबाइल नंबर</label>
+        
+        <!-- Registered Mobile Number -->
+        <div class="border-t border-stone-200 pt-4 space-y-3">
+          <h4 class="font-bold text-forest text-sm">📱 मोबाइल नंबर प्रबंधन</h4>
+
+          <label for="profEditPhone" class="block font-bold text-stone-700">
+            वर्तमान पंजीकृत मोबाइल नंबर
+          </label>
           <input type="tel" id="profEditPhone" readonly aria-readonly="true"
             class="w-full p-2.5 rounded-xl border border-stone-300 bg-stone-100"
-            placeholder="पंजीकृत मोबाइल नंबर">
-          <p class="text-[11px] text-stone-500 mt-1">
-            मोबाइल नंबर बदलने के लिए नए नंबर का सत्यापन आवश्यक है।
+            placeholder="अभी कोई नंबर पंजीकृत नहीं है">
+
+          <label for="profileNewMobile" class="block font-semibold text-stone-700">
+            नया मोबाइल नंबर
+          </label>
+          <input type="tel" id="profileNewMobile" inputmode="numeric"
+            maxlength="10" autocomplete="tel-national"
+            class="w-full p-2.5 rounded-xl border border-stone-300"
+            placeholder="10 अंकों का मोबाइल नंबर">
+
+          <p class="text-[11px] text-stone-500">
+            नंबर बदलने पर नए नंबर से लॉगिन करने की सुविधा प्रभावित हो सकती है।
+            बदलाव से पहले खाते की पहचान सत्यापित की जाएगी।
           </p>
+
+          <label for="profileMobileCurrentPassword"
+            class="block font-semibold text-stone-700">
+            वर्तमान पासवर्ड (पहले से जुड़े मोबाइल वाले खाते के लिए)
+          </label>
+          <input id="profileMobileCurrentPassword" type="password"
+            autocomplete="current-password"
+            class="w-full p-2.5 rounded-xl border border-stone-300"
+            placeholder="वर्तमान पासवर्ड">
+
+          <label for="profileMobileNewPassword"
+            class="block font-semibold text-stone-700">
+            नया पासवर्ड (पहली बार मोबाइल जोड़ने के लिए)
+          </label>
+          <input id="profileMobileNewPassword" type="password"
+            minlength="8" autocomplete="new-password"
+            class="w-full p-2.5 rounded-xl border border-stone-300"
+            placeholder="कम-से-कम 8 अक्षर">
+
+          <button type="button"
+            onclick="window.BishnoiAuth.changeProfileMobile()"
+            class="w-full py-2.5 bg-forest text-white font-bold rounded-xl shadow">
+            📱 मोबाइल नंबर जोड़ें / बदलें
+          </button>
+
+          <p id="profileMobileStatus" role="status" aria-live="polite"
+            class="text-xs text-stone-600"></p>
         </div>
+
 
         <div>
           <label for="profEditLocation" class="block font-bold text-stone-700 mb-1">गाँव / ज़िला</label>
