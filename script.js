@@ -4032,6 +4032,162 @@ authApi.changeProfilePassword = async function () {
   }
 };
 
+authApi.changeProfileMobile = async function () {
+  const user = state.auth?.currentUser || state.user;
+  const status = byId('profileMobileStatus');
+
+  const setStatus = message => {
+    if (status) status.textContent = message;
+  };
+
+  if (!user || !state.db) {
+    return setStatus('पहले लॉगिन करें।');
+  }
+
+  const oldMobile = normalizeMobile(state.profile?.mobile || '');
+  const newMobile = normalizeMobile(byId('profileNewMobile')?.value || '');
+  const currentPassword = String(
+    byId('profileMobileCurrentPassword')?.value || ''
+  );
+  const newPassword = String(
+    byId('profileMobileNewPassword')?.value || ''
+  );
+
+  if (!validMobile(newMobile)) {
+    return setStatus('सही 10 अंकों का नया मोबाइल नंबर दर्ज करें।');
+  }
+
+  if (newMobile === oldMobile) {
+    return setStatus('नया नंबर वर्तमान नंबर से अलग होना चाहिए।');
+  }
+
+  const hasPasswordProvider = (user.providerData || []).some(
+    item => item?.providerId === 'password'
+  );
+
+  if (hasPasswordProvider && !currentPassword) {
+    return setStatus('वर्तमान पासवर्ड दर्ज करें।');
+  }
+
+  if (!hasPasswordProvider && newPassword.length < 8) {
+    return setStatus(
+      'इस खाते में पासवर्ड लॉगिन नहीं है। मोबाइल लॉगिन जोड़ने के लिए कम-से-कम 8 अक्षरों का नया पासवर्ड दर्ज करें।'
+    );
+  }
+
+  if (!oldMobile && newPassword.length < 8) {
+    return setStatus('पहली बार मोबाइल जोड़ने के लिए नया पासवर्ड दर्ज करें।');
+  }
+
+  const oldEmail = user.email || (validMobile(oldMobile) ? hiddenEmail(oldMobile) : '');
+  const newEmail = hiddenEmail(newMobile);
+  let emailChanged = false;
+
+  try {
+    if (hasPasswordProvider) {
+      const credential = firebase.auth.EmailAuthProvider.credential(
+        oldEmail,
+        currentPassword
+      );
+      await user.reauthenticateWithCredential(credential);
+    }
+
+    const newIndexRef = state.db.collection('mobileIndex').doc(newMobile);
+    const oldIndexRef = oldMobile
+      ? state.db.collection('mobileIndex').doc(oldMobile)
+      : null;
+    const userRef = state.db.collection('users').doc(user.uid);
+
+    const newIndex = await newIndexRef.get();
+
+    if (newIndex.exists && newIndex.data()?.uid !== user.uid) {
+      return setStatus('यह मोबाइल नंबर पहले से किसी दूसरे खाते से जुड़ा है।');
+    }
+
+    if (newIndex.exists && newIndex.data()?.uid === user.uid && newMobile !== oldMobile) {
+      return setStatus('इस नंबर का रिकॉर्ड पहले से मौजूद है। Owner से सहायता लें।');
+    }
+
+    if (hasPasswordProvider) {
+      await user.updateEmail(newEmail);
+      emailChanged = true;
+    } else {
+      const credential = firebase.auth.EmailAuthProvider.credential(
+        newEmail,
+        newPassword
+      );
+      await user.linkWithCredential(credential);
+      emailChanged = true;
+    }
+
+    try {
+      const batch = state.db.batch();
+
+      batch.set(newIndexRef, { uid: user.uid });
+
+      if (oldIndexRef) {
+        batch.delete(oldIndexRef);
+      }
+
+      batch.update(userRef, {
+        mobile: newMobile,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      await batch.commit();
+    } catch (firestoreError) {
+      // Try to restore the previous login identifier if Firestore rejects the update.
+      try {
+        if (hasPasswordProvider && oldEmail) {
+          await user.updateEmail(oldEmail);
+        } else if (!hasPasswordProvider) {
+          const provider = user.providerData?.find(
+            item => item?.providerId === 'password'
+          );
+          if (provider) {
+            await user.unlink('password');
+          }
+        }
+      } catch (rollbackError) {
+        console.error('Mobile update rollback failed:', rollbackError);
+      }
+      throw firestoreError;
+    }
+
+    state.profile = { ...(state.profile || {}), mobile: newMobile };
+
+    const phoneField = byId('profEditPhone');
+    if (phoneField) phoneField.value = newMobile;
+
+    ['profileNewMobile', 'profileMobileCurrentPassword', 'profileMobileNewPassword']
+      .forEach(id => {
+        const field = byId(id);
+        if (field) field.value = '';
+      });
+
+    setStatus('मोबाइल नंबर सफलतापूर्वक बदल दिया गया।');
+  } catch (error) {
+    console.error('Profile mobile update failed:', error);
+
+    const messages = {
+      'auth/wrong-password': 'वर्तमान पासवर्ड गलत है।',
+      'auth/invalid-credential': 'वर्तमान पासवर्ड सही नहीं है।',
+      'auth/requires-recent-login': 'दोबारा लॉगिन करके फिर प्रयास करें।',
+      'auth/email-already-in-use': 'यह मोबाइल नंबर पहले से किसी खाते से जुड़ा है।',
+      'auth/credential-already-in-use': 'यह मोबाइल नंबर पहले से किसी दूसरे खाते से जुड़ा है।',
+      'auth/weak-password': 'नया पासवर्ड कम-से-कम 8 अक्षरों का होना चाहिए।',
+      'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचें।'
+    };
+
+    setStatus(
+      messages[error.code] ||
+      (error.code === 'permission-denied'
+        ? 'Firestore rules ने बदलाव रोका। नीचे दिए गए rules बदलाव भी लागू करें।'
+        : 'मोबाइल नंबर अपडेट नहीं हो सका। Console में error देखें।')
+    );
+  }
+};
+
   authApi.saveProfile = async function () {
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();
