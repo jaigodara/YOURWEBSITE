@@ -3492,7 +3492,19 @@ async function saveBulkQuestionDrafts() {
       if (status) status.textContent = 'परीक्षा चुनी गई है; रिकॉर्ड अभी लोड नहीं हुए हैं।';
     }
     window.resetExamSubmissionQueue = resetExamSubmissionQueue;
+function clearExamReviewFilters() {
+  const dateInput = document.getElementById('reviewSubmissionDate');
+  const statusInput = document.getElementById('reviewSubmissionStatus');
+  const searchInput = document.getElementById('reviewSubmissionSearch');
 
+  if (dateInput) dateInput.value = '';
+  if (statusInput) statusInput.value = 'all';
+  if (searchInput) searchInput.value = '';
+
+  loadExamSubmissions();
+}
+
+window.clearExamReviewFilters = clearExamReviewFilters;
     function printAllExamReviewSheets() {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('उत्तर-पत्र निर्यात की अनुमति नहीं है।');
       if (!Array.isArray(examReviewQueue) || !examReviewQueue.length) {
@@ -3598,11 +3610,69 @@ async function saveBulkQuestionDrafts() {
           } else if (ar || br) return ar ? -1 : 1;
           return timestampMillis(b.submittedAt || b.createdAt) - timestampMillis(a.submittedAt || a.createdAt);
         });
-        examReviewQueue = rows.filter(d => {
-          const haystack = [d.name, d.fullName, d.uid, d.rollNumber, d.email, d.mode, d.verificationStatus].join(' ').toLowerCase();
-          return !queryText || haystack.includes(queryText);
-        });
+               const selectedDate =
+          document.getElementById('reviewSubmissionDate')?.value || '';
 
+        const selectedStatus =
+          document.getElementById('reviewSubmissionStatus')?.value || 'all';
+
+        examReviewQueue = rows.filter(d => {
+          const haystack = [
+            d.name,
+            d.fullName,
+            d.displayName,
+            d.uid,
+            d.rollNumber,
+            d.rollNo,
+            d.email,
+            d.phone,
+            d.mobile,
+            d.mode,
+            d.verificationStatus
+          ].join(' ').toLowerCase();
+
+          if (queryText && !haystack.includes(queryText)) {
+            return false;
+          }
+
+          const submittedAt = d.submittedAt || d.createdAt;
+          const submittedMs = submittedAt
+            ? timestampMillis(submittedAt)
+            : 0;
+
+          if (selectedDate) {
+            if (!submittedMs) return false;
+
+            const submittedDate = new Date(submittedMs);
+            const year = submittedDate.getFullYear();
+            const month = String(
+              submittedDate.getMonth() + 1
+            ).padStart(2, '0');
+            const day = String(
+              submittedDate.getDate()
+            ).padStart(2, '0');
+
+            const localDate = `${year}-${month}-${day}`;
+
+            if (localDate !== selectedDate) {
+              return false;
+            }
+          }
+
+          const isEvaluated =
+            d.manualReviewStatus === 'published' ||
+            d.manualReviewStatus === 'verified';
+
+          if (selectedStatus === 'evaluated' && !isEvaluated) {
+            return false;
+          }
+
+          if (selectedStatus === 'pending' && isEvaluated) {
+            return false;
+          }
+
+          return true;
+        });
         const modeToCollection = { main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' };
         const questionCollections = [...new Set(examReviewQueue.map(d =>
           d.questionSetKey || modeToCollection[d.mode] ||
