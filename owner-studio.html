@@ -445,21 +445,87 @@
         </button>
       </div>
 
-      <!-- BULK QUESTION BANK IMPORTER -->
-      <div id="ownerQuestionBankPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="font-yatra text-base text-forest">⚡ बल्क प्रश्न बैंक इम्पोर्टर (Bulk Importer)</h3>
-          <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Regex Parser</span>
+      <!-- MOBILE-FIRST BULK QUESTION BANK WORKSPACE -->
+      <section id="ownerQuestionBankPanel" class="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
+        <div class="bg-gradient-to-br from-forest to-emerald-950 p-4 sm:p-5 text-white">
+          <div class="flex items-start gap-3">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl" aria-hidden="true">🧩</div>
+            <div class="min-w-0 flex-1">
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                <span class="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-950">Owner Studio</span>
+                <span class="text-[10px] font-semibold text-emerald-100">मोबाइल के लिए आसान</span>
+              </div>
+              <h3 class="font-yatra text-lg leading-snug sm:text-xl">प्रश्न बैंक बनाएं</h3>
+              <p class="mt-1 text-xs leading-relaxed text-emerald-50">एक साथ कई प्रश्न जोड़ें, पहले जाँचें और फिर सुरक्षित रूप से Draft में सहेजें।</p>
+            </div>
+          </div>
+          <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div class="rounded-xl border border-white/15 bg-white/10 px-1.5 py-2">
+              <span class="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-extrabold text-forest">1</span>
+              <span class="block text-[10px] font-semibold leading-tight">परीक्षा चुनें</span>
+            </div>
+            <div class="rounded-xl border border-white/15 bg-white/10 px-1.5 py-2">
+              <span class="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-extrabold text-forest">2</span>
+              <span class="block text-[10px] font-semibold leading-tight">प्रश्न जोड़ें</span>
+            </div>
+            <div class="rounded-xl border border-white/15 bg-white/10 px-1.5 py-2">
+              <span class="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-extrabold text-forest">3</span>
+              <span class="block text-[10px] font-semibold leading-tight">जाँचें व Draft</span>
+            </div>
+          </div>
         </div>
-        <p class="text-xs text-stone-500">पहले परीक्षा चुनें, फिर सभी प्रश्न इसी प्रारूप में पेस्ट करें। सही विकल्प Ans में A/B/C/D लिखें। खाली पंक्ति अगले प्रश्न को अलग करती है।</p>
-        <label class="block text-xs font-bold text-stone-700">प्रश्न किस परीक्षा में जोड़ने हैं?</label>
-        <select id="bulkQuestionTarget" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-50">
-          <option value="quiz">दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
-          <option value="mockExam_1">Mock Exam 1</option>
-          <option value="mockExam_2">Mock Exam 2</option>
-          <option value="mainExamQuestions">Main Exam</option>
-        </select>
-        <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
+
+        <div class="space-y-5 p-3 sm:p-5">
+          <div class="space-y-2">
+            <label for="bulkQuestionTarget" class="block text-sm font-extrabold text-forest">किस परीक्षा के लिए प्रश्न हैं?</label>
+            <select id="bulkQuestionTarget" class="min-h-12 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-3 text-sm font-semibold text-stone-800 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+              <option value="quiz">📘 दैनिक ज्ञान परीक्षा (Daily Quiz)</option>
+              <option value="mockExam_1">📝 Mock Exam 1</option>
+              <option value="mockExam_2">📝 Mock Exam 2</option>
+              <option value="mainExamQuestions">🛡️ Main Exam</option>
+            </select>
+            <p class="text-[11px] leading-relaxed text-stone-500">चयन ध्यान से करें। प्रश्न उसी परीक्षा के Draft में सहेजे जाएँगे।</p>
+          </div>
+
+          <div class="space-y-2">
+            <div>
+              <h4 class="text-sm font-extrabold text-stone-800">प्रश्न जोड़ने का तरीका चुनें</h4>
+              <p class="mt-1 text-xs leading-relaxed text-stone-500">मोबाइल पर फ़ाइल चुनें या प्रश्न सीधे नीचे पेस्ट करें। दोनों तरीकों में पहले Preview होगा।</p>
+            </div>
+
+            <div id="questionImportDropzone" class="space-y-3 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/70 p-3 sm:p-4 transition-colors">
+              <div class="flex items-start gap-3">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-xl shadow-sm" aria-hidden="true">📄</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-bold text-forest">Excel / CSV / JSON फ़ाइल</p>
+                  <p class="mt-0.5 text-[11px] leading-relaxed text-stone-600">अधिकतम 450 प्रश्न और 8 MB तक की फ़ाइल।</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button type="button" onclick="downloadQuestionTemplate()" class="min-h-12 rounded-xl border border-emerald-800 bg-white px-3 py-3 text-sm font-bold text-forest active:scale-[0.99]">⬇️ Excel Template लें</button>
+                <label class="flex min-h-12 cursor-pointer items-center justify-center rounded-xl bg-emerald-800 px-3 py-3 text-center text-sm font-bold text-white active:scale-[0.99]">
+                  <span>📤 फ़ाइल चुनें</span>
+                  <input id="questionExcelFile" type="file" accept=".json,.xlsx,.xls,.csv,application/json" class="sr-only" onchange="importQuestionExcel(event)">
+                </label>
+              </div>
+              <p id="questionExcelStatus" class="rounded-xl bg-white/80 p-2.5 text-xs leading-relaxed text-stone-700" aria-live="polite">फ़ाइल चुनने के बाद हर पंक्ति की जाँच होगी। कोई प्रश्न अपने-आप प्रकाशित नहीं होगा।</p>
+              <div id="questionImportValidation" class="hidden space-y-3 rounded-xl border border-stone-200 bg-white p-3 text-xs text-stone-700" aria-live="polite">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div class="rounded-xl bg-stone-100 p-2"><strong id="questionImportTotal" class="block text-lg tabular-nums">0</strong><span class="text-[10px]">कुल पंक्तियाँ</span></div>
+                  <div class="rounded-xl bg-emerald-50 p-2"><strong id="questionImportValid" class="block text-lg tabular-nums text-emerald-800">0</strong><span class="text-[10px]">सही</span></div>
+                  <div class="rounded-xl bg-red-50 p-2"><strong id="questionImportInvalid" class="block text-lg tabular-nums text-red-800">0</strong><span class="text-[10px]">त्रुटियाँ</span></div>
+                </div>
+                <div id="questionImportValidationRows" class="max-h-64 space-y-2 overflow-y-auto"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div>
+              <h4 class="text-sm font-extrabold text-stone-800">या प्रश्न यहाँ पेस्ट करें</h4>
+              <p class="mt-1 text-xs leading-relaxed text-stone-500">हर प्रश्न के बीच खाली पंक्ति रखें। सही उत्तर के लिए <span class="rounded bg-stone-100 px-1.5 py-0.5 font-mono font-bold text-forest">Ans: A</span> जैसा लिखें।</p>
+            </div>
+            <textarea id="bulkQuizInput" rows="8" class="min-h-48 w-full resize-y rounded-2xl border border-stone-300 bg-stone-50 p-3 font-mono text-sm leading-relaxed focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-100" autocapitalize="sentences" spellcheck="false" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
 C) 1857 ईस्वी
@@ -472,41 +538,49 @@ B) 29
 C) 36
 D) 108
 Ans: B"></textarea>
-        <div id="questionImportDropzone" class="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-dashed border-emerald-500 bg-emerald-50 p-3 transition-colors">
-          <button type="button" onclick="downloadQuestionTemplate()" class="min-h-[48px] rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-bold text-forest">⬇️ Excel Template डाउनलोड</button>
-          <label class="flex min-h-[48px] cursor-pointer items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-center text-xs font-bold text-white">📤 JSON / Excel / CSV चुनें
-            <input id="questionExcelFile" type="file" accept=".json,.xlsx,.xls,.csv,application/json" class="sr-only" onchange="importQuestionExcel(event)">
-          </label>
-          <p id="questionExcelStatus" class="sm:col-span-2 text-[11px] leading-relaxed text-emerald-950">फ़ाइल यहाँ drag-and-drop करें या चुनें। पहले Preview और validation होगा; बिना जाँच प्रश्न प्रकाशित नहीं होंगे।</p>
-          <div id="questionImportValidation" class="sm:col-span-2 hidden rounded-xl border border-stone-200 bg-white p-3 text-xs text-stone-700" aria-live="polite">
-            <div class="grid grid-cols-3 gap-2 text-center">
-              <div class="rounded-lg bg-stone-100 p-2"><strong id="questionImportTotal" class="block text-base">0</strong><span>कुल पंक्तियाँ</span></div>
-              <div class="rounded-lg bg-emerald-50 p-2"><strong id="questionImportValid" class="block text-base text-emerald-800">0</strong><span>सही</span></div>
-              <div class="rounded-lg bg-red-50 p-2"><strong id="questionImportInvalid" class="block text-base text-red-800">0</strong><span>त्रुटियाँ</span></div>
-            </div>
-            <div id="questionImportValidationRows" class="mt-3 max-h-64 space-y-2 overflow-auto"></div>
+            <p class="text-[11px] leading-relaxed text-stone-500">टिप: Template डाउनलोड करके Excel में प्रश्न भरना सबसे आसान तरीका है।</p>
           </div>
-        </div>
-        <button onclick="importBulkQuestions()" class="w-full py-2.5 bg-terracotta hover:bg-amber-800 text-white font-bold text-xs rounded-xl shadow transition">
-          👀 पहले सभी प्रश्नों का Preview / जाँच करें
-        </button>
-        <section id="bulkQuestionPreviewSection" class="hidden pt-3 space-y-3" aria-live="polite">
-          <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-            हर प्रश्न, चारों विकल्प और सही उत्तर जाँचें। गलत प्रश्न हटाएँ या यहीं सुधारें। नीचे का बटन केवल Draft में सहेजेगा; विद्यार्थियों के लिए प्रकाशित करने का अलग बटन होगा।
-          </div>
-          <div id="bulkQuestionPreview" class="space-y-3"></div>
-          <button id="saveBulkQuestionDraftsButton" type="button" onclick="saveBulkQuestionDrafts()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">
-            💾 जाँचे गए प्रश्न Draft में सहेजें
+
+          <button type="button" onclick="importBulkQuestions()" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99]">
+            <span aria-hidden="true">👀</span> प्रश्न जाँचें और Preview देखें
           </button>
-        </section>
-        <div class="pt-2 border-t border-stone-100">
-          <div class="flex items-center justify-between mb-1.5">
-            <h4 class="font-bold text-xs text-forest">वर्तमान प्रश्न बैंक सूची:</h4>
-            <button onclick="clearAllQuizQuestions()" class="text-xs text-red-600 font-bold hover:underline">सभी प्रश्न हटाएं</button>
-          </div>
-          <label class="block text-xs text-stone-600">प्रश्न खोजें<input id="adminQuizSearch" type="search" oninput="filterAdminQuestionList()" placeholder="प्रश्न के शब्द लिखें…" class="mt-1 w-full rounded-lg border border-stone-300 p-2.5 text-xs"></label><p id="adminQuizListStatus" class="text-[11px] text-stone-500">प्रश्न सूची लोड हो रही है…</p><div id="adminQuizList" class="space-y-1.5 text-xs max-h-80 overflow-y-auto custom-scroll"></div>
+
+          <section id="bulkQuestionPreviewSection" class="hidden space-y-3 border-t border-stone-100 pt-4" aria-live="polite">
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <div class="flex items-start gap-2">
+                <span class="text-lg" aria-hidden="true">🔎</span>
+                <div>
+                  <h4 class="text-sm font-extrabold text-amber-950">सहेजने से पहले जाँचें</h4>
+                  <p class="mt-1 text-xs leading-relaxed text-amber-900">प्रश्न, चारों विकल्प और सही उत्तर सुधार सकते हैं। हटाए गए प्रश्न Draft में नहीं जाएँगे।</p>
+                </div>
+              </div>
+            </div>
+            <div id="bulkQuestionPreview" class="space-y-3"></div>
+            <button id="saveBulkQuestionDraftsButton" type="button" onclick="saveBulkQuestionDrafts()" class="min-h-12 w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99]">
+              💾 जाँचे गए प्रश्न Draft में सहेजें
+            </button>
+            <p class="text-center text-[11px] leading-relaxed text-stone-500">Draft सहेजना प्रकाशित करना नहीं है। विद्यार्थियों को दिखाने से पहले प्रकाशित करने की मौजूदा प्रक्रिया पूरी करें।</p>
+          </section>
+
+          <details class="group rounded-2xl border border-stone-200 bg-stone-50">
+            <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-extrabold text-forest">
+              <span>📚 वर्तमान प्रश्न बैंक और प्रबंधन</span>
+              <span class="text-lg transition-transform group-open:rotate-180" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="space-y-3 border-t border-stone-200 p-3">
+              <label class="block text-xs font-bold text-stone-700" for="adminQuizSearch">प्रश्न खोजें
+                <input id="adminQuizSearch" type="search" oninput="filterAdminQuestionList()" placeholder="प्रश्न के शब्द लिखें…" class="mt-1.5 min-h-11 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
+              </label>
+              <p id="adminQuizListStatus" class="text-xs leading-relaxed text-stone-500">प्रश्न सूची लोड हो रही है…</p>
+              <div id="adminQuizList" class="max-h-80 space-y-2 overflow-y-auto"></div>
+              <div class="rounded-xl border border-red-200 bg-red-50 p-3">
+                <p class="text-xs leading-relaxed text-red-800">सावधानी: यह कार्रवाई प्रश्न बैंक के सभी प्रश्न हटा सकती है। केवल ज़रूरत होने पर उपयोग करें.</p>
+                <button type="button" onclick="clearAllQuizQuestions()" class="mt-2 min-h-10 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-extrabold text-red-700">सभी क्विज़ प्रश्न हटाएँ…</button>
+              </div>
+            </div>
+          </details>
         </div>
-      </div>
+      </section>
 
     </div>
 
