@@ -467,10 +467,20 @@ try {
 
 async function claimPendingEditorInvitation(user) {
   if (!user || !user.uid) return null;
-  // Only a verified Firebase Auth phone can discover or accept an invitation.
-  const phoneDigits = String(user.phoneNumber || '').replace(/\D/g, '');
-  const verifiedPhone = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '';
-  if (!verifiedPhone) return null;
+  // This project currently authenticates users with the existing mobile/password
+  // account linked to Google, not Firebase SMS Phone Auth. Bind the invitation to
+  // the immutable mobileIndex record for the currently signed-in Firebase UID.
+  const authPhoneDigits = String(user.phoneNumber || '').replace(/\D/g, '');
+  const authPhone = authPhoneDigits.length >= 10 ? authPhoneDigits.slice(-10) : '';
+  const profilePhone = normalizeStudentPhone(
+    state.profile?.mobile || state.profile?.phone || state.profile?.verifiedPhone || ''
+  );
+  const candidatePhone = authPhone || profilePhone;
+  if (!candidatePhone || candidatePhone.length !== 10) return null;
+  const phoneIndexRef = collection('mobileIndex').doc(candidatePhone);
+  const invitePhoneIndex = await phoneIndexRef.get().catch(() => null);
+  if (!invitePhoneIndex?.exists || invitePhoneIndex.data()?.uid !== user.uid) return null;
+  const verifiedPhone = candidatePhone;
   const phoneE164 = '+91' + verifiedPhone;
   const invitationId = 'phone_' + phoneE164;
   const inviteRef = collection('pending_editors').doc(invitationId);
@@ -483,6 +493,7 @@ async function claimPendingEditorInvitation(user) {
     const invitation = inviteSnapshot.data() || {};
     if (invitation.status !== 'pending' || String(invitation.phoneE164 || '') !== phoneE164 ||
         normalizeStudentPhone(invitation.phone || '') !== verifiedPhone ||
+        invitation.targetUid !== user.uid ||
         !invitation.permissions || typeof invitation.permissions !== 'object') return null;
     const permissionLabels = [
       invitation.permissions.media === true ? 'Media/PDF/Audio' : '',
@@ -2816,6 +2827,12 @@ window.renderExamVisibility = function renderExamVisibility() {
       button.disabled = true;
 
       try {
+        const phoneIndex = await collection('mobileIndex').doc(phone).get();
+        if (!phoneIndex.exists || !phoneIndex.data()?.uid) {
+          if (status) status.textContent = 'इस फोन नंबर का Bishnoism account पहले register/login होना चाहिए। सुरक्षा के लिए बिना मौजूदा account के invitation नहीं भेजा गया।';
+          return;
+        }
+        const targetUid = String(phoneIndex.data().uid);
         const phoneE164 = '+91' + phone;
         const invitationId = 'phone_' + phoneE164;
         const inviteRef = collection('pending_editors').doc(invitationId);
@@ -2830,10 +2847,10 @@ window.renderExamVisibility = function renderExamVisibility() {
         }
         await inviteRef.set({
           fullName: name, phone, phoneE164, email: email || '', permissions,
-          status: 'pending', createdBy: state.user.uid,
+          targetUid, status: 'pending', createdBy: state.user.uid,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        if (status) status.textContent = 'Invitation सेव हो गया। संबंधित user को अगली बार इसी verified phone से login करने पर Accept/Decline सूचना दिखेगी।';
+        if (status) status.textContent = 'Invitation सेव हो गया। संबंधित registered user को अगली बार अपने Bishnoism account में login करने पर Accept/Decline prompt दिखेगा।';
         host.querySelector('[data-editor-name]').value = '';
         host.querySelector('[data-editor-phone]').value = '';
         host.querySelector('[data-editor-email]').value = '';
