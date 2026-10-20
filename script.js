@@ -1299,20 +1299,35 @@ if (cardRect.width === 0 || cardRect.height === 0) {
   height: surface.scrollHeight,
   windowWidth: Math.max(window.innerWidth, surface.scrollWidth),
   windowHeight: Math.max(window.innerHeight, surface.scrollHeight),
-  onclone: clonedDocument => {
-    const clonedSurface =
-      clonedDocument.getElementById('bishnoiAdmitCardCapture');
+ onclone: clonedDocument => {
+  const clonedSurface =
+    clonedDocument.getElementById('bishnoiAdmitCardCapture');
 
-    if (clonedSurface) {
-      clonedSurface.style.setProperty('position', 'absolute');
-      clonedSurface.style.setProperty('left', '0', 'important');
-      clonedSurface.style.setProperty('top', '0', 'important');
-      clonedSurface.style.setProperty('opacity', '1', 'important');
-      clonedSurface.style.setProperty('z-index', 'auto', 'important');
-    }
+  if (!clonedSurface) {
+    throw new Error('Admit-card element missing from PDF clone.');
   }
-});
 
+  clonedSurface.style.setProperty('position', 'fixed', 'important');
+  clonedSurface.style.setProperty('left', '0', 'important');
+  clonedSurface.style.setProperty('top', '0', 'important');
+  clonedSurface.style.setProperty('width', '794px', 'important');
+  clonedSurface.style.setProperty('display', 'block', 'important');
+  clonedSurface.style.setProperty('visibility', 'visible', 'important');
+  clonedSurface.style.setProperty('opacity', '1', 'important');
+  clonedSurface.style.setProperty('z-index', 'auto', 'important');
+
+  clonedSurface.querySelectorAll('*').forEach(element => {
+    element.style.setProperty('visibility', 'visible', 'important');
+    element.style.setProperty('opacity', '1', 'important');
+    element.style.setProperty(
+      '-webkit-text-fill-color',
+      'currentColor',
+      'important'
+    );
+    element.style.setProperty('text-shadow', 'none', 'important');
+    element.style.setProperty('mix-blend-mode', 'normal', 'important');
+  });
+}
 if (!canvas.width || !canvas.height) {
   throw new Error(
     'PDF canvas खाली है: ' +
