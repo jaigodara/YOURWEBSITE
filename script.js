@@ -1925,11 +1925,30 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['mockExam2Card', c.mock2Visible !== false],
     ['mainExamSection', c.mainExamVisible !== false],
     ['dailyQuizSection', c.dailyQuizVisible !== false],
-    ['examPortalCard', c.examPortalVisible !== false],
+    ['mainDailyQuizCta', c.dailyQuizVisible !== false],
+    ['mainDailyQuizResultsCta', c.dailyQuizResultsVisible !== false],
+    ['examPortalCard', c.separateExamPortalVisible !== false && c.examPortalVisible !== false],
     ['myResultsPanel', c.resultsVisible !== false]
   ];
 
+  // Apply the Owner Studio visibility settings to the main-site CTA cards as
+  // well as the exam controls. Missing settings default to visible for
+  // backward compatibility; only an explicit false hides a feature.
   features.forEach(([id, visible]) => setVisible(id, visible));
+
+  // Also support future cards marked with data-owner-visibility without
+  // requiring another bespoke visibility entry for every card.
+  const visibilityByKey = {
+    dailyQuizVisible: c.dailyQuizVisible !== false,
+    dailyQuizResultsVisible: c.dailyQuizResultsVisible !== false,
+    separateExamPortalVisible: c.separateExamPortalVisible !== false && c.examPortalVisible !== false
+  };
+  document.querySelectorAll('[data-owner-visibility]').forEach(el => {
+    const key = el.getAttribute('data-owner-visibility');
+    if (Object.prototype.hasOwnProperty.call(visibilityByKey, key)) {
+      setVisible(el.id, visibilityByKey[key]);
+    }
+  });
 
   // Exam visibility is not maintenance mode.
   // Do not show year-round update announcements just because
