@@ -303,10 +303,18 @@
             <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option>
           </select>
         </label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <label class="block text-sm font-bold text-stone-700">वर्ष<select id="ownerExportYear" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="">सभी वर्ष</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option><option value="2032">2032</option><option value="2033">2033</option><option value="2034">2034</option><option value="2035">2035</option></select></label>
+          <label class="block text-sm font-bold text-stone-700">महीना<select id="ownerExportMonth" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="">सभी महीने</option><option value="01">जनवरी</option><option value="02">फ़रवरी</option><option value="03">मार्च</option><option value="04">अप्रैल</option><option value="05">मई</option><option value="06">जून</option><option value="07">जुलाई</option><option value="08">अगस्त</option><option value="09">सितंबर</option><option value="10">अक्टूबर</option><option value="11">नवंबर</option><option value="12">दिसंबर</option></select></label>
+          <label class="block text-sm font-bold text-stone-700">तारीख़ से<input id="ownerExportFromDate" type="date" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"></label>
+          <label class="block text-sm font-bold text-stone-700">तारीख़ तक<input id="ownerExportToDate" type="date" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"></label>
+        </div>
+        <p class="text-xs text-stone-500">वर्ष, महीना और तारीख़ फ़िल्टर PDF, Excel और CSV पर लागू होंगे। JSON पूरा बैकअप रहेगा।</p>
         <p class="text-sm font-bold text-stone-700">2. फ़ाइल का फ़ॉर्मेट चुनें</p>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
           <button type="button" data-export-format="xlsx" onclick="exportOwnerData('xlsx')" class="rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">📊 Excel (.xlsx)</button>
           <button type="button" data-export-format="csv" onclick="exportOwnerData('csv')" class="rounded-xl border border-forest px-4 py-3 text-sm font-extrabold text-forest">📄 CSV फ़ाइल</button>
+          <button type="button" data-export-format="pdf" onclick="exportOwnerData('pdf')" class="rounded-xl border border-terracotta px-4 py-3 text-sm font-extrabold text-terracotta">📕 PDF रिपोर्ट</button>
           <button type="button" data-export-format="json" onclick="exportOwnerData('json')" class="rounded-xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-stone-950">🛡️ पूरा JSON बैकअप</button>
         </div>
         <p id="ownerExportStatus" class="text-sm text-stone-600" aria-live="polite">बड़ी सूचियाँ पेज-दर-पेज पढ़ी जाएँगी। निजी विद्यार्थी डेटा केवल सुरक्षित डिवाइस पर डाउनलोड करें।</p>
@@ -459,6 +467,8 @@
           <option value="mockExam_2">Mock Exam 2</option>
           <option value="mainExamQuestions">Main Exam</option>
         </select>
+        <label class="block text-xs font-bold text-stone-700">प्रश्न सेट चुनें</label>
+        <select id="bulkQuestionSet" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-50"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select>
         <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
@@ -631,6 +641,16 @@ Ans: B"></textarea>
         <label class="block text-xs font-bold text-stone-700">परीक्षा की डिफ़ॉल्ट अवधि (मिनट)
           <input id="ownerExamDuration" type="number" min="1" max="360" value="120" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300">
         </label>
+        <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-3">
+          <h4 class="font-bold text-sm text-forest">📚 विद्यार्थियों के लिए सक्रिय प्रश्न सेट</h4>
+          <p class="text-xs text-stone-600">हर परीक्षा के लिए सक्रिय सेट चुनें। पुराने प्रश्न जिनमें Set दर्ज नहीं है, वे Set 1 में माने जाएँगे।</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="text-xs font-bold text-stone-700">दैनिक क्विज़<select id="ownerQuizQuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
+            <label class="text-xs font-bold text-stone-700">मॉक परीक्षा 1<select id="ownerMock1QuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
+            <label class="text-xs font-bold text-stone-700">मॉक परीक्षा 2<select id="ownerMock2QuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
+            <label class="text-xs font-bold text-stone-700">मुख्य परीक्षा<select id="ownerMainQuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
+          </div>
+        </div>
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
           <div><h4 class="font-yatra text-sm text-forest">⏳ परीक्षा शुरू होने का समय तय करें</h4><p class="text-[11px] text-stone-600 mt-1">तारीख और समय चुनें। खाली छोड़ने पर परीक्षा बिना तय समय के उपलब्ध रहेगी। समय आपके डिवाइस के स्थानीय समय क्षेत्र के अनुसार सहेजा जाएगा।</p></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -759,12 +779,12 @@ Ans: B"></textarea>
         <input id="notificationTitle" maxlength="100" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="सूचना का शीर्षक (जैसे प्रवेश-पत्र उपलब्ध हैं)">
         <textarea id="notificationMessage" maxlength="2000" rows="3" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="पूरी जानकारी लिखें…"></textarea>
         <label class="block text-xs font-bold text-stone-700">किसे भेजना है? (खाली छोड़ें = सभी लॉगिन उपयोगकर्ता)
-          <input id="notificationRecipientUid" maxlength="128" class="mt-1 w-full p-3 rounded-xl border border-stone-300 text-sm font-normal" placeholder="विशेष विद्यार्थी का Firebase UID (केवल उसी को)">
+          <input id="notificationRecipientUid" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" class="mt-1 w-full p-3 rounded-xl border border-stone-300 text-sm font-normal" placeholder="विद्यार्थी का मोबाइल नंबर (केवल उसी को)">
         </label>
         <label class="block text-xs font-bold text-stone-700">फोटो या PDF संलग्न करें (अधिकतम 10 MB)
           <input id="notificationAttachment" type="file" accept="image/*,application/pdf" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-xs font-normal">
         </label>
-        <p class="text-[11px] text-stone-500">किसी एक विद्यार्थी को PDF प्रवेश-पत्र भेजने के लिए उसका Firebase UID भरें, PDF चुनें और शीर्षक में “प्रवेश-पत्र” लिखें। फ़ाइल 10 MB तक हो सकती है। निजी अपलोड के लिए Firebase Storage और Firestore rules अनुमति देना आवश्यक है। UID खाली रखने पर सूचना सभी लॉगिन उपयोगकर्ताओं को जाएगी।</p>
+        <p class="text-[11px] text-stone-500">किसी एक विद्यार्थी को PDF प्रवेश-पत्र भेजने के लिए उसका पंजीकृत मोबाइल नंबर भरें, PDF चुनें और शीर्षक में “प्रवेश-पत्र” लिखें। सिस्टम मोबाइल नंबर से आंतरिक खाता पहचान खोजेगा; UID स्क्रीन पर नहीं दिखाया जाता। फ़ाइल 10 MB तक हो सकती है। नंबर खाली रखने पर सूचना सभी लॉगिन उपयोगकर्ताओं को जाएगी।</p>
         <button id="publishNotificationButton" type="button" onclick="publishPortalNotification()" class="px-4 py-2.5 rounded-xl bg-forest text-white font-bold text-xs">📣 लॉगिन उपयोगकर्ताओं को सूचना प्रकाशित करें</button>
         <p id="ownerNotificationStatus" class="text-xs text-stone-500" aria-live="polite"></p>
       </div>
