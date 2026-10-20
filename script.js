@@ -1327,8 +1327,17 @@ onclone: clonedDocument => {
     element.style.setProperty('text-shadow', 'none', 'important');
     element.style.setProperty('mix-blend-mode', 'normal', 'important');
   });
-}
+  }
+});
 
+if (!canvas.width || !canvas.height) {
+  throw new Error(
+    'PDF canvas खाली है: ' +
+    canvas.width + ' × ' + canvas.height +
+    '. Card dimensions: ' +
+    surface.scrollWidth + ' × ' + surface.scrollHeight
+  );
+}
       const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
       const pdf = new JsPDF({
         orientation: 'portrait',
