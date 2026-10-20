@@ -2726,24 +2726,6 @@ window.renderExamVisibility = function renderExamVisibility() {
       }
     });
     
-const invalidateQuestionPreview = () => {
-  questionImportPreview = null;
-
-  if (uploadButton) uploadButton.disabled = true;
-
-  if (previewOutput) {
-    previewOutput.classList.add('hidden');
-    previewOutput.textContent = '';
-  }
-};
-
-host.querySelector('[data-question-target]')
-  ?.addEventListener('change', invalidateQuestionPreview);
-
-host.querySelector('[data-question-set]')
-  ?.addEventListener('change', invalidateQuestionPreview);
-
-    
     // Invalidate an old preview whenever the exam or set changes.
     const invalidateQuestionPreview = () => {
       questionImportPreview = null;
@@ -2806,6 +2788,12 @@ host.querySelector('[data-question-set]')
 
     host.querySelector('[data-question-upload]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
+        if (host.dataset.questionUploadInProgress === 'true') {
+    notify('Question upload पहले से चल रहा है। कृपया प्रतीक्षा करें।', 'error');
+    return;
+  }
+
+  host.dataset.questionUploadInProgress = 'true';
       if (!questionImportPreview || !questionImportFile || questionImportPreview.invalid) {
         notify('पहले valid Preview तैयार करें।', 'error');
         return;
@@ -2832,8 +2820,9 @@ host.querySelector('[data-question-set]')
         }
         notify(error.message || 'Question upload failed.', 'error');
       } finally {
-        if (button) button.disabled = true;
-      }
+  if (button) button.disabled = true;
+  host.dataset.questionUploadInProgress = 'false';
+}
     });
 
     host.querySelector('[data-question-template]')?.addEventListener('click', () => {
@@ -2932,7 +2921,7 @@ const selected =
             '<textarea data-check-feedback rows="2" class="mt-1 w-full rounded-xl border border-stone-300 p-3">' + escapeHtml(row.feedback || '') +
             '</textarea></label></div><button type="button" data-publish-result data-submission-id="' + escapeHtml(row.id) +
             '" data-source-collection="' + escapeHtml(row.sourceCollection) + '" data-mode="' + escapeHtml(row.mode) +
-            '" data-uid="' + escapeHtml(row.uid || '') + '" data-total="' + total + '" data-name="' + escapeHtml(row.name || 'विद्यार्थी') +
+'" data-uid="' + escapeHtml(row.uid || row.studentUid || row.userId || '') + '" data-total="' + total + '" data-name="' + escapeHtml(row.name || 'विद्यार्थी') +
             '" data-phone="' + escapeHtml(row.studentPhone || '') + '" data-roll="' + escapeHtml(row.rollNumber || '') +
             '" data-set="' + escapeHtml(row.questionSet || 'set1') + '" class="mt-3 min-h-12 w-full rounded-xl bg-emerald-900 px-4 font-bold text-white">' +
             (isPublished ? 'परिणाम अपडेट करें' : 'जाँच सेव करें और परिणाम प्रकाशित करें') + '</button></article>';
@@ -2946,7 +2935,13 @@ const selected =
             const total = Number(button.dataset.total);
             const uid = button.dataset.uid;
             if (!Number.isFinite(score) || score < 0 || score > total) return notify('अंक 0 से ' + total + ' के बीच दर्ज करें।', 'error');
-            if (!uid) return notify('इस उत्तर-पत्र में विद्यार्थी UID नहीं है; परिणाम प्रकाशित नहीं किया जा सकता।', 'error');
+          if (!uid) {
+           return notify(
+          'इस उत्तर-पत्र में Firebase UID नहीं मिला। विद्यार्थी की पहचान जाँचें; सुरक्षा के लिए परिणाम अभी प्रकाशित नहीं किया गया।',
+          'error'
+           );
+           }
+
             button.disabled = true;
             try {
               const sourceCollection = button.dataset.sourceCollection;
