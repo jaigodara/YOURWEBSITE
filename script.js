@@ -2652,8 +2652,13 @@ window.renderExamVisibility = function renderExamVisibility() {
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="text-xl font-extrabold text-emerald-950">Exam Checking Desk — जाँच एवं परिणाम</h2>
           <p class="mt-1 text-sm text-stone-600">Mock/Main उत्तर-पत्र देखें, अंक जाँचें और परिणाम प्रकाशित करें। Daily Quiz के परिणाम स्वतः प्रकाशित होते हैं।</p></div>
-          <button type="button" data-owner-load-submissions class="min-h-12 shrink-0 rounded-xl bg-emerald-900 px-5 font-bold text-white">उत्तर-पत्र लोड करें</button>
-        </div>
+         
+<div class="flex flex-wrap gap-2">
+  <button type="button" data-owner-load-submissions class="min-h-12 rounded-xl bg-emerald-900 px-4 font-bold text-white">उत्तर-पत्र लोड करें</button>
+  <button type="button" data-export-results-csv class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">CSV Export</button>
+  <button type="button" data-export-results-xlsx class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Excel Export</button>
+</div>
+
         <p data-owner-submission-status class="text-sm text-stone-600" aria-live="polite">उत्तर-पत्र देखने के लिए “उत्तर-पत्र लोड करें” दबाएँ।</p>
         <div data-owner-submission-list class="space-y-3"></div>
       </section>`;
@@ -3022,6 +3027,53 @@ await batch.commit();
         notify('उत्तर-पत्र लोड नहीं हुए।', 'error');
       }
     });
+
+    async function exportPublishedExamResults(format) {
+      if (!requireOwner()) return;
+
+      try {
+        const snap = await collection('publishedResults').limit(500).get();
+
+        const rows = snap.docs
+          .map(doc => {
+            const r = doc.data();
+            return {
+              'Roll Number': r.rollNumber || '',
+              'Full Name': r.name || '',
+              "Father's Name": r.fatherName || r.fathersName || '',
+              'Phone Number': r.studentPhone || '',
+              'Email': r.email || '',
+              'Assigned Exam Set': r.questionSet || '',
+              'Exam Mode': r.mode || '',
+              'Status': r.status || '',
+              'Score': r.score ?? '',
+              'Total Marks': r.total ?? ''
+            };
+          });
+
+        if (!rows.length) {
+          notify('Export के लिए प्रकाशित परिणाम नहीं मिले।', 'error');
+          return;
+        }
+
+        if (format === 'xlsx') {
+          window.BishnoiApp.exportRowsXlsx(rows, 'exam-results.xlsx');
+        } else {
+          window.BishnoiApp.exportRowsCsv(rows, 'exam-results.csv');
+        }
+
+        notify(rows.length + ' परिणाम export किए गए।', 'success');
+      } catch (error) {
+        console.error('Results export failed:', error);
+        notify('Export विफल हुआ। Owner access और Firestore rules जाँचें।', 'error');
+      }
+    }
+
+    host.querySelector('[data-export-results-csv]')
+      ?.addEventListener('click', () => exportPublishedExamResults('csv'));
+
+    host.querySelector('[data-export-results-xlsx]')
+      ?.addEventListener('click', () => exportPublishedExamResults('xlsx'));
 
     host.querySelector('[data-owner-load-questions]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
