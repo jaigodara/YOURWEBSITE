@@ -1214,23 +1214,42 @@ async function claimPendingEditorInvitation(user) {
         esc(String(field[1] ?? '—')) + '</div></div>'
       ).join('');
 
-      surface.innerHTML =
-        '<article style="border:5px solid #143622;border-radius:18px;overflow:hidden">' +
-        '<header style="background:#143622;color:white;padding:28px;text-align:center;border-bottom:6px solid #d6a43a">' +
-        '<div style="font-size:42px">🌳</div>' +
-        '<h1 style="font-size:30px;margin:8px 0">बिश्नोइज़्म डिजिटल मंच</h1>' +
-        '<p style="font-size:17px;margin:0;color:#ffe8a3">परीक्षा प्रवेश-पत्र</p></header>' +
-        '<main style="padding:28px"><h2 style="font-size:22px">परीक्षार्थी विवरण</h2>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px">' +
-        fieldHtml + '</div>' +
-        '<section style="margin-top:24px;padding:18px;background:#fff4cf;border:1px solid #e6ce85;border-radius:12px;line-height:1.8">' +
-        '<strong>महत्वपूर्ण निर्देश</strong><p style="white-space:pre-wrap">' +
-        esc(cfg.admitCardInstructions ||
-          'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।') +
-        '</p></section>' +
-        '<p style="margin-top:32px;font-size:12px;text-align:center;color:#68766b">' +
+      
+surface.innerHTML =
+  '<article style="border:4px solid #143622;border-radius:14px;overflow:hidden;background:#fffdf7">' +
+    '<header style="background:#143622;color:white;padding:18px 20px;text-align:center;border-bottom:5px solid #d6a43a">' +
+      '<div style="font-size:34px">🌳</div>' +
+      '<h1 style="font-size:25px;font-weight:bold;margin:5px 0">बिश्नोइज़्म डिजिटल मंच</h1>' +
+      '<p style="font-size:16px;margin:0;color:#ffe8a3">परीक्षा प्रवेश-पत्र</p>' +
+    '</header>' +
+    '<main style="padding:20px">' +
+      '<section style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<h2 style="font-size:20px;font-weight:bold;color:#143622;margin:0 0 8px">परीक्षार्थी विवरण</h2>' +
+          '<p style="font-size:12px;color:#68766b;line-height:1.6;margin:0">परीक्षा में प्रवेश के समय यह प्रवेश-पत्र सुरक्षित रखें।</p>' +
+        '</div>' +
+        '<aside style="width:112px;height:138px;flex-shrink:0;border:2px dashed #8b9a8c;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#68766b;padding:6px;box-sizing:border-box">' +
+          '<div style="font-size:28px">📷</div>' +
+          '<div style="font-size:11px;font-weight:bold;margin-top:6px">विद्यार्थी का फोटो</div>' +
+          '<div style="font-size:9px;margin-top:4px">पासपोर्ट आकार</div>' +
+        '</aside>' +
+      '</section>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        fieldHtml +
+      '</div>' +
+      '<section style="margin-top:18px;padding:13px;background:#fff4cf;border:1px solid #e6ce85;border-radius:10px;line-height:1.65;overflow-wrap:anywhere">' +
+        '<strong style="font-size:14px">महत्वपूर्ण निर्देश</strong>' +
+        '<p style="font-size:12px;white-space:pre-wrap;margin:6px 0 0">' +
+          esc(cfg.admitCardInstructions ||
+            'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।') +
+        '</p>' +
+      '</section>' +
+      '<p style="margin-top:18px;font-size:10px;text-align:center;color:#68766b">' +
         'यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर बनाया गया है।' +
-        '</p></main></article>';
+      '</p>' +
+    '</main>' +
+  '</article>';
+
 
       document.body.appendChild(surface);
 
@@ -1259,28 +1278,30 @@ async function claimPendingEditorInvitation(user) {
         compress: true
       });
 
-      const margin = 10;
-      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
-      const imageHeight = canvas.height * pageWidth / canvas.width;
-      const image = canvas.toDataURL('image/jpeg', 0.95);
+     
+const margin = 8;
+const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
+const image = canvas.toDataURL('image/jpeg', 0.95);
 
-      let offset = 0;
-      let page = 0;
+const naturalHeight = canvas.height * pageWidth / canvas.width;
+const scale = Math.min(1, pageHeight / naturalHeight);
+const renderWidth = pageWidth * scale;
+const renderHeight = naturalHeight * scale;
 
-      while (offset < imageHeight) {
-        if (page > 0) pdf.addPage();
+const x = (pdf.internal.pageSize.getWidth() - renderWidth) / 2;
+const y = (pdf.internal.pageSize.getHeight() - renderHeight) / 2;
 
-        pdf.addImage(
-          image, 'JPEG',
-          margin, margin - offset,
-          pageWidth, imageHeight,
-          undefined, 'FAST'
-        );
-
-        offset += pageHeight;
-        page++;
-      }
+pdf.addImage(
+  image,
+  'JPEG',
+  x,
+  y,
+  renderWidth,
+  renderHeight,
+  undefined,
+  'FAST'
+);
 
       const safeRoll = String(record.rollNumber)
         .replace(/[^A-Za-z0-9-]/g, '_');
@@ -3627,40 +3648,133 @@ window.renderExamVisibility = function renderExamVisibility() {
   window.BishnoiApp = window.BishnoiApp || {};
   const app = window.BishnoiApp;
 
-  window.BishnoiApp.verifyMyResultIdentity = async function () {
-    const status = byId('resultLookupStatus');
-    if (!requireUser()) {
-      if (status) status.textContent = 'पहले लॉगिन करें।';
-      return;
+  
+window.BishnoiApp.verifyMyResultIdentity = async function () {
+  const status = byId('resultLookupStatus');
+
+  if (!requireUser() || !state.db) {
+    if (status) status.textContent = 'पहले लॉगिन करें।';
+    return;
+  }
+
+  const uid = state.user.uid;
+  const normalizeName = value =>
+    String(value || '')
+      .normalize('NFC')
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/\s+/g, ' ');
+
+  const normalizeDob = value => {
+    if (!value) return '';
+    if (typeof value.toDate === 'function') {
+      const date = value.toDate();
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0')
+      ].join('-');
     }
-    const roll = (byId('resultLookupRoll')?.value || '').trim().toLowerCase();
-    const name = (byId('resultLookupName')?.value || '').trim().toLowerCase().split(' ').filter(Boolean).join(' ');
-    const dob = (byId('resultLookupDob')?.value || '').trim();
-    if (!roll || !name || !dob) {
-      if (status) status.textContent = 'रोल नंबर, पूरा नाम और जन्म तिथि तीनों भरें।';
-      return;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return [
+        value.getFullYear(),
+        String(value.getMonth() + 1).padStart(2, '0'),
+        String(value.getDate()).padStart(2, '0')
+      ].join('-');
     }
-    try {
-      const snap = await collection('examEnrolledStudents').doc(state.user.uid).get();
-      const record = snap.exists ? snap.data() || {} : {};
-      const expectedRoll = String(record.rollNumber || '').trim().toLowerCase();
-      const expectedName = String(record.fullName || record.name || '').trim().toLowerCase().split(' ').filter(Boolean).join(' ');
-      const expectedDob = String(record.dateOfBirth || '').trim();
-      if (!expectedRoll || roll !== expectedRoll || name !== expectedName || dob !== expectedDob) {
-        state.resultsIdentityVerified = false;
-        window.renderMyResults();
-        if (status) status.textContent = 'दर्ज विवरण पंजीकरण रिकॉर्ड से मेल नहीं खाते। कृपया सही जानकारी भरें।';
-        return;
-      }
-      state.resultsIdentityVerified = true;
-      window.renderMyResults();
-      if (status) status.textContent = 'पहचान सत्यापित। घोषित मुख्य/मॉक परिणाम नीचे दिखेंगे।';
-      byId('myResultsList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (error) {
-      if (status) status.textContent = 'पहचान सत्यापित नहीं हो सकी। Firestore rules जाँचें।';
-      console.warn('Result identity verification failed:', error);
-    }
+    return String(value).trim().slice(0, 10);
   };
+
+  const roll = String(byId('resultLookupRoll')?.value || '')
+    .trim()
+    .toUpperCase();
+  const name = normalizeName(byId('resultLookupName')?.value);
+  const dob = normalizeDob(byId('resultLookupDob')?.value);
+
+  state.resultsIdentityVerified = false;
+  window.renderMyResults();
+
+  if (!roll || !name || !dob) {
+    if (status) {
+      status.textContent = 'रोल नंबर, पूरा नाम और जन्म तिथि तीनों भरें।';
+    }
+    return;
+  }
+
+  if (status) status.textContent = 'पंजीकरण रिकॉर्ड जाँचा जा रहा है…';
+
+  try {
+    const snap = await state.db
+      .collection('examEnrolledStudents')
+      .doc(uid)
+      .get();
+
+    // Do not apply verification to a different account after an async read.
+    if (state.user?.uid !== uid) return;
+
+    if (!snap.exists) {
+      if (status) {
+        status.textContent = 'इस लॉगिन खाते से जुड़ा पंजीकरण रिकॉर्ड नहीं मिला।';
+      }
+      return;
+    }
+
+    const record = snap.data() || {};
+
+    const expectedRoll = String(record.rollNumber || '')
+      .trim()
+      .toUpperCase();
+
+    const expectedName = normalizeName(
+      record.fullName || record.name || record.displayName
+    );
+
+    const expectedDob = normalizeDob(
+      record.dateOfBirth || record.dob || record.birthDate
+    );
+
+    const matches =
+      expectedRoll !== '' &&
+      expectedName !== '' &&
+      expectedDob !== '' &&
+      roll === expectedRoll &&
+      name === expectedName &&
+      dob === expectedDob &&
+      (!record.uid || record.uid === uid);
+
+    if (!matches) {
+      if (status) {
+        status.textContent =
+          'दर्ज विवरण पंजीकरण रिकॉर्ड से मेल नहीं खाते। नाम, रोल नंबर और जन्म तिथि जाँचें।';
+      }
+      return;
+    }
+
+    state.resultsIdentityVerified = true;
+    window.renderMyResults();
+
+    if (status) {
+      status.textContent =
+        'पहचान सत्यापित। आपके प्रकाशित परिणाम नीचे उपलब्ध हैं।';
+    }
+
+    byId('myResultsList')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  } catch (error) {
+    state.resultsIdentityVerified = false;
+    window.renderMyResults();
+
+    if (status) {
+      status.textContent =
+        'पहचान सत्यापित नहीं हो सकी। लॉगिन और Firestore permissions जाँचें।';
+    }
+
+    console.warn('Result identity verification failed:', error);
+  }
+};
+
 
   app.switchTab = window.switchTab;
   app.downloadMyAdmitCard = async function () {
