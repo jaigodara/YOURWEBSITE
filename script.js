@@ -1056,6 +1056,19 @@ async function claimPendingEditorInvitation(user) {
   function ensureEnrollmentStatusHost() {
     const form = byId('examEnrollmentForm');
     if (!form) return null;
+    if (!byId('enrollmentFatherName')) {
+      const label = document.createElement('label');
+      label.className = 'block text-sm font-semibold text-stone-700';
+      label.textContent = "पिता का नाम / Father's Name";
+      const input = document.createElement('input');
+      input.id = 'enrollmentFatherName'; input.name = 'fatherName'; input.type = 'text';
+      input.maxLength = 100; input.placeholder = 'पिता का पूरा नाम';
+      input.className = 'mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm';
+      label.appendChild(input);
+      const dob = byId('enrollmentDob');
+      if (dob?.parentElement) dob.parentElement.insertAdjacentElement('beforebegin', label);
+      else form.prepend(label);
+    }
     let host = byId('enrollmentStudentStatus');
     if (!host) {
       host = document.createElement('div');
@@ -1570,6 +1583,12 @@ pdf.addImage(
 
   window.pushNotification = async function pushNotification(uid, data = {}) {
     if (!state.db) throw new Error('Firestore उपलब्ध नहीं है।');
+    if (!state.user) throw new Error('सूचना भेजने के लिए लॉगिन आवश्यक है।');
+    const isOwnerForNotification = state.isOwner === true ||
+      state.user.uid === CONFIG.ownerUid || state.user.uid === CONFIG.legacyOwnerUid;
+    if (!isOwnerForNotification && !hasEditorPermission('notifications')) {
+      throw new Error('सूचना भेजने के लिए Notifications permission आवश्यक है।');
+    }
     const recipientUid = uid || state.user?.uid;
     if (!recipientUid) throw new Error('सूचना पाने वाला खाता निर्धारित नहीं है।');
     return state.db.collection('userNotifications').doc(recipientUid).collection('items').add({
@@ -2011,7 +2030,8 @@ pdf.addImage(
           return;
         }
         const fullName = (byId('enrollmentName')?.value || '').trim();
-        const phone = String(state.profile?.mobile || '');
+        const fatherName = String(byId('enrollmentFatherName')?.value || '').trim().slice(0, 100);
+        const phone = normalizeStudentPhone(state.user.phoneNumber || state.profile?.verifiedPhone || state.profile?.mobile || '');
         const dateOfBirth = (byId('enrollmentDob')?.value || '').trim();
         const examName = (byId('enrollmentExam')?.value || 'मुख्य परीक्षा').trim();
         const location = (byId('enrollmentLocation')?.value || '').trim();
@@ -2031,6 +2051,7 @@ pdf.addImage(
             uid: state.user.uid,
             fullName,
             name: fullName,
+            fatherName,
             phone,
             mobile: phone,
             dateOfBirth,
@@ -2656,7 +2677,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         </div>
         <div><h3 class="mb-2 font-bold text-stone-900">परीक्षा का समय</h3>
           <div class="grid gap-3 sm:grid-cols-2">${schedules.map(([key,label]) => `<label class="block text-sm font-semibold text-stone-700">${escapeHtml(label)}<input type="datetime-local" data-exam-schedule="${key}" value="${toLocalInput(c[key])}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>`).join('')}</div>
-          <label class="mt-3 block text-sm font-semibold text-stone-700">परीक्षा अवधि (मिनट)<input type="number" min="1" max="360" data-exam-duration value="${Math.max(1, Number(c.durationMinutes) || CONFIG.defaultExamMinutes)}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">${[['quizDurationMinutes','दैनिक क्विज़ अवधि'],['mock1DurationMinutes','Mock 1 अवधि'],['mock2DurationMinutes','Mock 2 अवधि'],['mainDurationMinutes','Main Exam अवधि']].map(([key,label]) => `<label class="block text-sm font-semibold text-stone-700">${label} (मिनट)<input type="number" min="1" max="360" data-exam-duration="${key}" value="${Math.max(1, Number(c[key] || c.durationMinutes) || CONFIG.defaultExamMinutes)}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>`).join('')}</div>
         </div>
         <div><h3 class="mb-2 font-bold text-stone-900">प्रश्न सेट</h3><div class="grid gap-3 sm:grid-cols-2">
           ${[['quizQuestionSet','दैनिक परीक्षा'],['mock1QuestionSet','मॉक परीक्षा 1'],['mock2QuestionSet','मॉक परीक्षा 2'],['mainQuestionSet','मुख्य परीक्षा']].map(([key,label]) => `<label class="text-sm font-semibold text-stone-700">${label}<select data-exam-set="${key}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">${['set1','set2','set3','set4'].map(v => `<option value="${v}" ${(c[key] || 'set1') === v ? 'selected' : ''}>${v.toUpperCase()}</option>`).join('')}</select></label>`).join('')}
@@ -2842,8 +2863,12 @@ window.renderExamVisibility = function renderExamVisibility() {
       host.querySelectorAll('[data-exam-set]').forEach(el => {
         update[el.dataset.examSet] = ['set1','set2','set3','set4'].includes(el.value) ? el.value : 'set1';
       });
-      const duration = Number(host.querySelector('[data-exam-duration]')?.value);
-      update.durationMinutes = Number.isFinite(duration) ? Math.min(360, Math.max(1, duration)) : CONFIG.defaultExamMinutes;
+      host.querySelectorAll('[data-exam-duration]').forEach(el => {
+        const duration = Number(el.value);
+        const key = el.dataset.examDuration;
+        if (key) update[key] = Number.isFinite(duration) ? Math.min(360, Math.max(1, duration)) : CONFIG.defaultExamMinutes;
+      });
+      update.durationMinutes = update.mainDurationMinutes || CONFIG.defaultExamMinutes;
       update.updatedAt = serverTimestamp();
       update.updatedBy = state.user.uid;
       try {
