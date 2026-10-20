@@ -2634,6 +2634,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       studentPhone: getStudentIdentity().phone || '',
       studentIdentityKey: getStudentIdentity().identityKey || ('uid:' + state.user.uid),
       mode: exam.mode,
+      questionSet: exam.questionSet || 'set1',
       questions: exam.questions,
       index: exam.index,
       answers: exam.answers,
@@ -2683,6 +2684,12 @@ window.renderExamVisibility = function renderExamVisibility() {
       clearPersistedExam();
       return;
     }
+    const currentIdentity = getStudentIdentity();
+    if (saved.studentPhone && currentIdentity.phone && saved.studentPhone !== currentIdentity.phone) {
+      clearPersistedExam();
+      notify('इस डिवाइस पर सहेजी परीक्षा का पंजीकृत मोबाइल नंबर बदल गया है। Owner से जाँच करवाएँ।', 'error');
+      return;
+    }
     if (!saved.mode || !Array.isArray(saved.questions) || !saved.questions.length || !Number(saved.endAt)) {
       clearPersistedExam();
       return;
@@ -2692,6 +2699,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     state.exam = {
       active: true,
       mode: saved.mode,
+      questionSet: saved.questionSet || 'set1',
       questions: saved.questions,
       index: Math.max(0, Math.min(Number(saved.index) || 0, saved.questions.length - 1)),
       answers: saved.answers && typeof saved.answers === 'object' ? saved.answers : {},
