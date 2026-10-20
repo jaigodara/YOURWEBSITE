@@ -1263,41 +1263,85 @@ if (environmentEl) {
     });
 
     function openStudioPage(page) {
-      const owner = isPrimaryOwner();
-      const permission = { questions: 'quizDrafts', checking: 'examReview', notifications: 'notifications' }[page];
-      if ((page === 'admit' || page === 'settings') && !owner) { showToast('यह अनुभाग केवल Owner के लिए उपलब्ध है।'); return; }
-      if (!owner && permission && !hasEditorPermission(permission)) { showToast('इस अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।'); return; }
-      const pane = { dashboard: 'pane_overview', questions: 'pane_quiz', checking: 'pane_exam', admit: 'pane_exam', notifications: 'pane_system', settings: 'pane_system' }[page] || 'pane_overview';
-      switchStudioPane(pane);
-      if (page === 'settings') document.getElementById('pane_exam')?.classList.remove('hidden');
-      document.querySelectorAll('[data-studio-page]').forEach(button => {
-        button.classList.toggle('studio-nav-active', button.dataset.studioPage === page);
-        button.setAttribute('aria-current', button.dataset.studioPage === page ? 'page' : 'false');
-      });
-      const panels = ['ownerDailyWinnersPanel','ownerQuestionBankPanel','ownerExamSessionMonitorPanel','manualExamReviewSection','ownerProctoringPanel','ownerExamVisibilitySettingsPanel','ownerRegistrationReviewPanel','ownerAdmitCardSettingsPanel','ownerNotificationCard','ownerMaintenanceSettingsPanel','ownerTrustedEditorsPanel','ownerExportPanel'];
-      panels.forEach(id => { const el = document.getElementById(id); if (el) el.dataset.studioRouteHidden = 'true'; });
-      const show = {
-        dashboard: ['ownerDailyWinnersPanel'],
-        questions: ['ownerQuestionBankPanel'],
-        checking: ['ownerExamSessionMonitorPanel','manualExamReviewSection'],
-        admit: ['ownerRegistrationReviewPanel','ownerAdmitCardSettingsPanel'],
-        notifications: ['ownerNotificationCard'],
-        settings: ['ownerExamVisibilitySettingsPanel','ownerMaintenanceSettingsPanel','ownerTrustedEditorsPanel','ownerExportPanel']
-      }[page] || [];
-      show.forEach(id => { const el = document.getElementById(id); if (el) delete el.dataset.studioRouteHidden; });
-      document.getElementById('ownerStudioSidebar')?.scrollIntoView({behavior:'smooth',block:'start'});
-    }
+  const owner = isPrimaryOwner();
 
-    document.querySelectorAll('[data-studio-page]').forEach(button => {
-      button.addEventListener('click', () => openStudioPage(button.dataset.studioPage));
-    });
-    // Filter the existing sidebar sections as the administrator types.
-const studioSearch = document.getElementById('studioMenuSearch');
+  const permission = {
+    media: 'media',
+    questions: 'quizDrafts',
+    checking: 'examReview',
+    notifications: 'notifications'
+  }[page];
 
-if (studioSearch) {
-  studioSearch.addEventListener('input', () => {
-    const query = studioSearch.value.trim().toLocaleLowerCase();
+  if (!owner && (!permission || !hasEditorPermission(permission))) {
+    showToast('इस अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।');
+    return;
+  }
 
+  const pane = {
+    dashboard: 'pane_overview',
+    media: 'pane_media',
+    questions: 'pane_quiz',
+    checking: 'pane_exam',
+    notifications: 'pane_system'
+  }[page];
+
+  if (!pane) {
+    showToast('यह अनुभाग उपलब्ध नहीं है।');
+    return;
+  }
+
+  switchStudioPane(pane);
+
+  document.querySelectorAll('[data-studio-page]').forEach(button => {
+    button.classList.toggle(
+      'studio-nav-active',
+      button.dataset.studioPage === page
+    );
+    button.setAttribute(
+      'aria-current',
+      button.dataset.studioPage === page ? 'page' : 'false'
+    );
+  });
+
+  const panels = [
+    'ownerDailyWinnersPanel',
+    'ownerQuestionBankPanel',
+    'ownerExamSessionMonitorPanel',
+    'manualExamReviewSection',
+    'ownerProctoringPanel',
+    'ownerExamVisibilitySettingsPanel',
+    'ownerRegistrationReviewPanel',
+    'ownerAdmitCardSettingsPanel',
+    'ownerNotificationCard',
+    'ownerMaintenanceSettingsPanel',
+    'ownerTrustedEditorsPanel',
+    'ownerExportPanel'
+  ];
+
+  panels.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) element.dataset.studioRouteHidden = 'true';
+  });
+
+  const pagePanels = {
+    dashboard: ['ownerDailyWinnersPanel'],
+    media: [],
+    questions: ['ownerQuestionBankPanel'],
+    checking: [
+      'ownerExamSessionMonitorPanel',
+      'manualExamReviewSection'
+    ],
+    notifications: ['ownerNotificationCard']
+  };
+
+  (pagePanels[page] || []).forEach(id => {
+    const element = document.getElementById(id);
+    if (element) delete element.dataset.studioRouteHidden;
+  });
+
+  document.getElementById('ownerStudioSidebar')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
     document.querySelectorAll('[data-studio-page]').forEach(button => {
       const matches = button.textContent.toLocaleLowerCase().includes(query);
       button.hidden = !matches;
