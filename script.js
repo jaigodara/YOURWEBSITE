@@ -2638,14 +2638,14 @@ window.renderExamVisibility = function renderExamVisibility() {
         <p class="text-xs leading-relaxed text-stone-500">Required columns: question, A, B, C, D, correctAnswer. correctAnswer may be A/B/C/D or 0/1/2/3. Optional: marks, negativeMarks, explanation, id.</p>
       </section>
 
-      <section class="mt-5 space-y-3 rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
-        <div><h2 class="text-xl font-extrabold text-emerald-950">Exam Checking Desk — जाँच एवं परिणाम</h2>
-        <p class="mt-1 text-sm text-stone-600">यहाँ जमा किए गए उत्तर-पत्र और प्रकाशित परिणामों के लिए अलग workflow अगली implementation stage में जोड़ा जाएगा। अभी student submissions और published results के Firestore rules को बदले बिना कोई परिणाम नहीं बदला जाएगा।</p></div>
-        <div class="grid gap-2 sm:grid-cols-3">
-          <div class="rounded-xl border border-stone-200 bg-white p-3"><p class="text-xs text-stone-500">Question review</p><p class="mt-1 font-bold text-emerald-900">Draft → Validate → Publish</p></div>
-          <div class="rounded-xl border border-stone-200 bg-white p-3"><p class="text-xs text-stone-500">Exam checking</p><p class="mt-1 font-bold text-emerald-900">Submission → Check → Publish</p></div>
-          <div class="rounded-xl border border-stone-200 bg-white p-3"><p class="text-xs text-stone-500">Question sets</p><p class="mt-1 font-bold text-emerald-900">Set 1 · 2 · 3 · 4</p></div>
+      <section class="mt-5 space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div><h2 class="text-xl font-extrabold text-emerald-950">Exam Checking Desk — जाँच एवं परिणाम</h2>
+          <p class="mt-1 text-sm text-stone-600">Mock/Main उत्तर-पत्र देखें, अंक जाँचें और परिणाम प्रकाशित करें। Daily Quiz के परिणाम स्वतः प्रकाशित होते हैं।</p></div>
+          <button type="button" data-owner-load-submissions class="min-h-12 shrink-0 rounded-xl bg-emerald-900 px-5 font-bold text-white">उत्तर-पत्र लोड करें</button>
         </div>
+        <p data-owner-submission-status class="text-sm text-stone-600" aria-live="polite">उत्तर-पत्र देखने के लिए “उत्तर-पत्र लोड करें” दबाएँ।</p>
+        <div data-owner-submission-list class="space-y-3"></div>
       </section>`;
     host.querySelector('[data-owner-save-exam]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
@@ -2800,6 +2800,106 @@ window.renderExamVisibility = function renderExamVisibility() {
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    host.querySelector('[data-owner-load-submissions]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      const status = host.querySelector('[data-owner-submission-status]');
+      const list = host.querySelector('[data-owner-submission-list]');
+      if (status) status.textContent = 'उत्तर-पत्र लोड हो रहे हैं…';
+      if (list) list.innerHTML = '';
+      try {
+        const sources = [
+          ['main', CONFIG.submissionCollections.main],
+          ['mock1', CONFIG.submissionCollections.mock1],
+          ['mock2', CONFIG.submissionCollections.mock2]
+        ];
+        const groups = await Promise.all(sources.map(async ([mode, sourceCollection]) => {
+          const snap = await collection(sourceCollection).limit(100).get();
+          return snap.docs.map(doc => ({ ...doc.data(), id: doc.id, mode: doc.data()?.mode || mode, sourceCollection }));
+        }));
+        const rows = groups.flat().sort((a, b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt));
+        if (status) status.textContent = rows.length ? rows.length + ' उत्तर-पत्र मिले। जाँचकर अंक प्रकाशित करें।' : 'कोई Mock/Main उत्तर-पत्र नहीं मिला।';
+        if (!list) return;
+        list.innerHTML = rows.map(row => {
+          const total = Math.max(1, Number(row.total || row.totalQuestions || row.questionSnapshots?.length || 1));
+          const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
+          const snapshots = Array.isArray(row.questionSnapshots) ? row.questionSnapshots : [];
+          const answers = row.answers && typeof row.answers === 'object' ? row.answers : {};
+          const questionHtml = snapshots.map((q, qi) => {
+            const answer = answers[q.id] ?? answers[qi];
+            const selected = answer === undefined || answer === null ? 'उत्तर नहीं दिया' : String.fromCharCode(65 + Number(answer));
+            const options = Array.isArray(q.options) ? q.options : [];
+            return '<div class="rounded-lg border border-stone-200 bg-white p-3"><p class="font-semibold">' +
+              (qi + 1) + '. ' + escapeHtml(q.question || 'प्रश्न उपलब्ध नहीं') +
+              '</p><p class="mt-1 text-xs text-stone-600">विद्यार्थी का उत्तर: <strong>' + escapeHtml(selected) + '</strong></p>' +
+              (options.length ? '<ul class="mt-1 list-inside list-disc text-xs text-stone-600">' + options.map((opt, oi) =>
+                '<li>' + String.fromCharCode(65 + oi) + '. ' + escapeHtml(typeof opt === 'object' ? (opt.text || '') : opt) + '</li>'
+              ).join('') + '</ul>' : '') + '</div>';
+          }).join('');
+          const isPublished = row.manualCheckStatus === 'published';
+          return '<article class="rounded-2xl border border-stone-200 bg-white p-4" data-check-card="' + escapeHtml(row.id) + '">' +
+            '<div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-extrabold text-emerald-950">' + escapeHtml(row.name || 'विद्यार्थी') +
+            '</h3><p class="mt-1 text-xs text-stone-600">' + escapeHtml(modeLabel) + ' · ' + escapeHtml(String(row.questionSet || 'set1').toUpperCase()) +
+            ' · रोल: ' + escapeHtml(row.rollNumber || '—') + '</p><p class="text-xs text-stone-600">फोन: ' + escapeHtml(row.studentPhone || '—') +
+            ' · हल किए: ' + Number(row.attempted || 0) + '/' + total + '</p></div><span data-check-status class="rounded-full px-3 py-1 text-xs font-bold ' +
+            (isPublished ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900') + '">' + (isPublished ? 'परिणाम प्रकाशित' : 'जाँच बाकी') +
+            '</span></div><details class="mt-3"><summary class="cursor-pointer font-bold text-emerald-900">उत्तर-पत्र देखें (' + snapshots.length + ' प्रश्न)</summary><div class="mt-3 space-y-2">' +
+            (questionHtml || '<p class="text-sm text-stone-500">इस उत्तर-पत्र में प्रश्नों का snapshot उपलब्ध नहीं है।</p>') + '</div></details>' +
+            '<div class="mt-4 grid gap-3 sm:grid-cols-2"><label class="text-sm font-semibold">अंतिम अंक (अधिकतम ' + total + ')' +
+            '<input type="number" min="0" max="' + total + '" step="0.5" data-check-score value="' + Math.min(total, Math.max(0, Number(row.checkedScore ?? 0))) +
+            '" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 px-3"></label><label class="text-sm font-semibold">टिप्पणी' +
+            '<textarea data-check-feedback rows="2" class="mt-1 w-full rounded-xl border border-stone-300 p-3">' + escapeHtml(row.feedback || '') +
+            '</textarea></label></div><button type="button" data-publish-result data-submission-id="' + escapeHtml(row.id) +
+            '" data-source-collection="' + escapeHtml(row.sourceCollection) + '" data-mode="' + escapeHtml(row.mode) +
+            '" data-uid="' + escapeHtml(row.uid || '') + '" data-total="' + total + '" data-name="' + escapeHtml(row.name || 'विद्यार्थी') +
+            '" data-phone="' + escapeHtml(row.studentPhone || '') + '" data-roll="' + escapeHtml(row.rollNumber || '') +
+            '" data-set="' + escapeHtml(row.questionSet || 'set1') + '" class="mt-3 min-h-12 w-full rounded-xl bg-emerald-900 px-4 font-bold text-white">' +
+            (isPublished ? 'परिणाम अपडेट करें' : 'जाँच सेव करें और परिणाम प्रकाशित करें') + '</button></article>';
+        }).join('');
+
+        list.querySelectorAll('[data-publish-result]').forEach(button => {
+          button.addEventListener('click', async () => {
+            if (!requireOwner()) return;
+            const card = button.closest('[data-check-card]');
+            const score = Number(card?.querySelector('[data-check-score]')?.value);
+            const total = Number(button.dataset.total);
+            const uid = button.dataset.uid;
+            if (!Number.isFinite(score) || score < 0 || score > total) return notify('अंक 0 से ' + total + ' के बीच दर्ज करें।', 'error');
+            if (!uid) return notify('इस उत्तर-पत्र में विद्यार्थी UID नहीं है; परिणाम प्रकाशित नहीं किया जा सकता।', 'error');
+            button.disabled = true;
+            try {
+              const sourceCollection = button.dataset.sourceCollection;
+              const submissionId = button.dataset.submissionId;
+              const mode = button.dataset.mode;
+              const feedback = String(card.querySelector('[data-check-feedback]')?.value || '').trim().slice(0, 1000);
+              const publishedAt = serverTimestamp();
+              await state.db.collection(sourceCollection).doc(submissionId).set({
+                manualCheckStatus: 'published', checkedScore: score, feedback,
+                checkedAt: publishedAt, checkedBy: state.user.uid
+              }, { merge: true });
+              await collection('publishedResults').doc('manual_' + mode + '_' + submissionId).set({
+                uid, studentPhone: button.dataset.phone || '',
+                studentIdentityKey: button.dataset.phone || ('uid:' + uid),
+                name: button.dataset.name || 'विद्यार्थी', rollNumber: button.dataset.roll || null,
+                mode, questionSet: button.dataset.set || 'set1', score, total,
+                status: 'published', feedback, sourceCollection, sourceSubmissionId: submissionId,
+                publishedAt, publishedBy: state.user.uid
+              }, { merge: true });
+              notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
+              const badge = card.querySelector('[data-check-status]');
+              if (badge) { badge.textContent = 'परिणाम प्रकाशित'; badge.className = 'rounded-full px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-900'; }
+              button.textContent = 'परिणाम अपडेट करें';
+            } catch (error) {
+              console.error('Manual result publish failed:', error);
+              notify('परिणाम प्रकाशित नहीं हुआ। Firestore rules में submission और publishedResults write permissions जाँचें।', 'error');
+            } finally { button.disabled = false; }
+          });
+        });
+      } catch (error) {
+        console.error('Could not load exam submissions:', error);
+        if (status) status.textContent = 'उत्तर-पत्र लोड नहीं हुए। Firestore rules में submission collections की read permission जाँचें।';
+        notify('उत्तर-पत्र लोड नहीं हुए।', 'error');
+      }
     });
   }
 
