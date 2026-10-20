@@ -2787,17 +2787,21 @@ window.renderExamVisibility = function renderExamVisibility() {
     });
 
     host.querySelector('[data-question-upload]')?.addEventListener('click', async () => {
+      
       if (!requireOwner()) return;
-        if (host.dataset.questionUploadInProgress === 'true') {
-    notify('Question upload पहले से चल रहा है। कृपया प्रतीक्षा करें।', 'error');
-    return;
-  }
 
-  host.dataset.questionUploadInProgress = 'true';
+      if (host.dataset.questionUploadInProgress === 'true') {
+        notify('Question upload पहले से चल रहा है। कृपया प्रतीक्षा करें।', 'error');
+        return;
+      }
+
       if (!questionImportPreview || !questionImportFile || questionImportPreview.invalid) {
         notify('पहले valid Preview तैयार करें।', 'error');
         return;
       }
+
+      host.dataset.questionUploadInProgress = 'true';
+
       const { target, set } = getQuestionImportOptions();
       const button = host.querySelector('[data-question-upload]');
       if (button) button.disabled = true;
@@ -2819,10 +2823,12 @@ window.renderExamVisibility = function renderExamVisibility() {
           previewOutput.textContent = error.message;
         }
         notify(error.message || 'Question upload failed.', 'error');
+     
       } finally {
-  if (button) button.disabled = true;
-  host.dataset.questionUploadInProgress = 'false';
-}
+        if (button) button.disabled = true;
+        host.dataset.questionUploadInProgress = 'false';
+      }
+
     });
 
     host.querySelector('[data-question-template]')?.addEventListener('click', () => {
