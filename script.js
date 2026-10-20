@@ -1187,10 +1187,21 @@ async function claimPendingEditorInvitation(user) {
 
       surface = document.createElement('div');
      surface.id = 'bishnoiAdmitCardCapture';
-surface.style.cssText =
-  'position:absolute;left:0;top:0;width:794px;padding:30px;' +
-  'background:#fffdf7;color:#143622;font-family:Arial,sans-serif;' +
-  'box-sizing:border-box;opacity:0;pointer-events:none;z-index:-1;';
+surface.style.setProperty('position', 'fixed', 'important');
+surface.style.setProperty('left', '0', 'important');
+surface.style.setProperty('top', '0', 'important');
+surface.style.setProperty('width', '794px', 'important');
+surface.style.setProperty('min-width', '794px', 'important');
+surface.style.setProperty('display', 'block', 'important');
+surface.style.setProperty('visibility', 'visible', 'important');
+surface.style.setProperty('opacity', '1', 'important');
+surface.style.setProperty('z-index', '2147483647', 'important');
+surface.style.setProperty('padding', '30px', 'important');
+surface.style.setProperty('background', '#fffdf7', 'important');
+surface.style.setProperty('color', '#143622', 'important');
+surface.style.setProperty('font-family', 'Arial, sans-serif', 'important');
+surface.style.setProperty('box-sizing', 'border-box', 'important');
+surface.style.setProperty('pointer-events', 'none', 'important');
       
       const cfg = record.admitCardSettings || state.examConfig || {};
       const esc = escapeHtml;
@@ -1255,6 +1266,23 @@ surface.innerHTML =
 
 
       document.body.appendChild(surface);
+      const cardRect = surface.getBoundingClientRect();
+
+console.log('Admit-card capture dimensions:', {
+  width: cardRect.width,
+  height: cardRect.height,
+  scrollWidth: surface.scrollWidth,
+  scrollHeight: surface.scrollHeight,
+  display: getComputedStyle(surface).display,
+  visibility: getComputedStyle(surface).visibility
+});
+
+if (cardRect.width === 0 || cardRect.height === 0) {
+  throw new Error(
+    'Admit-card element has zero dimensions: ' +
+    cardRect.width + ' × ' + cardRect.height
+  );
+}
 
       await new Promise(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(resolve))
