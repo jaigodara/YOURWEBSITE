@@ -467,130 +467,74 @@ try {
 
 async function claimPendingEditorInvitation(user) {
   if (!user || !user.uid) return null;
-
-  const email = user.emailVerified === true
-    ? String(user.email || '').trim().toLowerCase()
-    : '';
-
-  const phoneDigits = user.phoneNumber
-    ? String(user.phoneNumber).replace(/\D/g, '')
-    : '';
-
-  // Phone must come from Firebase Auth, not an editable profile field.
-  const verifiedPhone = phoneDigits.length >= 10
-    ? phoneDigits.slice(-10)
-    : '';
-
+  // Only a verified Firebase Auth phone can discover or accept an invitation.
+  const phoneDigits = String(user.phoneNumber || '').replace(/\D/g, '');
+  const verifiedPhone = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '';
+  if (!verifiedPhone) return null;
+  const phoneE164 = '+91' + verifiedPhone;
+  const invitationId = 'phone_' + phoneE164;
+  const inviteRef = collection('pending_editors').doc(invitationId);
   const roleRef = collection('roles').doc(user.uid);
-
   try {
     const existingRole = await roleRef.get();
-    if (existingRole.exists) return existingRole.data() || null;
-
-    let inviteSnapshot = null;
-
-    // Prefer a verified email invitation when available.
-    if (email) {
-      const byEmail = await collection('pending_editors')
-        .where('email', '==', email)
-        .where('status', '==', 'pending')
-        .limit(1)
-        .get();
-
-      if (!byEmail.empty) {
-        inviteSnapshot = byEmail.docs[0];
-      }
-    }
-
-    // Phone-only invitations require a verified Firebase Auth phone.
-    if (!inviteSnapshot && verifiedPhone) {
-      const byPhone = await collection('pending_editors')
-        .where('phone', '==', verifiedPhone)
-        .where('status', '==', 'pending')
-        .limit(1)
-        .get();
-
-      if (!byPhone.empty) {
-        const candidate = byPhone.docs[0];
-        const data = candidate.data() || {};
-        const invitedEmail = String(data.email || '')
-          .trim().toLowerCase();
-
-        // If an email was specified, it must also match a verified email.
-        if (!invitedEmail || invitedEmail === email) {
-          inviteSnapshot = candidate;
-        }
-      }
-    }
-
-    if (!inviteSnapshot) return null;
-
+    if (existingRole.exists) return null;
+    const inviteSnapshot = await inviteRef.get();
+    if (!inviteSnapshot.exists) return null;
     const invitation = inviteSnapshot.data() || {};
-    const invitedEmail = String(invitation.email || '')
-      .trim().toLowerCase();
-    const invitedPhone = String(invitation.phone || '')
-      .replace(/\D/g, '');
-
-    const emailMatches = !!email && !!invitedEmail &&
-      email === invitedEmail;
-
-    const phoneMatches = !!verifiedPhone &&
-      invitedPhone.length === 10 &&
-      verifiedPhone === invitedPhone;
-
-    if (
-      !invitation.permissions ||
-      typeof invitation.permissions !== 'object' ||
-      (!emailMatches && !phoneMatches) ||
-      (invitedEmail && !emailMatches)
-    ) {
+    if (invitation.status !== 'pending' || String(invitation.phoneE164 || '') !== phoneE164 ||
+        normalizeStudentPhone(invitation.phone || '') !== verifiedPhone ||
+        !invitation.permissions || typeof invitation.permissions !== 'object') return null;
+    const permissionLabels = [
+      invitation.permissions.media === true ? 'Media/PDF/Audio' : '',
+      invitation.permissions.quizDrafts === true ? 'Daily Quiz Drafts' : '',
+      invitation.permissions.examReview === true ? 'Exam Checking & Results' : '',
+      invitation.permissions.notifications === true ? 'Notifications' : ''
+    ].filter(Boolean);
+    const accepted = window.confirm(
+      'Bishnoism Owner Studio invitation\n\n' +
+      (invitation.fullName || 'Owner') + ' ने आपको Assistant Editor के रूप में आमंत्रित किया है।\n' +
+      'Phone: ' + verifiedPhone + '\n' +
+      'Permissions: ' + (permissionLabels.join(', ') || 'None') + '\n\n' +
+      'क्या आप यह Editor भूमिका स्वीकार करते हैं?'
+    );
+    if (!accepted) {
+      notify('Editor invitation अभी pending है। बाद में इसी verified phone से लॉगिन करके स्वीकार करें।', 'info');
       return null;
     }
-
     const roleData = {
       role: 'editor',
       fullName: String(invitation.fullName || '').slice(0, 100),
-      phone: invitedPhone,
-      email: emailMatches ? email : invitedEmail,
+      phone: verifiedPhone,
+      email: String(invitation.email || '').trim().toLowerCase(),
       permissions: {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
         examReview: invitation.permissions.examReview === true,
         notifications: invitation.permissions.notifications === true
       },
-      invitationId: inviteSnapshot.id,
+      invitationId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-
-    // Claim only if the invitation is still pending.
     await state.db.runTransaction(async transaction => {
-      const freshInvite = await transaction.get(inviteSnapshot.ref);
+      const freshInvite = await transaction.get(inviteRef);
       const freshRole = await transaction.get(roleRef);
-
+      const freshData = freshInvite.exists ? (freshInvite.data() || {}) : {};
       if (freshRole.exists) throw new Error('ROLE_ALREADY_EXISTS');
-
-      if (
-        !freshInvite.exists ||
-        freshInvite.data()?.status !== 'pending'
-      ) {
+      if (!freshInvite.exists || freshData.status !== 'pending' || freshData.phoneE164 !== phoneE164) {
         throw new Error('INVITATION_ALREADY_CLAIMED');
       }
-
       transaction.set(roleRef, roleData);
-      transaction.update(inviteSnapshot.ref, {
+      transaction.update(inviteRef, {
         status: 'claimed',
         claimedUid: user.uid,
         claimedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     });
-
-    return roleData;
+    return { ...roleData, __justClaimed: true };
   } catch (error) {
-    if (
-      error.message !== 'ROLE_ALREADY_EXISTS' &&
-      error.message !== 'INVITATION_ALREADY_CLAIMED'
-    ) {
+    if (error.message !== 'ROLE_ALREADY_EXISTS' && error.message !== 'INVITATION_ALREADY_CLAIMED') {
       console.error('Editor invitation claim failed:', error);
+      notify('Editor invitation जाँची नहीं जा सकी। Firestore rules/deployment जाँचें।', 'error');
     }
     return null;
   }
@@ -630,7 +574,10 @@ async function claimPendingEditorInvitation(user) {
     } catch (profileError) {
       console.warn('User profile could not be created/read; check users Firestore rules:', profileError);
     }
-    await claimPendingEditorInvitation(user);
+    const claimedEditorRole = await claimPendingEditorInvitation(user);
+    if (claimedEditorRole?.__justClaimed) {
+      notify('Editor भूमिका स्वीकार हो गई। आपकी चुनी हुई permissions लागू कर दी गई हैं।', 'success');
+    }
     let roleData = {};
     try {
       const roleSnap = await collection('roles').doc(user.uid).get();
@@ -2773,6 +2720,13 @@ window.renderExamVisibility = function renderExamVisibility() {
         </div>
         <button type="button" data-editor-invite class="min-h-12 rounded-xl bg-emerald-900 px-5 font-bold text-white">Invite Editor</button>
         <p data-editor-invite-status class="text-sm text-stone-600" aria-live="polite"></p>
+        <div class="border-t border-stone-200 pt-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="font-bold text-emerald-950">Invitations & Acceptance Status</h3>
+            <button type="button" data-editor-refresh class="min-h-10 rounded-lg border border-emerald-800 px-3 text-sm font-bold text-emerald-900">Refresh status</button>
+          </div>
+          <div data-editor-invite-list class="mt-3 space-y-2 text-sm" aria-live="polite">Invitation status लोड हो रहा है…</div>
+        </div>
       </section>
 
       <section class="mt-5 space-y-3 rounded-2xl border border-amber-200 bg-white p-4 sm:p-5">
@@ -2820,27 +2774,24 @@ window.renderExamVisibility = function renderExamVisibility() {
       button.disabled = true;
 
       try {
-        const existing = await collection('pending_editors')
-          .where('phone', '==', phone)
-          .where('status', '==', 'pending')
-          .limit(1).get();
-
-        if (!existing.empty) {
+        const phoneE164 = '+91' + phone;
+        const invitationId = 'phone_' + phoneE164;
+        const inviteRef = collection('pending_editors').doc(invitationId);
+        const existing = await inviteRef.get();
+        if (existing.exists && existing.data()?.status === 'pending') {
           if (status) status.textContent = 'इस फोन नंबर का pending invitation पहले से मौजूद है।';
           return;
         }
-
-        await collection('pending_editors').add({
-          fullName: name,
-          phone,
-          email: email || '',
-          permissions,
-          status: 'pending',
-          createdBy: state.user.uid,
+        if (existing.exists && existing.data()?.status === 'claimed') {
+          if (status) status.textContent = 'यह invitation पहले स्वीकार हो चुका है। दोबारा invite करने से पहले पुरानी editor role हटाएँ।';
+          return;
+        }
+        await inviteRef.set({
+          fullName: name, phone, phoneE164, email: email || '', permissions,
+          status: 'pending', createdBy: state.user.uid,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
-        if (status) status.textContent = 'Invitation सेव हो गया। Editor access अभी claim और permission enforcement पर निर्भर है।';
+        if (status) status.textContent = 'Invitation सेव हो गया। संबंधित user को अगली बार इसी verified phone से login करने पर Accept/Decline सूचना दिखेगी।';
         host.querySelector('[data-editor-name]').value = '';
         host.querySelector('[data-editor-phone]').value = '';
         host.querySelector('[data-editor-email]').value = '';
@@ -2850,6 +2801,39 @@ window.renderExamVisibility = function renderExamVisibility() {
         if (status) status.textContent = 'Invitation सेव नहीं हुआ। Firestore rules जाँचें।';
       } finally {
         button.disabled = false;
+      }
+    });
+
+    host.querySelector('[data-editor-refresh]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      const list = host.querySelector('[data-editor-invite-list]');
+      if (list) list.textContent = 'Invitation status लोड हो रहा है…';
+      try {
+        const snap = await collection('pending_editors').limit(100).get();
+        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt));
+        if (!list) return;
+        list.innerHTML = rows.length ? rows.map(row => {
+          const p = row.permissions || {};
+          const labels = [
+            p.media ? 'Media/PDF/Audio' : '',
+            p.quizDrafts ? 'Daily Quiz Drafts' : '',
+            p.examReview ? 'Exam Checking' : '',
+            p.notifications ? 'Notifications' : ''
+          ].filter(Boolean).join(' · ') || 'No permissions';
+          const claimed = row.status === 'claimed';
+          return '<article class="rounded-xl border p-3 ' + (claimed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50') + '">' +
+            '<div class="flex flex-wrap items-start justify-between gap-2"><strong>' + escapeHtml(row.fullName || 'Assistant Editor') + '</strong>' +
+            '<span class="rounded-full px-2 py-1 text-xs font-bold ' + (claimed ? 'bg-emerald-200 text-emerald-950' : 'bg-amber-200 text-amber-950') + '">' +
+            (claimed ? 'Accepted' : escapeHtml(row.status || 'pending')) + '</span></div>' +
+            '<p class="mt-1 text-xs text-stone-600">Phone: ' + escapeHtml(row.phone || '') + (row.email ? ' · ' + escapeHtml(row.email) : '') + '</p>' +
+            '<p class="mt-1 text-xs text-stone-600">' + escapeHtml(labels) + '</p>' +
+            (row.claimedUid ? '<p class="mt-1 text-xs text-emerald-800">Role accepted and linked to the signed-in Firebase account.</p>' : '<p class="mt-1 text-xs text-stone-500">Awaiting acceptance on verified phone login.</p>') +
+          '</article>';
+        }).join('') : '<p class="text-sm text-stone-500">अभी कोई editor invitation नहीं है।</p>';
+      } catch (error) {
+        console.error('Editor invite status load failed:', error);
+        if (list) list.textContent = 'Invitation status नहीं लोड हुआ। Firestore rules जाँचें।';
       }
     });
 
@@ -2905,6 +2889,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       startLiveListeners();
       notify('Portal listeners refreshed.', 'success');
     });
+    host.querySelector('[data-editor-refresh]')?.click();
 
     // Question upload workflow: validate first, then explicitly save as draft.
     let questionImportPreview = null;
