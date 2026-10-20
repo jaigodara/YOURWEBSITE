@@ -3162,9 +3162,7 @@ const selected =
 
               await batch.commit();
 
-await batch.commit();
-
-              notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
+notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
               const badge = card.querySelector('[data-check-status]');
               if (badge) { badge.textContent = 'परिणाम प्रकाशित'; badge.className = 'rounded-full px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-900'; }
               button.textContent = 'परिणाम अपडेट करें';
