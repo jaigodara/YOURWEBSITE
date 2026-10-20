@@ -4498,14 +4498,15 @@ window.toggleProfileMobilePassword = function (id, button) {
         if (found >= 0) correctAnswer = found;
       }
     }
-    const valid = question.length > 0 && options.length >= 2 &&
+    const hasAnswer = rawAnswer !== undefined && rawAnswer !== null && String(rawAnswer).trim() !== '';
+    const valid = question.length > 0 && options.length >= 2 && hasAnswer &&
       Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length;
     return {
       valid,
       errors: [
         !question ? 'प्रश्न खाली है' : '',
         options.length < 2 ? 'कम से कम दो विकल्प चाहिए' : '',
-        !(Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length) ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें' : ''
+        !hasAnswer || !(Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length) ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें' : ''
       ].filter(Boolean),
       value: {
         id: String(item.id || item.questionId || ('q_' + (index + 1))),
@@ -4651,24 +4652,6 @@ window.toggleProfileMobilePassword = function (id, button) {
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     return data.length;
-  };
-
-  window.BishnoiApp.verifyMyResultIdentity = async function(identity = {}) {
-    if (!state.user || !state.db) throw new Error('परिणाम देखने के लिए मुख्य वेबसाइट पर लॉगिन करें।');
-    const roll = String(identity.rollNumber || '').trim().toLowerCase();
-    const name = String(identity.fullName || '').trim().replace(/\s+/g, ' ').toLowerCase();
-    const dob = String(identity.dateOfBirth || '').trim();
-    if (!roll || !name || !dob) throw new Error('रोल नंबर, पूरा नाम और जन्मतिथि तीनों भरें।');
-    const snap = await state.db.collection('publishedResults').where('uid', '==', state.user.uid).limit(100).get();
-    const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(row => row.status === 'published');
-    const match = rows.find(row => {
-      const rowRoll = String(row.rollNumber || row.roll || '').trim().toLowerCase();
-      const rowName = String(row.fullName || row.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
-      const rowDob = String(row.dateOfBirth || row.dob || '').trim();
-      return rowRoll === roll && rowName === name && rowDob === dob;
-    });
-    if (!match) throw new Error('इन विवरणों से प्रकाशित परिणाम नहीं मिला। अपने पंजीकरण विवरण जाँचें या Owner से संपर्क करें।');
-    return match;
   };
 
   // Use the same visible identity model in all student-facing exam UI.
