@@ -2503,6 +2503,10 @@ window.renderExamVisibility = function renderExamVisibility() {
       uid: state.user.uid,
       mode: exam.mode,
       questions: exam.questions,
+      questionSet: exam.questionSet || 'set1',
+      questionSetKey: exam.questionSetKey || CONFIG.examCollections[exam.mode] || exam.mode,
+      questionOrder: exam.questions.map((question, index) => String(question.id || index)),
+      studentDetails: exam.studentDetails || {},
       index: exam.index,
       answers: exam.answers,
       review: exam.review,
@@ -2561,6 +2565,9 @@ window.renderExamVisibility = function renderExamVisibility() {
       active: true,
       mode: saved.mode,
       questions: saved.questions,
+      questionSet: ['set1','set2','set3','set4'].includes(saved.questionSet) ? saved.questionSet : 'set1',
+      questionSetKey: saved.questionSetKey || CONFIG.examCollections[saved.mode] || saved.mode,
+      studentDetails: saved.studentDetails && typeof saved.studentDetails === 'object' ? saved.studentDetails : {},
       index: Math.max(0, Math.min(Number(saved.index) || 0, saved.questions.length - 1)),
       answers: saved.answers && typeof saved.answers === 'object' ? saved.answers : {},
       review: saved.review && typeof saved.review === 'object' ? saved.review : {},
@@ -2754,39 +2761,83 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!workspace) {
       workspace = document.createElement('section');
       workspace.id = 'portalExamWorkspace';
-      workspace.className = 'hidden rounded-3xl border border-emerald-200 bg-white p-4 sm:p-6 shadow-lg space-y-4';
+      workspace.className = 'hidden space-y-4';
+      workspace.style.cssText = 'position:fixed;inset:0;z-index:9999;overflow:auto;overscroll-behavior:contain;background:#FAF7EE;color:#143622;border-radius:0;padding:clamp(12px,2.5vw,28px);box-sizing:border-box;';
       workspace.hidden = true;
       workspace.setAttribute('role', 'region');
-      workspace.setAttribute('aria-label', 'परीक्षा प्रश्न-पत्र');
+      workspace.setAttribute('aria-label', 'फुल स्क्रीन परीक्षा प्रश्न-पत्र');
       workspace.innerHTML = `
-        <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
-          <div class="min-w-0">
-            <p class="text-[10px] uppercase tracking-widest font-extrabold text-emerald-800">EXAM IN PROGRESS</p>
-            <h2 id="portalExamTitle" class="font-yatra text-xl sm:text-2xl text-forest">परीक्षा</h2>
-            <p id="examQuestionNumber" class="mt-1 text-xs font-semibold text-stone-500" aria-live="polite">प्रश्न 0/0</p>
+        <style>@media(min-width:1024px){#examPalettePanel{display:block!important}#examPaletteToggleText{display:none!important}}</style>
+        <header class="sticky top-0 z-20 -mx-3 -mt-3 sm:-mx-6 sm:-mt-6 px-3 py-3 sm:px-6 sm:py-4 border-b border-stone-200 bg-white/95 backdrop-blur">
+          <div class="mx-auto max-w-6xl space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-[10px] uppercase tracking-widest font-extrabold text-emerald-800">BISHNOISM CBT EXAM</p>
+                <h2 id="portalExamTitle" class="font-yatra text-xl sm:text-2xl text-forest">परीक्षा</h2>
+                <p id="examQuestionNumber" class="mt-1 text-xs font-semibold text-stone-500" aria-live="polite">प्रश्न 0/0</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="portalExamSetLabel" class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-extrabold text-stone-800">Set 1</span>
+                <div class="rounded-xl bg-forest px-3 py-2 text-center text-white">
+                  <span class="block text-[9px] uppercase tracking-wide text-emerald-100">शेष समय</span>
+                  <strong id="examTimer" class="font-mono text-lg">--:--</strong>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+              <p class="text-stone-700"><span class="font-bold">विद्यार्थी:</span> <span id="portalExamStudentName">—</span></p>
+              <p class="text-stone-700"><span class="font-bold">मोबाइल:</span> <span id="portalExamStudentPhone">—</span></p>
+            </div>
+            <div id="examAnswerSummary" class="flex flex-wrap gap-2 text-[11px] font-bold" aria-live="polite">
+              <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-900">हल: 0</span>
+              <span class="rounded-full bg-red-100 px-2.5 py-1 text-red-900">बाकी: 0</span>
+              <span class="rounded-full bg-violet-100 px-2.5 py-1 text-violet-900">Review: 0</span>
+            </div>
           </div>
-          <div class="shrink-0 rounded-xl bg-forest px-3 py-2 text-center text-white">
-            <span class="block text-[9px] uppercase tracking-wide text-emerald-100">शेष समय</span>
-            <strong id="examTimer" class="font-mono text-lg">--:--</strong>
-          </div>
-        </div>
-        <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
-        <p id="examResult" class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-900" role="status" aria-live="polite"></p>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="previousQuestionBtn" type="button" class="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700">← पिछला प्रश्न</button>
-          <button id="nextQuestionBtn" type="button" class="rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white">अगला प्रश्न →</button>
-        </div>
-        <button id="submitExamBtn" type="button" class="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-stone-950">उत्तर जमा करें</button>
-        <button id="exitExamWorkspace" type="button" class="hidden w-full rounded-xl border border-stone-300 px-4 py-3 text-sm font-bold text-stone-700">परीक्षा सूची पर वापस जाएँ</button>
+        </header>
+        <main class="mx-auto grid max-w-6xl grid-cols-1 gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <section class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
+            <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
+            <p id="examResult" class="mt-4 hidden rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm font-semibold text-stone-700" role="status" aria-live="polite"></p>
+            <div class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <button id="previousQuestionBtn" type="button" class="rounded-xl border border-stone-300 bg-stone-50 px-3 py-3 text-sm font-bold text-stone-700">← Previous</button>
+              <button id="markReviewBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-3 text-sm font-bold text-violet-900">Mark for Review</button>
+              <button id="nextQuestionBtn" type="button" class="col-span-2 rounded-xl bg-forest px-3 py-3 text-sm font-bold text-white sm:col-span-1">Save &amp; Next →</button>
+            </div>
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button id="submitExamBtn" type="button" class="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-stone-950">Submit Exam</button>
+              <button id="exitExamWorkspace" type="button" class="hidden w-full rounded-xl border border-stone-300 px-4 py-3 text-sm font-bold text-stone-700">परीक्षा सूची पर वापस जाएँ</button>
+            </div>
+          </section>
+          <aside class="h-fit rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+            <button id="examPaletteToggleBtn" type="button" class="flex w-full items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2 text-left text-sm font-extrabold text-forest lg:cursor-default">
+              <span>Question Palette</span><span id="examPaletteToggleText" class="lg:hidden">खोलें ▾</span>
+            </button>
+            <div id="examPalettePanel" class="mt-3 hidden">
+              <div class="mb-3 flex flex-wrap gap-2 text-[10px] font-semibold text-stone-600">
+                <span class="flex items-center gap-1"><i class="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-600"></i>Answered</span>
+                <span class="flex items-center gap-1"><i class="inline-block h-2.5 w-2.5 rounded-sm bg-red-500"></i>Not answered</span>
+                <span class="flex items-center gap-1"><i class="inline-block h-2.5 w-2.5 rounded-sm bg-violet-600"></i>Review</span>
+              </div>
+              <div id="examQuestionPalette" class="grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-5"></div>
+            </div>
+          </aside>
+        </main>
       `;
 
-      const anchor = byId('enrollmentSection') || byId('dailyQuizSection') || tab.firstElementChild;
-      if (anchor) tab.insertBefore(workspace, anchor);
-      else tab.appendChild(workspace);
-
+      if (window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) {
+        byId('examPalettePanel')?.classList.remove('hidden');
+      }
       byId('previousQuestionBtn').addEventListener('click', () => window.previousExamQuestion());
       byId('nextQuestionBtn').addEventListener('click', () => window.nextExamQuestion());
+      byId('markReviewBtn').addEventListener('click', () => window.toggleExamReview());
       byId('submitExamBtn').addEventListener('click', () => window.submitPortalExam(false));
+      byId('examPaletteToggleBtn').addEventListener('click', () => {
+        const panel = byId('examPalettePanel');
+        const open = panel && panel.classList.contains('hidden');
+        if (panel) panel.classList.toggle('hidden', !open);
+        setText('examPaletteToggleText', open ? 'बंद करें ▴' : 'खोलें ▾');
+      });
       byId('exitExamWorkspace').addEventListener('click', () => {
         setVisible('portalExamWorkspace', false);
         window.renderExamVisibility();
@@ -2801,17 +2852,62 @@ window.renderExamVisibility = function renderExamVisibility() {
       main: 'मुख्य परीक्षा'
     };
     setText('portalExamTitle', labels[mode] || 'परीक्षा');
+    setText('portalExamStudentName', state.exam.studentDetails?.name || state.profile?.displayName || state.user?.displayName || '—');
+    setText('portalExamStudentPhone', state.exam.studentDetails?.phone || state.profile?.mobile || state.profile?.phone || '—');
+    setText('portalExamSetLabel', 'Set ' + String(state.exam.questionSet || 'set1').replace(/^set/i, ''));
     setText('examResult', '');
     setVisible('exitExamWorkspace', false);
     return workspace;
   }
+
+  function examAnswerKey(question, index) {
+    return String(question && question.id != null && question.id !== '' ? question.id : index);
+  }
+
+  function updateExamAnswerSummary() {
+    const exam = state.exam;
+    if (!exam || !Array.isArray(exam.questions)) return;
+    let answered = 0;
+    let marked = 0;
+    exam.questions.forEach((question, index) => {
+      const key = examAnswerKey(question, index);
+      if (exam.answers[key] !== undefined && exam.answers[key] !== null && exam.answers[key] !== '') answered++;
+      if (exam.review[key] === true) marked++;
+    });
+    const summary = byId('examAnswerSummary');
+    if (summary) summary.innerHTML = `
+      <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-900">हल: ${answered}</span>
+      <span class="rounded-full bg-red-100 px-2.5 py-1 text-red-900">बाकी: ${Math.max(0, exam.questions.length - answered)}</span>
+      <span class="rounded-full bg-violet-100 px-2.5 py-1 text-violet-900">Review: ${marked}</span>
+    `;
+  }
+
+  window.goToExamQuestion = function (index) {
+    const exam = state.exam;
+    if (!exam.active || exam.kicked || exam.lockedAtDeadline) return;
+    const target = Number(index);
+    if (!Number.isInteger(target) || target < 0 || target >= exam.questions.length) return;
+    exam.index = target;
+    persistActiveExam();
+    renderExamQuestion();
+  };
+
+  window.toggleExamReview = function () {
+    const exam = state.exam;
+    if (!exam.active || exam.kicked || exam.lockedAtDeadline) return;
+    const question = exam.questions[exam.index];
+    if (!question) return;
+    const key = examAnswerKey(question, exam.index);
+    exam.review[key] = exam.review[key] !== true;
+    persistActiveExam();
+    renderExamQuestion();
+  };
 
   function renderExamQuestion() {
     const exam = state.exam;
     const question = exam.questions[exam.index];
     const workspace = ensureExamWorkspace(exam.mode);
     const host = byId('examQuestion');
-
     if (!host || !question) return;
 
     const options = Array.isArray(question.options)
@@ -2819,17 +2915,21 @@ window.renderExamVisibility = function renderExamVisibility() {
       : Array.isArray(question.opts)
         ? question.opts
         : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '');
-
-    const answerKey = question.id || exam.index;
+    const answerKey = examAnswerKey(question, exam.index);
     const selectedAnswer = exam.answers[answerKey];
+    const isReview = exam.review[answerKey] === true;
 
     host.innerHTML = `
       <article class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-extrabold text-stone-700">Question ${exam.index + 1} of ${exam.questions.length}</span>
+          <span class="rounded-full px-3 py-1 text-xs font-extrabold ${isReview ? 'bg-violet-100 text-violet-900' : (selectedAnswer !== undefined && selectedAnswer !== null ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900')}">${isReview ? 'Marked for Review' : (selectedAnswer !== undefined && selectedAnswer !== null ? 'Answered' : 'Not Answered')}</span>
+        </div>
         <h3 class="text-base sm:text-lg font-bold leading-relaxed text-stone-900">${exam.index + 1}. ${escapeHtml(question.question || question.text || question.q || question.title || 'प्रश्न')}</h3>
         ${options.length ? `
           <div class="space-y-2">
             ${options.map((option, index) => `
-              <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 hover:border-emerald-500 hover:bg-emerald-50">
+              <label class="flex cursor-pointer items-start gap-3 rounded-xl border ${String(selectedAnswer) === String(index) ? 'border-emerald-600 bg-emerald-50' : 'border-stone-200 bg-stone-50'} p-3 hover:border-emerald-500 hover:bg-emerald-50">
                 <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''} ${(exam.kicked || exam.lockedAtDeadline) ? 'disabled' : ''}>
                 <span>${escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || JSON.stringify(option)) : option)}</span>
               </label>
@@ -2843,21 +2943,48 @@ window.renderExamVisibility = function renderExamVisibility() {
       input.addEventListener('change', () => {
         exam.answers[answerKey] = Number(input.value);
         persistActiveExam();
+        updateExamAnswerSummary();
+        renderExamQuestionPalette();
       });
     });
 
     setText('examQuestionNumber', `प्रश्न ${exam.index + 1}/${exam.questions.length}`);
+    setText('portalExamSetLabel', 'Set ' + String(exam.questionSet || 'set1').replace(/^set/i, ''));
     const previous = byId('previousQuestionBtn');
     const next = byId('nextQuestionBtn');
+    const mark = byId('markReviewBtn');
     if (previous) previous.disabled = exam.kicked || exam.lockedAtDeadline || exam.index <= 0;
     if (next) next.disabled = exam.kicked || exam.lockedAtDeadline || exam.index >= exam.questions.length - 1;
+    if (mark) {
+      mark.disabled = exam.kicked || exam.lockedAtDeadline;
+      mark.textContent = isReview ? 'Remove Review Mark' : 'Mark for Review';
+    }
     const submitButton = byId('submitExamBtn');
     if (submitButton) submitButton.disabled = exam.kicked || exam.lockedAtDeadline;
-    if (previous) previous.classList.toggle('opacity-40', previous.disabled);
-    if (next) next.classList.toggle('opacity-40', next.disabled);
-    if (workspace) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    [previous, next, mark, submitButton].filter(Boolean).forEach(button => button.classList.toggle('opacity-40', button.disabled));
+    renderExamQuestionPalette();
+    updateExamAnswerSummary();
+    if (workspace) workspace.scrollTop = 0;
   }
 
+  function renderExamQuestionPalette() {
+    const exam = state.exam;
+    const palette = byId('examQuestionPalette');
+    if (!palette || !exam || !Array.isArray(exam.questions)) return;
+    palette.innerHTML = exam.questions.map((question, index) => {
+      const key = examAnswerKey(question, index);
+      const answered = exam.answers[key] !== undefined && exam.answers[key] !== null && exam.answers[key] !== '';
+      const review = exam.review[key] === true;
+      const classes = review
+        ? 'bg-violet-600 text-white border-violet-700'
+        : (answered ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-red-500 text-white border-red-600');
+      const current = index === exam.index ? ' ring-4 ring-amber-300 ring-offset-1' : '';
+      return `<button type="button" data-question-index="${index}" aria-label="Question ${index + 1}${review ? ', marked for review' : ''}${answered ? ', answered' : ', not answered'}" aria-current="${index === exam.index ? 'step' : 'false'}" class="aspect-square min-h-9 rounded-lg border text-xs font-extrabold ${classes}${current}">${index + 1}</button>`;
+    }).join('');
+    palette.querySelectorAll('[data-question-index]').forEach(button => {
+      button.addEventListener('click', () => window.goToExamQuestion(Number(button.dataset.questionIndex)));
+    });
+  }
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
     if (state.profile?.gmailVerified !== true) {
@@ -2868,10 +2995,12 @@ window.renderExamVisibility = function renderExamVisibility() {
 
     // Every exam mode requires an existing, owner-confirmed enrollment.
     // Firestore Rules must enforce the same check to prevent direct API bypasses.
+    let enrollmentData = {};
     if (['quiz', 'mock1', 'mock2', 'main'].includes(mode)) {
       try {
         const enrollmentSnap = await collection('examEnrolledStudents').doc(state.user.uid).get();
         const enrollment = enrollmentSnap.exists ? enrollmentSnap.data() || {} : null;
+        enrollmentData = enrollment || {};
         if (!enrollment || enrollment.verificationStatus !== 'confirmed') {
           notify('परीक्षा देने से पहले पंजीकरण कराएँ और Owner से पुष्टि करवाएँ। पंजीकरण फॉर्म खोल दिया गया है।', 'error');
           if (document.documentElement.hasAttribute('data-exam-embed')) {
@@ -2973,7 +3102,14 @@ window.renderExamVisibility = function renderExamVisibility() {
 
     const collectionName = CONFIG.examCollections[mode];
     const questionSetConfigKey = ({ quiz: 'quizQuestionSet', mock1: 'mock1QuestionSet', mock2: 'mock2QuestionSet', main: 'mainQuestionSet' })[mode];
-    const selectedQuestionSet = ['set1','set2','set3','set4'].includes(config[questionSetConfigKey]) ? config[questionSetConfigKey] : 'set1';
+    // Set 1–4 label each student's randomized order of the same published bank.
+    // Daily quiz retains its existing tagged-set behavior on the main website.
+    const usesPerStudentShuffle = mode !== 'quiz' &&
+      config.studentQuestionSetShuffle !== false &&
+      config.questionSetMode !== 'legacyBankFilter';
+    const selectedQuestionSet = usesPerStudentShuffle
+      ? 'set' + (1 + Math.floor(Math.random() * 4))
+      : (['set1','set2','set3','set4'].includes(config[questionSetConfigKey]) ? config[questionSetConfigKey] : 'set1');
     if (!collectionName) {
       notify('Unknown exam type.', 'error');
       return;
@@ -2987,7 +3123,9 @@ window.renderExamVisibility = function renderExamVisibility() {
         .filter(doc => {
           const data = doc.data() || {};
           const docSet = ['set1','set2','set3','set4'].includes(data.questionSet || data.questionSetKey || data.set) ? (data.questionSet || data.questionSetKey || data.set) : 'set1';
-          return data.published === true && data.status !== 'draft' && docSet === selectedQuestionSet;
+          // For per-student sets, do not filter the common bank by its legacy set tag.
+          return data.published === true && data.status !== 'draft' &&
+            (usesPerStudentShuffle || docSet === selectedQuestionSet);
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -3012,6 +3150,12 @@ window.renderExamVisibility = function renderExamVisibility() {
         mode,
         questionSet: selectedQuestionSet,
         questionSetKey: collectionName,
+        studentDetails: {
+          name: state.profile?.displayName || state.profile?.fullName || state.user.displayName || 'विद्यार्थी',
+          rollNumber: state.profile?.rollNumber || enrollmentData?.rollNumber || enrollmentData?.rollNo || '',
+          fatherName: state.profile?.fatherName || state.profile?.father || enrollmentData?.fatherName || enrollmentData?.father || '',
+          phone: state.profile?.mobile || state.profile?.phone || enrollmentData?.phone || enrollmentData?.mobile || ''
+        },
         questions,
         index: 0,
         answers: {},
@@ -3126,7 +3270,17 @@ window.renderExamVisibility = function renderExamVisibility() {
       return;
     }
 
-    if (!automatic && !confirm('Submit your answers now?')) return;
+    if (!automatic) {
+      let unanswered = 0;
+      let marked = 0;
+      exam.questions.forEach((question, index) => {
+        const key = String(question && question.id != null && question.id !== '' ? question.id : index);
+        if (exam.answers[key] === undefined || exam.answers[key] === null || exam.answers[key] === '') unanswered++;
+        if (exam.review[key] === true) marked++;
+      });
+      const message = 'Submit this exam?\n\nUnanswered: ' + unanswered + '\nMarked for review: ' + marked + '\n\nYou cannot change answers after submission.';
+      if (!confirm(message)) return;
+    }
 
     exam.submitting = true;
 
@@ -3154,7 +3308,10 @@ window.renderExamVisibility = function renderExamVisibility() {
       mode: exam.mode,
       total: exam.questions.length,
       totalQuestions: exam.questions.length,
-      rollNumber: state.profile?.rollNumber || null,
+      rollNumber: exam.studentDetails?.rollNumber || state.profile?.rollNumber || null,
+      fatherName: exam.studentDetails?.fatherName || state.profile?.fatherName || '',
+      phone: exam.studentDetails?.phone || state.profile?.mobile || state.profile?.phone || '',
+      studentName: exam.studentDetails?.name || state.profile?.displayName || state.user.displayName || 'प्रतिभागी',
       attempted,
       // Keep all attempts free of result/mark fields. The student-visible score,
       // when available, is written to publishedResults in the same atomic batch.
@@ -3165,8 +3322,11 @@ window.renderExamVisibility = function renderExamVisibility() {
       questionOrder: exam.questions.map((question, index) => String(question.id || index)),
       questionSnapshots: exam.questions.map((question, index) => ({
         id: String(question.id || index),
-        question: question.question || question.text || question.q || '',
-        options: (Array.isArray(question.options) ? question.options : Array.isArray(question.opts) ? question.opts : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '')).map(option => typeof option === 'object' ? { text: option.text || option.label || option.value || '' } : String(option)),
+        sourceQuestionId: String(question.id || index),
+        question: question.question || question.text || question.q || question.title || '',
+        options: (Array.isArray(question.options) ? question.options : Array.isArray(question.opts) ? question.opts : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '')).map(option => typeof option === 'object' ? (option.text || option.label || option.value || '') : String(option)),
+        selectedOptionIndex: exam.answers[String(question.id || index)] ?? null,
+        markedForReview: exam.review[String(question.id || index)] === true,
         marks: Number(question.marks || question.points || 1)
       })),
       submittedAt: serverTimestamp(),
