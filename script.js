@@ -3021,7 +3021,49 @@ window.renderExamVisibility = function renderExamVisibility() {
           const snap = await collection(sourceCollection).limit(100).get();
           return snap.docs.map(doc => ({ ...doc.data(), id: doc.id, mode: doc.data()?.mode || mode, sourceCollection }));
         }));
-        const rows = groups.flat().sort((a, b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt));
+        const rows = groups.flat().sort(
+  (a, b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt)
+);
+
+// Load published answer keys from each relevant exam question collection.
+// Keep manual checking available even if an answer-key query fails.
+const answerKeyByQuestionId = new Map();
+
+const questionCollections = [
+  ...new Set(
+    rows
+      .map(row => CONFIG.examCollections[row.mode] || row.questionSetKey)
+      .filter(Boolean)
+  )
+];
+
+await Promise.all(questionCollections.map(async questionCollection => {
+  try {
+    const questionSnap = await collection(questionCollection)
+      .where('published', '==', true)
+      .get();
+
+    questionSnap.docs.forEach(questionDoc => {
+      const question = questionDoc.data() || {};
+      const set = question.questionSet || question.questionSetKey || question.set || 'set1';
+
+      if (!['set1', 'set2', 'set3', 'set4'].includes(set)) return;
+
+      answerKeyByQuestionId.set(
+        questionCollection + '::' + questionDoc.id,
+        {
+          set,
+          answer: question.correctAnswer ?? question.answerIndex ?? question.ans
+        }
+      );
+    });
+  } catch (error) {
+    console.warn(
+      'Could not load answer keys for ' + questionCollection,
+      error.code || error.message
+    );
+  }
+}));
         if (status) status.textContent = rows.length ? rows.length + ' उत्तर-पत्र मिले। जाँचकर अंक प्रकाशित करें।' : 'कोई Mock/Main उत्तर-पत्र नहीं मिला।';
         if (!list) return;
         list.innerHTML = rows.map(row => {
@@ -3050,37 +3092,97 @@ window.renderExamVisibility = function renderExamVisibility() {
 
           const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
           const answers = row.answers && typeof row.answers === 'object' ? row.answers : {};
-          const questionHtml = snapshots.map((q, qi) => {
-           
-const answer = answers[q.id] ?? answers[qi];
+const questionCollection =
+  CONFIG.examCollections[row.mode] || row.questionSetKey || '';
 
-const options = Array.isArray(q.options) ? q.options : [];
+const rowSet = ['set1', 'set2', 'set3', 'set4'].includes(row.questionSet)
+  ? row.questionSet
+  : 'set1';
 
-const selectedIndex =
-  answer === undefined || answer === null || answer === ''
-    ? -1
-    : typeof answer === 'number'
-      ? answer
-      : /^\d+$/.test(String(answer))
-        ? Number(answer)
-        : /^[A-D]$/i.test(String(answer).trim())
-          ? String(answer).trim().toUpperCase().charCodeAt(0) - 65
-          : -1;
+const questionHtml = snapshots.map((q, qi) => {
+  const questionId = String(q.id || qi);
+  const answer = answers[q.id] ?? answers[qi];
+  const options = Array.isArray(q.options) ? q.options : [];
 
-const selected =
-  selectedIndex >= 0 && selectedIndex < options.length
-    ? String.fromCharCode(65 + selectedIndex)
-    : selectedIndex === -1
-      ? 'उत्तर नहीं दिया / उत्तर प्रारूप पहचान नहीं हुआ'
-      : 'अमान्य उत्तर';
-            
-            return '<div class="rounded-lg border border-stone-200 bg-white p-3"><p class="font-semibold">' +
-              (qi + 1) + '. ' + escapeHtml(q.question || 'प्रश्न उपलब्ध नहीं') +
-              '</p><p class="mt-1 text-xs text-stone-600">विद्यार्थी का उत्तर: <strong>' + escapeHtml(selected) + '</strong></p>' +
-              (options.length ? '<ul class="mt-1 list-inside list-disc text-xs text-stone-600">' + options.map((opt, oi) =>
-                '<li>' + String.fromCharCode(65 + oi) + '. ' + escapeHtml(typeof opt === 'object' ? (opt.text || '') : opt) + '</li>'
-              ).join('') + '</ul>' : '') + '</div>';
-          }).join('');
+  const normalizeAnswerIndex = value => {
+    if (value === undefined || value === null || value === '') return -1;
+
+    const text = String(value).trim();
+
+    if (/^\d+$/.test(text)) {
+      const number = Number(text);
+      return Number.isInteger(number) && number >= 0 && number < options.length
+        ? number
+        : -1;
+    }
+
+    if (/^[A-D]$/i.test(text)) {
+      const index = text.toUpperCase().charCodeAt(0) - 65;
+      return index < options.length ? index : -1;
+    }
+
+    return options.findIndex(option => {
+      const optionText = typeof option === 'object'
+        ? (option.text || option.label || option.value || '')
+        : option;
+
+      return String(optionText).trim().toLowerCase() === text.toLowerCase();
+    });
+  };
+
+  const selectedIndex = normalizeAnswerIndex(answer);
+
+  const keyRecord = answerKeyByQuestionId.get(
+    questionCollection + '::' + questionId
+  );
+
+  const correctIndex = keyRecord && keyRecord.set === rowSet
+    ? normalizeAnswerIndex(keyRecord.answer)
+    : -1;
+
+  const answerLabel = index => index >= 0
+    ? String.fromCharCode(65 + index)
+    : 'पहचान उपलब्ध नहीं';
+
+  let checkingLabel = 'Answer key उपलब्ध नहीं';
+
+  if (correctIndex >= 0) {
+    checkingLabel = selectedIndex < 0
+      ? 'उत्तर नहीं दिया'
+      : selectedIndex === correctIndex
+        ? 'सही उत्तर ✓'
+        : 'गलत उत्तर';
+  }
+
+  return '<div class="rounded-lg border border-stone-200 bg-white p-3">' +
+    '<p class="font-semibold">' +
+    (qi + 1) + '. ' + escapeHtml(q.question || 'प्रश्न उपलब्ध नहीं') +
+    '</p>' +
+    '<p class="mt-1 text-xs text-stone-600">विद्यार्थी का उत्तर: <strong>' +
+    escapeHtml(answerLabel(selectedIndex)) + '</strong></p>' +
+    '<p class="mt-1 text-xs font-bold text-emerald-800">सही उत्तर: ' +
+    escapeHtml(answerLabel(correctIndex)) + '</p>' +
+    '<p class="mt-1 text-xs font-bold ' +
+    (checkingLabel === 'सही उत्तर ✓'
+      ? 'text-emerald-800'
+      : checkingLabel === 'गलत उत्तर'
+        ? 'text-red-700'
+        : 'text-stone-600') +
+    '">' + escapeHtml(checkingLabel) + '</p>' +
+    (options.length
+      ? '<ul class="mt-2 list-inside list-disc text-xs text-stone-600">' +
+        options.map((option, index) =>
+          '<li>' + String.fromCharCode(65 + index) + '. ' +
+          escapeHtml(typeof option === 'object'
+            ? (option.text || option.label || option.value || '')
+            : option) +
+          (index === correctIndex ? ' ✓ Answer Key' : '') +
+          '</li>'
+        ).join('') +
+        '</ul>'
+      : '') +
+    '</div>';
+}).join('');
           const isPublished = row.manualCheckStatus === 'published';
           return '<article class="rounded-2xl border border-stone-200 bg-white p-4" data-check-card="' + escapeHtml(row.id) + '">' +
             '<div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-extrabold text-emerald-950">' + escapeHtml(row.name || 'विद्यार्थी') +
