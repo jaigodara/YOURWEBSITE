@@ -2603,6 +2603,49 @@ window.renderExamVisibility = function renderExamVisibility() {
         <div class="flex flex-wrap gap-2"><button type="button" data-owner-save-exam class="min-h-12 rounded-xl bg-emerald-900 px-5 font-bold text-white">परीक्षा सेटिंग सेव करें</button>
         <button type="button" data-owner-save-maintenance class="min-h-12 rounded-xl border border-amber-400 bg-amber-50 px-5 font-bold text-amber-950">रखरखाव सेव करें</button>
         <button type="button" data-owner-refresh class="min-h-12 rounded-xl border border-stone-300 bg-white px-5 font-bold">डेटा रीफ़्रेश करें</button></div>
+      </section>
+
+      <section class="mt-5 space-y-4 rounded-2xl border border-amber-200 bg-white p-4 sm:p-5">
+        <div>
+          <h2 class="text-xl font-extrabold text-emerald-950">Question Studio — प्रश्न अपलोड एवं समीक्षा</h2>
+          <p class="mt-1 text-sm text-stone-600">JSON, CSV या Excel फ़ाइल चुनें। पहले Preview में प्रश्न और Answer Key जाँचें; अपलोड किए गए प्रश्न Draft रहेंगे, जब तक आप उन्हें प्रकाशित न करें।</p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="text-sm font-semibold text-stone-700">परीक्षा संग्रह
+            <select data-question-target class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">
+              <option value="quiz">दैनिक क्विज़</option>
+              <option value="mockExam_1">मॉक परीक्षा 1</option>
+              <option value="mockExam_2">मॉक परीक्षा 2</option>
+              <option value="mainExamQuestions">मुख्य परीक्षा</option>
+            </select>
+          </label>
+          <label class="text-sm font-semibold text-stone-700">Question Set
+            <select data-question-set class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">
+              <option value="set1">Set 1</option><option value="set2">Set 2</option>
+              <option value="set3">Set 3</option><option value="set4">Set 4</option>
+            </select>
+          </label>
+        </div>
+        <label class="block text-sm font-semibold text-stone-700">Question file (.json, .csv, .xlsx, .xls)
+          <input data-question-file type="file" accept=".json,.csv,.xlsx,.xls,application/json,text/csv" class="mt-1 block min-h-12 w-full rounded-xl border border-stone-300 bg-white p-2">
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-question-preview class="min-h-12 rounded-xl border border-emerald-800 px-5 font-bold text-emerald-900">Preview & Validate</button>
+          <button type="button" data-question-upload disabled class="min-h-12 rounded-xl bg-emerald-900 px-5 font-bold text-white disabled:opacity-40">Upload as Draft</button>
+          <button type="button" data-question-template class="min-h-12 rounded-xl border border-stone-300 bg-stone-50 px-5 font-bold">Download CSV Template</button>
+        </div>
+        <div data-question-preview-output class="hidden rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm" aria-live="polite"></div>
+        <p class="text-xs leading-relaxed text-stone-500">Required columns: question, A, B, C, D, correctAnswer. correctAnswer may be A/B/C/D or 0/1/2/3. Optional: marks, negativeMarks, explanation, id.</p>
+      </section>
+
+      <section class="mt-5 space-y-3 rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
+        <div><h2 class="text-xl font-extrabold text-emerald-950">Exam Checking Desk — जाँच एवं परिणाम</h2>
+        <p class="mt-1 text-sm text-stone-600">यहाँ जमा किए गए उत्तर-पत्र और प्रकाशित परिणामों के लिए अलग workflow अगली implementation stage में जोड़ा जाएगा। अभी student submissions और published results के Firestore rules को बदले बिना कोई परिणाम नहीं बदला जाएगा।</p></div>
+        <div class="grid gap-2 sm:grid-cols-3">
+          <div class="rounded-xl border border-stone-200 bg-white p-3"><p class="text-xs text-stone-500">Question review</p><p class="mt-1 font-bold text-emerald-900">Draft → Validate → Publish</p></div>
+          <div class="rounded-xl border border-stone-200 bg-white p-3"><p class="text-xs text-stone-500">Exam checking</p><p class="mt-1 font-bold text-emerald-900">Submission → Check → Publish</p></div>
+          <div class="rounded-xl border border-stone-200 bg-white p-3"><p class="text-xs text-stone-500">Question sets</p><p class="mt-1 font-bold text-emerald-900">Set 1 · 2 · 3 · 4</p></div>
+        </div>
       </section>`;
     host.querySelector('[data-owner-save-exam]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
@@ -2651,6 +2694,112 @@ window.renderExamVisibility = function renderExamVisibility() {
       clearSubscriptions();
       startLiveListeners();
       notify('Portal listeners refreshed.', 'success');
+    });
+
+    // Question upload workflow: validate first, then explicitly save as draft.
+    let questionImportPreview = null;
+    let questionImportFile = null;
+    const previewOutput = host.querySelector('[data-question-preview-output]');
+    const uploadButton = host.querySelector('[data-question-upload]');
+    const getQuestionImportOptions = () => ({
+      target: host.querySelector('[data-question-target]')?.value || 'mainExamQuestions',
+      set: host.querySelector('[data-question-set]')?.value || 'set1'
+    });
+
+    host.querySelector('[data-question-file]')?.addEventListener('change', event => {
+      questionImportFile = event.target.files?.[0] || null;
+      questionImportPreview = null;
+      if (uploadButton) uploadButton.disabled = true;
+      if (previewOutput) {
+        previewOutput.classList.add('hidden');
+        previewOutput.textContent = '';
+      }
+    });
+
+    host.querySelector('[data-question-preview]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      const file = host.querySelector('[data-question-file]')?.files?.[0];
+      if (!file) {
+        notify('पहले JSON, CSV या Excel फ़ाइल चुनें।', 'error');
+        return;
+      }
+      const { target, set } = getQuestionImportOptions();
+      const button = host.querySelector('[data-question-preview]');
+      if (button) button.disabled = true;
+      try {
+        const result = await window.BishnoiApp.importExamQuestionFile(file, target, set, { previewOnly: true });
+        questionImportPreview = result;
+        questionImportFile = file;
+        if (previewOutput) {
+          previewOutput.classList.remove('hidden');
+          previewOutput.innerHTML =
+            '<p class="font-extrabold text-emerald-900">कुल: ' + result.total +
+            ' · सही: ' + result.valid + ' · त्रुटि: ' + result.invalid + '</p>' +
+            (result.rows.length ? '<ul class="mt-2 space-y-2">' + result.rows.slice(0, 12).map(row =>
+              '<li class="rounded-lg border p-2 ' + (row.valid ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50') + '">' +
+              '<strong>Row ' + row.row + '</strong> — ' + escapeHtml(row.question || '(खाली प्रश्न)') +
+              (row.errors.length ? '<p class="mt-1 text-red-800">' + escapeHtml(row.errors.join(' · ')) + '</p>' : '<span class="ml-2 text-emerald-800">Valid</span>') +
+              '</li>'
+            ).join('') + '</ul>' : '<p class="mt-2 text-red-800">फ़ाइल में प्रश्न नहीं मिले।</p>') +
+            (result.rows.length > 12 ? '<p class="mt-2 text-xs text-stone-500">पहले 12 rows दिखाए गए हैं।</p>' : '');
+        }
+        if (uploadButton) uploadButton.disabled = !result.total || result.invalid > 0;
+        notify(result.invalid ? 'Preview में त्रुटियाँ हैं। Upload से पहले उन्हें ठीक करें।' : 'Preview सही है। अब Upload as Draft दबाएँ।', result.invalid ? 'error' : 'success');
+      } catch (error) {
+        console.error('Question import preview failed:', error);
+        if (previewOutput) {
+          previewOutput.classList.remove('hidden');
+          previewOutput.textContent = error.message || 'Preview नहीं बन सका।';
+        }
+        notify(error.message || 'Question preview failed.', 'error');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+
+    host.querySelector('[data-question-upload]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      if (!questionImportPreview || !questionImportFile || questionImportPreview.invalid) {
+        notify('पहले valid Preview तैयार करें।', 'error');
+        return;
+      }
+      const { target, set } = getQuestionImportOptions();
+      const button = host.querySelector('[data-question-upload]');
+      if (button) button.disabled = true;
+      try {
+        const result = await window.BishnoiApp.importExamQuestionFile(questionImportFile, target, set);
+        questionImportPreview = null;
+        if (previewOutput) {
+          previewOutput.classList.remove('hidden');
+          previewOutput.textContent = result.valid + ' प्रश्न Draft के रूप में अपलोड हुए। छात्रों को दिखाने से पहले Owner review और publish आवश्यक है।';
+        }
+        const fileInput = host.querySelector('[data-question-file]');
+        if (fileInput) fileInput.value = '';
+        questionImportFile = null;
+        notify(result.valid + ' प्रश्न Draft के रूप में अपलोड हुए।', 'success');
+      } catch (error) {
+        console.error('Question upload failed:', error);
+        if (error.preview && previewOutput) {
+          previewOutput.classList.remove('hidden');
+          previewOutput.textContent = error.message;
+        }
+        notify(error.message || 'Question upload failed.', 'error');
+      } finally {
+        if (button) button.disabled = true;
+      }
+    });
+
+    host.querySelector('[data-question-template]')?.addEventListener('click', () => {
+      const csv = 'question,A,B,C,D,correctAnswer,marks,negativeMarks,explanation,id\r\n"उदाहरण प्रश्न","विकल्प A","विकल्प B","विकल्प C","विकल्प D","A",1,0,"व्याख्या","q_example"\r\n';
+      const blob = new Blob(['\\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Bishnoism_Question_Template.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
   }
 
@@ -4805,7 +4954,16 @@ window.toggleProfileMobilePassword = function (id, button) {
       preview.questions.slice(offset, offset + batchLimit).forEach((question, idx) => {
         const id = String(question.id || ('q_' + (offset + idx + 1))).replace(/[/.#\[\]$]/g, '_').slice(0, 120);
         const ref = db.collection(collectionName).doc(id);
-        batch.set(ref, { ...question, questionSet, active: true, publishedBy: state.user.uid }, { merge: true });
+        batch.set(ref, {
+          ...question,
+          questionSet,
+          active: true,
+          published: false,
+          status: 'draft',
+          publishedBy: null,
+          uploadedBy: state.user.uid,
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
       });
       await batch.commit();
     }
