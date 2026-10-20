@@ -4451,6 +4451,238 @@ window.toggleProfileMobilePassword = function (id, button) {
   };
   authApi.logout = window.logoutPortalUser;
 
+
+  // ===== Exam Portal master-prompt feature APIs =====
+  // These helpers extend the existing static HTML + Firebase compat architecture.
+  // Firestore rules must independently authorize every write; UI checks are not security.
+  window.BishnoiApp = window.BishnoiApp || {};
+
+  const EXAM_TARGETS = Object.freeze({
+    quiz: 'quiz',
+    mock1: 'mockExam_1',
+    mock2: 'mockExam_2',
+    main: 'mainExamQuestions'
+  });
+  const VALID_QUESTION_SETS = new Set(['set1', 'set2', 'set3', 'set4']);
+
+  function canManageExamContent() {
+    return !!(state.user && (state.isOwner === true || state.profile?.role === 'owner' ||
+      state.user.uid === CONFIG.ownerUid || state.user.uid === CONFIG.legacyOwnerUid));
+  }
+
+  function examQuestionTarget(value) {
+    const target = String(value || '').trim();
+    return Object.values(EXAM_TARGETS).includes(target) ? target : '';
+  }
+
+  function normalizeImportedQuestion(row, index, setName) {
+    const item = row && typeof row === 'object' ? row : {};
+    const question = String(item.question ?? item.Question ?? item.q ?? item.Q ?? item.text ?? '').trim();
+    const optionsRaw = item.options ?? item.Options ?? item.opts;
+    const options = Array.isArray(optionsRaw)
+      ? optionsRaw
+      : [
+          item.A ?? item.a ?? item.optionA,
+          item.B ?? item.b ?? item.optionB,
+          item.C ?? item.c ?? item.optionC,
+          item.D ?? item.d ?? item.optionD
+        ].filter(value => value !== undefined && value !== null && String(value).trim() !== '');
+    const rawAnswer = item.correctAnswer ?? item.answer ?? item.Ans ?? item.ans ?? item.answerIndex;
+    let correctAnswer = rawAnswer;
+    if (typeof rawAnswer === 'string') {
+      const letter = rawAnswer.trim().toUpperCase().replace(/[.)]$/, '');
+      if (/^[A-D]$/.test(letter)) correctAnswer = letter.charCodeAt(0) - 65;
+      else if (/^\d+$/.test(letter)) correctAnswer = Number(letter);
+      else {
+        const found = options.findIndex(option => String(typeof option === 'object' ? (option.text || option.label || option.value || '') : option).trim().toLowerCase() === rawAnswer.trim().toLowerCase());
+        if (found >= 0) correctAnswer = found;
+      }
+    }
+    const valid = question.length > 0 && options.length >= 2 &&
+      Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length;
+    return {
+      valid,
+      errors: [
+        !question ? 'प्रश्न खाली है' : '',
+        options.length < 2 ? 'कम से कम दो विकल्प चाहिए' : '',
+        !(Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length) ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें' : ''
+      ].filter(Boolean),
+      value: {
+        id: String(item.id || item.questionId || ('q_' + (index + 1))),
+        question,
+        options: options.map(option => typeof option === 'object' ? String(option.text || option.label || option.value || '') : String(option)),
+        correctAnswer: Number(correctAnswer),
+        answerIndex: Number(correctAnswer),
+        questionSet: VALID_QUESTION_SETS.has(String(item.questionSet || item.set || setName)) ? String(item.questionSet || item.set || setName) : setName,
+        marks: Number(item.marks) > 0 ? Number(item.marks) : 1,
+        negativeMarks: Number(item.negativeMarks) >= 0 ? Number(item.negativeMarks) : 0,
+        explanation: String(item.explanation || item.solution || ''),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }
+    };
+  }
+
+  function parseQuestionCsv(textValue) {
+    const lines = String(textValue || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+    if (!lines.length) return [];
+    const parseLine = line => {
+      const out = []; let current = ''; let quoted = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"' && line[i + 1] === '"' && quoted) { current += '"'; i++; }
+        else if (ch === '"') quoted = !quoted;
+        else if (ch === ',' && !quoted) { out.push(current.trim()); current = ''; }
+        else current += ch;
+      }
+      out.push(current.trim());
+      return out;
+    };
+    const headers = parseLine(lines.shift()).map(x => x.trim());
+    return lines.map(line => {
+      const cells = parseLine(line); const row = {};
+      headers.forEach((header, index) => { row[header] = cells[index] ?? ''; });
+      return row;
+    });
+  }
+
+  window.BishnoiApp.previewQuestionImport = function(rows, questionSet = 'set1') {
+    const setName = VALID_QUESTION_SETS.has(String(questionSet)) ? String(questionSet) : 'set1';
+    const list = Array.isArray(rows) ? rows : [];
+    const normalized = list.map((row, index) => normalizeImportedQuestion(row, index, setName));
+    return {
+      total: normalized.length,
+      valid: normalized.filter(row => row.valid).length,
+      invalid: normalized.filter(row => !row.valid).length,
+      rows: normalized.map((row, index) => ({ row: index + 1, valid: row.valid, errors: row.errors, question: row.value.question })),
+      questions: normalized.filter(row => row.valid).map(row => row.value)
+    };
+  };
+
+  window.BishnoiApp.importExamQuestions = async function(rows, target, questionSet = 'set1', options = {}) {
+    if (!state.user) throw new Error('प्रश्न अपलोड करने के लिए पहले लॉगिन करें।');
+    if (!canManageExamContent()) throw new Error('प्रश्न प्रकाशित करने के लिए Owner अधिकार आवश्यक हैं।');
+    const collectionName = examQuestionTarget(target);
+    if (!collectionName) throw new Error('अमान्य परीक्षा चुनी गई है।');
+    if (!VALID_QUESTION_SETS.has(String(questionSet))) throw new Error('Set 1 से Set 4 में से सेट चुनें।');
+    const preview = window.BishnoiApp.previewQuestionImport(rows, questionSet);
+    if (!preview.total || preview.invalid) {
+      const error = new Error('प्रश्न अपलोड नहीं हुए: ' + preview.invalid + ' त्रुटिपूर्ण प्रश्न। पहले Preview ठीक करें।');
+      error.preview = preview; throw error;
+    }
+    if (options.previewOnly === true) return preview;
+    const db = state.db;
+    if (!db) throw new Error('Firebase database उपलब्ध नहीं है।');
+    const batchLimit = 400;
+    for (let offset = 0; offset < preview.questions.length; offset += batchLimit) {
+      const batch = db.batch();
+      preview.questions.slice(offset, offset + batchLimit).forEach((question, idx) => {
+        const id = String(question.id || ('q_' + (offset + idx + 1))).replace(/[/.#\[\]$]/g, '_').slice(0, 120);
+        const ref = db.collection(collectionName).doc(id);
+        batch.set(ref, { ...question, questionSet, active: true, publishedBy: state.user.uid }, { merge: true });
+      });
+      await batch.commit();
+    }
+    return { ...preview, collection: collectionName, questionSet, published: preview.valid };
+  };
+
+  window.BishnoiApp.importExamQuestionFile = async function(file, target, questionSet = 'set1', options = {}) {
+    if (!file) throw new Error('पहले JSON, CSV या Excel फ़ाइल चुनें।');
+    const name = String(file.name || '').toLowerCase();
+    let rows;
+    if (name.endsWith('.json')) {
+      const parsed = JSON.parse(await file.text());
+      rows = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.questions) ? parsed.questions : []);
+    } else if (name.endsWith('.csv')) {
+      rows = parseQuestionCsv(await file.text());
+    } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+      if (!window.XLSX) throw new Error('Excel parser उपलब्ध नहीं है। फ़ाइल को CSV या JSON में बदलकर अपलोड करें।');
+      const workbook = window.XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      rows = firstSheet ? window.XLSX.utils.sheet_to_json(firstSheet, { defval: '' }) : [];
+    } else {
+      throw new Error('केवल JSON, CSV, XLSX या XLS फ़ाइल समर्थित है।');
+    }
+    return window.BishnoiApp.importExamQuestions(rows, target, questionSet, options);
+  };
+
+  window.BishnoiApp.getExamConfiguration = async function() {
+    if (!state.db) throw new Error('Firebase database उपलब्ध नहीं है।');
+    const snap = await state.db.collection('examConfig').doc('current').get();
+    return snap.exists ? (snap.data() || {}) : {};
+  };
+
+  window.BishnoiApp.updateExamConfiguration = async function(patch) {
+    if (!state.user || !canManageExamContent()) throw new Error('परीक्षा सेटिंग बदलने के लिए Owner अधिकार आवश्यक हैं।');
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('अमान्य सेटिंग डेटा।');
+    const allowed = [
+      'dailyQuizVisible','dailyQuizResultsVisible','mockVisible','mock1Visible','mock2Visible',
+      'mainExamVisible','resultsVisible','enrollmentVisible','separateExamPortalVisible','examPortalVisible',
+      'quizQuestionSet','mock1QuestionSet','mock2QuestionSet','mainQuestionSet',
+      'quizStartAtMs','mock1StartAtMs','mock2StartAtMs','mainStartAtMs',
+      'quizDurationMinutes','mock1DurationMinutes','mock2DurationMinutes','mainDurationMinutes',
+      'broadcastEnabled','broadcastMessage','maintenanceMode','maintenanceMessage'
+    ];
+    const safePatch = {};
+    allowed.forEach(key => { if (Object.prototype.hasOwnProperty.call(patch, key)) safePatch[key] = patch[key]; });
+    Object.keys(safePatch).forEach(key => {
+      if (key.endsWith('QuestionSet') && !VALID_QUESTION_SETS.has(String(safePatch[key]))) throw new Error(key + ' के लिए Set 1-4 चुनें।');
+      if (key.endsWith('DurationMinutes') && (!Number.isFinite(Number(safePatch[key])) || Number(safePatch[key]) < 1 || Number(safePatch[key]) > 360)) throw new Error('परीक्षा अवधि 1 से 360 मिनट के बीच होनी चाहिए।');
+    });
+    safePatch.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    safePatch.updatedBy = state.user.uid;
+    await state.db.collection('examConfig').doc('current').set(safePatch, { merge: true });
+    state.examConfig = { ...(state.examConfig || {}), ...safePatch };
+    window.renderExamVisibility?.();
+    return state.examConfig;
+  };
+
+  window.BishnoiApp.exportRowsCsv = function(rows, filename = 'bishnoism-export.csv') {
+    const data = Array.isArray(rows) ? rows : [];
+    const headers = [...new Set(data.flatMap(row => Object.keys(row || {})))];
+    const escapeCell = value => {
+      const textValue = value == null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+      return '"' + textValue.replace(/"/g, '""') + '"';
+    };
+    const csv = [headers.map(escapeCell).join(','), ...data.map(row => headers.map(key => escapeCell(row[key])).join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = filename; link.style.display = 'none';
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return data.length;
+  };
+
+  window.BishnoiApp.verifyMyResultIdentity = async function(identity = {}) {
+    if (!state.user || !state.db) throw new Error('परिणाम देखने के लिए मुख्य वेबसाइट पर लॉगिन करें।');
+    const roll = String(identity.rollNumber || '').trim().toLowerCase();
+    const name = String(identity.fullName || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const dob = String(identity.dateOfBirth || '').trim();
+    if (!roll || !name || !dob) throw new Error('रोल नंबर, पूरा नाम और जन्मतिथि तीनों भरें।');
+    const snap = await state.db.collection('publishedResults').where('uid', '==', state.user.uid).limit(100).get();
+    const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(row => row.status === 'published');
+    const match = rows.find(row => {
+      const rowRoll = String(row.rollNumber || row.roll || '').trim().toLowerCase();
+      const rowName = String(row.fullName || row.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const rowDob = String(row.dateOfBirth || row.dob || '').trim();
+      return rowRoll === roll && rowName === name && rowDob === dob;
+    });
+    if (!match) throw new Error('इन विवरणों से प्रकाशित परिणाम नहीं मिला। अपने पंजीकरण विवरण जाँचें या Owner से संपर्क करें।');
+    return match;
+  };
+
+  // Use the same visible identity model in all student-facing exam UI.
+  window.BishnoiApp.getExamIdentitySummary = function() {
+    const identity = getStudentIdentity();
+    return {
+      name: identity.name || 'विद्यार्थी',
+      rollNumber: identity.rollNumber || 'रोल नंबर जारी नहीं हुआ',
+      phone: identity.phone || 'मोबाइल नंबर उपलब्ध नहीं',
+      identityKey: identity.identityKey || ''
+    };
+  };
+  // ===== End exam portal feature APIs =====
+
   // Keep the public aliases available to inline HTML event handlers.
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
 
