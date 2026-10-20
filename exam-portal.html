@@ -243,7 +243,7 @@
     <div class="actions"><a class="button light" href="./index.html#tab-profile">👤 खाता / प्रोफ़ाइल</a></div>
   </header>
 
-  <section class="daily-cta" aria-labelledby="dailyQuizCtaTitle"><div><div class="eyebrow">DAINIK QUIZ • DAILY PRACTICE</div><h2 id="dailyQuizCtaTitle">दैनिक ज्ञान क्विज़</h2><p>रोज़ाना अभ्यास करें। यह क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में खुलेगा।</p></div><a id="dailyQuizButton" class="button gold" href="./index.html#tab-quiz">▶ प्रारंभ दैनिक क्विज़</a></section>
+  <!-- Daily Quiz is available only in the main website's Pariksha tab. -->
   <div id="portalStatus" class="status" role="status" aria-live="polite">
     परीक्षा सेटिंग्स लोड हो रही हैं…
   </div>
@@ -372,7 +372,6 @@
   const framePanel = byId("examFramePanel");
   const examFrame = byId("examFrame");
   const examArea = byId("examArea");
-  const dailyQuizButton = byId("dailyQuizButton");
   const examScheduleKeys = {
   dailyQuiz: "quizStartAtMs",
   mock1: "mock1StartAtMs",
@@ -528,20 +527,6 @@ function toScheduleDate(value) {
     }
   });
 
-  dailyQuizButton.addEventListener("click", event => {
-  const config = window.__bishnoismExamConfig || {};
-  const value = config.quizStartAtMs ?? config.dailyQuizStartAt ?? config.quizStartAt;
-  const date = toScheduleDate(value);
-
-  if (date && date.getTime() > Date.now()) {
-    event.preventDefault();
-    setPortalStatus(
-      "दैनिक क्विज़ " +
-      date.toLocaleString("hi-IN") +
-      " बजे उपलब्ध होगा।"
-    );
-  }
-});
   document.querySelectorAll("[data-launch-exam]").forEach(button => {
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-launch-exam");
@@ -573,7 +558,6 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
     const config = snapshot.exists ? snapshot.data() : {};
     window.__bishnoismExamConfig = config;
     const portalEnabled = config.examPortalVisible !== false && config.separateExamPortalActive !== false;
-    dailyQuizButton.classList.toggle("hide", config.dailyQuizVisible === false || config.dailyQuizEnabled === false);
 
     area.classList.toggle("hide", !portalEnabled);
     disabledPanel.classList.toggle("hide", portalEnabled);
