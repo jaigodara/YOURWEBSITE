@@ -515,8 +515,6 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
   }
 
   const phoneE164 = '+91' + verifiedPhone;
-
-  const phoneE164 = '+91' + verifiedPhone;
   const invitationId = requestedInvitationId || ('phone_' + phoneE164);
   if (invitationId !== 'phone_' + phoneE164) return null;
   const inviteRef = collection('pending_editors').doc(invitationId);
