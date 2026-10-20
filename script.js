@@ -4498,14 +4498,15 @@ window.toggleProfileMobilePassword = function (id, button) {
         if (found >= 0) correctAnswer = found;
       }
     }
-    const valid = question.length > 0 && options.length >= 2 &&
+    const hasAnswer = rawAnswer !== undefined && rawAnswer !== null && String(rawAnswer).trim() !== '';
+    const valid = question.length > 0 && options.length >= 2 && hasAnswer &&
       Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length;
     return {
       valid,
       errors: [
         !question ? 'प्रश्न खाली है' : '',
         options.length < 2 ? 'कम से कम दो विकल्प चाहिए' : '',
-        !(Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length) ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें' : ''
+        !hasAnswer || !(Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length) ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें' : ''
       ].filter(Boolean),
       value: {
         id: String(item.id || item.questionId || ('q_' + (index + 1))),
