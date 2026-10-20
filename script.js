@@ -5703,8 +5703,12 @@ window.BishnoiApp.importExamQuestions = async function (
     throw new Error('प्रश्न अपलोड करने के लिए पहले लॉगिन करें।');
   }
 
-  if (!canManageExamContent()) {
-    throw new Error('प्रश्न अपलोड करने के लिए Owner अधिकार आवश्यक हैं।');
+  const requestedTarget = String(target || '');
+  const targetPermission = requestedTarget === 'quiz' ? 'quizDrafts' : 'examReview';
+  if (!hasEditorPermission(targetPermission)) {
+    throw new Error(targetPermission === 'quizDrafts'
+      ? 'Daily Quiz draft बदलने के लिए quizDrafts permission आवश्यक है।'
+      : 'परीक्षा प्रश्न बदलने के लिए Exam Checking permission आवश्यक है।');
   }
 
   const collectionName = examQuestionTarget(target);
