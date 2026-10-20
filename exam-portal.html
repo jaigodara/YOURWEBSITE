@@ -373,7 +373,12 @@
   const examFrame = byId("examFrame");
   const examArea = byId("examArea");
   const dailyQuizButton = byId("dailyQuizButton");
-  const examScheduleKeys = { dailyQuiz: "dailyQuizStartAt", mock1: "mock1StartAt", mock2: "mock2StartAt", main: "mainStartAt" };
+  const examScheduleKeys = {
+  dailyQuiz: "quizStartAtMs",
+  mock1: "mock1StartAtMs",
+  mock2: "mock2StartAtMs",
+  main: "mainStartAtMs"
+};
   const durationKeys = { mock1: "mock1DurationMinutes", mock2: "mock2DurationMinutes", main: "mainDurationMinutes" };
   const examTitles = {
     mock1: "📝 मॉक परीक्षा 1",
@@ -382,7 +387,19 @@
     enrollment: "🧾 विद्यार्थी पंजीकरण",
     results: "📊 परिणाम डेस्क"
   };
+function toScheduleDate(value) {
+  if (value == null || value === "") return null;
 
+  let date;
+
+  if (value && typeof value.toDate === "function") {
+    date = value.toDate();
+  } else {
+    date = new Date(value);
+  }
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
   function setCard(id, visible) {
     byId(id).classList.toggle("hide", !visible);
   }
@@ -511,12 +528,26 @@
     }
   });
 
-  dailyQuizButton.addEventListener("click",event=>{const config=window.__bishnoismExamConfig||{};const value=config.dailyQuizStartAt;const date=value?new Date(value):null;if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){event.preventDefault();setPortalStatus("दैनिक क्विज़ "+date.toLocaleString("hi-IN")+" बजे उपलब्ध होगा।");}});
+  dailyQuizButton.addEventListener("click", event => {
+  const config = window.__bishnoismExamConfig || {};
+  const value = config.quizStartAtMs ?? config.dailyQuizStartAt ?? config.quizStartAt;
+  const date = toScheduleDate(value);
+
+  if (date && date.getTime() > Date.now()) {
+    event.preventDefault();
+    setPortalStatus(
+      "दैनिक क्विज़ " +
+      date.toLocaleString("hi-IN") +
+      " बजे उपलब्ध होगा।"
+    );
+  }
+});
   document.querySelectorAll("[data-launch-exam]").forEach(button => {
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-launch-exam");
       if (!examTitles[mode]) return;
-      const config=window.__bishnoismExamConfig||{};const key=examScheduleKeys[mode];const value=key?config[key]:"";const date=value?new Date(value):null;if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){setPortalStatus("यह परीक्षा "+date.toLocaleString("hi-IN")+" बजे शुरू होगी।");return;}
+      const config=window.__bishnoismExamConfig||{};const key=examScheduleKeys[mode];const value = key ? config[key] : "";
+const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){setPortalStatus("यह परीक्षा "+date.toLocaleString("hi-IN")+" बजे शुरू होगी।");return;}
       // Always open the requested section. Login and eligibility are checked
       // by the actual exam-start handler, not by this navigation button.
       byId("examFrameTitle").textContent = examTitles[mode];
