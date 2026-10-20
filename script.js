@@ -475,12 +475,18 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
   const profilePhone = normalizeStudentPhone(
     state.profile?.mobile || state.profile?.phone || state.profile?.verifiedPhone || ''
   );
-  const candidatePhone = authPhone || profilePhone;
-  if (!candidatePhone || candidatePhone.length !== 10) return null;
-  const phoneIndexRef = collection('mobileIndex').doc(candidatePhone);
-  const invitePhoneIndex = await phoneIndexRef.get().catch(() => null);
-  if (!invitePhoneIndex?.exists || invitePhoneIndex.data()?.uid !== user.uid) return null;
-  const verifiedPhone = candidatePhone;
+  const requestedMatch = String(requestedInvitationId || '').match(/^phone_\+91([6-9]\d{9})$/);
+  const invitationPhone = requestedMatch ? requestedMatch[1] : '';
+  const candidates = [...new Set([authPhone, profilePhone, invitationPhone].filter(phone => /^[6-9]\d{9}$/.test(phone)))];
+  let verifiedPhone = '';
+  for (const candidate of candidates) {
+    const phoneIndex = await collection('mobileIndex').doc(candidate).get().catch(() => null);
+    if (phoneIndex?.exists && phoneIndex.data()?.uid === user.uid) {
+      verifiedPhone = candidate;
+      break;
+    }
+  }
+  if (!verifiedPhone) return null;
   const phoneE164 = '+91' + verifiedPhone;
   const invitationId = requestedInvitationId || ('phone_' + phoneE164);
   if (invitationId !== 'phone_' + phoneE164) return null;
@@ -3441,7 +3447,7 @@ notify('जाँच सेव हुई और परिणाम प्रक�
               'Roll Number': r.rollNumber || '',
               'Full Name': r.name || '',
               "Father's Name": r.fatherName || r.fathersName || '',
-              'Phone Number': r.studentPhone || '',
+              'Phone Number': normalizeStudentPhone(r.studentPhone || r.phone || r.mobile || ''),
               'Email': r.email || '',
               'Assigned Exam Set': r.questionSet || '',
               'Exam Mode': r.mode || '',
@@ -3530,8 +3536,16 @@ notify('जाँच सेव हुई और परिणाम प्रक�
         if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस संग्रह और Set में प्रश्न नहीं मिले।';
         if (!list) return;
         list.innerHTML = rows.map(row => {
-          const options = Array.isArray(row.options) ? row.options : [];
-          const correct = Number(row.correctAnswer ?? row.answerIndex ?? row.ans);
+          const options = Array.isArray(row.options) ? row.options
+            : Array.isArray(row.opts) ? row.opts
+            : [row.optionA, row.optionB, row.optionC, row.optionD].filter(value => value !== undefined && value !== null && value !== '');
+          const rawCorrect = row.correctAnswer ?? row.answerIndex ?? row.ans ?? row.answer;
+          const correctText = String(rawCorrect ?? '').trim();
+          const correct = /^[A-D]$/i.test(correctText)
+            ? correctText.toUpperCase().charCodeAt(0) - 65
+            : /^\d+$/.test(correctText)
+              ? Number(correctText)
+              : options.findIndex(option => String(typeof option === 'object' ? (option.text || option.label || option.value || '') : option).trim().toLowerCase() === correctText.toLowerCase());
           return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3" data-question-card="' + escapeHtml(row.id) + '">' +
             '<div class="flex flex-wrap items-start justify-between gap-2"><p class="font-bold text-stone-900">' + escapeHtml(row.question || row.text || 'प्रश्न') +
             '</p><span class="rounded-full px-2 py-1 text-xs font-bold ' + (row.published === true ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900') +
