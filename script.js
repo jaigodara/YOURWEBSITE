@@ -5195,41 +5195,135 @@ window.toggleProfileMobilePassword = function (id, button) {
     };
   };
 
-  window.BishnoiApp.importExamQuestions = async function(rows, target, questionSet = 'set1', options = {}) {
-    if (!state.user) throw new Error('प्रश्न अपलोड करने के लिए पहले लॉगिन करें।');
-    if (!canManageExamContent()) throw new Error('प्रश्न प्रकाशित करने के लिए Owner अधिकार आवश्यक हैं।');
-    const collectionName = examQuestionTarget(target);
-    if (!collectionName) throw new Error('अमान्य परीक्षा चुनी गई है।');
-    if (!VALID_QUESTION_SETS.has(String(questionSet))) throw new Error('Set 1 से Set 4 में से सेट चुनें।');
-    const preview = window.BishnoiApp.previewQuestionImport(rows, questionSet);
-    if (!preview.total || preview.invalid) {
-      const error = new Error('प्रश्न अपलोड नहीं हुए: ' + preview.invalid + ' त्रुटिपूर्ण प्रश्न। पहले Preview ठीक करें।');
-      error.preview = preview; throw error;
+ 
+window.BishnoiApp.importExamQuestions = async function (
+  rows,
+  target,
+  questionSet = 'set1',
+  options = {}
+) {
+  if (!state.user) {
+    throw new Error('प्रश्न अपलोड करने के लिए पहले लॉगिन करें।');
+  }
+
+  if (!canManageExamContent()) {
+    throw new Error('प्रश्न अपलोड करने के लिए Owner अधिकार आवश्यक हैं।');
+  }
+
+  const collectionName = examQuestionTarget(target);
+
+  if (!collectionName) {
+    throw new Error('अमान्य परीक्षा चुनी गई है।');
+  }
+
+  if (!VALID_QUESTION_SETS.has(String(questionSet))) {
+    throw new Error('Set 1 से Set 4 में से सेट चुनें।');
+  }
+
+  const preview = window.BishnoiApp.previewQuestionImport(
+    rows,
+    questionSet
+  );
+
+  if (!preview.total || preview.invalid) {
+    const error = new Error(
+      'प्रश्न अपलोड नहीं हुए: ' +
+      preview.invalid +
+      ' त्रुटिपूर्ण प्रश्न। पहले Preview ठीक करें।'
+    );
+    error.preview = preview;
+    throw error;
+  }
+
+  if (options.previewOnly === true) {
+    return preview;
+  }
+
+  const db = state.db;
+
+  if (!db) {
+    throw new Error('Firebase database उपलब्ध नहीं है।');
+  }
+
+  // Validate document IDs before writing anything.
+  const safeQuestions = [];
+  const seenIds = new Set();
+
+  for (const question of preview.questions) {
+    const id = String(question.id || '')
+      .trim()
+      .replace(/[/.#\[\]$]/g, '_')
+      .slice(0, 120);
+
+    if (!id) {
+      throw new Error('किसी प्रश्न की ID खाली है। Upload रोक दिया गया।');
     }
-    if (options.previewOnly === true) return preview;
-    const db = state.db;
-    if (!db) throw new Error('Firebase database उपलब्ध नहीं है।');
-    const batchLimit = 400;
-    for (let offset = 0; offset < preview.questions.length; offset += batchLimit) {
-      const batch = db.batch();
-      preview.questions.slice(offset, offset + batchLimit).forEach((question, idx) => {
-        const id = String(question.id || ('q_' + (offset + idx + 1))).replace(/[/.#\[\]$]/g, '_').slice(0, 120);
-        const ref = db.collection(collectionName).doc(id);
-        batch.set(ref, {
-          ...question,
-          questionSet,
-          active: true,
-          published: false,
-          status: 'draft',
-          publishedBy: null,
-          uploadedBy: state.user.uid,
-          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+
+    if (seenIds.has(id)) {
+      throw new Error(
+        'फ़ाइल में duplicate Question ID मिली: ' + id +
+        '. हर प्रश्न की ID अलग करें।'
+      );
+    }
+
+    seenIds.add(id);
+    safeQuestions.push({ ...question, id });
+  }
+
+  // Preflight: refuse to overwrite existing question documents.
+  // Firestore batch writes are performed only after all IDs pass.
+  const refs = safeQuestions.map(question =>
+    db.collection(collectionName).doc(question.id)
+  );
+
+  for (let offset = 0; offset < refs.length; offset += 10) {
+    const chunk = refs.slice(offset, offset + 10);
+    const existing = await Promise.all(
+      chunk.map(ref => ref.get())
+    );
+
+    const duplicateIndex = existing.findIndex(snap => snap.exists);
+
+    if (duplicateIndex !== -1) {
+      const duplicateId = chunk[duplicateIndex].id;
+
+      throw new Error(
+        'Upload रोक दिया गया: Question ID "' + duplicateId +
+        '" पहले से मौजूद है। नई ID दें या पुराने प्रश्न की समीक्षा करें।'
+      );
+    }
+  }
+
+  // Write only after validation and duplicate checks succeed.
+  for (let offset = 0; offset < safeQuestions.length; offset += 400) {
+    const batch = db.batch();
+
+    safeQuestions.slice(offset, offset + 400).forEach(question => {
+      const ref = db.collection(collectionName).doc(question.id);
+
+      batch.set(ref, {
+        ...question,
+        questionSet,
+        active: true,
+        published: false,
+        status: 'draft',
+        publishedBy: null,
+        uploadedBy: state.user.uid,
+        uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      await batch.commit();
-    }
-    return { ...preview, collection: collectionName, questionSet, published: preview.valid };
+    });
+
+    await batch.commit();
+  }
+
+  return {
+    ...preview,
+    collection: collectionName,
+    questionSet,
+    published: false
   };
+};
+
 
   window.BishnoiApp.importExamQuestionFile = async function(file, target, questionSet = 'set1', options = {}) {
     if (!file) throw new Error('पहले JSON, CSV या Excel फ़ाइल चुनें।');
