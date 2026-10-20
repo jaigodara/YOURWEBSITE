@@ -2798,7 +2798,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         <main class="mx-auto grid max-w-6xl grid-cols-1 gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_260px]">
           <section class="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
             <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
-            <p id="examResult" class="mt-4 hidden rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm font-semibold text-stone-700" role="status" aria-live="polite"></p>
+            <p id="examResult" class="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm font-semibold text-stone-700" role="status" aria-live="polite"></p>
             <div class="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
               <button id="previousQuestionBtn" type="button" class="rounded-xl border border-stone-300 bg-stone-50 px-3 py-3 text-sm font-bold text-stone-700">← Previous</button>
               <button id="markReviewBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-3 text-sm font-bold text-violet-900">Mark for Review</button>
@@ -3129,8 +3129,16 @@ window.renderExamVisibility = function renderExamVisibility() {
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Give each attempt its own randomized question order. Do not mutate the
-      // Firestore order, so different devices/attempts need not see the same series.
+      // A stable common bank ensures every scheduled-exam student draws from
+      // the same published questions. If more than 100 are published, use the
+      // first 100 stable document IDs as the common paper before shuffling.
+      if (usesPerStudentShuffle) {
+        questions.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        if (questions.length > 100) questions.length = 100;
+      }
+
+      // Give each attempt its own randomized question order. The saved order is
+      // reused on refresh/recovery and is included in the submission for checking.
       for (let i = questions.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [questions[i], questions[j]] = [questions[j], questions[i]];
@@ -3265,11 +3273,6 @@ window.renderExamVisibility = function renderExamVisibility() {
       notify('यह प्रयास Owner की अनुमति तक लॉक है।', 'error');
       return;
     }
-    if (!automatic && ['main', 'mock1', 'mock2'].includes(exam.mode) && Date.now() < exam.endAt) {
-      notify('मुख्य/मॉक परीक्षा का उत्तर-पत्र निर्धारित समय पूरा होने पर ही जमा होगा। आपके उत्तर सुरक्षित हैं।', 'error');
-      return;
-    }
-
     if (!automatic) {
       let unanswered = 0;
       let marked = 0;
