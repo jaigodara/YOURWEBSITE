@@ -2986,10 +2986,13 @@ window.renderExamVisibility = function renderExamVisibility() {
         }
         notify(error.message || 'Question upload failed.', 'error');
      
-      } finally {
-        if (button) button.disabled = true;
-        host.dataset.questionUploadInProgress = 'false';
-      }
+     } finally {
+  if (button) {
+    button.disabled =
+      !questionImportPreview || questionImportPreview.invalid > 0;
+  }
+  host.dataset.questionUploadInProgress = 'false';
+}
 
     });
 
@@ -5524,7 +5527,11 @@ window.toggleProfileMobilePassword = function (id, button) {
   }
 
   function parseQuestionCsv(textValue) {
-    text = String(text || '').replace(/^\uFEFF/, '');
+    const lines = String(textValue || '')
+      .replace(/^\uFEFF/, '')
+      .split(/\r?\n/)
+      .filter(line => line.trim());
+
     if (!lines.length) return [];
     const parseLine = line => {
       const out = []; let current = ''; let quoted = false;
@@ -5748,7 +5755,10 @@ window.BishnoiApp.importExamQuestions = async function (
       return '"' + textValue.replace(/"/g, '""') + '"';
     };
     const csv = [headers.map(escapeCell).join(','), ...data.map(row => headers.map(key => escapeCell(row[key])).join(','))].join('\r\n');
-    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = const blob = new Blob(['\uFEFF', csv], {
+  type: 'text/csv;charset=utf-8;'
+});
+    , { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url; link.download = filename; link.style.display = 'none';
