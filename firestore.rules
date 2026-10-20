@@ -176,7 +176,9 @@ service cloud.firestore {
         && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
         && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
       );
-      allow update, delete: if superOwner();
+     // Only verified Owner accounts may change or remove editor roles.
+// Editors cannot change their own role or another editor's role.
+allow update, delete: if examOwner();
     }
 
     match /pending_editors/{inviteId} {
