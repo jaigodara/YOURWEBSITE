@@ -579,3 +579,129 @@ a {
     min-height: 48px;
   }
 }
+
+/* =====================================================
+   BISHNOISM OWNER STUDIO — PROFESSIONAL WORKSPACE
+   Question Upload, Question Bank & Exam Checking
+   ===================================================== */
+
+#ownerStudioContent {
+  color: #183b2a;
+  width: 100%;
+  min-width: 0;
+}
+
+#ownerStudioContent > section {
+  position: relative;
+  min-width: 0;
+  margin-top: 20px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid #dce7dd;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 5px 20px rgba(20, 54, 34, 0.07);
+}
+
+#ownerStudioContent > section:first-child {
+  margin-top: 0;
+  border-top: 4px solid #143622;
+  background: linear-gradient(145deg, #ffffff 0%, #f7faf5 100%);
+}
+
+/* Section headings */
+#ownerStudioContent h2 {
+  color: #143622;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  font-weight: 800;
+}
+
+#ownerStudioContent h3 {
+  color: #143622;
+  font-weight: 800;
+}
+
+/* Input fields and dropdowns */
+#ownerStudioContent input:not([type="checkbox"]):not([type="radio"]),
+#ownerStudioContent select,
+#ownerStudioContent textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 46px;
+  border: 1px solid #d5dfd6;
+  border-radius: 11px;
+  background: #ffffff;
+  padding: 10px 12px;
+  color: #183b2a;
+}
+
+#ownerStudioContent input:focus,
+#ownerStudioContent select:focus,
+#ownerStudioContent textarea:focus {
+  outline: 2px solid #b9d3bd;
+  outline-offset: 1px;
+  border-color: #286443;
+}
+
+/* Consistent touch-friendly buttons */
+#ownerStudioContent button {
+  min-height: 44px;
+  border-radius: 11px;
+  font-weight: 750;
+  transition: background-color 0.15s ease,
+              border-color 0.15s ease;
+}
+
+#ownerStudioContent button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Question upload preview and question list */
+#ownerStudioContent [data-question-preview-output],
+#ownerStudioContent [data-owner-question-bank-list],
+#ownerStudioContent [data-owner-submission-list] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#ownerStudioContent [data-owner-question-bank-list] > *,
+#ownerStudioContent [data-owner-submission-list] > * {
+  margin-top: 12px;
+  padding: 15px;
+  border: 1px solid #dce7dd;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+/* Status messages */
+#ownerStudioContent [aria-live="polite"] {
+  line-height: 1.6;
+}
+
+/* Mobile and Android WebView */
+@media (max-width: 640px) {
+  #ownerStudioContent > section {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  #ownerStudioContent h2 {
+    font-size: 1.08rem;
+  }
+
+  #ownerStudioContent button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #ownerStudioContent input,
+  #ownerStudioContent select,
+  #ownerStudioContent textarea {
+    font-size: 16px;
+  }
+}
