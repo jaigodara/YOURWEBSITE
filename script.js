@@ -2976,6 +2976,32 @@ window.renderExamVisibility = function renderExamVisibility() {
     return workspace;
   }
 
+  function renderExamQuestionPalette(exam = state.exam) {
+    const palette = byId('examQuestionPalette');
+    if (!palette || !exam || !Array.isArray(exam.questions)) return;
+    palette.innerHTML = exam.questions.map((item, index) => {
+      const key = String(item?.id || index);
+      const answered = Object.prototype.hasOwnProperty.call(exam.answers || {}, key);
+      const marked = !!(exam.review && exam.review[key]);
+      const current = index === exam.index;
+      const stateClass = marked
+        ? 'border-amber-600 bg-amber-300 text-amber-950'
+        : answered
+          ? 'border-emerald-700 bg-emerald-700 text-white'
+          : 'border-stone-300 bg-white text-stone-700';
+      return `<button type="button" data-palette-index="${index}" aria-label="प्रश्न ${index + 1}${answered ? ', उत्तर दिया' : ', उत्तर नहीं दिया'}${marked ? ', समीक्षा के लिए चिह्नित' : ''}" aria-current="${current ? 'step' : 'false'}" class="min-h-12 rounded-lg border text-sm font-extrabold ${stateClass} ${current ? 'ring-2 ring-offset-2 ring-forest' : ''}" ${(exam.kicked || exam.lockedAtDeadline) ? 'disabled' : ''}>${index + 1}</button>`;
+    }).join('');
+    palette.querySelectorAll('[data-palette-index]').forEach(button => {
+      button.addEventListener('click', () => {
+        const nextIndex = Number(button.getAttribute('data-palette-index'));
+        if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= exam.questions.length) return;
+        exam.index = nextIndex;
+        persistActiveExam();
+        renderExamQuestion();
+      });
+    });
+  }
+
   function renderExamQuestion(renderOptions = {}) {
     const exam = state.exam;
     const question = exam.questions[exam.index];
@@ -3013,56 +3039,17 @@ window.renderExamVisibility = function renderExamVisibility() {
       input.addEventListener('change', () => {
         exam.answers[answerKey] = Number(input.value);
         persistActiveExam();
-        renderExamQuestion({ noScroll: true });
+        renderExamQuestionPalette(exam);
       });
     });
 
     const profile = state.profile || {};
-    setText('cbtStudentName', profile.fullName || profile.displayName || profile.name || state.user?.displayName || 'पंजीकृत विद्यार्थी');
-    setText('cbtRollNumber', profile.rollNumber || profile.roll || profile.admissionRollNumber || 'पंजीकरण रिकॉर्ड में उपलब्ध होने पर दिखेगा');
-    setText('cbtPhoneNumber', profile.phoneNumber || profile.phone || state.user?.phoneNumber || 'प्रोफ़ाइल में उपलब्ध होने पर दिखेगा');
-    const palette = byId('examQuestionPalette');
-    if (palette) {
-      palette.innerHTML = exam.questions.map((item, index) => {
-        const key = String(item?.id || index);
-        const answered = Object.prototype.hasOwnProperty.call(exam.answers || {}, key);
-        const marked = !!(exam.review && exam.review[key]);
-        const current = index === exam.index;
-        const stateClass = marked
-          ? 'border-amber-600 bg-amber-300 text-amber-950'
-          : answered
-            ? 'border-emerald-700 bg-emerald-700 text-white'
-            : 'border-stone-300 bg-white text-stone-700';
-        return `<button type="button" data-palette-index="${index}" aria-label="प्रश्न ${index + 1}${answered ? ', उत्तर दिया' : ', उत्तर नहीं दिया'}${marked ? ', समीक्षा के लिए चिह्नित' : ''}" aria-current="${current ? 'step' : 'false'}" class="min-h-12 rounded-lg border text-sm font-extrabold ${stateClass} ${current ? 'ring-2 ring-offset-2 ring-forest' : ''}" ${(exam.kicked || exam.lockedAtDeadline) ? 'disabled' : ''}>${index + 1}</button>`;
-      }).join('');
-      palette.querySelectorAll('[data-palette-index]').forEach(button => {
-        button.addEventListener('click', () => {
-          if (exam.kicked || exam.lockedAtDeadline) return;
-          const target = Number(button.getAttribute('data-palette-index'));
-          if (!Number.isInteger(target) || target < 0 || target >= exam.questions.length) return;
-          exam.index = target;
-          persistActiveExam();
-          renderExamQuestion();
-        });
-      });
-    }
-    const reviewButton = byId('markReviewBtn');
-    const currentKey = String(question.id || exam.index);
-    if (reviewButton) {
-      reviewButton.textContent = exam.review?.[currentKey] ? '✓ समीक्षा चिह्न हटाएँ' : '⚑ समीक्षा के लिए चिह्नित करें';
-      reviewButton.disabled = exam.kicked || exam.lockedAtDeadline;
-      reviewButton.classList.toggle('opacity-50', reviewButton.disabled);
-    }
+    const identity = getStudentIdentity();
+    setText('cbtStudentName', identity.name || 'पंजीकृत विद्यार्थी');
+    setText('cbtRollNumber', identity.rollNumber || 'पंजीकरण रिकॉर्ड में उपलब्ध होने पर दिखेगा');
+    setText('cbtPhoneNumber', identity.phone || 'प्रोफ़ाइल में उपलब्ध होने पर दिखेगा');
+    renderExamQuestionPalette(exam);
 
-    setText('examQuestionNumber', `प्रश्न ${exam.index + 1}/${exam.questions.length}`);
-    const previous = byId('previousQuestionBtn');
-    const next = byId('nextQuestionBtn');
-    if (previous) previous.disabled = exam.kicked || exam.lockedAtDeadline || exam.index <= 0;
-    if (next) next.disabled = exam.kicked || exam.lockedAtDeadline || exam.index >= exam.questions.length - 1;
-    const submitButton = byId('submitExamBtn');
-    if (submitButton) submitButton.disabled = exam.kicked || exam.lockedAtDeadline;
-    if (previous) previous.classList.toggle('opacity-40', previous.disabled);
-    if (next) next.classList.toggle('opacity-40', next.disabled);
     if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
