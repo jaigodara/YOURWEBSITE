@@ -531,3 +531,51 @@ a {
     overflow-wrap: anywhere;
   }
 }
+
+/* Bishnoism: exam portal visual improvements */
+#mainDailyQuizCta {
+  border: 2px solid #d9aa32 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 5px 18px rgba(20, 54, 34, 0.10) !important;
+}
+
+#mainDailyQuizStartButton {
+  min-height: 48px;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+
+#examPortalCard,
+#enrollmentSection,
+#mainExamSection,
+#mockHub {
+  border-radius: 18px !important;
+  box-shadow: 0 5px 18px rgba(20, 54, 34, 0.08) !important;
+}
+
+#examPortalCard a {
+  min-height: 48px;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+
+#tab-quiz h3 {
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  #mainDailyQuizCta,
+  #examPortalCard,
+  #enrollmentSection,
+  #mainExamSection,
+  #mockHub {
+    margin-bottom: 14px;
+    padding: 16px !important;
+  }
+
+  #mainDailyQuizStartButton,
+  #examPortalCard a {
+    width: 100%;
+    min-height: 48px;
+  }
+}
