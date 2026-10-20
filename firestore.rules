@@ -153,8 +153,8 @@ service cloud.firestore {
     match /roles/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
 
-      // An editor can claim only the invitation pre-bound by the owner to the
-      // existing mobileIndex UID for the invited phone number.
+      // Existing invitation claim flow: the invited account creates its own role
+      // only while its invitation is pending and its mobile index matches.
       allow create: if superOwner() || (
         signedIn()
         && request.auth.uid == uid
@@ -175,14 +175,35 @@ service cloud.firestore {
         && request.resource.data.get('fullName', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('fullName', '')
         && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
         && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
+      ) || (
+        // Recovery: an authenticated owner may recreate only the editor role
+        // bound to an already-claimed invitation for the same UID.
+        examOwner()
+        && request.resource.data.get('role', '') == 'editor'
+        && request.resource.data.keys().hasOnly([
+          'role', 'fullName', 'phone', 'email', 'permissions',
+          'invitationId', 'createdAt'
+        ])
+        && request.resource.data.get('invitationId', '') is string
+        && request.resource.data.get('invitationId', '').matches('^phone_\\+91[6-9][0-9]{9}$')
+        && exists(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', '')))
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('status', '') == 'claimed'
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('targetUid', '') == uid
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('claimedUid', '') == uid
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phoneE164', '') == '+91' + get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
+        && exists(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')))
+        && get(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', ''))).data.get('uid', '') == uid
+        && request.resource.data.get('permissions', {}) == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('permissions', {})
+        && request.resource.data.get('fullName', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('fullName', '')
+        && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
+        && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
       );
-     // Only verified Owner accounts may change or remove editor roles.
-// Editors cannot change their own role or another editor's role.
-allow update, delete: if examOwner();
+
+      // Only owner accounts can update or remove roles.
+      allow update, delete: if examOwner();
     }
 
     match /pending_editors/{inviteId} {
-      // Owners manage invites; only the UID bound to the phone index can read theirs.
       allow read: if examOwner() || (
         signedIn()
         && resource.data.get('targetUid', '') == request.auth.uid
@@ -217,6 +238,7 @@ allow update, delete: if examOwner();
           'status', 'claimedUid', 'claimedAt'
         ])
       );
+
       allow delete: if examOwner();
     }
 
