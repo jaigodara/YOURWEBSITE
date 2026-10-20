@@ -482,6 +482,24 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
     [authPhone, profilePhone, invitationPhone]
       .filter(phone => /^[6-9]\d{9}$/.test(phone))
   )];
+  
+  let verifiedPhone = '';
+
+  for (const candidate of candidates) {
+    const phoneIndex = await collection('mobileIndex')
+      .doc(candidate)
+      .get()
+      .catch(error => {
+        console.error('Editor mobile verification failed:', error);
+        return null;
+      });
+
+    if (phoneIndex?.exists && phoneIndex.data()?.uid === user.uid) {
+      verifiedPhone = candidate;
+      break;
+    }
+  }
+
 
   let verifiedPhone = '';
 
