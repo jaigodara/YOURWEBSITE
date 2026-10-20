@@ -644,6 +644,9 @@ async function claimPendingEditorInvitation(user) {
       ...(typeof roleData.role === 'string' ? [roleData.role] : []),
       ...(Array.isArray(roleData.roles) ? roleData.roles : [])
     ];
+        state.editorPermissions = roleData.role === 'editor'
+      ? (roleData.permissions || {})
+      : {};
    state.isOwner = user.uid === CONFIG.ownerUid ||
   user.uid === CONFIG.legacyOwnerUid ||
   state.profile.role === 'owner' ||
@@ -5341,15 +5344,27 @@ window.toggleProfileMobilePassword = function (id, button) {
   });
   const VALID_QUESTION_SETS = new Set(['set1', 'set2', 'set3', 'set4']);
 
-  function canManageExamContent() {
-    return !!(state.user && (state.isOwner === true || state.profile?.role === 'owner' ||
-      state.user.uid === CONFIG.ownerUid || state.user.uid === CONFIG.legacyOwnerUid));
+ 
+  function hasEditorPermission(permission) {
+    if (!state.user) return false;
+
+    if (
+      state.isOwner === true ||
+      state.user.uid === CONFIG.ownerUid ||
+      state.user.uid === CONFIG.legacyOwnerUid
+    ) {
+      return true;
+    }
+
+    return state.roles.includes('editor') &&
+      state.profile?.role !== 'owner' &&
+      state.editorPermissions?.[permission] === true;
   }
 
-  function examQuestionTarget(value) {
-    const target = String(value || '').trim();
-    return Object.values(EXAM_TARGETS).includes(target) ? target : '';
+  function canManageExamContent() {
+    return hasEditorPermission('examReview');
   }
+
 
   function normalizeImportedQuestion(row, index, setName) {
     const item = row && typeof row === 'object' ? row : {};
