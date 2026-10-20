@@ -555,8 +555,20 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
     return { ...roleData, __justClaimed: true };
   } catch (error) {
     if (error.message !== 'ROLE_ALREADY_EXISTS' && error.message !== 'INVITATION_ALREADY_CLAIMED') {
-      console.error('Editor invitation claim failed:', error);
-      notify('Editor invitation जाँची नहीं जा सकी। Firestore rules/deployment जाँचें।', 'error');
+     
+console.error('Editor invitation claim failed:', {
+  code: error?.code || 'unknown',
+  message: error?.message || String(error),
+  invitationId,
+  uid: user?.uid,
+  step: 'claim-transaction'
+});
+
+notify(
+  'Editor invitation स्वीकार नहीं हुई। Firebase Console में Firestore Rules और invitation permissions जाँचें।',
+  'error'
+);
+
     }
     return null;
   }
