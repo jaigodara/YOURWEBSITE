@@ -465,7 +465,7 @@ try {
 
 
 
-async function claimPendingEditorInvitation(user) {
+async function claimPendingEditorInvitation(user, requestedInvitationId = '', skipPrompt = false) {
   if (!user || !user.uid) return null;
   // This project currently authenticates users with the existing mobile/password
   // account linked to Google, not Firebase SMS Phone Auth. Bind the invitation to
@@ -482,7 +482,8 @@ async function claimPendingEditorInvitation(user) {
   if (!invitePhoneIndex?.exists || invitePhoneIndex.data()?.uid !== user.uid) return null;
   const verifiedPhone = candidatePhone;
   const phoneE164 = '+91' + verifiedPhone;
-  const invitationId = 'phone_' + phoneE164;
+  const invitationId = requestedInvitationId || ('phone_' + phoneE164);
+  if (invitationId !== 'phone_' + phoneE164) return null;
   const inviteRef = collection('pending_editors').doc(invitationId);
   const roleRef = collection('roles').doc(user.uid);
   try {
@@ -501,7 +502,7 @@ async function claimPendingEditorInvitation(user) {
       invitation.permissions.examReview === true ? 'Exam Checking & Results' : '',
       invitation.permissions.notifications === true ? 'Notifications' : ''
     ].filter(Boolean);
-    const accepted = window.confirm(
+    const accepted = skipPrompt || window.confirm(
       'Bishnoism Owner Studio invitation\n\n' +
       (invitation.fullName || 'Owner') + ' ने आपको Assistant Editor के रूप में आमंत्रित किया है।\n' +
       'Phone: ' + verifiedPhone + '\n' +
@@ -1556,7 +1557,9 @@ pdf.addImage(
       important: data.important === true,
       pinnedByOwner: data.pinnedByOwner === true,
       recipientUid, audience: 'private', active: true,
-      createdBy: state.user?.uid || null, createdAt: serverTimestamp()
+      createdBy: state.user?.uid || null,
+      ...(typeof data.invitationId === 'string' && data.invitationId ? { invitationId: data.invitationId } : {}),
+      createdAt: serverTimestamp()
     });
   };
 
@@ -1586,6 +1589,37 @@ pdf.addImage(
       body.className = 'text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
       body.textContent = item.message || '';
       card.append(title, body);
+      if (item.type === 'editor-invitation' && typeof item.invitationId === 'string' && item.invitationId) {
+        const acceptEditorButton = document.createElement('button');
+        acceptEditorButton.type = 'button';
+        acceptEditorButton.className = 'inline-flex items-center justify-center rounded-lg bg-emerald-900 px-4 py-2 text-xs font-extrabold text-white';
+        acceptEditorButton.textContent = '✓ Editor भूमिका स्वीकार करें';
+        acceptEditorButton.addEventListener('click', async () => {
+          if (!state.user) { notify('पहले लॉगिन करें।', 'error'); return; }
+          acceptEditorButton.disabled = true;
+          try {
+            const acceptedRole = await claimPendingEditorInvitation(state.user, item.invitationId, true);
+            if (!acceptedRole?.__justClaimed) {
+              const roleSnap = await collection('roles').doc(state.user.uid).get();
+              if (roleSnap.exists && roleSnap.data()?.role === 'editor') {
+                notify('यह Editor भूमिका पहले से सक्रिय है।', 'info');
+              } else {
+                throw new Error('यह invitation आपके मौजूदा Bishnoism account से मेल नहीं खाता या अब pending नहीं है।');
+              }
+            } else {
+              notify('Editor भूमिका स्वीकार हो गई। Permissions लागू कर दी गई हैं।', 'success');
+            }
+            markNotificationsRead([item]);
+            await loadUserProfile(state.user);
+            window.renderNotificationCenter();
+          } catch (error) {
+            console.error('Editor invitation action failed:', error);
+            notify(error.message || 'Editor invitation स्वीकार नहीं हो सका।', 'error');
+            acceptEditorButton.disabled = false;
+          }
+        });
+        card.appendChild(acceptEditorButton);
+      }
       if ((item.fileUrl || item.filePath) && item.fileType?.startsWith('image/')) {
         const image = document.createElement('img');
         if (item.fileUrl) image.src = item.fileUrl;
@@ -2726,7 +2760,7 @@ window.renderExamVisibility = function renderExamVisibility() {
   <button type="button" data-export-results-xlsx class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Excel Export</button>
   <button type="button" data-export-results-pdf class="min-h-12 rounded-xl border border-amber-500 bg-amber-50 px-4 font-bold text-amber-900">PDF Export</button>
 </div>
-
+        </div>
         <p data-owner-submission-status class="text-sm text-stone-600" aria-live="polite">उत्तर-पत्र देखने के लिए “उत्तर-पत्र लोड करें” दबाएँ।</p>
         <div data-owner-submission-list class="space-y-3"></div>
       </section> 
@@ -2850,7 +2884,22 @@ window.renderExamVisibility = function renderExamVisibility() {
           targetUid, status: 'pending', createdBy: state.user.uid,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        if (status) status.textContent = 'Invitation सेव हो गया। संबंधित registered user को अगली बार अपने Bishnoism account में login करने पर Accept/Decline prompt दिखेगा।';
+        let noticeSent = false;
+        try {
+          await window.pushNotification(targetUid, {
+            type: 'editor-invitation',
+            title: '🛡️ Assistant Editor invitation',
+            body: 'Owner Studio में आपको Assistant Editor के रूप में आमंत्रित किया गया है। अपनी permissions देखें और नीचे दिए गए बटन से भूमिका स्वीकार करें।',
+            invitationId,
+            important: true
+          });
+          noticeSent = true;
+        } catch (noticeError) {
+          console.warn('Editor invitation saved but personal notification could not be sent:', noticeError);
+        }
+        if (status) status.textContent = noticeSent
+          ? 'Invitation सेव हो गया और उपयोगकर्ता के Notification Bell पर Accept बटन भेज दिया गया है।'
+          : 'Invitation सेव हो गया, लेकिन Notification नहीं भेजा जा सका। Firestore notification rules जाँचें।';
         host.querySelector('[data-editor-name]').value = '';
         host.querySelector('[data-editor-phone]').value = '';
         host.querySelector('[data-editor-email]').value = '';
