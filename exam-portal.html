@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="hi">
 <head>
@@ -5,444 +6,332 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#143622">
-  <meta name="description" content="Bishnoism परीक्षा पोर्टल: पंजीकरण, मॉक परीक्षा, मुख्य परीक्षा और प्रकाशित परिणाम।">
   <title>परीक्षा पोर्टल | Bishnoism</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+
   <style>
     :root {
-      color-scheme: light;
       --forest: #143622;
-      --forest-2: #205238;
       --cream: #FAF7EE;
       --gold: #D6A43A;
       --terracotta: #B34A1B;
       --muted: #647067;
       --border: #E1E6DE;
-      --surface: #FFFFFF;
-      --success-bg: #EDF5EA;
-      --danger-bg: #F8EAE5;
-      --shadow: 0 8px 28px #1436220D;
     }
+
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+
     body {
       margin: 0;
       background: var(--cream);
       color: var(--forest);
       font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
     }
+
     a { color: inherit; }
-    button, a { -webkit-tap-highlight-color: transparent; }
-    button, input, select { font: inherit; }
-    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
-      outline: 3px solid var(--gold);
-      outline-offset: 3px;
+
+    /* Focused exam dashboard: clearer hierarchy, touch targets and mobile spacing. */
+    .hero { position: relative; overflow: hidden; }
+    .hero::after {
+      content: "🛡️"; position: absolute; right: clamp(12px, 4vw, 34px);
+      top: 16px; font-size: clamp(52px, 9vw, 86px); opacity: .10;
+      pointer-events: none;
     }
-    .skip-link {
-      position: absolute;
-      left: -9999px;
-      top: 8px;
-      z-index: 100;
-      padding: 10px 14px;
-      background: white;
-      border-radius: 10px;
+    .hero h1, .hero p, .hero .actions { position: relative; z-index: 1; }
+    .hero .actions { max-width: 520px; }
+    .status { display: flex; align-items: flex-start; gap: 10px; border-left: 4px solid var(--gold); }
+    .status::before { content: "●"; color: #2D6A4F; line-height: 1.5; }
+    .exam { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; border-color: #dfe6dc; }
+    .exam:hover { transform: translateY(-2px); border-color: #a8bda9; box-shadow: 0 10px 24px #14362212; }
+    .exam h3 { color: var(--forest); }
+    .exam-icon { border: 1px solid #e3e9e0; }
+    .button { min-height: 46px; }
+    .button:disabled { opacity: .65; cursor: wait; }
+    .panel h2, .section-heading { color: var(--forest); }
+    .auth-note { border-radius: 12px; padding: 10px 12px; background: #f5f7f2; border: 1px solid #e1e8dd; }
+    #authStatus { overflow-wrap: anywhere; }
+    @media (prefers-reduced-motion: reduce) {
+      .exam { transition: none; }
+      .exam:hover { transform: none; }
     }
-    .skip-link:focus { left: 8px; }
-    .shell {
-      width: min(100% - 28px, 980px);
+
+    main {
+      width: min(100% - 28px, 900px);
       margin: 0 auto;
-      padding: 14px 0 36px;
+      padding: 18px 0 40px;
     }
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      font-weight: 900;
-    }
-    .brand-mark {
-      display: grid;
-      place-items: center;
-      flex: 0 0 42px;
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      background: var(--forest);
-      color: white;
-      font-size: 22px;
-    }
-    .brand small {
-      display: block;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .06em;
-    }
-    .top-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
     .hero {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 5vw, 38px);
+      padding: clamp(22px, 5vw, 36px);
       border-radius: 24px;
       color: white;
-      background: linear-gradient(140deg, var(--forest), var(--forest-2));
+      background: linear-gradient(140deg, #143622, #205238);
       border-bottom: 5px solid var(--gold);
       box-shadow: 0 12px 30px #14362218;
     }
-    .hero::after {
-      content: "🛡️";
-      position: absolute;
-      right: clamp(12px, 4vw, 34px);
-      top: 16px;
-      font-size: clamp(52px, 9vw, 86px);
-      opacity: .10;
-      pointer-events: none;
-    }
-    .hero > * { position: relative; z-index: 1; }
+
     .eyebrow {
       color: #F7D88B;
       font-size: 11px;
-      font-weight: 900;
+      font-weight: 800;
       letter-spacing: .14em;
     }
+
     h1 {
       margin: 10px 0;
-      font-size: clamp(28px, 6vw, 43px);
+      font-size: clamp(27px, 6vw, 42px);
       line-height: 1.2;
     }
-    .hero p { max-width: 650px; color: #E7EEE8; font-size: 14px; }
-    .hero-actions, .actions, .card-actions {
+
+    .hero p {
+      max-width: 620px;
+      color: #E7EEE8;
+      font-size: 14px;
+    }
+
+    .actions, .card-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 9px;
-      margin-top: 17px;
+      margin-top: 18px;
     }
+
     .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 7px;
-      min-height: 48px;
-      padding: 11px 15px;
+      min-height: 43px;
+      padding: 10px 14px;
       border: 1px solid transparent;
-      border-radius: 12px;
+      border-radius: 11px;
       background: var(--forest);
       color: white;
       font-size: 13px;
-      font-weight: 850;
+      font-weight: 800;
       text-align: center;
       text-decoration: none;
       cursor: pointer;
-      transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
     }
-    .button:hover { box-shadow: 0 5px 15px #14362217; }
-    .button:active { transform: translateY(1px); }
-    .button:disabled { opacity: .6; cursor: wait; box-shadow: none; }
-    .button.light { background: white; color: var(--forest); border-color: var(--border); }
-    .button.gold { background: var(--gold); color: #1D281E; }
-    .button.terracotta { background: var(--terracotta); color: white; }
-    .button.small { min-height: 42px; padding: 9px 12px; }
-    .button.full { width: 100%; }
-    .live-pill, .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: fit-content;
-      max-width: 100%;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: var(--success-bg);
+
+    .button.light {
+      background: white;
       color: var(--forest);
-      font-size: 12px;
-      font-weight: 850;
-      overflow-wrap: anywhere;
+      border-color: var(--border);
     }
-    .live-pill { background: #FFFFFF1A; color: #FFF6D8; border: 1px solid #FFFFFF33; }
-    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #7DD59B; }
-    .badge[data-state="off"], .badge.off { background: var(--danger-bg); color: #8F3218; }
-    .badge.pending { background: #FFF3D6; color: #755313; }
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: fit-content;
-      max-width: 100%;
-      margin-top: 12px;
-      padding: 7px 11px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: #F1F5EF;
-      color: var(--forest);
-      font-size: 12px;
-      overflow-wrap: anywhere;
+
+    .button.gold {
+      background: var(--gold);
+      color: #1D281E;
     }
-    .status::before { content: "●"; color: #2D6A4F; line-height: 1.5; }
-    .status[data-kind="error"] { background: #fff4ef; border-color: #eed4c8; }
-    .status[data-kind="error"]::before { color: var(--terracotta); }
-    .status[data-kind="loading"]::before { color: var(--gold); }
-    .panel, .exam {
+
+    .button:focus-visible, a:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .status, .panel, .exam {
       margin-top: 14px;
-      padding: 18px;
+      padding: 17px;
       border: 1px solid var(--border);
-      border-radius: 18px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
+      border-radius: 17px;
+      background: white;
+      box-shadow: 0 5px 18px #14362208;
     }
+
+    .status {
+      background: #F1F5EF;
+      font-size: 13px;
+    }
+
     .section-heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 26px 0 11px;
-      color: var(--forest);
-      font-size: 21px;
+      margin: 26px 0 10px;
+      font-size: 20px;
     }
-    .section-subtitle { margin: -3px 0 12px; color: var(--muted); font-size: 13px; }
+
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-      gap: 13px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
+      gap: 12px;
     }
+
     .exam {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      min-width: 0;
       margin-top: 0;
-      transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+      min-width: 0;
     }
-    .exam:hover { transform: translateY(-2px); border-color: #A8BDA9; box-shadow: 0 10px 24px #14362212; }
+
     .exam-icon {
       display: grid;
-      place-items: center;
       width: 48px;
       height: 48px;
-      border: 1px solid #E3E9E0;
+      place-items: center;
       border-radius: 14px;
       background: #F1F5EF;
       font-size: 25px;
     }
-    .exam h3 { margin: 12px 0 4px; color: var(--forest); font-size: 17px; }
-    .exam p, .muted { color: var(--muted); font-size: 13px; }
-    .exam p { margin: 4px 0 12px; }
-    .exam .card-actions { width: 100%; margin-top: auto; }
-    .exam .button { width: 100%; }
-    .hide { display: none !important; }
-    .auth-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 16px;
-      align-items: start;
+
+    .exam h3 {
+      margin: 12px 0 4px;
+      font-size: 17px;
     }
-    .auth-note {
-      padding: 12px;
-      border: 1px solid #E1E8DD;
-      border-radius: 12px;
-      background: #F5F7F2;
+
+    .exam-meta { display:inline-flex; align-items:center; gap:6px; width:fit-content; max-width:100%; margin:8px 0 0; padding:6px 10px; border-radius:999px; background:#edf3e9; color:var(--forest); font-size:12px; font-weight:800; }
+    .exam-meta[data-state="off"] { background:#f5e9e4; color:#8f3218; }
+
+    .exam p, .muted {
       color: var(--muted);
-      font-size: 12px;
+      font-size: 13px;
     }
-    .phone-status { font-size: 12px; color: #E7EEE8; overflow-wrap: anywhere; }
-    .result-strip {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .result-stat {
-      padding: 13px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: #FBFCF9;
-    }
-    .result-stat strong { display: block; font-size: 20px; }
-    .result-stat span { color: var(--muted); font-size: 11px; }
-    .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:14px; }
-    .step { display:flex; align-items:flex-start; gap:10px; padding:14px; border:1px solid var(--border); border-radius:15px; background:#fff; }
-    .step-number { display:grid; place-items:center; flex:0 0 32px; width:32px; height:32px; border-radius:10px; background:var(--green-soft); color:var(--forest); font-weight:900; }
-    .step strong { display:block; font-size:13px; }
-    .step span { display:block; margin-top:3px; color:var(--muted); font-size:12px; }
-    .button.disabled, a[aria-disabled="true"] { opacity:.55; cursor:not-allowed; box-shadow:none; }
-    .exam .badge { margin-top:8px; }
-    .frame-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    #examFramePanel {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
+
+    .exam p { margin: 4px 0 14px; }
+
+    .exam .card-actions {
       width: 100%;
-      height: 100vh;
-      height: 100dvh;
-      margin: 0;
-      padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
-      overflow: auto;
-      border: 0;
-      border-radius: 0;
-      background: var(--cream);
+      margin-top: auto;
     }
-    #examFramePanel .frame-head {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      padding: 8px 0 10px;
-      background: var(--cream);
-      border-bottom: 1px solid var(--border);
+
+    .exam .button { width: 100%; }
+
+    .hide { display: none !important; }
+
+    .disabled {
+      opacity: .55;
+      pointer-events: none;
     }
-    #examFrame {
-      display: block;
-      width: 100%;
-      height: calc(100dvh - 92px);
-      min-height: 0;
-      margin-top: 10px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--cream);
+
+    footer {
+      padding: 18px 3px;
+      color: var(--muted);
+      font-size: 11px;
     }
-    footer { padding: 20px 3px; color: var(--muted); font-size: 11px; }
-    @media (max-width: 620px) {
-      .shell { width: min(100% - 20px, 980px); padding-top: 10px; }
-      .topbar { align-items: flex-start; }
-      .top-actions { max-width: 145px; }
+
+    @media (max-width: 480px) {
+      main { width: min(100% - 20px, 900px); }
       .hero { border-radius: 18px; }
       .panel, .exam { padding: 14px; }
-      .auth-layout { grid-template-columns: 1fr; }
-      .hero-actions .button, .actions .button { flex: 1 1 145px; }
-      .result-strip { grid-template-columns: 1fr; }
-      .steps { grid-template-columns:1fr; }
-      #examFrame { height: calc(100dvh - 112px); min-height: 0; }
-      #examFramePanel { padding-left: 8px; padding-right: 8px; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      .exam, .button { transition: none; }
-      .exam:hover, .button:active { transform: none; }
+      .actions .button { flex: 1 1 145px; }
     }
   </style>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
-<body>
-<a class="skip-link" href="#mainContent">मुख्य सामग्री पर जाएँ</a>
-<main id="mainContent" class="shell">
-  <nav class="topbar" aria-label="मुख्य नेविगेशन">
-    <a class="brand" href="./index.html" style="text-decoration:none" aria-label="Bishnoism मुख्य वेबसाइट">
-      <span class="brand-mark" aria-hidden="true">🌳</span>
-      <span>Bishnoism<small>परीक्षा एवं अध्ययन मंच</small></span>
-    </a>
-    <div class="top-actions">
-      <a class="button light small" href="./index.html">← मुख्य वेबसाइट</a>
-      <a class="button light small" href="./index.html#tab-profile">प्रोफ़ाइल</a>
-    </div>
-  </nav>
 
+<body>
+<main>
   <header class="hero">
     <div class="eyebrow">BISHNOISM • EXAMINATION</div>
     <h1>परीक्षा पोर्टल</h1>
-    <p>विद्यार्थी पंजीकरण, मॉक परीक्षा, मुख्य परीक्षा और प्रकाशित परिणाम — एक सरल स्थान पर।</p>
-    <div class="hero-actions">
-      <a class="button gold" href="#examCategories">📋 परीक्षा विकल्प</a>
-      <a class="button light" href="#resultDesk">🏅 RS · परिणाम डेस्क</a>
-    </div>
+    <p>
+      मॉक परीक्षा, मुख्य परीक्षा, पंजीकरण और प्रकाशित परिणाम यहाँ एक ही जगह मिलेंगे।
+      दैनिक क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में ही रहेगा।
+    </p>
     <div class="actions">
-      <span id="phoneStatus" class="phone-status">सत्र स्थिति जाँची जा रही है…</span>
+      <a class="button gold" href="./index.html#tab-quiz">📚 दैनिक क्विज़ / मुख्य वेबसाइट</a>
+      <a class="button light" href="./index.html#tab-profile">👤 खाता / प्रोफ़ाइल</a>
     </div>
   </header>
 
-  <div id="portalStatus" class="status" role="status" aria-live="polite" data-kind="loading">
+  <div id="portalStatus" class="status" role="status" aria-live="polite">
     परीक्षा सेटिंग्स लोड हो रही हैं…
   </div>
 
-  <section id="portalDisabled" class="panel hide" aria-labelledby="disabledHeading">
-    <h2 id="disabledHeading">परीक्षा पोर्टल अभी बंद है</h2>
-    <p class="muted">पोर्टल उपलब्ध होने पर यहाँ परीक्षाओं के विकल्प दिखेंगे। दैनिक क्विज़ मुख्य वेबसाइट पर उपलब्ध हो सकता है।</p>
+  <section id="portalDisabled" class="panel hide">
+    <h2>परीक्षा पोर्टल अभी बंद है</h2>
+    <p class="muted">पोर्टल उपलब्ध होने पर यहाँ परीक्षाओं के विकल्प दिखेंगे।</p>
     <a class="button" href="./index.html">मुख्य वेबसाइट पर लौटें</a>
   </section>
 
-  <section id="examArea" class="hide" aria-labelledby="examCategories">
-    <h2 id="examCategories" class="section-heading">📝 अभ्यास और मुख्य परीक्षाएँ <span class="badge">Exam Centre</span></h2>
-    <p class="section-subtitle">हर परीक्षा की स्थिति और उपलब्ध प्रश्न सेट कार्ड पर देखें। परीक्षा की अनुमति पंजीकरण और Owner की सेटिंग्स पर निर्भर है।</p>
+  <section id="examArea" class="hide">
+    <h2 class="section-heading">📝 अभ्यास और परीक्षाएँ</h2>
     <div class="grid">
       <article id="mock1Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">📝</div>
         <h3>मॉक परीक्षा 1</h3>
-        <span id="mock1Status" class="badge pending">स्थिति जाँची जा रही है…</span>
-        <p id="mock1SetStatus" class="muted">प्रश्न सेट की जानकारी लोड हो रही है…</p>
+        <p id="mock1SetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
         <p>समयबद्ध अभ्यास परीक्षा। प्रवेश के लिए निर्धारित समय और पंजीकरण की शर्तें लागू होंगी।</p>
-        <div class="card-actions"><button class="button" type="button" data-launch-exam="mock1">आगे बढ़ें →</button></div>
+        <div class="card-actions">
+          <button class="button" type="button" data-launch-exam="mock1">मॉक परीक्षा 1 खोलें</button>
+        </div>
       </article>
+
       <article id="mock2Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🎯</div>
         <h3>मॉक परीक्षा 2</h3>
-        <span id="mock2Status" class="badge pending">स्थिति जाँची जा रही है…</span>
-        <p id="mock2SetStatus" class="muted">प्रश्न सेट की जानकारी लोड हो रही है…</p>
-        <p>दूसरा अभ्यास विकल्प। निर्धारित समय और परीक्षा की पात्रता लागू होगी।</p>
-        <div class="card-actions"><button class="button" type="button" data-launch-exam="mock2">आगे बढ़ें →</button></div>
+        <p id="mock2SetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
+        <p>दूसरा अभ्यास सेट। परीक्षा शुरू करने से पहले मुख्य वेबसाइट पर संबंधित विकल्प चुनें।</p>
+        <div class="card-actions">
+          <button class="button" type="button" data-launch-exam="mock2">मॉक परीक्षा 2 खोलें</button>
+        </div>
       </article>
+
       <article id="mainExamCard" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🏆</div>
         <h3>मुख्य परीक्षा</h3>
-        <span id="mainExamStatus" class="badge pending">स्थिति जाँची जा रही है…</span>
-        <p id="mainSetStatus" class="muted">प्रश्न सेट की जानकारी लोड हो रही है…</p>
+        <p id="mainSetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
         <p>पंजीकरण की पुष्टि, निर्धारित समय और वैध प्रवेश-पत्र/रोल नंबर की शर्तें लागू हो सकती हैं।</p>
-        <div class="card-actions"><button class="button gold" type="button" data-launch-exam="main">मुख्य परीक्षा में जाएँ →</button></div>
+        <div class="card-actions">
+          <button class="button gold" type="button" data-launch-exam="main">मुख्य परीक्षा खोलें</button>
+        </div>
       </article>
+
       <article id="enrollmentCard" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🧾</div>
         <h3>विद्यार्थी पंजीकरण</h3>
-        <span id="enrollmentStatus" class="badge">पंजीकरण विकल्प</span>
         <p>पंजीकरण भेजें और उसकी स्वीकृति की स्थिति मुख्य वेबसाइट पर देखें।</p>
-        <div class="card-actions"><button class="button" type="button" data-launch-exam="enrollment">पंजीकरण शुरू करें →</button></div>
+        <div class="card-actions">
+          <button class="button" type="button" data-launch-exam="enrollment">पंजीकरण खोलें</button>
+        </div>
+      </article>
+
+      <article id="resultsCard" class="exam hide">
+        <div class="exam-icon" aria-hidden="true">📊</div>
+        <h3>RS · परिणाम डेस्क</h3>
+        <p>प्रकाशित परीक्षा परिणाम और उपलब्ध अंक-पत्र मुख्य वेबसाइट पर देखें।</p>
+        <div class="card-actions">
+          <button class="button" type="button" data-launch-exam="results">परिणाम देखें</button>
+        </div>
       </article>
     </div>
   </section>
 
-  <section id="resultDesk" class="panel hide" aria-labelledby="resultsHeading">
-    <div class="frame-head">
-      <div>
-        <h2 id="resultsHeading" style="margin:0;font-size:20px">RS · परिणाम डेस्क</h2>
-        <p class="muted">प्रकाशित परिणाम और उपलब्ध अंक-पत्र देखें।</p>
-      </div>
-      <span id="resultsStatus" class="badge">स्थिति जाँची जा रही है…</span>
+  <section id="examFramePanel" class="panel hide">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><h2 id="examFrameTitle" style="margin:0;font-size:19px">परीक्षा</h2><p class="muted">यहीं परीक्षा पूरी करें। आपको मुख्य वेबसाइट पर नहीं भेजा जाएगा।</p></div>
+      <button id="backToExamChoices" class="button light" type="button">← सभी विकल्प</button>
     </div>
-    <div class="actions"><button id="openResults" class="button" type="button" data-launch-exam="results">📄 परिणाम देखें</button></div>
+    <iframe id="examFrame" title="Bishnoism परीक्षा कार्यक्षेत्र" src="about:blank" loading="lazy" style="display:block;width:100%;height:min(78vh,1000px);min-height:600px;border:1px solid var(--border);border-radius:14px;background:var(--cream);margin-top:14px"></iframe>
   </section>
 
-  <section id="examFramePanel" class="panel hide" aria-labelledby="examFrameTitle">
-    <div class="frame-head">
-      <div>
-        <h2 id="examFrameTitle" style="margin:0;font-size:19px">परीक्षा कार्यक्षेत्र</h2>
-        <p id="examFrameHint" class="muted">सुरक्षित परीक्षा कार्यक्षेत्र</p>
-      </div>
-      <button id="backToExamChoices" class="button light" type="button">✕ बंद करें</button>
+  <section class="panel">
+    <h2 style="margin:0;font-size:17px">🔐 विद्यार्थी लॉगिन</h2>
+    <p id="authStatus" class="muted" aria-live="polite">लॉगिन की स्थिति जाँची जा रही है…</p>
+    <div class="actions">
+      <button id="googleLogin" class="button" type="button">🔐 Google से सुरक्षित लॉगिन</button>
+      <a class="button light" href="./index.html?openAuth=1">अन्य लॉगिन विकल्प</a>
     </div>
-    <iframe id="examFrame" title="Bishnoism परीक्षा कार्यक्षेत्र" src="about:blank" loading="lazy" referrerpolicy="same-origin" allow="fullscreen"></iframe>
+    <div class="auth-note muted">
+      <strong>Google लॉगिन क्यों?</strong> यह आपकी पहचान सत्यापित करता है और पंजीकरण/रोल नंबर को सही खाते से जोड़ता है। SMS या OTP की ज़रूरत नहीं है।
+      <br><br>मुख्य वेबसाइट और इस पोर्टल पर वही Google खाता इस्तेमाल करें। अगर मोबाइल/पासवर्ड से लॉगिन करना है, तो “अन्य लॉगिन विकल्प” खोलें।
+      <br><br>लॉगिन अपने-आप परीक्षा की अनुमति नहीं देता; पंजीकरण की पुष्टि, निर्धारित समय और Owner की सेटिंग्स भी लागू होती हैं।
+    </div>
   </section>
 
-  <section id="studentSessionPanel" class="panel hide" aria-live="polite" aria-labelledby="studentSessionHeading">
-    <h2 id="studentSessionHeading" style="margin:0;font-size:18px">नमस्ते, <span id="studentName">विद्यार्थी</span></h2>
-    <p id="studentPhone" class="muted" style="margin:5px 0 0">आपका मुख्य वेबसाइट सत्र सक्रिय है।</p>
-  </section>
-  <section id="loginPrompt" class="status" role="status" aria-live="polite">
-    परीक्षा शुरू करने के लिए मुख्य वेबसाइट के हेडर से लॉगिन करें। <a href="./index.html#tab-profile">मुख्य वेबसाइट खोलें</a>
+  <section class="panel" aria-labelledby="dailyQuizHeading">
+    <h2 id="dailyQuizHeading" style="margin:0;font-size:17px">🏆 दैनिक ज्ञान क्विज़</h2>
+    <p class="muted">दैनिक क्विज़ मुख्य वेबसाइट पर ही रहेगा, ताकि सभी छोटे अभ्यास एक ही जगह मिलें।</p>
+    <div class="actions">
+      <a class="button gold" href="./index.html#tab-quiz">दैनिक क्विज़ खोलें</a>
+    </div>
   </section>
 
   <footer>
-    Bishnoism परीक्षा पोर्टल · दैनिक क्विज़ मुख्य वेबसाइट पर ही रहता है। प्रश्न, परीक्षा सत्र और परिणाम Firebase सुरक्षा नियमों के अधीन हैं।
+    दैनिक ज्ञान क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में रहेगा।
+    यहाँ से चुनी गई परीक्षा, पंजीकरण या परिणाम का सही अनुभाग मुख्य वेबसाइट के
+    सुरक्षित कार्यक्षेत्र में खुलेगा। प्रश्न और उत्तर Firebase सुरक्षा नियमों से नियंत्रित हैं।
   </footer>
 </main>
 
@@ -465,281 +354,150 @@
   const disabledPanel = byId("portalDisabled");
   const framePanel = byId("examFramePanel");
   const examFrame = byId("examFrame");
+  const examArea = byId("examArea");
   const examTitles = {
     mock1: "📝 मॉक परीक्षा 1",
     mock2: "🎯 मॉक परीक्षा 2",
     main: "🏆 मुख्य परीक्षा",
     enrollment: "🧾 विद्यार्थी पंजीकरण",
-    results: "📊 RS · परिणाम डेस्क"
+    results: "📊 परिणाम डेस्क"
   };
 
-  let auth = null;
-  let db = null;
-  let configUnsubscribe = null;
-  let authUnsubscribe = null;
-  let currentConfig = {};
-  let hasConfig = false;
-
-  function setPortalStatus(message, kind = "info") {
-    status.textContent = message;
-    status.dataset.kind = kind;
-  }
-
   function setCard(id, visible) {
-    const element = byId(id);
-    if (element) element.classList.toggle("hide", !visible);
+    byId(id).classList.toggle("hide", !visible);
   }
 
-  function safeText(value, fallback = "") {
-    return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  function setPortalStatus(message) {
+    status.textContent = message;
   }
-
-  function normalizePhone(value) {
-    return String(value || "").replace(/[^\d+]/g, "").slice(0, 20);
-  }
-
-  function getUserPhone(user) {
-    if (!user) return "";
-    // Phone is displayed only if Firebase provides a verified phone number.
-    // Never infer a phone number from an email address or a UID.
-    return normalizePhone(user.phoneNumber || "");
-  }
-
-  function setBadge(id, label, state = "on") {
-    const element = byId(id);
-    if (!element) return;
-    element.textContent = label;
-    element.dataset.state = state;
-    element.classList.toggle("off", state === "off");
-    element.classList.toggle("pending", state === "pending");
-  }
-
-  function timestampMillis(value) {
-    if (!value) return 0;
-    if (typeof value.toMillis === "function") return value.toMillis();
-    if (typeof value.toDate === "function") return value.toDate().getTime();
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const parsed = Date.parse(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    return 0;
-  }
-
-  function setExamStatus(id, visible, config, mode) {
-    if (!visible) {
-      setBadge(id, "Owner द्वारा बंद", "off");
-      return;
-    }
-    const key = mode === "mainExam" ? "main" : mode;
-    const now = Date.now();
-    const start = timestampMillis(config[key + "StartAt"] || config[key + "StartAtMs"] || config[key + "StartTime"]);
-    const end = timestampMillis(config[key + "EndAt"] || config[key + "EndAtMs"] || config[key + "EndTime"]);
-    if (start && now < start) {
-      setBadge(id, "आगामी · " + new Date(start).toLocaleString("hi-IN", { dateStyle: "medium", timeStyle: "short" }), "pending");
-    } else if (end && now > end) {
-      setBadge(id, "समय समाप्त", "off");
-    } else {
-      setBadge(id, "सक्रिय / उपलब्ध", "on");
-    }
-  }
-
-  function setLabel(value) {
-    return ({ set1: "Set 1", set2: "Set 2", set3: "Set 3", set4: "Set 4" })[value] || "Set 1";
-  }
-
-  function updateSetBadge(id, value, visible, usingSets = true) {
-    const element = byId(id);
-    if (!element) return;
-    if (!visible) {
-      element.textContent = "यह परीक्षा अभी बंद है";
-      element.dataset.state = "off";
-      return;
-    }
-    element.textContent = usingSets
-      ? "उपलब्ध प्रश्न सेट: " + setLabel(value)
-      : "प्रश्न सेट: सामान्य पेपर";
-    element.dataset.state = "on";
-  }
-
-  function renderConfig(config) {
-    currentConfig = config || {};
-    hasConfig = true;
-    const portalEnabled = currentConfig.examPortalVisible !== false;
-
-    area.classList.toggle("hide", !portalEnabled);
-    disabledPanel.classList.toggle("hide", portalEnabled);
-    byId("resultDesk").classList.toggle("hide", !portalEnabled || currentConfig.resultsVisible === false);
-
-    if (!portalEnabled) {
-      setPortalStatus("परीक्षा पोर्टल Owner द्वारा बंद किया गया है। दैनिक क्विज़ के लिए मुख्य वेबसाइट खोलें.", "error");
-      return;
-    }
-
-    const mockGroupVisible = currentConfig.mockVisible !== false;
-    const mock1Visible = mockGroupVisible && currentConfig.mock1Visible !== false;
-    const mock2Visible = mockGroupVisible && currentConfig.mock2Visible !== false;
-    const mainVisible = currentConfig.mainExamVisible !== false;
-    const enrollmentVisible = currentConfig.enrollmentVisible !== false;
-    const resultsVisible = currentConfig.resultsVisible !== false;
-
-    setCard("mock1Card", mock1Visible);
-    setCard("mock2Card", mock2Visible);
-    setCard("mainExamCard", mainVisible);
-    setCard("enrollmentCard", enrollmentVisible);
-    setCard("resultDesk", resultsVisible);
-
-    setExamStatus("mock1Status", mock1Visible, currentConfig, "mock1");
-    setExamStatus("mock2Status", mock2Visible, currentConfig, "mock2");
-    setExamStatus("mainExamStatus", mainVisible, currentConfig, "mainExam");
-
-    updateSetBadge("mock1SetStatus", currentConfig.mock1QuestionSet, mock1Visible, currentConfig.mock1UsesQuestionSets !== false);
-    updateSetBadge("mock2SetStatus", currentConfig.mock2QuestionSet, mock2Visible, currentConfig.mock2UsesQuestionSets !== false);
-    updateSetBadge("mainSetStatus", currentConfig.mainQuestionSet, mainVisible, currentConfig.mainUsesQuestionSets !== false);
-    setBadge("enrollmentStatus", enrollmentVisible ? "पंजीकरण उपलब्ध" : "पंजीकरण बंद", enrollmentVisible ? "on" : "off");
-    setBadge("resultsStatus", resultsVisible ? "परिणाम डेस्क उपलब्ध" : "Owner द्वारा बंद", resultsVisible ? "on" : "off");
-
-    const visibleCount = [mock1Visible, mock2Visible, mainVisible, enrollmentVisible, resultsVisible].filter(Boolean).length;
-    setPortalStatus(visibleCount
-      ? "पोर्टल चालू है। नीचे उपलब्ध विकल्प और उनकी स्थिति दिखाई गई है।"
-      : "पोर्टल चालू है, लेकिन Owner ने अभी सभी परीक्षा विकल्प बंद रखे हैं.", visibleCount ? "info" : "error");
-  }
-
-  function updateAuthStatus(user) {
-    const sessionPanel = byId("studentSessionPanel");
-    const loginPrompt = byId("loginPrompt");
-    if (!user) {
-      sessionPanel.classList.add("hide");
-      loginPrompt.classList.remove("hide");
-      byId("phoneStatus").textContent = "मुख्य वेबसाइट से लॉगिन करें";
-      return;
-    }
-    loginPrompt.classList.add("hide");
-    sessionPanel.classList.remove("hide");
-    byId("phoneStatus").textContent = user.phoneNumber ? "सत्र सक्रिय · " + user.phoneNumber : "सत्र सक्रिय";
-    const fallbackName = safeText(user.displayName, "विद्यार्थी");
-    byId("studentName").textContent = fallbackName;
-    byId("studentPhone").textContent = user.phoneNumber
-      ? "मोबाइल: " + user.phoneNumber
-      : "आपका सत्र सक्रिय है।";
-    // The UID is used internally only to read the signed-in user's own profile.
-    // It is never displayed in the portal.
-    db.collection("users").doc(user.uid).get().then(snapshot => {
-      const profile = snapshot.exists ? snapshot.data() : {};
-      byId("studentName").textContent = safeText(profile.displayName || profile.fullName || user.displayName, "विद्यार्थी");
-      const phone = safeText(profile.phoneNumber || profile.phone || profile.mobile || profile.mobileNumber || user.phoneNumber, "");
-      byId("studentPhone").textContent = phone ? "मोबाइल: " + phone : "आपका सत्र सक्रिय है। प्रोफ़ाइल में मोबाइल नंबर जोड़ें।";
-      byId("phoneStatus").textContent = phone ? "सत्र सक्रिय · " + phone : "सत्र सक्रिय";
-    }).catch(() => {
-      // Keep the friendly session status even if optional profile details are unavailable.
-    });
-  }
-
-  function launchExam(mode) {
-    if (!examTitles[mode]) return;
-    if (!hasConfig) {
-      setPortalStatus("परीक्षा सेटिंग्स अभी लोड हो रही हैं। कुछ क्षण बाद फिर प्रयास करें।", "loading");
-      return;
-    }
-    if (mode === "mock1" && (currentConfig.mockVisible === false || currentConfig.mock1Visible === false)) {
-      setPortalStatus("मॉक परीक्षा 1 Owner द्वारा बंद है।", "error");
-      return;
-    }
-    if (mode === "mock2" && (currentConfig.mockVisible === false || currentConfig.mock2Visible === false)) {
-      setPortalStatus("मॉक परीक्षा 2 Owner द्वारा बंद है।", "error");
-      return;
-    }
-    if (mode === "main" && currentConfig.mainExamVisible === false) {
-      setPortalStatus("मुख्य परीक्षा Owner द्वारा बंद है।", "error");
-      return;
-    }
-    if (mode === "enrollment" && currentConfig.enrollmentVisible === false) {
-      setPortalStatus("पंजीकरण अभी बंद है।", "error");
-      return;
-    }
-    if (mode === "results" && currentConfig.resultsVisible === false) {
-      setPortalStatus("परिणाम अनुभाग अभी बंद है।", "error");
-      return;
-    }
-
-    if (!auth || !auth.currentUser) {
-      byId("loginPrompt").classList.remove("hide");
-    }
-    byId("examFrameTitle").textContent = examTitles[mode];
-    byId("examFrameHint").textContent = mode === "results"
-      ? "प्रकाशित परिणाम और उपलब्ध अंक-पत्र"
-      : mode === "enrollment" ? "विद्यार्थी पंजीकरण" : "परीक्षा कार्यक्षेत्र";
-    framePanel.classList.remove("hide");
-    document.body.style.overflow = "hidden";
-    // Reuse the existing exam engine, enrolment form and published-results view.
-    examFrame.src = "./index.html?examEmbed=" + encodeURIComponent(mode) + "#tab-quiz";
-    byId("backToExamChoices").focus({ preventScroll: true });
-  }
-
-  document.querySelectorAll("[data-launch-exam]").forEach(button => {
-    button.addEventListener("click", () => launchExam(button.getAttribute("data-launch-exam")));
-  });
-
-
-  byId("backToExamChoices").addEventListener("click", () => {
-    examFrame.src = "about:blank";
-    framePanel.classList.add("hide");
-    document.body.style.overflow = "";
-    const target = byId("examArea");
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-
-
-  byId("refreshPortal").addEventListener("click", () => {
-    if (db) {
-      setPortalStatus("परीक्षा सेटिंग्स रीफ़्रेश की जा रही हैं…", "loading");
-      db.collection("examConfig").doc("current").get()
-        .then(snapshot => renderConfig(snapshot.exists ? snapshot.data() : {}))
-        .catch(error => {
-          console.error("Manual exam config refresh failed:", error);
-          setPortalStatus("सेटिंग्स रीफ़्रेश नहीं हुईं। Firebase permissions और इंटरनेट कनेक्शन जाँचें।", "error");
-        });
-    } else {
-      window.location.reload();
-    }
-  });
 
   if (!window.firebase) {
-    setPortalStatus("पोर्टल की स्थिति अभी उपलब्ध नहीं है। इंटरनेट कनेक्शन जाँचें या मुख्य वेबसाइट खोलें।", "error");
-    byId("phoneStatus").textContent = "सत्र स्थिति उपलब्ध नहीं";
-    byId("loginPrompt").classList.remove("hide");
+    setPortalStatus("Firebase लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचकर पेज रीफ्रेश करें।");
+    console.error("Firebase SDK was not loaded.");
     return;
   }
 
   try {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
   } catch (error) {
+    setPortalStatus("Firebase शुरू नहीं हो सका। कृपया पेज रीफ्रेश करें।");
     console.error("Firebase initialization failed:", error);
-    setPortalStatus("सेवा अभी उपलब्ध नहीं है। कुछ देर बाद फिर प्रयास करें।", "error");
     return;
   }
 
-  authUnsubscribe = auth.onAuthStateChanged(updateAuthStatus, error => {
-    console.error("Authentication state error:", error);
-    byId("phoneStatus").textContent = "सत्र स्थिति उपलब्ध नहीं";
-    byId("loginPrompt").classList.remove("hide");
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  auth.onAuthStateChanged(user => {
+    byId("authStatus").textContent = user
+      ? "लॉगिन है। परीक्षा की अनुमति पंजीकरण और परीक्षा सेटिंग्स पर निर्भर करती है।"
+      : "अभी लॉगिन नहीं है। परीक्षा देने के लिए लॉगिन करें; पंजीकरण और परिणाम भी खोले जा सकते हैं।";
+
+    byId("googleLogin").textContent = user ? "Google से लॉगिन हो चुका है" : "Google से लॉगिन";
+    // Keep the control usable so an account can be switched or the sign-in
+    // flow retried if Firebase restored a stale session.
+    byId("googleLogin").disabled = false;
   });
 
-  configUnsubscribe = db.collection("examConfig").doc("current").onSnapshot(snapshot => {
-    renderConfig(snapshot.exists ? snapshot.data() : {});
+  byId("googleLogin").addEventListener("click", async () => {
+    const button = byId("googleLogin");
+    button.disabled = true;
+
+    try {
+      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await auth.signInWithPopup(provider);
+    } catch (error) {
+      console.error("Google sign-in failed:", error);
+      const message = error.code === "auth/unauthorized-domain"
+        ? "यह वेबसाइट Firebase Authentication में अधिकृत नहीं है।"
+        : error.code === "auth/popup-blocked"
+          ? "ब्राउज़र में इस वेबसाइट के लिए popup की अनुमति दें।"
+          : "लॉगिन पूरा नहीं हुआ। मुख्य वेबसाइट पर उपलब्ध लॉगिन विकल्प आज़माएँ।";
+      byId("authStatus").textContent = message;
+      button.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("[data-launch-exam]").forEach(button => {
+    button.addEventListener("click", () => {
+      const mode = button.getAttribute("data-launch-exam");
+      if (!examTitles[mode]) return;
+      if (!auth.currentUser && ["main", "mock1", "mock2"].includes(mode)) {
+        byId("authStatus").textContent = "परीक्षा अनुभाग खुल जाएगा। परीक्षा शुरू करने से पहले लॉगिन और पंजीकरण की पुष्टि आवश्यक होगी।";
+        setPortalStatus("परीक्षा अनुभाग खोल रहे हैं। परीक्षा शुरू करने से पहले लॉगिन आवश्यक होगा।");
+      }
+      // Always open the requested section. Login and eligibility are checked
+      // by the actual exam-start handler, not by this navigation button.
+      byId("examFrameTitle").textContent = examTitles[mode];
+      framePanel.classList.remove("hide");
+      examArea.classList.add("hide");
+      framePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      examFrame.src = "./index.html?examEmbed=" + encodeURIComponent(mode) + "#tab-quiz";
+    });
+  });
+
+  byId("backToExamChoices").addEventListener("click", () => {
+    examFrame.src = "about:blank";
+    framePanel.classList.add("hide");
+    examArea.classList.remove("hide");
+    byId("portalStatus").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  db.collection("examConfig").doc("current").onSnapshot(snapshot => {
+    const config = snapshot.exists ? snapshot.data() : {};
+    const portalEnabled = config.examPortalVisible !== false;
+
+    area.classList.toggle("hide", !portalEnabled);
+    disabledPanel.classList.toggle("hide", portalEnabled);
+
+    if (!portalEnabled) {
+      setPortalStatus("परीक्षा पोर्टल Owner द्वारा बंद किया गया है।");
+      return;
+    }
+
+    const mockGroupVisible = config.mockVisible !== false;
+    const mock1Visible = mockGroupVisible && config.mock1Visible !== false;
+    const mock2Visible = mockGroupVisible && config.mock2Visible !== false;
+
+    setCard("mock1Card", mock1Visible);
+    setCard("mock2Card", mock2Visible);
+    setCard("mainExamCard", config.mainExamVisible !== false);
+    setCard("enrollmentCard", config.enrollmentVisible !== false);
+    const setLabel = value => ({ set1: "Set 1", set2: "Set 2", set3: "Set 3", set4: "Set 4" })[value] || "Set 1";
+    const updateSetBadge = (id, value, visible) => {
+      const badge = byId(id);
+      if (!badge) return;
+      badge.textContent = visible ? "उपलब्ध प्रश्न सेट: " + setLabel(value) : "यह परीक्षा अभी बंद है";
+      badge.dataset.state = visible ? "on" : "off";
+    };
+    updateSetBadge("mock1SetStatus", config.mock1QuestionSet, mock1Visible);
+    updateSetBadge("mock2SetStatus", config.mock2QuestionSet, mock2Visible);
+    updateSetBadge("mainSetStatus", config.mainQuestionSet, config.mainExamVisible !== false);
+    setCard("resultsCard", config.resultsVisible !== false);
+
+    const visibleCount = [
+      mock1Visible,
+      mock2Visible,
+      config.mainExamVisible !== false,
+      config.enrollmentVisible !== false,
+      config.resultsVisible !== false
+    ].filter(Boolean).length;
+
+    setPortalStatus(
+      visibleCount
+        ? "पोर्टल चालू है। नीचे उपलब्ध विकल्प दिखाए गए हैं।"
+        : "अभी कोई परीक्षा विकल्प उपलब्ध नहीं है। कृपया बाद में देखें।"
+    );
   }, error => {
     console.error("Could not load examConfig/current:", error);
-    setPortalStatus(error && error.code === "permission-denied"
-      ? "परीक्षा सेटिंग्स अभी उपलब्ध नहीं हैं। कुछ देर बाद फिर प्रयास करें."
-      : "परीक्षा सेटिंग्स अभी लोड नहीं हुईं। इंटरनेट कनेक्शन जाँचें और फिर प्रयास करें.", "error");
+    setPortalStatus(
+      error.code === "permission-denied"
+        ? "परीक्षा सेटिंग्स पढ़ने की अनुमति नहीं मिली। Firebase में examConfig/current का read access जाँचें।"
+        : "परीक्षा सेटिंग्स लोड नहीं हुईं। इंटरनेट कनेक्शन और Firebase स्थिति जाँचें।"
+    );
   });
-
-  window.addEventListener("pagehide", () => {
-    if (typeof configUnsubscribe === "function") configUnsubscribe();
-    if (typeof authUnsubscribe === "function") authUnsubscribe();
-  }, { once: true });
 })();
 </script>
 </body>
