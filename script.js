@@ -4022,11 +4022,13 @@ const digits = String(value || '').replace(/\D/g, '');
             <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
             <button id="markReviewBtn" type="button" class="min-h-12 w-full rounded-xl border border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">⚑ समीक्षा के लिए चिह्नित करें</button>
           </div>
-          <aside class="h-fit rounded-2xl border border-stone-200 bg-stone-50 p-3" aria-label="प्रश्न पैलेट">
-            <h3 class="font-bold text-forest">प्रश्न पैलेट</h3>
-            <p class="mt-1 text-[11px] text-stone-600">हरा: उत्तर दिया · धूसर: बाकी · पीला: समीक्षा</p>
+          <details id="examPaletteDrawer" open class="exam-palette-drawer h-fit rounded-2xl border border-stone-200 bg-stone-50 p-3" aria-label="प्रश्न पैलेट">
+            <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-2 py-2 font-bold text-forest">
+              <span>प्रश्न पैलेट</span><span class="exam-palette-toggle text-xs font-semibold text-emerald-800">खोलें / बंद करें</span>
+            </summary>
+            <p class="mt-1 text-[11px] text-stone-600">हरा: उत्तर दिया · धूसर: बाकी · पीला/बैंगनी: समीक्षा</p>
             <div id="examQuestionPalette" class="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-5"></div>
-          </aside>
+          </details>
         </div>
         <p id="examResult" class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-900" role="status" aria-live="polite"></p>
         <div class="grid grid-cols-2 gap-2">
@@ -4037,6 +4039,8 @@ const digits = String(value || '').replace(/\D/g, '');
         <button id="exitExamWorkspace" type="button" class="hidden w-full rounded-xl border border-stone-300 px-4 py-3 text-sm font-bold text-stone-700">परीक्षा सूची पर वापस जाएँ</button>
       `;
 
+      const paletteDrawer = byId('examPaletteDrawer');
+      if (paletteDrawer) paletteDrawer.open = window.innerWidth >= 1024;
       const anchor = byId('enrollmentSection') || byId('dailyQuizSection') || tab.firstElementChild;
       if (anchor) tab.insertBefore(workspace, anchor);
       else tab.appendChild(workspace);
