@@ -2966,14 +2966,46 @@ const selected =
                 manualCheckStatus: 'published', checkedScore: score, feedback,
                 checkedAt: publishedAt, checkedBy: state.user.uid
               }, { merge: true });
-              await collection('publishedResults').doc('manual_' + mode + '_' + submissionId).set({
-                uid, studentPhone: button.dataset.phone || '',
-                studentIdentityKey: button.dataset.phone || ('uid:' + uid),
-                name: button.dataset.name || 'विद्यार्थी', rollNumber: button.dataset.roll || null,
-                mode, questionSet: button.dataset.set || 'set1', score, total,
-                status: 'published', feedback, sourceCollection, sourceSubmissionId: submissionId,
-                publishedAt, publishedBy: state.user.uid
-              }, { merge: true });
+              
+const publishedAt = serverTimestamp();
+
+const submissionRef = state.db
+  .collection(sourceCollection)
+  .doc(submissionId);
+
+const resultRef = collection('publishedResults')
+  .doc('manual_' + mode + '_' + submissionId);
+
+const batch = state.db.batch();
+
+batch.set(submissionRef, {
+  manualCheckStatus: 'published',
+  checkedScore: score,
+  feedback,
+  checkedAt: publishedAt,
+  checkedBy: state.user.uid
+}, { merge: true });
+
+batch.set(resultRef, {
+  uid,
+  studentPhone: button.dataset.phone || '',
+  studentIdentityKey: button.dataset.phone || ('uid:' + uid),
+  name: button.dataset.name || 'विद्यार्थी',
+  rollNumber: button.dataset.roll || null,
+  mode,
+  questionSet: button.dataset.set || 'set1',
+  score,
+  total,
+  status: 'published',
+  feedback,
+  sourceCollection,
+  sourceSubmissionId: submissionId,
+  publishedAt,
+  publishedBy: state.user.uid
+}, { merge: true });
+
+await batch.commit();
+
               notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
               const badge = card.querySelector('[data-check-status]');
               if (badge) { badge.textContent = 'परिणाम प्रकाशित'; badge.className = 'rounded-full px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-900'; }
