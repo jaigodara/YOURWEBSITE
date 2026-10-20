@@ -2725,6 +2725,43 @@ window.renderExamVisibility = function renderExamVisibility() {
         previewOutput.textContent = '';
       }
     });
+    
+const invalidateQuestionPreview = () => {
+  questionImportPreview = null;
+
+  if (uploadButton) uploadButton.disabled = true;
+
+  if (previewOutput) {
+    previewOutput.classList.add('hidden');
+    previewOutput.textContent = '';
+  }
+};
+
+host.querySelector('[data-question-target]')
+  ?.addEventListener('change', invalidateQuestionPreview);
+
+host.querySelector('[data-question-set]')
+  ?.addEventListener('change', invalidateQuestionPreview);
+
+    
+    // Invalidate an old preview whenever the exam or set changes.
+    const invalidateQuestionPreview = () => {
+      questionImportPreview = null;
+
+      if (uploadButton) uploadButton.disabled = true;
+
+      if (previewOutput) {
+        previewOutput.classList.add('hidden');
+        previewOutput.textContent = '';
+      }
+    };
+
+    host.querySelector('[data-question-target]')
+      ?.addEventListener('change', invalidateQuestionPreview);
+
+    host.querySelector('[data-question-set]')
+      ?.addEventListener('change', invalidateQuestionPreview);
+
 
     host.querySelector('[data-question-preview]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
@@ -2831,14 +2868,48 @@ window.renderExamVisibility = function renderExamVisibility() {
         if (status) status.textContent = rows.length ? rows.length + ' उत्तर-पत्र मिले। जाँचकर अंक प्रकाशित करें।' : 'कोई Mock/Main उत्तर-पत्र नहीं मिला।';
         if (!list) return;
         list.innerHTML = rows.map(row => {
-          const total = Math.max(1, Number(row.total || row.totalQuestions || row.questionSnapshots?.length || 1));
-          const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
           const snapshots = Array.isArray(row.questionSnapshots) ? row.questionSnapshots : [];
+
+const total = Math.max(
+  1,
+  Number(
+    row.totalMarks ??
+    row.maxMarks ??
+    row.total ??
+    row.totalQuestions ??
+    snapshots.reduce((sum, question) => {
+      const marks = Number(question.marks);
+      return sum + (Number.isFinite(marks) && marks > 0 ? marks : 1);
+    }, 0) ??
+    1
+  )
+);
+          const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
           const answers = row.answers && typeof row.answers === 'object' ? row.answers : {};
           const questionHtml = snapshots.map((q, qi) => {
-            const answer = answers[q.id] ?? answers[qi];
-            const selected = answer === undefined || answer === null ? 'उत्तर नहीं दिया' : String.fromCharCode(65 + Number(answer));
-            const options = Array.isArray(q.options) ? q.options : [];
+           
+const answer = answers[q.id] ?? answers[qi];
+
+const options = Array.isArray(q.options) ? q.options : [];
+
+const selectedIndex =
+  answer === undefined || answer === null || answer === ''
+    ? -1
+    : typeof answer === 'number'
+      ? answer
+      : /^\d+$/.test(String(answer))
+        ? Number(answer)
+        : /^[A-D]$/i.test(String(answer).trim())
+          ? String(answer).trim().toUpperCase().charCodeAt(0) - 65
+          : -1;
+
+const selected =
+  selectedIndex >= 0 && selectedIndex < options.length
+    ? String.fromCharCode(65 + selectedIndex)
+    : selectedIndex === -1
+      ? 'उत्तर नहीं दिया / उत्तर प्रारूप पहचान नहीं हुआ'
+      : 'अमान्य उत्तर';
+            
             return '<div class="rounded-lg border border-stone-200 bg-white p-3"><p class="font-semibold">' +
               (qi + 1) + '. ' + escapeHtml(q.question || 'प्रश्न उपलब्ध नहीं') +
               '</p><p class="mt-1 text-xs text-stone-600">विद्यार्थी का उत्तर: <strong>' + escapeHtml(selected) + '</strong></p>' +
