@@ -456,7 +456,7 @@
       <!-- BULK QUESTION BANK IMPORTER -->
       <div id="ownerQuestionBankPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="font-yatra text-base text-forest">⚡ बल्क प्रश्न बैंक इम्पोर्टर (Bulk Importer)</h3>
+          <h3 class="font-yatra text-base text-forest">⚡ प्रश्न अपलोड केंद्र (Question Uploader &amp; Bulk Importer)</h3>
           <span class="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Regex Parser</span>
         </div>
         <p class="text-xs text-stone-500">पहले परीक्षा चुनें, फिर सभी प्रश्न इसी प्रारूप में पेस्ट करें। सही विकल्प Ans में A/B/C/D लिखें। खाली पंक्ति अगले प्रश्न को अलग करती है।</p>
@@ -539,7 +539,7 @@ Ans: B"></textarea>
       </div>
 
       <div id="manualExamReviewSection" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
-        <h3 class="font-yatra text-base text-forest">📝 मैन्युअल परीक्षा जाँच एवं अंक सत्यापन</h3>
+        <h3 class="font-yatra text-base text-forest">📝 परीक्षा जाँच केंद्र (Exam Checking &amp; Result Publishing)</h3>
         <p class="text-xs text-stone-500">जाँच शुरू करें: उत्तर-पत्र रोल नंबर के क्रम में आएँगे। ऑटो अंक और उत्तर देखें, सत्यापित अंक भरें, फिर परिणाम प्रकाशित करें, रोकें या रद्द करें। यदि मैन्युअल अंक ऑटो अंक से अलग हों तो डिफ़ॉल्ट निर्णय रोकना है।</p>
                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <label class="block text-xs font-bold text-stone-700">
@@ -843,7 +843,7 @@ Ans: B"></textarea>
 
 <!-- TRUSTED EDITORS ROLE MANAGER -->
 <div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-4">
-  <h3 class="font-yatra text-base text-forest">✍️ सहायक संपादक नियुक्त करें</h3>
+  <h3 class="font-yatra text-base text-forest">✍️ Assistant Editor Invitations — सहायक संपादक प्रबंधन</h3>
   <p class="text-xs text-stone-600">
     मोबाइल नंबर से प्राथमिक पहचान करें। ईमेल वैकल्पिक है। खाता सत्यापित होने पर ही संपादक की भूमिका सक्रिय होगी।
   </p>
@@ -884,13 +884,20 @@ Ans: B"></textarea>
   </button>
 
   <p id="trustedEditorStatus" role="status" aria-live="polite" class="text-xs text-stone-600"></p>
-  <div id="trustedEditorsListBox" class="space-y-2 pt-1 text-xs"></div>
-  <div id="pendingEditorsListBox" class="space-y-2 pt-1 text-xs"></div>
+  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-1">
+    <h4 class="font-bold text-xs text-emerald-900">सक्रिय संपादक (Accepted Editors)</h4>
+    <div id="trustedEditorsListBox" class="space-y-2 pt-1 text-xs" aria-live="polite">सक्रिय संपादकों की सूची लोड हो रही है…</div>
+  </div>
+  <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1">
+    <h4 class="font-bold text-xs text-amber-900">Editor Invitations — लंबित / स्वीकार / अस्वीकार</h4>
+    <p class="text-[11px] text-stone-600">आमंत्रित व्यक्ति को Bishnoism खाते में लॉगिन करना होगा। आमंत्रण वेबसाइट की निजी सूचना/लॉगिन स्वीकृति के माध्यम से दिखता है; SMS या WhatsApp संदेश अपने-आप नहीं भेजा जाता।</p>
+    <div id="pendingEditorsListBox" class="space-y-2 pt-1 text-xs" aria-live="polite">आमंत्रण की स्थिति लोड हो रही है…</div>
+  </div>
 </div>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
       <div id="ownerExportPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
-        <h3 class="font-yatra text-base text-forest">📄 आधिकारिक डेटा रिपोर्ट एक्सपोर्ट (PDF & Excel)</h3>
+        <h3 class="font-yatra text-base text-forest">📄 सुरक्षित डेटा एक्सपोर्ट केंद्र (PDF, Excel &amp; CSV)</h3>
         <p class="text-xs text-stone-500">परीक्षा परिणाम एवं सदस्यों का डेटाबेस एक क्लिक में डाउनलोड करें:</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold">
           <button onclick="exportQuizResultsPdf()" class="py-2.5 px-4 bg-forest hover:bg-emerald-950 text-white rounded-xl shadow transition flex items-center justify-center gap-1.5">
