@@ -2755,10 +2755,21 @@ window.renderExamVisibility = function renderExamVisibility() {
           <h2 class="text-xl font-extrabold text-emerald-950">सुरक्षित डेटा डाउनलोड केंद्र</h2>
           <p class="mt-1 text-sm text-stone-600">पंजीकृत सदस्यों और प्रकाशित परिणामों को CSV, Excel या PDF में डाउनलोड करें। संवेदनशील डेटा केवल Owner access से पढ़ा जाता है।</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button type="button" data-export-members="csv" class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Members CSV</button>
-          <button type="button" data-export-members="xlsx" class="min-h-12 rounded-xl bg-emerald-900 px-4 font-bold text-white">Members Excel</button>
-          <button type="button" data-export-members="pdf" class="min-h-12 rounded-xl border border-amber-500 bg-amber-50 px-4 font-bold text-amber-900">Members PDF</button>
+        <div class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+          <h3 class="mb-2 font-bold text-emerald-950">Registered Members</h3>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-export-members="csv" class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Members CSV</button>
+            <button type="button" data-export-members="xlsx" class="min-h-12 rounded-xl bg-emerald-900 px-4 font-bold text-white">Members Excel (.xlsx)</button>
+            <button type="button" data-export-members="pdf" class="min-h-12 rounded-xl border border-amber-500 bg-amber-50 px-4 font-bold text-amber-900">Members PDF</button>
+          </div>
+        </div>
+        <div class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+          <h3 class="mb-2 font-bold text-emerald-950">Published Exam Results</h3>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-export-results-csv class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Results CSV</button>
+            <button type="button" data-export-results-xlsx class="min-h-12 rounded-xl bg-emerald-900 px-4 font-bold text-white">Results Excel (.xlsx)</button>
+            <button type="button" data-export-results-pdf class="min-h-12 rounded-xl border border-amber-500 bg-amber-50 px-4 font-bold text-amber-900">Results PDF</button>
+          </div>
         </div>
       </section>
  `;
@@ -3394,13 +3405,14 @@ notify('जाँच सेव हुई और परिणाम प्रक�
       }
     }
 
-    host.querySelector('[data-export-results-csv]')
-      ?.addEventListener('click', () => exportPublishedExamResults('csv'));
+    host.querySelectorAll('[data-export-results-csv]')
+      .forEach(button => button.addEventListener('click', () => exportPublishedExamResults('csv')));
 
-    host.querySelector('[data-export-results-xlsx]')
-      ?.addEventListener('click', () => exportPublishedExamResults('xlsx'));
-    host.querySelector('[data-export-results-pdf]')
-      ?.addEventListener('click', () => exportPublishedExamResults('pdf'));
+    host.querySelectorAll('[data-export-results-xlsx]')
+      .forEach(button => button.addEventListener('click', () => exportPublishedExamResults('xlsx')));
+
+    host.querySelectorAll('[data-export-results-pdf]')
+      .forEach(button => button.addEventListener('click', () => exportPublishedExamResults('pdf')));
 
     async function exportRegisteredMembers(format) {
       if (!requireOwner()) return;
