@@ -464,27 +464,30 @@ try {
   }
 
 async function claimPendingEditorInvitation(user) {
-  if (!user || !user.uid || !user.phoneNumber) return null;
+  if (!user || !user.uid || !user.email || user.emailVerified !== true) {
+    return null;
+  }
 
-  const normalizedPhone = String(user.phoneNumber).replace(/\s/g, '');
-  if (!/^\+91[6-9]\d{9}$/.test(normalizedPhone)) return null;
-
-  const inviteId = 'phone_' + normalizedPhone;
-  const inviteRef = collection('pending_editors').doc(inviteId);
+  const email = String(user.email).trim().toLowerCase();
   const roleRef = collection('roles').doc(user.uid);
 
   try {
-    const roleSnapshot = await roleRef.get();
-    if (roleSnapshot.exists) return roleSnapshot.data() || null;
+    const existingRole = await roleRef.get();
+    if (existingRole.exists) return existingRole.data() || null;
 
-    const inviteSnapshot = await inviteRef.get();
-    if (!inviteSnapshot.exists) return null;
+    const invitations = await collection('pending_editors')
+      .where('email', '==', email)
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get();
 
+    if (invitations.empty) return null;
+
+    const inviteSnapshot = invitations.docs[0];
     const invitation = inviteSnapshot.data() || {};
+
     if (
-      invitation.status !== 'pending' ||
-      invitation.phoneE164 !== normalizedPhone ||
-      invitation.invitationId !== inviteId ||
+      String(invitation.email || '').trim().toLowerCase() !== email ||
       !invitation.permissions ||
       typeof invitation.permissions !== 'object'
     ) {
@@ -495,20 +498,20 @@ async function claimPendingEditorInvitation(user) {
       role: 'editor',
       fullName: String(invitation.fullName || '').slice(0, 100),
       phone: String(invitation.phone || ''),
-      email: String(invitation.email || user.email || ''),
+      email,
       permissions: {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
         examReview: invitation.permissions.examReview === true,
         notifications: invitation.permissions.notifications === true
       },
-      invitationId: inviteId,
+      invitationId: inviteSnapshot.id,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     await roleRef.set(roleData);
 
-    await inviteRef.update({
+    await inviteSnapshot.ref.update({
       status: 'claimed',
       claimedUid: user.uid,
       claimedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -516,13 +519,10 @@ async function claimPendingEditorInvitation(user) {
 
     return roleData;
   } catch (error) {
-    if (error.code !== 'permission-denied') {
-      console.warn('Pending editor invitation could not be claimed:', error);
-    }
+    console.error('Editor invitation claim failed:', error);
     return null;
   }
 }
-
   async function loadUserProfile(user) {
     state.profile = {};
     try {
