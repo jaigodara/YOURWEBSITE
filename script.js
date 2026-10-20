@@ -1342,19 +1342,24 @@ if (cardRect.width === 0 || cardRect.height === 0) {
           clonedSurface.style.setProperty('transform', 'none', 'important');
 
           clonedSurface.querySelectorAll('*').forEach(element => {
-            const original = surface.querySelector('[data-pdf-node="' + element.getAttribute('data-pdf-node') + '"]');
             element.style.setProperty('visibility', 'visible', 'important');
             element.style.setProperty('opacity', '1', 'important');
             element.style.setProperty('text-shadow', 'none', 'important');
             element.style.setProperty('mix-blend-mode', 'normal', 'important');
-            if (original) {
-              const computed = getComputedStyle(original);
-              element.style.setProperty('color', computed.color, 'important');
-              element.style.setProperty('-webkit-text-fill-color', computed.color, 'important');
-              element.style.setProperty('font-family', computed.fontFamily, 'important');
-              element.style.setProperty('font-size', computed.fontSize, 'important');
-              element.style.setProperty('font-weight', computed.fontWeight, 'important');
+
+            // Force a real text fill color in the cloned DOM. Some site-wide
+            // styles can make -webkit-text-fill-color transparent, which causes
+            // html2canvas to capture backgrounds while omitting all text.
+            const computed = clonedDocument.defaultView.getComputedStyle(element);
+            let textColor = computed.color;
+            if (!textColor || textColor === 'transparent' ||
+                textColor === 'rgba(0, 0, 0, 0)') {
+              textColor = '#143622';
             }
+            element.style.setProperty('color', textColor, 'important');
+            element.style.setProperty('-webkit-text-fill-color', textColor, 'important');
+            element.style.setProperty('font-family', 'Arial, sans-serif', 'important');
+            element.style.setProperty('text-shadow', 'none', 'important');
           });
         }
       });
