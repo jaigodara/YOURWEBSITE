@@ -773,7 +773,7 @@ Ans: B"></textarea>
         <input id="notificationTitle" maxlength="100" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="सूचना का शीर्षक (जैसे प्रवेश-पत्र उपलब्ध हैं)">
         <textarea id="notificationMessage" maxlength="2000" rows="3" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="पूरी जानकारी लिखें…"></textarea>
         <label class="block text-xs font-bold text-stone-700">किसे भेजना है? (खाली छोड़ें = सभी लॉगिन उपयोगकर्ता)
-          <input id="notificationRecipientUid" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" class="mt-1 w-full p-3 rounded-xl border border-stone-300 text-sm font-normal" placeholder="विद्यार्थी का मोबाइल नंबर (केवल उसी को)">
+          <input id="notificationRecipientUid" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" class="mt-1 w-full p-3 rounded-xl border border-stone-300 text-sm font-normal" placeholder="10-digit मोबाइल नंबर (केवल उसी को)">
         </label>
         <label class="block text-xs font-bold text-stone-700">फोटो या PDF संलग्न करें (अधिकतम 10 MB)
           <input id="notificationAttachment" type="file" accept="image/*,application/pdf" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-xs font-normal">
@@ -4602,98 +4602,143 @@ async function removeTrustedEditor(uid) {
   }
 }
 
-    // 8. PDF & EXCEL REPORTS EXPORT (JSPDF & SHEETJS)
+    // 8. SECURE EXPORT REPORTS — shared fields for PDF and Excel.
+    function normalizeExportPhone(value) {
+      const digits = String(value || '').replace(/\D/g, '');
+      if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+      if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+      return digits.length === 10 ? digits : '';
+    }
+
+    async function getRegisteredMemberExportRows() {
+      const [enrollmentSnap, usersSnap] = await Promise.all([
+        db.collection('examEnrolledStudents').get().catch(() => null),
+        db.collection('users').get()
+      ]);
+      const profiles = new Map(usersSnap.docs.map(doc => [doc.id, doc.data() || {}]));
+      const records = enrollmentSnap && !enrollmentSnap.empty
+        ? enrollmentSnap.docs.map(doc => ({ uid: doc.id, enrollment: doc.data() || {} }))
+        : usersSnap.docs.map(doc => ({ uid: doc.id, enrollment: {} }));
+
+      return records.map(({ uid, enrollment }) => {
+        const profile = profiles.get(uid) || {};
+        return {
+          'Roll Number': enrollment.rollNumber || enrollment.roll || profile.rollNumber || profile.roll || '',
+          'Full Name': enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '',
+          "Father's Name": enrollment.fatherName || enrollment.fathersName || profile.fatherName || profile.fathersName || '',
+          'Phone Number': normalizeExportPhone(enrollment.phone || enrollment.studentPhone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || ''),
+          'Email': enrollment.email || profile.email || '',
+          'Assigned Exam Set': enrollment.questionSet || enrollment.examSet || enrollment.assignedExamSet || profile.questionSet || 'set1',
+          'Status': enrollment.verificationStatus || enrollment.status || profile.verificationStatus || (enrollment.verified === true ? 'verified' : 'pending')
+        };
+      });
+    }
+
+    async function getExamResultExportRows() {
+      const [resultsSnap, attemptsSnap, enrollmentSnap, usersSnap] = await Promise.all([
+        db.collection('publishedResults').limit(1000).get().catch(() => null),
+        db.collection('quizAttempts').limit(1000).get().catch(() => null),
+        db.collection('examEnrolledStudents').get().catch(() => null),
+        db.collection('users').get().catch(() => null)
+      ]);
+      const profiles = new Map((usersSnap?.docs || []).map(doc => [doc.id, doc.data() || {}]));
+      const enrollments = new Map((enrollmentSnap?.docs || []).map(doc => [doc.id, doc.data() || {}]));
+      const results = resultsSnap && !resultsSnap.empty
+        ? resultsSnap.docs.map(doc => ({ id: doc.id, result: doc.data() || {} }))
+        : (attemptsSnap?.docs || []).map(doc => ({ id: doc.id, result: doc.data() || {} }));
+
+      return results.map(({ id, result }) => {
+        const uid = result.uid || result.studentUid || result.userId || '';
+        const profile = profiles.get(uid) || {};
+        const enrollment = enrollments.get(uid) || {};
+        return {
+          'Roll Number': result.rollNumber || enrollment.rollNumber || enrollment.roll || profile.rollNumber || '',
+          'Full Name': result.fullName || result.name || enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '',
+          "Father's Name": result.fatherName || result.fathersName || enrollment.fatherName || enrollment.fathersName || profile.fatherName || '',
+          'Phone Number': normalizeExportPhone(result.studentPhone || result.phone || enrollment.phone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || ''),
+          'Email': result.email || enrollment.email || profile.email || '',
+          'Assigned Exam Set': result.questionSet || result.examSet || enrollment.questionSet || enrollment.examSet || 'set1',
+          'Exam Mode': result.mode || result.examName || 'quiz',
+          'Status': result.status || result.manualCheckStatus || 'submitted',
+          'Score': result.score ?? result.checkedScore ?? '',
+          'Total Marks': result.total ?? result.totalMarks ?? ''
+        };
+      });
+    }
+
+    async function downloadPdfReport(rows, title, filename) {
+      if (!rows.length) return showToast('डाउनलोड के लिए कोई रिकॉर्ड नहीं मिला।');
+      if (!window.jspdf?.jsPDF) throw new Error('PDF library उपलब्ध नहीं है।');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.text(title, 14, 14);
+      if (typeof doc.autoTable === 'function') {
+        const headers = Object.keys(rows[0]);
+        doc.autoTable({
+          startY: 20,
+          head: [headers],
+          body: rows.map(row => headers.map(key => String(row[key] ?? ''))),
+          styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: { fontSize: 7 }
+        });
+      } else {
+        doc.setFontSize(8);
+        rows.slice(0, 24).forEach((row, index) => {
+          const line = Object.values(row).map(value => String(value ?? '')).join(' | ').slice(0, 180);
+          doc.text(line, 12, 24 + index * 8);
+        });
+      }
+      doc.save(filename);
+      showToast('PDF रिपोर्ट डाउनलोड हो गई।');
+    }
+
     async function exportQuizResultsPdf() {
       try {
-        const snap = await db.collection('quizAttempts').get();
-        if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
-
-        const rows = [];
-        snap.forEach(d => {
-          const r = d.data();
-          rows.push([r.name || 'प्रतिभागी', `${r.score}/${r.total}`, `${r.percentage}%`]);
-        });
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Bishnoi Digital Platform - Quiz Performance Report", 14, 18);
-        doc.autoTable({ startY: 25, head: [['Candidate Name', 'Score', 'Percentage']], body: rows });
-        doc.save("Bishnoi_Quiz_Report.pdf");
-        showToast("✅ क्विज़ PDF रिपोर्ट डाउनलोड हो गई!");
-      } catch (e) {
-        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+        const rows = await getExamResultExportRows();
+        await downloadPdfReport(rows, 'Bishnoism — Exam Results', 'Bishnoism_Exam_Results.pdf');
+      } catch (error) {
+        console.error('Results PDF export failed:', error);
+        showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
       }
     }
 
     async function exportQuizResultsExcel() {
       try {
-        const snap = await db.collection('quizAttempts').get();
-        if (snap.empty) return showToast("कोई क्विज़ रिकॉर्ड नहीं मिला।");
-
-        const data = [];
-        snap.forEach(d => {
-          const r = d.data();
-          data.push({
-            "Candidate Name": r.name || 'प्रतिभागी',
-            "Score": `${r.score}/${r.total}`,
-            "Percentage": `${r.percentage}%`
-          });
-        });
-
-        const ws = XLSX.utils.json_to_sheet(data);
+        const rows = await getExamResultExportRows();
+        if (!rows.length) return showToast('कोई परीक्षा परिणाम नहीं मिला।');
+        const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "QuizResults");
-        XLSX.writeFile(wb, "Bishnoi_Quiz_Results.xlsx");
-        showToast("✅ क्विज़ Excel शीट डाउनलोड हो गई!");
-      } catch (e) {
-        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+        XLSX.utils.book_append_sheet(wb, ws, 'ExamResults');
+        XLSX.writeFile(wb, 'Bishnoism_Exam_Results.xlsx');
+        showToast('परीक्षा परिणाम Excel शीट डाउनलोड हो गई।');
+      } catch (error) {
+        console.error('Results Excel export failed:', error);
+        showToast('Excel एक्सपोर्ट त्रुटि: ' + error.message);
       }
     }
 
     async function exportMembersPdf() {
       try {
-        const snap = await db.collection('users').get();
-        if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
-
-        const rows = [];
-        snap.forEach(d => {
-          const u = d.data();
-          rows.push([u.name || 'सदस्य', u.phone || u.email || '-', u.location || '-']);
-        });
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Bishnoi Digital Platform - Registered Members", 14, 18);
-        doc.autoTable({ startY: 25, head: [['Name', 'Contact Identifier', 'Location']], body: rows });
-        doc.save("Bishnoi_Members_List.pdf");
-        showToast("✅ सदस्य PDF रिपोर्ट डाउनलोड हो गई!");
-      } catch (e) {
-        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+        const rows = await getRegisteredMemberExportRows();
+        await downloadPdfReport(rows, 'Bishnoism — Registered Members', 'Bishnoism_Registered_Members.pdf');
+      } catch (error) {
+        console.error('Members PDF export failed:', error);
+        showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
       }
     }
 
     async function exportMembersExcel() {
       try {
-        const snap = await db.collection('users').get();
-        if (snap.empty) return showToast("कोई पंजीकृत सदस्य नहीं मिला।");
-
-        const data = [];
-        snap.forEach(d => {
-          const u = d.data();
-          data.push({
-            "Name": u.name || 'सदस्य',
-            "Contact Identifier": u.phone || u.email || '-',
-            "Location": u.location || '-'
-          });
-        });
-
-        const ws = XLSX.utils.json_to_sheet(data);
+        const rows = await getRegisteredMemberExportRows();
+        if (!rows.length) return showToast('कोई पंजीकृत सदस्य नहीं मिला।');
+        const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Members");
-        XLSX.writeFile(wb, "Bishnoi_Members_List.xlsx");
-        showToast("✅ सदस्य Excel शीट डाउनलोड हो गई!");
-      } catch (e) {
-        showToast("एक्सपोर्ट त्रुटि: " + e.message);
+        XLSX.utils.book_append_sheet(wb, ws, 'Members');
+        XLSX.writeFile(wb, 'Bishnoism_Registered_Members.xlsx');
+        showToast('पंजीकृत सदस्य Excel शीट डाउनलोड हो गई।');
+      } catch (error) {
+        console.error('Members Excel export failed:', error);
+        showToast('एक्सपोर्ट त्रुटि: ' + error.message);
       }
     }
 
@@ -4706,7 +4751,8 @@ async function removeTrustedEditor(uid) {
       const button = document.getElementById('publishNotificationButton');
       const title = (titleInput?.value || '').trim();
       const message = (messageInput?.value || '').trim();
-      const recipientUid = (recipientInput?.value || '').trim();
+      const recipientPhoneRaw = String(recipientInput?.value || '').replace(/\D/g, '');
+      let recipientUid = '';
       const file = attachmentInput?.files?.[0] || null;
 
       if (!isPrimaryOwner() && !hasEditorPermission('notifications')) {
@@ -4717,8 +4763,8 @@ async function removeTrustedEditor(uid) {
         if (status) status.textContent = 'शीर्षक और लिखित जानकारी या एक संलग्न फ़ाइल आवश्यक है।';
         return;
       }
-      if (recipientUid && !/^[A-Za-z0-9_-]{10,128}$/.test(recipientUid)) {
-        if (status) status.textContent = 'विद्यार्थी का सही Firebase UID दर्ज करें।';
+      if (recipientPhoneRaw && !/^[6-9]\d{9}$/.test(recipientPhoneRaw)) {
+        if (status) status.textContent = 'व्यक्तिगत सूचना के लिए सही 10-digit मोबाइल नंबर दर्ज करें, या सभी उपयोगकर्ताओं को भेजने के लिए खाली छोड़ें।';
         return;
       }
       if (file) {
@@ -4736,6 +4782,13 @@ async function removeTrustedEditor(uid) {
       if (status) status.textContent = 'सूचना/फ़ाइल अपलोड की जा रही है…';
 
       try {
+        if (recipientPhoneRaw) {
+          const phoneIndex = await db.collection('mobileIndex').doc(recipientPhoneRaw).get();
+          if (!phoneIndex.exists || !phoneIndex.data()?.uid) {
+            throw new Error('इस मोबाइल नंबर से कोई registered Bishnoism account नहीं मिला।');
+          }
+          recipientUid = String(phoneIndex.data().uid);
+        }
         let fileUrl = '';
         let filePath = '';
         let fileName = '';
@@ -4786,7 +4839,7 @@ async function removeTrustedEditor(uid) {
         if (recipientInput) recipientInput.value = '';
         if (attachmentInput) attachmentInput.value = '';
         if (status) status.textContent = recipientUid
-          ? 'व्यक्तिगत सूचना भेज दी गई। यह केवल उसी UID वाले लॉगिन खाते में दिखेगी, यदि निजी Firestore rules लागू हैं।'
+          ? 'व्यक्तिगत सूचना उस मोबाइल नंबर से जुड़े खाते को भेज दी गई।'
           : 'सूचना प्रकाशित हो गई। यह केवल लॉगिन किए हुए उपयोगकर्ताओं को दिखाई जाएगी।';
         showToast('सूचना प्रकाशित कर दी गई।');
       } catch (error) {
