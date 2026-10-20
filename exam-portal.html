@@ -5,14 +5,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#143622">
+  <meta name="theme-color" content="#1B4D3E">
   <title>परीक्षा पोर्टल | Bishnoism</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 
   <style>
     :root {
-      --forest: #143622;
-      --cream: #FAF7EE;
+      --forest: #1B4D3E;
+      --cream: #FDFBF7;
       --gold: #D6A43A;
       --terracotta: #B34A1B;
       --muted: #647067;
@@ -32,6 +32,7 @@
 
     /* Focused exam dashboard: clearer hierarchy, touch targets and mobile spacing. */
     .hero { position: relative; overflow: hidden; }
+    .daily-cta{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:14px;padding:clamp(20px,4vw,28px);border-radius:20px;background:linear-gradient(125deg,#1B4D3E,#27674f);color:#fff;border:1px solid #d6a43a}.daily-cta h2{margin:5px 0;font-size:clamp(20px,3vw,27px)}.daily-cta p{margin:0;color:#e7eee8;font-size:14px}.daily-cta .button{min-width:220px;min-height:48px}.exam-time{display:inline-flex;margin:8px 0 0 6px;padding:6px 10px;border-radius:999px;background:#f6f0df;color:#604716;font-size:12px;font-weight:800}.exam-frame-fullscreen{position:fixed!important;inset:0!important;z-index:99999!important;width:100vw!important;height:100dvh!important;margin:0!important;overflow:auto!important;border-radius:0!important;background:var(--cream)!important}.exam-frame-fullscreen iframe{height:calc(100dvh - 86px)!important;min-height:0!important}@media(max-width:650px){.daily-cta{align-items:stretch;flex-direction:column}.daily-cta .button{width:100%}}
     .hero::after {
       content: "🛡️"; position: absolute; right: clamp(12px, 4vw, 34px);
       top: 16px; font-size: clamp(52px, 9vw, 86px); opacity: .10;
@@ -42,14 +43,13 @@
     .status { display: flex; align-items: flex-start; gap: 10px; border-left: 4px solid var(--gold); }
     .status::before { content: "●"; color: #2D6A4F; line-height: 1.5; }
     .exam { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; border-color: #dfe6dc; }
-    .exam:hover { transform: translateY(-2px); border-color: #a8bda9; box-shadow: 0 10px 24px #14362212; }
+    .exam:hover { transform: translateY(-2px); border-color: #a8bda9; box-shadow: 0 10px 24px #1B4D3E12; }
     .exam h3 { color: var(--forest); }
     .exam-icon { border: 1px solid #e3e9e0; }
     .button { min-height: 46px; }
     .button:disabled { opacity: .65; cursor: wait; }
     .panel h2, .section-heading { color: var(--forest); }
     .auth-note { border-radius: 12px; padding: 10px 12px; background: #f5f7f2; border: 1px solid #e1e8dd; }
-    #authStatus { overflow-wrap: anywhere; }
     @media (prefers-reduced-motion: reduce) {
       .exam { transition: none; }
       .exam:hover { transform: none; }
@@ -65,9 +65,9 @@
       padding: clamp(22px, 5vw, 36px);
       border-radius: 24px;
       color: white;
-      background: linear-gradient(140deg, #143622, #205238);
+      background: linear-gradient(140deg, #1B4D3E, #205238);
       border-bottom: 5px solid var(--gold);
-      box-shadow: 0 12px 30px #14362218;
+      box-shadow: 0 12px 30px #1B4D3E18;
     }
 
     .eyebrow {
@@ -135,7 +135,7 @@
       border: 1px solid var(--border);
       border-radius: 17px;
       background: white;
-      box-shadow: 0 5px 18px #14362208;
+      box-shadow: 0 5px 18px #1B4D3E08;
     }
 
     .status {
@@ -229,12 +229,10 @@
       मॉक परीक्षा, मुख्य परीक्षा, पंजीकरण और प्रकाशित परिणाम यहाँ एक ही जगह मिलेंगे।
       दैनिक क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में ही रहेगा।
     </p>
-    <div class="actions">
-      <a class="button gold" href="./index.html#tab-quiz">📚 दैनिक क्विज़ / मुख्य वेबसाइट</a>
-      <a class="button light" href="./index.html#tab-profile">👤 खाता / प्रोफ़ाइल</a>
-    </div>
+    <div class="actions"><a class="button light" href="./index.html#tab-profile">👤 खाता / प्रोफ़ाइल</a></div>
   </header>
 
+  <section class="daily-cta" aria-labelledby="dailyQuizCtaTitle"><div><div class="eyebrow">DAINIK QUIZ • DAILY PRACTICE</div><h2 id="dailyQuizCtaTitle">दैनिक ज्ञान क्विज़</h2><p>रोज़ाना अभ्यास करें। यह क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में खुलेगा।</p></div><a id="dailyQuizButton" class="button gold" href="./index.html#tab-quiz">▶ प्रारंभ दैनिक क्विज़</a></section>
   <div id="portalStatus" class="status" role="status" aria-live="polite">
     परीक्षा सेटिंग्स लोड हो रही हैं…
   </div>
@@ -306,29 +304,9 @@
     <iframe id="examFrame" title="Bishnoism परीक्षा कार्यक्षेत्र" src="about:blank" loading="lazy" style="display:block;width:100%;height:min(78vh,1000px);min-height:600px;border:1px solid var(--border);border-radius:14px;background:var(--cream);margin-top:14px"></iframe>
   </section>
 
-  <section class="panel">
-    <h2 style="margin:0;font-size:17px">🔐 विद्यार्थी लॉगिन</h2>
-    <p id="authStatus" class="muted" aria-live="polite">लॉगिन की स्थिति जाँची जा रही है…</p>
-    <div class="actions">
-      <button id="googleLogin" class="button" type="button">🔐 Google से सुरक्षित लॉगिन</button>
-      <a class="button light" href="./index.html?openAuth=1">अन्य लॉगिन विकल्प</a>
-    </div>
-    <div class="auth-note muted">
-      <strong>Google लॉगिन क्यों?</strong> यह आपकी पहचान सत्यापित करता है और पंजीकरण/रोल नंबर को सही खाते से जोड़ता है। SMS या OTP की ज़रूरत नहीं है।
-      <br><br>मुख्य वेबसाइट और इस पोर्टल पर वही Google खाता इस्तेमाल करें। अगर मोबाइल/पासवर्ड से लॉगिन करना है, तो “अन्य लॉगिन विकल्प” खोलें।
-      <br><br>लॉगिन अपने-आप परीक्षा की अनुमति नहीं देता; पंजीकरण की पुष्टि, निर्धारित समय और Owner की सेटिंग्स भी लागू होती हैं।
-    </div>
-  </section>
+  
 
-  <section class="panel" aria-labelledby="dailyQuizHeading">
-    <h2 id="dailyQuizHeading" style="margin:0;font-size:17px">🏆 दैनिक ज्ञान क्विज़</h2>
-    <p class="muted">दैनिक क्विज़ मुख्य वेबसाइट पर ही रहेगा, ताकि सभी छोटे अभ्यास एक ही जगह मिलें।</p>
-    <div class="actions">
-      <a class="button gold" href="./index.html#tab-quiz">दैनिक क्विज़ खोलें</a>
-    </div>
-  </section>
-
-  <footer>
+<footer>
     दैनिक ज्ञान क्विज़ मुख्य वेबसाइट के परीक्षा अनुभाग में रहेगा।
     यहाँ से चुनी गई परीक्षा, पंजीकरण या परिणाम का सही अनुभाग मुख्य वेबसाइट के
     सुरक्षित कार्यक्षेत्र में खुलेगा। प्रश्न और उत्तर Firebase सुरक्षा नियमों से नियंत्रित हैं।
@@ -355,6 +333,9 @@
   const framePanel = byId("examFramePanel");
   const examFrame = byId("examFrame");
   const examArea = byId("examArea");
+  const dailyQuizButton = byId("dailyQuizButton");
+  const examScheduleKeys = { dailyQuiz: "dailyQuizStartAt", mock1: "mock1StartAt", mock2: "mock2StartAt", main: "mainStartAt" };
+  const durationKeys = { mock1: "mock1DurationMinutes", mock2: "mock2DurationMinutes", main: "mainDurationMinutes" };
   const examTitles = {
     mock1: "📝 मॉक परीक्षा 1",
     mock2: "🎯 मॉक परीक्षा 2",
@@ -389,56 +370,32 @@
   const db = firebase.firestore();
 
   auth.onAuthStateChanged(user => {
-    byId("authStatus").textContent = user
-      ? "लॉगिन है। परीक्षा की अनुमति पंजीकरण और परीक्षा सेटिंग्स पर निर्भर करती है।"
-      : "अभी लॉगिन नहीं है। परीक्षा देने के लिए लॉगिन करें; पंजीकरण और परिणाम भी खोले जा सकते हैं।";
-
-    byId("googleLogin").textContent = user ? "Google से लॉगिन हो चुका है" : "Google से लॉगिन";
-    // Keep the control usable so an account can be switched or the sign-in
-    // flow retried if Firebase restored a stale session.
-    byId("googleLogin").disabled = false;
+    setPortalStatus(user
+      ? "मुख्य वेबसाइट का लॉगिन सत्र मिल गया। परीक्षा शुरू होने पर पात्रता फिर जाँची जाएगी।"
+      : "मुख्य वेबसाइट का लॉगिन सत्र नहीं मिला। परीक्षा देने से पहले मुख्य वेबसाइट पर लॉगिन करें।");
   });
 
-  byId("googleLogin").addEventListener("click", async () => {
-    const button = byId("googleLogin");
-    button.disabled = true;
-
-    try {
-      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-      const provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      await auth.signInWithPopup(provider);
-    } catch (error) {
-      console.error("Google sign-in failed:", error);
-      const message = error.code === "auth/unauthorized-domain"
-        ? "यह वेबसाइट Firebase Authentication में अधिकृत नहीं है।"
-        : error.code === "auth/popup-blocked"
-          ? "ब्राउज़र में इस वेबसाइट के लिए popup की अनुमति दें।"
-          : "लॉगिन पूरा नहीं हुआ। मुख्य वेबसाइट पर उपलब्ध लॉगिन विकल्प आज़माएँ।";
-      byId("authStatus").textContent = message;
-      button.disabled = false;
-    }
-  });
-
+  dailyQuizButton.addEventListener("click",event=>{const config=window.__bishnoismExamConfig||{};const value=config.dailyQuizStartAt;const date=value?new Date(value):null;if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){event.preventDefault();setPortalStatus("दैनिक क्विज़ "+date.toLocaleString("hi-IN")+" बजे उपलब्ध होगा।");}});
   document.querySelectorAll("[data-launch-exam]").forEach(button => {
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-launch-exam");
       if (!examTitles[mode]) return;
-      if (!auth.currentUser && ["main", "mock1", "mock2"].includes(mode)) {
-        byId("authStatus").textContent = "परीक्षा अनुभाग खुल जाएगा। परीक्षा शुरू करने से पहले लॉगिन और पंजीकरण की पुष्टि आवश्यक होगी।";
-        setPortalStatus("परीक्षा अनुभाग खोल रहे हैं। परीक्षा शुरू करने से पहले लॉगिन आवश्यक होगा।");
-      }
+      const config=window.__bishnoismExamConfig||{};const key=examScheduleKeys[mode];const value=key?config[key]:"";const date=value?new Date(value):null;if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){setPortalStatus("यह परीक्षा "+date.toLocaleString("hi-IN")+" बजे शुरू होगी।");return;}
       // Always open the requested section. Login and eligibility are checked
       // by the actual exam-start handler, not by this navigation button.
       byId("examFrameTitle").textContent = examTitles[mode];
       framePanel.classList.remove("hide");
       examArea.classList.add("hide");
+      framePanel.classList.add("exam-frame-fullscreen");
+      if(framePanel.requestFullscreen)framePanel.requestFullscreen().catch(()=>{});
       framePanel.scrollIntoView({ behavior: "smooth", block: "start" });
       examFrame.src = "./index.html?examEmbed=" + encodeURIComponent(mode) + "#tab-quiz";
     });
   });
 
   byId("backToExamChoices").addEventListener("click", () => {
+    if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});
+    framePanel.classList.remove("exam-frame-fullscreen");
     examFrame.src = "about:blank";
     framePanel.classList.add("hide");
     examArea.classList.remove("hide");
@@ -447,7 +404,9 @@
 
   db.collection("examConfig").doc("current").onSnapshot(snapshot => {
     const config = snapshot.exists ? snapshot.data() : {};
-    const portalEnabled = config.examPortalVisible !== false;
+    window.__bishnoismExamConfig = config;
+    const portalEnabled = config.examPortalVisible !== false && config.separateExamPortalActive !== false;
+    dailyQuizButton.classList.toggle("hide", config.dailyQuizVisible === false || config.dailyQuizEnabled === false);
 
     area.classList.toggle("hide", !portalEnabled);
     disabledPanel.classList.toggle("hide", portalEnabled);
@@ -474,8 +433,10 @@
     };
     updateSetBadge("mock1SetStatus", config.mock1QuestionSet, mock1Visible);
     updateSetBadge("mock2SetStatus", config.mock2QuestionSet, mock2Visible);
-    updateSetBadge("mainSetStatus", config.mainQuestionSet, config.mainExamVisible !== false);
+    updateSetBadge("mainSetStatus", config.mainQuestionSet || config.activeSets?.main, config.mainExamVisible !== false);
     setCard("resultsCard", config.resultsVisible !== false);
+    const showDuration=(mode,cardId,visible)=>{const card=byId(cardId);if(!card)return;let badge=byId(mode+"Duration");if(!badge){badge=document.createElement("span");badge.id=mode+"Duration";badge.className="exam-time";const setBadge=card.querySelector(".exam-meta");if(setBadge)setBadge.insertAdjacentElement("afterend",badge);}const duration=Number(config[durationKeys[mode]]||config.defaultDurationMinutes);badge.textContent=Number.isFinite(duration)&&duration>0?"अवधि: "+Math.round(duration)+" मिनट":"अवधि: निर्धारित नहीं";badge.dataset.state=visible?"on":"off";};
+    showDuration("mock1","mock1Card",mock1Visible);showDuration("mock2","mock2Card",mock2Visible);showDuration("main","mainExamCard",config.mainExamVisible!==false);
 
     const visibleCount = [
       mock1Visible,
