@@ -2661,7 +2661,97 @@ window.renderExamVisibility = function renderExamVisibility() {
 
         <p data-owner-submission-status class="text-sm text-stone-600" aria-live="polite">उत्तर-पत्र देखने के लिए “उत्तर-पत्र लोड करें” दबाएँ।</p>
         <div data-owner-submission-list class="space-y-3"></div>
-      </section>`;
+      </section> 
+      <section class="mt-5 space-y-4 rounded-2xl border border-emerald-200 bg-stone-50 p-4 sm:p-5">
+        <div>
+          <h2 class="text-xl font-extrabold text-emerald-950">Assistant Editor — Invite & Permissions</h2>
+          <p class="mt-1 text-sm text-stone-600">10-digit phone number is required. Email is optional.</p>
+        </div>
+        <label class="block text-sm font-semibold">Editor Name
+          <input data-editor-name maxlength="100" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white p-3">
+        </label>
+        <label class="block text-sm font-semibold">Phone Number
+          <input data-editor-phone inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white p-3">
+        </label>
+        <label class="block text-sm font-semibold">Email (optional)
+          <input data-editor-email type="email" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white p-3">
+        </label>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <label class="flex items-center gap-2"><input type="checkbox" data-editor-permission="media"> Media/PDF/Audio Editing</label>
+          <label class="flex items-center gap-2"><input type="checkbox" data-editor-permission="quizDrafts"> Daily Quiz Drafts</label>
+          <label class="flex items-center gap-2"><input type="checkbox" data-editor-permission="examReview"> Exam Checking & Results</label>
+          <label class="flex items-center gap-2"><input type="checkbox" data-editor-permission="notifications"> Sending Notifications</label>
+        </div>
+        <button type="button" data-editor-invite class="min-h-12 rounded-xl bg-emerald-900 px-5 font-bold text-white">Invite Editor</button>
+        <p data-editor-invite-status class="text-sm text-stone-600" aria-live="polite"></p>
+      </section>
+ `;
+    
+    host.querySelector('[data-editor-invite]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+
+      const status = host.querySelector('[data-editor-invite-status]');
+      const name = String(host.querySelector('[data-editor-name]')?.value || '').trim().slice(0, 100);
+      const phone = String(host.querySelector('[data-editor-phone]')?.value || '').replace(/\D/g, '');
+      const email = String(host.querySelector('[data-editor-email]')?.value || '').trim().toLowerCase();
+      const permissions = {};
+
+      host.querySelectorAll('[data-editor-permission]').forEach(el => {
+        permissions[el.dataset.editorPermission] = el.checked;
+      });
+
+      if (phone.length !== 10) {
+        if (status) status.textContent = 'सही 10-digit phone number दर्ज करें।';
+        return;
+      }
+
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (status) status.textContent = 'Email सही नहीं है।';
+        return;
+      }
+
+      if (!Object.values(permissions).some(Boolean)) {
+        if (status) status.textContent = 'कम-से-कम एक permission चुनें।';
+        return;
+      }
+
+      const button = host.querySelector('[data-editor-invite]');
+      button.disabled = true;
+
+      try {
+        const existing = await collection('pending_editors')
+          .where('phone', '==', phone)
+          .where('status', '==', 'pending')
+          .limit(1).get();
+
+        if (!existing.empty) {
+          if (status) status.textContent = 'इस फोन नंबर का pending invitation पहले से मौजूद है।';
+          return;
+        }
+
+        await collection('pending_editors').add({
+          fullName: name,
+          phone,
+          email: email || '',
+          permissions,
+          status: 'pending',
+          createdBy: state.user.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        if (status) status.textContent = 'Invitation सेव हो गया। Editor access अभी claim और permission enforcement पर निर्भर है।';
+        host.querySelector('[data-editor-name]').value = '';
+        host.querySelector('[data-editor-phone]').value = '';
+        host.querySelector('[data-editor-email]').value = '';
+        host.querySelectorAll('[data-editor-permission]').forEach(el => { el.checked = false; });
+      } catch (error) {
+        console.error('Editor invitation failed:', error);
+        if (status) status.textContent = 'Invitation सेव नहीं हुआ। Firestore rules जाँचें।';
+      } finally {
+        button.disabled = false;
+      }
+    });
+
     host.querySelector('[data-owner-save-exam]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
       const update = {};
