@@ -50,6 +50,17 @@
     .button:disabled { opacity: .65; cursor: wait; }
     .panel h2, .section-heading { color: var(--forest); }
     .auth-note { border-radius: 12px; padding: 10px 12px; background: #f5f7f2; border: 1px solid #e1e8dd; }
+    .identity-panel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .identity-item{min-width:0;border:1px solid var(--border);border-radius:12px;background:#fff;padding:12px}
+    .identity-label{display:block;color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px}
+    .identity-value{display:block;color:var(--forest);font-size:14px;font-weight:800;overflow-wrap:anywhere}
+    .verify-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field-label{display:block;font-size:12px;font-weight:800;color:var(--forest);margin-bottom:6px}
+    .field-input{display:block;width:100%;min-height:48px;border:1px solid #cfd8cd;border-radius:11px;padding:11px 12px;background:#fff;color:#1d3025;font:inherit;font-size:16px}
+    .field-input:focus{outline:3px solid #d6a43a55;border-color:var(--forest)}
+    .cbt-note{display:flex;gap:10px;align-items:flex-start;background:#f1f5ef;border:1px solid #dce7d8;border-radius:14px;padding:14px;font-size:13px;color:#425448}
+    @media(max-width:600px){.identity-panel{grid-template-columns:1fr}.verify-grid{grid-template-columns:1fr}.daily-cta .button{min-width:0}}
+
     @media (prefers-reduced-motion: reduce) {
       .exam { transition: none; }
       .exam:hover { transform: none; }
@@ -237,6 +248,34 @@
     परीक्षा सेटिंग्स लोड हो रही हैं…
   </div>
 
+  <section id="studentIdentityPanel" class="panel hide" aria-labelledby="studentIdentityHeading">
+    <h2 id="studentIdentityHeading" class="section-heading" style="margin:0 0 12px">👤 विद्यार्थी विवरण</h2>
+    <div class="identity-panel">
+      <div class="identity-item"><span class="identity-label">विद्यार्थी का नाम</span><span id="identityStudentName" class="identity-value">लॉगिन के बाद उपलब्ध</span></div>
+      <div class="identity-item"><span class="identity-label">रोल नंबर</span><span id="identityRollNumber" class="identity-value">पंजीकरण के बाद उपलब्ध</span></div>
+      <div class="identity-item"><span class="identity-label">फोन नंबर</span><span id="identityPhoneNumber" class="identity-value">लॉगिन के बाद उपलब्ध</span></div>
+    </div>
+    <p id="identityHelp" class="muted">यह जानकारी आपके मुख्य वेबसाइट लॉगिन/पंजीकरण रिकॉर्ड से पढ़ी जाती है।</p>
+  </section>
+
+  <section id="resultVerificationDesk" class="panel" aria-labelledby="resultVerificationHeading">
+    <div class="eyebrow" style="color:var(--terracotta)">RS · RESULT VERIFICATION</div>
+    <h2 id="resultVerificationHeading" class="section-heading" style="margin-top:5px">📊 परिणाम सत्यापन डेस्क</h2>
+    <p class="muted">अपना रोल नंबर, पंजीकरण वाला पूरा नाम और जन्म तिथि भरें। सत्यापन मुख्य वेबसाइट के सुरक्षित परिणाम अनुभाग में होगा; यह फॉर्म सार्वजनिक रूप से किसी दूसरे विद्यार्थी का रिकॉर्ड खोजने की अनुमति नहीं देता।</p>
+    <form id="resultVerificationForm" class="verify-grid" autocomplete="on">
+      <label><span class="field-label">रोल नंबर</span><input id="portalResultRoll" class="field-input" name="rollNumber" maxlength="40" autocomplete="off" required placeholder="जैसे JAMBH-2026-0001"></label>
+      <label><span class="field-label">पंजीकरण वाला पूरा नाम</span><input id="portalResultName" class="field-input" name="fullName" maxlength="100" autocomplete="name" required placeholder="पूरा नाम लिखें"></label>
+      <label><span class="field-label">जन्म तिथि (DOB)</span><input id="portalResultDob" class="field-input" name="dateOfBirth" type="date" required autocomplete="bday"></label>
+      <div style="display:flex;align-items:flex-end"><button class="button gold" style="width:100%;min-height:48px" type="submit">🔐 पहचान सत्यापित करें</button></div>
+    </form>
+    <p id="resultVerificationStatus" class="muted" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="cbt-note" aria-label="CBT exam instructions">
+    <span aria-hidden="true">🖥️</span>
+    <div><strong>ऑनलाइन CBT परीक्षा</strong><br>मॉक या मुख्य परीक्षा खोलने पर मुख्य वेबसाइट का मौजूदा परीक्षा इंजन इसी पेज में खुलेगा। लॉगिन, पात्रता, समय-सीमा, प्रश्न और सबमिशन की जाँच वहीं होती है। प्रश्न/उत्तर इस पोर्टल में अलग से कॉपी या असुरक्षित रूप से संग्रहीत नहीं किए जाते।</div>
+  </section>
+
   <section id="portalDisabled" class="panel hide">
     <h2>परीक्षा पोर्टल अभी बंद है</h2>
     <p class="muted">पोर्टल उपलब्ध होने पर यहाँ परीक्षाओं के विकल्प दिखेंगे।</p>
@@ -369,10 +408,107 @@
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  auth.onAuthStateChanged(user => {
+  let pendingResultLookup = null;
+
+  auth.onAuthStateChanged(async user => {
     setPortalStatus(user
       ? "मुख्य वेबसाइट का लॉगिन सत्र मिल गया। परीक्षा शुरू होने पर पात्रता फिर जाँची जाएगी।"
       : "मुख्य वेबसाइट का लॉगिन सत्र नहीं मिला। परीक्षा देने से पहले मुख्य वेबसाइट पर लॉगिन करें।");
+    byId("studentIdentityPanel").classList.toggle("hide", !user);
+    if (!user) {
+      byId("identityStudentName").textContent = "लॉगिन के बाद उपलब्ध";
+      byId("identityRollNumber").textContent = "पंजीकरण के बाद उपलब्ध";
+      byId("identityPhoneNumber").textContent = "लॉगिन के बाद उपलब्ध";
+      return;
+    }
+    const authName = user.displayName || "";
+    const authPhone = user.phoneNumber || "";
+    byId("identityStudentName").textContent = authName || "पंजीकरण रिकॉर्ड से जाँचा जा रहा है…";
+    byId("identityPhoneNumber").textContent = authPhone || "प्रोफ़ाइल रिकॉर्ड से जाँचा जा रहा है…";
+    try {
+      const profileSnap = await db.collection("users").doc(user.uid).get();
+      const profile = profileSnap.exists ? profileSnap.data() : {};
+      const name = profile.fullName || profile.name || profile.displayName || authName;
+      const phone = profile.phoneNumber || profile.phone || authPhone;
+      const roll = profile.rollNumber || profile.roll || profile.admissionRollNumber || "";
+      byId("identityStudentName").textContent = name || "नाम उपलब्ध नहीं";
+      byId("identityPhoneNumber").textContent = phone || "फोन नंबर उपलब्ध नहीं";
+      byId("identityRollNumber").textContent = roll || "पंजीकरण/स्वीकृति के बाद उपलब्ध";
+    } catch (error) {
+      byId("identityStudentName").textContent = authName || "प्रोफ़ाइल उपलब्ध नहीं";
+      byId("identityPhoneNumber").textContent = authPhone || "प्रोफ़ाइल उपलब्ध नहीं";
+      byId("identityRollNumber").textContent = "पंजीकरण रिकॉर्ड से देखें";
+      console.warn("Student profile summary could not be loaded:", error.code || error.message);
+    }
+  });
+
+  byId("resultVerificationForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const user = auth.currentUser;
+    const resultStatus = byId("resultVerificationStatus");
+    if (!user) {
+      resultStatus.textContent = "पहले मुख्य वेबसाइट पर लॉगिन करें। लॉगिन के बाद इस पोर्टल पर लौटकर फिर सत्यापन करें।";
+      return;
+    }
+    pendingResultLookup = {
+      roll: byId("portalResultRoll").value.trim(),
+      name: byId("portalResultName").value.trim(),
+      dob: byId("portalResultDob").value
+    };
+    if (!pendingResultLookup.roll || !pendingResultLookup.name || !pendingResultLookup.dob) {
+      resultStatus.textContent = "कृपया तीनों विवरण भरें।";
+      return;
+    }
+    resultStatus.textContent = "आपकी पहचान मुख्य वेबसाइट के परिणाम डेस्क में सत्यापित की जा रही है…";
+    const resultsButton = document.querySelector('[data-launch-exam="results"]');
+    if (resultsButton) resultsButton.click();
+    else {
+      pendingResultLookup = null;
+      resultStatus.textContent = "परिणाम डेस्क अभी Owner द्वारा बंद है।";
+    }
+  });
+
+  examFrame.addEventListener("load", () => {
+    if (!pendingResultLookup) return;
+    const lookup = pendingResultLookup;
+    pendingResultLookup = null;
+    try {
+      const frameWindow = examFrame.contentWindow;
+      const frameDoc = examFrame.contentDocument;
+      if (!frameDoc || !frameWindow) throw new Error("Exam result frame is unavailable");
+      const fillAndVerify = () => {
+        const roll = frameDoc.getElementById("resultLookupRoll");
+        const name = frameDoc.getElementById("resultLookupName");
+        const dob = frameDoc.getElementById("resultLookupDob");
+        if (!roll || !name || !dob) return false;
+        roll.value = lookup.roll;
+        name.value = lookup.name;
+        dob.value = lookup.dob;
+        [roll, name, dob].forEach(input => {
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        const app = frameWindow.BishnoiApp;
+        if (app && typeof app.verifyMyResultIdentity === "function") {
+          app.verifyMyResultIdentity();
+        } else {
+          const verifyButton = Array.from(frameDoc.querySelectorAll("button")).find(button => /परिणाम खोलें/.test(button.textContent || ""));
+          if (verifyButton) verifyButton.click();
+        }
+        return true;
+      };
+      if (!fillAndVerify()) {
+        window.setTimeout(() => {
+          try {
+            if (!fillAndVerify()) byId("resultVerificationStatus").textContent = "परिणाम डेस्क खुल गया है। वहाँ अपने विवरण भरकर ‘परिणाम खोलें’ दबाएँ।";
+          } catch (error) {
+            byId("resultVerificationStatus").textContent = "परिणाम डेस्क खुल गया है। वहाँ विवरण भरकर सत्यापन पूरा करें।";
+          }
+        }, 350);
+      }
+    } catch (error) {
+      byId("resultVerificationStatus").textContent = "परिणाम डेस्क खुल गया है। सुरक्षा कारणों से विवरण स्वतः नहीं भरे जा सके; वहाँ इन्हें भरकर सत्यापन करें।";
+    }
   });
 
   dailyQuizButton.addEventListener("click",event=>{const config=window.__bishnoismExamConfig||{};const value=config.dailyQuizStartAt;const date=value?new Date(value):null;if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){event.preventDefault();setPortalStatus("दैनिक क्विज़ "+date.toLocaleString("hi-IN")+" बजे उपलब्ध होगा।");}});
