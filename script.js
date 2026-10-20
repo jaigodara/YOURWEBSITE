@@ -2576,6 +2576,38 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   };
 
+  // Phone is the canonical student-facing identity; Firebase UID remains the
+  // authorization key for existing Firestore rules and backward compatibility.
+  // A phone-only document-key migration must be paired with matching rules/data migration.
+  function normalizeStudentPhone(value) {
+    const digits = String(value || '').replace(/\\D/g, '');
+    if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+    if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+    return digits.length === 10 ? digits : '';
+  }
+
+  function getStudentIdentity() {
+    const profile = state.profile || {};
+    const user = state.user || {};
+    const phone = normalizeStudentPhone(
+      profile.phone || profile.phoneNumber || profile.mobile ||
+      user.phoneNumber || user.phone || ''
+    );
+    const name = String(profile.fullName || profile.displayName || profile.name || user.displayName || '').trim();
+    const rollNumber = String(profile.rollNumber || profile.roll || profile.admissionRollNumber || '').trim();
+    return {
+      uid: user.uid || '',
+      phone,
+      identityKey: phone || (user.uid ? 'uid:' + user.uid : ''),
+      name,
+      rollNumber,
+      email: user.email || profile.email || ''
+    };
+  }
+
+  window.BishnoiApp = window.BishnoiApp || {};
+  window.BishnoiApp.getStudentIdentity = getStudentIdentity;
+
   // Exam utilities
   const ACTIVE_EXAM_STORAGE_KEY = 'bishnoi_active_exam_v1';
 
@@ -2599,6 +2631,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!state.user || !exam?.active || exam.submitted) return;
     const payload = JSON.stringify({
       uid: state.user.uid,
+      studentPhone: getStudentIdentity().phone || '',
+      studentIdentityKey: getStudentIdentity().identityKey || ('uid:' + state.user.uid),
       mode: exam.mode,
       questions: exam.questions,
       index: exam.index,
@@ -2740,7 +2774,10 @@ window.renderExamVisibility = function renderExamVisibility() {
     const mode = exam.mode;
     const payload = {
       uid,
-      name: state.profile?.displayName || state.user.displayName || state.user.email || 'विद्यार्थी',
+      studentPhone: getStudentIdentity().phone || '',
+      studentIdentityKey: getStudentIdentity().identityKey || ('uid:' + uid),
+      rollNumber: getStudentIdentity().rollNumber || '',
+      name: getStudentIdentity().name || state.user.displayName || state.user.email || 'विद्यार्थी',
       mode,
       status,
       currentQuestion: Number(exam.index || 0) + 1,
@@ -3304,15 +3341,38 @@ window.renderExamVisibility = function renderExamVisibility() {
         attempted++;
 
         const correctAnswer = question.correctAnswer ?? question.answerIndex ?? question.ans;
-
-        if (String(answer) === String(correctAnswer)) correct++;
+        const optionsForScoring = Array.isArray(question.options)
+          ? question.options
+          : Array.isArray(question.opts)
+            ? question.opts
+            : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '');
+        const normalizeAnswerIndex = value => {
+          if (value === undefined || value === null || value === '') return null;
+          if (typeof value === 'number' || /^\\d+$/.test(String(value).trim())) {
+            const number = Number(value);
+            return Number.isInteger(number) ? number : null;
+          }
+          const letter = String(value).trim().toUpperCase().replace(/[.)]$/, '');
+          if (/^[A-D]$/.test(letter)) return letter.charCodeAt(0) - 65;
+          const optionIndex = optionsForScoring.findIndex(option => {
+            const optionText = typeof option === 'object'
+              ? (option.text || option.label || option.value || '')
+              : option;
+            return String(optionText).trim().toLowerCase() === String(value).trim().toLowerCase();
+          });
+          return optionIndex >= 0 ? optionIndex : null;
+        };
+        if (normalizeAnswerIndex(answer) !== null &&
+            normalizeAnswerIndex(answer) === normalizeAnswerIndex(correctAnswer)) correct++;
       }
     });
 
     const instantResult = exam.mode === 'quiz';
     const result = {
       uid: state.user.uid,
-      name: state.profile?.displayName || state.user.displayName || state.user.email || 'प्रतिभागी',
+      studentPhone: getStudentIdentity().phone || '',
+      studentIdentityKey: getStudentIdentity().identityKey || ('uid:' + state.user.uid),
+      name: getStudentIdentity().name || state.user.displayName || state.user.email || 'प्रतिभागी',
       email: state.user.email || null,
       mode: exam.mode,
       total: exam.questions.length,
@@ -3343,6 +3403,8 @@ window.renderExamVisibility = function renderExamVisibility() {
       if (instantResult) {
         writeBatch.set(collection('publishedResults').doc('quizAttempts_' + submissionRef.id), {
           uid: state.user.uid,
+          studentPhone: getStudentIdentity().phone || '',
+          studentIdentityKey: getStudentIdentity().identityKey || ('uid:' + state.user.uid),
           sourceCollection: CONFIG.submissionCollections[exam.mode],
           sourceSubmissionId: submissionRef.id,
           mode: exam.mode,
