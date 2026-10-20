@@ -5525,7 +5525,6 @@ window.toggleProfileMobilePassword = function (id, button) {
 
   function parseQuestionCsv(textValue) {
     text = String(text || '').replace(/^\uFEFF/, '');
-    const lines = String(textValue || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
     if (!lines.length) return [];
     const parseLine = line => {
       const out = []; let current = ''; let quoted = false;
