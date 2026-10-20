@@ -484,7 +484,6 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
   )];
   
   let verifiedPhone = '';
-
   for (const candidate of candidates) {
     const phoneIndex = await collection('mobileIndex')
       .doc(candidate)
