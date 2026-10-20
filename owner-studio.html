@@ -629,8 +629,9 @@ Ans: B"></textarea>
         <h3 class="font-yatra text-base text-forest">🎛️ परीक्षा अनुभाग नियंत्रण</h3>
         <p class="text-xs text-stone-500">ये विकल्प मुख्य वेबसाइट के examConfig/current दस्तावेज़ में सहेजे जाते हैं। किसी सेक्शन को छिपाने से उसका डेटा मिटता नहीं है।</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuiz" type="checkbox" class="accent-forest"> दैनिक क्विज़ दिखाएँ</label>
-          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowExamPortal" type="checkbox" class="accent-forest"> अलग परीक्षा पोर्टल चालू रखें</label>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuiz" type="checkbox" class="accent-forest"> दैनिक क्विज़ दिखाएँ</label>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuizResults" type="checkbox" class="accent-forest"> दैनिक क्विज़ परिणाम दिखाएँ</label>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowExamPortal" type="checkbox" class="accent-forest"> अलग परीक्षा पोर्टल चालू रखें</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock" type="checkbox" class="accent-forest"> मॉक परीक्षा 1/2 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock1" type="checkbox" class="accent-forest"> मॉक परीक्षा 1 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock2" type="checkbox" class="accent-forest"> मॉक परीक्षा 2 दिखाएँ</label>
@@ -2276,7 +2277,8 @@ async function saveBulkQuestionDrafts() {
         const data = snap.exists ? snap.data() : {};
         const pairs = [
           ['ownerShowDailyQuiz', data.dailyQuizVisible !== false],
-          ['ownerShowExamPortal', data.examPortalVisible !== false],
+          ['ownerShowDailyQuizResults', data.dailyQuizResultsVisible !== false],
+          ['ownerShowExamPortal', data.separateExamPortalVisible !== false && data.examPortalVisible !== false],
           ['ownerShowMock', data.mockVisible !== false],
           ['ownerShowMock1', data.mock1Visible !== false],
           ['ownerShowMock2', data.mock2Visible !== false],
@@ -2889,6 +2891,9 @@ async function saveBulkQuestionDrafts() {
         mock2EndAt: asEndTimestamp(mock2StartAtMs),
         mainEndAt: asEndTimestamp(mainStartAtMs),
         dailyQuizVisible: !!document.getElementById('ownerShowDailyQuiz')?.checked,
+        dailyQuizResultsVisible: !!document.getElementById('ownerShowDailyQuizResults')?.checked,
+        separateExamPortalVisible: !!document.getElementById('ownerShowExamPortal')?.checked,
+        // Keep the legacy key synchronized for existing portal code and deployments.
         examPortalVisible: !!document.getElementById('ownerShowExamPortal')?.checked,
         // The master toggle controls the whole mock section; individual toggles
         // decide which cards are visible when the master toggle is enabled.
