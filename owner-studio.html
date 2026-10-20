@@ -956,6 +956,69 @@ Ans: B"></textarea>
       }, 3200);
     }
 
+async function claimPendingEditorInvitation(user) {
+  if (!user || !user.uid || !user.email || user.emailVerified !== true) {
+    return null;
+  }
+
+  const email = user.email.trim().toLowerCase();
+  const roleRef = db.collection('roles').doc(user.uid);
+
+  try {
+    const existingRole = await roleRef.get();
+    if (existingRole.exists) {
+      return existingRole.data() || null;
+    }
+
+    const invitations = await db.collection('pending_editors')
+      .where('email', '==', email)
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get();
+
+    if (invitations.empty) return null;
+
+    const inviteSnapshot = invitations.docs[0];
+    const invitation = inviteSnapshot.data() || {};
+
+    if (
+      String(invitation.email || '').trim().toLowerCase() !== email ||
+      !invitation.permissions ||
+      typeof invitation.permissions !== 'object'
+    ) {
+      return null;
+    }
+
+    const roleData = {
+      role: 'editor',
+      fullName: String(invitation.fullName || '').slice(0, 100),
+      phone: String(invitation.phone || ''),
+      email,
+      permissions: {
+        media: invitation.permissions.media === true,
+        quizDrafts: invitation.permissions.quizDrafts === true,
+        examReview: invitation.permissions.examReview === true,
+        notifications: invitation.permissions.notifications === true
+      },
+      invitationId: inviteSnapshot.id,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await roleRef.set(roleData);
+
+    await inviteSnapshot.ref.update({
+      status: 'claimed',
+      claimedUid: user.uid,
+      claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    return roleData;
+  } catch (error) {
+    console.error('Editor invitation claim failed:', error);
+    throw error;
+  }
+}
+
     // 1. STRICT SERVER-SIDE AUTH VERIFICATION
     window.addEventListener('DOMContentLoaded', () => {
       auth.onAuthStateChanged(async (user) => {
@@ -966,6 +1029,8 @@ Ans: B"></textarea>
         }
 
         try {
+          await claimPendingEditorInvitation(user);
+          
           const roleDoc = await db.collection('roles').doc(user.uid).get();
           const roleData = roleDoc.exists ? roleDoc.data() || {} : {};
           const role = roleData.role;
@@ -4348,7 +4413,7 @@ async function addTrustedEditor() {
       if (el) el.checked = false;
     });
 
-    setTrustedEditorStatus('आमंत्रण सहेजा गया। सत्यापित मोबाइल वाले खाते के लॉगिन पर भूमिका सक्रिय होगी।');
+    setTrustedEditorStatus('आमंत्रण सहेजा गया। उसी सत्यापित Google ईमेल से लॉगिन करने पर भूमिका सक्रिय होगी।');
   } catch (error) {
     console.error('Editor invitation save failed:', error);
     setTrustedEditorStatus('आमंत्रण नहीं सहेजा गया: ' + error.message, true);
