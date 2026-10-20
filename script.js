@@ -2638,6 +2638,16 @@ window.renderExamVisibility = function renderExamVisibility() {
         <p class="text-xs leading-relaxed text-stone-500">Required columns: question, A, B, C, D, correctAnswer. correctAnswer may be A/B/C/D or 0/1/2/3. Optional: marks, negativeMarks, explanation, id.</p>
       </section>
 
+      <section class="mt-5 space-y-3 rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div><h2 class="text-xl font-extrabold text-emerald-950">Question Bank — Draft Review & Publish</h2>
+          <p class="mt-1 text-sm text-stone-600">Uploaded questions are drafts. Review them and publish only after verifying the answer key.</p></div>
+          <button type="button" data-owner-load-questions class="min-h-12 rounded-xl border border-emerald-800 px-5 font-bold text-emerald-900">प्रश्न सूची लोड करें</button>
+        </div>
+        <p data-owner-question-bank-status class="text-sm text-stone-600">पहले परीक्षा संग्रह और Set चुनें, फिर प्रश्न सूची लोड करें।</p>
+        <div data-owner-question-bank-list class="space-y-3"></div>
+      </section>
+
       <section class="mt-5 space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="text-xl font-extrabold text-emerald-950">Exam Checking Desk — जाँच एवं परिणाम</h2>
@@ -2899,6 +2909,66 @@ window.renderExamVisibility = function renderExamVisibility() {
         console.error('Could not load exam submissions:', error);
         if (status) status.textContent = 'उत्तर-पत्र लोड नहीं हुए। Firestore rules में submission collections की read permission जाँचें।';
         notify('उत्तर-पत्र लोड नहीं हुए।', 'error');
+      }
+    });
+
+    host.querySelector('[data-owner-load-questions]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      const target = host.querySelector('[data-question-target]')?.value || 'mainExamQuestions';
+      const set = host.querySelector('[data-question-set]')?.value || 'set1';
+      const status = host.querySelector('[data-owner-question-bank-status]');
+      const list = host.querySelector('[data-owner-question-bank-list]');
+      if (status) status.textContent = 'प्रश्न लोड हो रहे हैं…';
+      if (list) list.innerHTML = '';
+      try {
+        const snap = await collection(target).where('questionSet', '==', set).limit(100).get();
+        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस संग्रह और Set में प्रश्न नहीं मिले।';
+        if (!list) return;
+        list.innerHTML = rows.map(row => {
+          const options = Array.isArray(row.options) ? row.options : [];
+          const correct = Number(row.correctAnswer ?? row.answerIndex ?? row.ans);
+          return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-3" data-question-card="' + escapeHtml(row.id) + '">' +
+            '<div class="flex flex-wrap items-start justify-between gap-2"><p class="font-bold text-stone-900">' + escapeHtml(row.question || row.text || 'प्रश्न') +
+            '</p><span class="rounded-full px-2 py-1 text-xs font-bold ' + (row.published === true ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900') +
+            '">' + (row.published === true ? 'Published' : 'Draft') + '</span></div>' +
+            '<ul class="mt-2 space-y-1 text-sm text-stone-700">' + options.map((option, index) =>
+              '<li class="' + (index === correct ? 'font-bold text-emerald-800' : '') + '">' + String.fromCharCode(65 + index) + '. ' + escapeHtml(typeof option === 'object' ? (option.text || '') : option) +
+              (index === correct ? ' ✓ Answer Key' : '') + '</li>'
+            ).join('') + '</ul><p class="mt-2 text-xs text-stone-500">ID: ' + escapeHtml(row.id) + ' · Marks: ' + Number(row.marks || 1) + '</p>' +
+            (row.published === true
+              ? '<button type="button" data-unpublish-question data-question-id="' + escapeHtml(row.id) + '" class="mt-3 min-h-10 rounded-lg border border-amber-500 px-4 font-bold text-amber-900">Unpublish</button>'
+              : '<button type="button" data-publish-question data-question-id="' + escapeHtml(row.id) + '" class="mt-3 min-h-10 rounded-lg bg-emerald-900 px-4 font-bold text-white">Answer Key सही है — Publish</button>') +
+            '</article>';
+        }).join('');
+        list.querySelectorAll('[data-publish-question], [data-unpublish-question]').forEach(button => {
+          button.addEventListener('click', async () => {
+            if (!requireOwner()) return;
+            const id = button.dataset.questionId;
+            const publish = button.hasAttribute('data-publish-question');
+            button.disabled = true;
+            try {
+              await collection(target).doc(id).set({
+                published: publish,
+                status: publish ? 'published' : 'draft',
+                publishedBy: publish ? state.user.uid : null,
+                publishedAt: publish ? serverTimestamp() : null,
+                updatedAt: serverTimestamp(),
+                updatedBy: state.user.uid
+              }, { merge: true });
+              notify(publish ? 'प्रश्न प्रकाशित हो गया।' : 'प्रश्न Draft में वापस कर दिया गया।', 'success');
+              host.querySelector('[data-owner-load-questions]')?.click();
+            } catch (error) {
+              console.error('Question publish state update failed:', error);
+              notify('प्रश्न की publish स्थिति सेव नहीं हुई। Firestore rules जाँचें।', 'error');
+              button.disabled = false;
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Question bank load failed:', error);
+        if (status) status.textContent = 'प्रश्न लोड नहीं हुए। Firestore rules में चुने गए question collection की read permission जाँचें।';
+        notify('Question bank लोड नहीं हुई।', 'error');
       }
     });
   }
