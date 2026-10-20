@@ -1923,6 +1923,7 @@ async function saveBulkQuestionDrafts() {
   }
 
   const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+  const selectedQuestionSet = ['set1','set2','set3','set4'].includes(document.getElementById('bulkQuestionSet')?.value) ? document.getElementById('bulkQuestionSet').value : 'set1';
 
   if (!isPrimaryOwner() && target !== 'quiz') {
     return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
@@ -1975,6 +1976,8 @@ async function saveBulkQuestionDrafts() {
         text: questionText,
         opts: options,
         options,
+        questionSet: selectedQuestionSet,
+        questionSetKey: selectedQuestionSet,
         examMode: target === 'quiz'
           ? 'quiz'
           : target === 'mockExam_1'
@@ -2012,6 +2015,8 @@ async function saveBulkQuestionDrafts() {
 
         batch.set(keyRef, {
           answerIndex,
+          questionSet: selectedQuestionSet,
+          questionSetKey: selectedQuestionSet,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: uid
         }, { merge: true });
@@ -2277,11 +2282,17 @@ async function saveBulkQuestionDrafts() {
           ['ownerShowMock2', data.mock2Visible !== false],
           ['ownerShowMainExam', data.mainExamVisible !== false],
           ['ownerShowEnrollment', data.enrollmentVisible !== false],
-          ['ownerShowResults', data.resultsVisible !== false]
+          ['ownerShowResults', data.resultsVisible !== false],
+          ['ownerQuizQuestionSet', ['set1','set2','set3','set4'].includes(data.quizQuestionSet) ? data.quizQuestionSet : 'set1'],
+          ['ownerMock1QuestionSet', ['set1','set2','set3','set4'].includes(data.mock1QuestionSet) ? data.mock1QuestionSet : 'set1'],
+          ['ownerMock2QuestionSet', ['set1','set2','set3','set4'].includes(data.mock2QuestionSet) ? data.mock2QuestionSet : 'set1'],
+          ['ownerMainQuestionSet', ['set1','set2','set3','set4'].includes(data.mainQuestionSet) ? data.mainQuestionSet : 'set1']
         ];
         pairs.forEach(([id, value]) => {
           const el = document.getElementById(id);
-          if (el) el.checked = value;
+          if (!el) return;
+          if (el.type === 'checkbox') el.checked = value;
+          else el.value = value;
         });
         const duration = document.getElementById('ownerExamDuration');
         if (duration) duration.value = Math.min(360, Math.max(1, Number(data.durationMinutes) || 120));
@@ -2888,6 +2899,10 @@ async function saveBulkQuestionDrafts() {
         mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
+        quizQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerQuizQuestionSet')?.value) ? document.getElementById('ownerQuizQuestionSet').value : 'set1',
+        mock1QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock1QuestionSet')?.value) ? document.getElementById('ownerMock1QuestionSet').value : 'set1',
+        mock2QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock2QuestionSet')?.value) ? document.getElementById('ownerMock2QuestionSet').value : 'set1',
+        mainQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMainQuestionSet')?.value) ? document.getElementById('ownerMainQuestionSet').value : 'set1',
         durationMinutes: duration,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.currentUser?.uid || null
@@ -3641,7 +3656,7 @@ next.addEventListener('click', async () => {
       };
       try {
         let payload;
-        if (selected === 'examAnswerKeys' && (format === 'csv' || format === 'xlsx')) {
+        if (selected === 'examAnswerKeys' && (format === 'csv' || format === 'xlsx' || format === 'pdf')) {
           payload = {};
           for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
             const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
@@ -3662,8 +3677,49 @@ next.addEventListener('click', async () => {
           }
           payload.exportMetadata = { exportedAt: new Date().toISOString(), exportedBy: auth.currentUser?.uid || null, note: 'Private backup; may contain student personal data and unpublished review details.' };
         }
+        const dateValue = row => {
+          const keys = ['submittedAt','createdAt','updatedAt','publishedAt','enrolledAt','registrationDate','timestamp','date','submitted_at','created_at'];
+          for (const key of keys) {
+            const value = row && row[key];
+            if (value == null || value === '') continue;
+            const parsed = typeof value === 'number' ? new Date(value) : new Date(value);
+            if (Number.isFinite(parsed.getTime())) return parsed;
+          }
+          return null;
+        };
+        const isFilteredFormat = ['csv','xlsx','pdf'].includes(format);
+        let rows = Array.isArray(payload) ? payload : Object.entries(payload || {}).flatMap(([setName, items]) =>
+          (Array.isArray(items) ? items : []).map(item => ({ questionSet: item.questionSet || item.questionSetKey || setName, ...item }))
+        );
+        if (isFilteredFormat) {
+          const year = document.getElementById('ownerExportYear')?.value || '';
+          const month = document.getElementById('ownerExportMonth')?.value || '';
+          const fromText = document.getElementById('ownerExportFromDate')?.value || '';
+          const toText = document.getElementById('ownerExportToDate')?.value || '';
+          const from = fromText ? new Date(fromText + 'T00:00:00') : null;
+          const to = toText ? new Date(toText + 'T23:59:59.999') : null;
+          if (from && to && from > to) throw new Error('तारीख़ से, तारीख़ तक से बाद की नहीं हो सकती।');
+          rows = rows.filter(row => {
+            const date = dateValue(row);
+            if (!year && !month && !from && !to) return true;
+            if (!date) return false;
+            if (year && String(date.getFullYear()) !== year) return false;
+            if (month && String(date.getMonth() + 1).padStart(2,'0') !== month) return false;
+            if (from && date < from) return false;
+            if (to && date > to) return false;
+            return true;
+          });
+        }
+        rows = rows.map(row => ({
+          'Roll Number': row.rollNumber || row.roll_number || row.roll || row.admitCardRollNumber || '',
+          'Full Name': row.fullName || row.name || row.displayName || row.studentName || '',
+          "Father's Name": row.fatherName || row.fathersName || row.father_name || '',
+          'Mobile Number': row.phoneNumber || row.phone || row.mobileNumber || row.mobile || '',
+          'Email': row.email || row.emailAddress || '',
+          'Question Set': row.questionSet || row.questionSetKey || row.set || '',
+          ...row
+        }));
         if (format === 'csv') {
-          const rows = Array.isArray(payload) ? payload : Object.entries(payload).flatMap(([setName, items]) => (items || []).map(item => ({ questionSet: setName, ...item })));
           const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
           const cell = value => {
             let text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -3674,9 +3730,6 @@ next.addEventListener('click', async () => {
           download('bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv');
           if (status) status.textContent = 'CSV डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
         } else if (format === 'xlsx') {
-          const rows = Array.isArray(payload) ? payload : Object.entries(payload).flatMap(([setName, items]) =>
-            (Array.isArray(items) ? items : []).map(item => ({ questionSet: setName, ...item }))
-          );
           if (!window.XLSX || !XLSX.utils || !XLSX.writeFile) throw new Error('Excel लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करके फिर प्रयास करें।');
           const safeRows = rows.map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [
             key, value && typeof value === 'object' ? JSON.stringify(value) : value
@@ -3686,6 +3739,28 @@ next.addEventListener('click', async () => {
           XLSX.utils.book_append_sheet(workbook, sheet, 'Bishnoism Data');
           XLSX.writeFile(workbook, 'bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
           if (status) status.textContent = 'Excel डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
+        } else if (format === 'pdf') {
+          const jspdf = window.jspdf && window.jspdf.jsPDF;
+          if (!jspdf) throw new Error('PDF लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करके फिर प्रयास करें।');
+          const doc = new jspdf({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+          const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
+          const visibleColumns = columns.slice(0, 12);
+          const cellText = value => value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+          doc.setFontSize(14);
+          doc.text('Bishnoism Owner Data - ' + selected, 36, 30);
+          doc.setFontSize(8);
+          doc.text('Generated: ' + new Date().toLocaleString('en-IN') + ' | Rows: ' + rows.length, 36, 44);
+          if (typeof doc.autoTable !== 'function') throw new Error('PDF table plugin लोड नहीं हुआ।');
+          doc.autoTable({
+            startY: 56,
+            head: [visibleColumns],
+            body: rows.length ? rows.map(row => visibleColumns.map(key => cellText(row[key]).slice(0, 700))) : [['कोई रिकॉर्ड नहीं मिला']],
+            styles: { fontSize: 6, cellPadding: 3, overflow: 'linebreak' },
+            headStyles: { fontSize: 7 },
+            margin: { left: 24, right: 24 }
+          });
+          doc.save('bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.pdf');
+          if (status) status.textContent = 'PDF डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
         } else {
           download('bishnoism-owner-backup-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2), 'application/json');
           if (status) status.textContent = 'JSON बैकअप डाउनलोड शुरू हुआ। अस्वीकृत collections के कारण exportError में शामिल हैं।';
