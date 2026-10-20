@@ -1033,7 +1033,7 @@ async function claimPendingEditorInvitation(user) {
       role: 'editor',
       fullName: String(invitation.fullName || '').slice(0, 100),
       phone: profilePhone,
-      email: String(invitation.email || user.email || '').trim().toLowerCase(),
+      email: String(invitation.email || '').trim().toLowerCase(),
       permissions: {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
