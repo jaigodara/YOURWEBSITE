@@ -2416,30 +2416,109 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   };
 
-  // Owner Studio
+  // Owner Studio — exam visibility, schedule, question-set and maintenance controls.
+  // Writes use the existing Firestore documents; server-side rules must restrict these
+  // writes to the owner role. Controls are generated only for authenticated owners.
   function renderOwnerStudio() {
     const host = byId('ownerStudioContent') || byId('ownerStudio');
     if (!host || !state.isOwner) return;
-
-    const title = document.createElement('p');
-    title.textContent = 'Owner Studio';
-    title.className = 'owner-studio-status';
-
-    const status = document.createElement('p');
-    status.textContent = state.user
-      ? `Signed in as ${state.user.email || state.user.uid}`
-      : 'Not signed in';
-
-    const refresh = document.createElement('button');
-    refresh.type = 'button';
-    refresh.textContent = 'Refresh portal data';
-    refresh.addEventListener('click', () => {
+    const c = state.examConfig || {};
+    const maintenance = state.maintenance || {};
+    const visibleChecks = [
+      ['dailyQuizVisible', 'दैनिक ज्ञान परीक्षा'],
+      ['mockVisible', 'मॉक परीक्षा अनुभाग'],
+      ['mock1Visible', 'मॉक परीक्षा 1'],
+      ['mock2Visible', 'मॉक परीक्षा 2'],
+      ['mainExamVisible', 'मुख्य परीक्षा'],
+      ['enrollmentVisible', 'विद्यार्थी पंजीकरण'],
+      ['resultsVisible', 'परिणाम सत्यापन'],
+      ['separateExamPortalVisible', 'अलग परीक्षा पोर्टल']
+    ];
+    const schedules = [
+      ['quizStartAtMs', 'दैनिक परीक्षा शुरू होने का समय'],
+      ['mock1StartAtMs', 'मॉक परीक्षा 1 शुरू होने का समय'],
+      ['mock2StartAtMs', 'मॉक परीक्षा 2 शुरू होने का समय'],
+      ['mainStartAtMs', 'मुख्य परीक्षा शुरू होने का समय']
+    ];
+    const toLocalInput = value => {
+      const ms = Number(value);
+      if (!Number.isFinite(ms) || ms <= 0) return '';
+      const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
+      return d.toISOString().slice(0, 16);
+    };
+    const checkbox = (key, label) => `<label class="flex min-h-12 items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 text-sm"><input class="h-5 w-5 accent-emerald-800" type="checkbox" data-exam-visibility="${key}" ${c[key] !== false ? 'checked' : ''}><span>${escapeHtml(label)}</span></label>`;
+    host.innerHTML = `
+      <section class="space-y-4 rounded-2xl border border-emerald-200 bg-stone-50 p-4 sm:p-5">
+        <div><h2 class="text-xl font-extrabold text-emerald-950">Owner Studio — परीक्षा नियंत्रण</h2>
+        <p class="mt-1 break-words text-xs text-stone-600">Signed in as ${escapeHtml(state.user?.email || state.user?.uid || 'Owner')}</p></div>
+        <div><h3 class="mb-2 font-bold text-stone-900">विद्यार्थियों को दिखने वाले अनुभाग</h3>
+          <div class="grid gap-2 sm:grid-cols-2">${visibleChecks.map(([key,label]) => checkbox(key,label)).join('')}</div>
+        </div>
+        <div><h3 class="mb-2 font-bold text-stone-900">परीक्षा का समय</h3>
+          <div class="grid gap-3 sm:grid-cols-2">${schedules.map(([key,label]) => `<label class="block text-sm font-semibold text-stone-700">${escapeHtml(label)}<input type="datetime-local" data-exam-schedule="${key}" value="${toLocalInput(c[key])}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>`).join('')}</div>
+          <label class="mt-3 block text-sm font-semibold text-stone-700">परीक्षा अवधि (मिनट)<input type="number" min="1" max="360" data-exam-duration value="${Math.max(1, Number(c.durationMinutes) || CONFIG.defaultExamMinutes)}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>
+        </div>
+        <div><h3 class="mb-2 font-bold text-stone-900">प्रश्न सेट</h3><div class="grid gap-3 sm:grid-cols-2">
+          ${[['quizQuestionSet','दैनिक परीक्षा'],['mock1QuestionSet','मॉक परीक्षा 1'],['mock2QuestionSet','मॉक परीक्षा 2'],['mainQuestionSet','मुख्य परीक्षा']].map(([key,label]) => `<label class="text-sm font-semibold text-stone-700">${label}<select data-exam-set="${key}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">${['set1','set2','set3','set4'].map(v => `<option value="${v}" ${(c[key] || 'set1') === v ? 'selected' : ''}>${v.toUpperCase()}</option>`).join('')}</select></label>`).join('')}
+        </div></div>
+        <div><h3 class="mb-2 font-bold text-stone-900">रखरखाव मोड</h3>
+          <label class="block text-sm font-semibold text-stone-700">मोड<select data-maintenance-mode class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">
+            ${[['off','बंद'],['both','वेबसाइट और ऐप'],['web_only','केवल वेबसाइट'],['phone_only','केवल मोबाइल/ऐप']].map(([v,l]) => `<option value="${v}" ${(maintenance.globalMode || 'off') === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select></label>
+          <label class="mt-3 block text-sm font-semibold text-stone-700">रखरखाव संदेश<textarea data-maintenance-message rows="2" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">${escapeHtml(maintenance.message || '')}</textarea></label>
+        </div>
+        <div class="flex flex-wrap gap-2"><button type="button" data-owner-save-exam class="min-h-12 rounded-xl bg-emerald-900 px-5 font-bold text-white">परीक्षा सेटिंग सेव करें</button>
+        <button type="button" data-owner-save-maintenance class="min-h-12 rounded-xl border border-amber-400 bg-amber-50 px-5 font-bold text-amber-950">रखरखाव सेव करें</button>
+        <button type="button" data-owner-refresh class="min-h-12 rounded-xl border border-stone-300 bg-white px-5 font-bold">डेटा रीफ़्रेश करें</button></div>
+      </section>`;
+    host.querySelector('[data-owner-save-exam]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      const update = {};
+      host.querySelectorAll('[data-exam-visibility]').forEach(el => { update[el.dataset.examVisibility] = el.checked; });
+      host.querySelectorAll('[data-exam-schedule]').forEach(el => {
+        update[el.dataset.examSchedule] = el.value ? new Date(el.value).getTime() : 0;
+      });
+      host.querySelectorAll('[data-exam-set]').forEach(el => {
+        update[el.dataset.examSet] = ['set1','set2','set3','set4'].includes(el.value) ? el.value : 'set1';
+      });
+      const duration = Number(host.querySelector('[data-exam-duration]')?.value);
+      update.durationMinutes = Number.isFinite(duration) ? Math.min(360, Math.max(1, duration)) : CONFIG.defaultExamMinutes;
+      update.updatedAt = serverTimestamp();
+      update.updatedBy = state.user.uid;
+      try {
+        await collection('examConfig').doc('current').set(update, { merge: true });
+        state.examConfig = { ...state.examConfig, ...update };
+        window.renderExamVisibility();
+        renderExamCountdowns();
+        notify('परीक्षा सेटिंग सेव हो गईं।', 'success');
+      } catch (error) {
+        console.error('Exam settings save failed:', error);
+        notify('सेटिंग सेव नहीं हुईं। Firestore rules में Owner write permission जाँचें।', 'error');
+      }
+    });
+    host.querySelector('[data-owner-save-maintenance]')?.addEventListener('click', async () => {
+      if (!requireOwner()) return;
+      const update = {
+        globalMode: host.querySelector('[data-maintenance-mode]')?.value || 'off',
+        message: String(host.querySelector('[data-maintenance-message]')?.value || '').trim().slice(0, 500),
+        updatedAt: serverTimestamp(),
+        updatedBy: state.user.uid
+      };
+      try {
+        await collection('settings').doc('maintenance').set(update, { merge: true });
+        state.maintenance = { ...state.maintenance, ...update };
+        applyMaintenanceSettings();
+        notify('रखरखाव सेटिंग सेव हो गई।', 'success');
+      } catch (error) {
+        console.error('Maintenance settings save failed:', error);
+        notify('रखरखाव सेटिंग सेव नहीं हुईं। Firestore rules जाँचें।', 'error');
+      }
+    });
+    host.querySelector('[data-owner-refresh]')?.addEventListener('click', () => {
       clearSubscriptions();
       startLiveListeners();
       notify('Portal listeners refreshed.', 'success');
     });
-
-    host.append(title, status, refresh);
   }
 
   window.savePortalSetting = async function (key, value) {
@@ -2852,7 +2931,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     return workspace;
   }
 
-  function renderExamQuestion() {
+  function renderExamQuestion(options = {}) {
     const exam = state.exam;
     const question = exam.questions[exam.index];
     const workspace = ensureExamWorkspace(exam.mode);
@@ -2889,7 +2968,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       input.addEventListener('change', () => {
         exam.answers[answerKey] = Number(input.value);
         persistActiveExam();
-        renderExamQuestion();
+        renderExamQuestion({ noScroll: true });
       });
     });
 
@@ -2939,7 +3018,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (submitButton) submitButton.disabled = exam.kicked || exam.lockedAtDeadline;
     if (previous) previous.classList.toggle('opacity-40', previous.disabled);
     if (next) next.classList.toggle('opacity-40', next.disabled);
-    if (workspace) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (workspace && !options.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   window.startPortalExam = async function (mode = 'quiz') {
