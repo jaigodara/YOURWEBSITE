@@ -1060,11 +1060,28 @@ async function claimPendingEditorInvitation(user) {
   } catch (error) {
     console.warn('Could not read editor candidate profile:', error);
   }
-  if (!/^[6-9]\d{9}$/.test(profilePhone)) return null;
+    if (!/^[6-9]\d{9}$/.test(profilePhone)) {
+    console.warn('Editor invitation check stopped: no valid mobile number on the signed-in profile.', {
+      uid: user.uid
+    });
+    return null;
+  }
 
-  const phoneIndex = await db.collection('mobileIndex').doc(profilePhone).get().catch(() => null);
-  if (!phoneIndex?.exists || phoneIndex.data()?.uid !== user.uid) return null;
+  const phoneIndex = await db.collection('mobileIndex')
+    .doc(profilePhone)
+    .get()
+    .catch(error => {
+      console.error('Could not read mobileIndex for editor invitation:', error);
+      return null;
+    });
 
+  if (!phoneIndex?.exists || phoneIndex.data()?.uid !== user.uid) {
+    console.warn('Editor invitation check stopped: mobileIndex does not match the signed-in UID.', {
+      uid: user.uid,
+      phone: profilePhone
+    });
+    return null;
+  }
   const phoneE164 = '+91' + profilePhone;
   const invitationId = 'phone_' + phoneE164;
   const inviteRef = db.collection('pending_editors').doc(invitationId);
