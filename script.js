@@ -1290,54 +1290,93 @@ if (cardRect.width === 0 || cardRect.height === 0) {
 
       if (document.fonts?.ready) await document.fonts.ready;
 
+      // Load html2canvas on demand if the CDN script in index.html failed to load.
+      if (typeof window.html2canvas !== 'function') {
+        await new Promise((resolve, reject) => {
+          const urls = [
+            'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+            'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'
+          ];
+          let index = 0;
+          const tryNext = () => {
+            if (index >= urls.length) {
+              reject(new Error('html2canvas library could not be loaded. Check the browser Network tab or content blockers.'));
+              return;
+            }
+            const script = document.createElement('script');
+            script.src = urls[index++];
+            script.onload = () => typeof window.html2canvas === 'function'
+              ? resolve()
+              : tryNext();
+            script.onerror = tryNext;
+            document.head.appendChild(script);
+          };
+          tryNext();
+        });
+      }
+
       const canvas = await window.html2canvas(surface, {
-  scale: 2,
-  backgroundColor: '#fffdf7',
-  useCORS: true,
-  logging: false,
-  width: surface.scrollWidth,
-  height: surface.scrollHeight,
-  windowWidth: Math.max(window.innerWidth, surface.scrollWidth),
-  windowHeight: Math.max(window.innerHeight, surface.scrollHeight),
-onclone: clonedDocument => {
-  const clonedSurface =
-    clonedDocument.getElementById('bishnoiAdmitCardCapture');
+        scale: 2,
+        backgroundColor: '#fffdf7',
+        useCORS: true,
+        logging: true,
+        allowTaint: false,
+        width: surface.scrollWidth,
+        height: surface.scrollHeight,
+        windowWidth: Math.max(window.innerWidth, surface.scrollWidth),
+        windowHeight: Math.max(window.innerHeight, surface.scrollHeight),
+        onclone: clonedDocument => {
+          const clonedSurface = clonedDocument.getElementById('bishnoiAdmitCardCapture');
+          if (!clonedSurface) throw new Error('Admit-card element missing from PDF clone.');
 
-  if (!clonedSurface) {
-    throw new Error('Admit-card element missing from PDF clone.');
-  }
+          // Keep the clone in normal document flow so text/layout are painted reliably.
+          clonedSurface.style.setProperty('position', 'static', 'important');
+          clonedSurface.style.setProperty('left', 'auto', 'important');
+          clonedSurface.style.setProperty('top', 'auto', 'important');
+          clonedSurface.style.setProperty('width', '794px', 'important');
+          clonedSurface.style.setProperty('min-width', '794px', 'important');
+          clonedSurface.style.setProperty('display', 'block', 'important');
+          clonedSurface.style.setProperty('visibility', 'visible', 'important');
+          clonedSurface.style.setProperty('opacity', '1', 'important');
+          clonedSurface.style.setProperty('z-index', 'auto', 'important');
+          clonedSurface.style.setProperty('transform', 'none', 'important');
 
-  clonedSurface.style.setProperty('position', 'fixed', 'important');
-  clonedSurface.style.setProperty('left', '0', 'important');
-  clonedSurface.style.setProperty('top', '0', 'important');
-  clonedSurface.style.setProperty('width', '794px', 'important');
-  clonedSurface.style.setProperty('display', 'block', 'important');
-  clonedSurface.style.setProperty('visibility', 'visible', 'important');
-  clonedSurface.style.setProperty('opacity', '1', 'important');
-  clonedSurface.style.setProperty('z-index', 'auto', 'important');
+          clonedSurface.querySelectorAll('*').forEach(element => {
+            const original = surface.querySelector('[data-pdf-node="' + element.getAttribute('data-pdf-node') + '"]');
+            element.style.setProperty('visibility', 'visible', 'important');
+            element.style.setProperty('opacity', '1', 'important');
+            element.style.setProperty('text-shadow', 'none', 'important');
+            element.style.setProperty('mix-blend-mode', 'normal', 'important');
+            if (original) {
+              const computed = getComputedStyle(original);
+              element.style.setProperty('color', computed.color, 'important');
+              element.style.setProperty('-webkit-text-fill-color', computed.color, 'important');
+              element.style.setProperty('font-family', computed.fontFamily, 'important');
+              element.style.setProperty('font-size', computed.fontSize, 'important');
+              element.style.setProperty('font-weight', computed.fontWeight, 'important');
+            }
+          });
+        }
+      });
 
-  clonedSurface.querySelectorAll('*').forEach(element => {
-    element.style.setProperty('visibility', 'visible', 'important');
-    element.style.setProperty('opacity', '1', 'important');
-    element.style.setProperty(
-      '-webkit-text-fill-color',
-      'currentColor',
-      'important'
-    );
-    element.style.setProperty('text-shadow', 'none', 'important');
-    element.style.setProperty('mix-blend-mode', 'normal', 'important');
-  });
-  }
-});
+      if (!canvas.width || !canvas.height) {
+        throw new Error(
+          'PDF canvas is empty: ' + canvas.width + ' × ' + canvas.height +
+          '. Card dimensions: ' + surface.scrollWidth + ' × ' + surface.scrollHeight
+        );
+      }
 
-if (!canvas.width || !canvas.height) {
-  throw new Error(
-    'PDF canvas खाली है: ' +
-    canvas.width + ' × ' + canvas.height +
-    '. Card dimensions: ' +
-    surface.scrollWidth + ' × ' + surface.scrollHeight
-  );
-}
+      // Verify the rendered canvas is not just a blank background.
+      const sample = document.createElement('canvas');
+      sample.width = Math.min(canvas.width, 200);
+      sample.height = Math.min(canvas.height, 200);
+      const sampleContext = sample.getContext('2d', { willReadFrequently: true });
+      sampleContext.drawImage(canvas, 0, 0, sample.width, sample.height);
+      console.log('Admit-card canvas ready:', {
+        width: canvas.width,
+        height: canvas.height,
+        html2canvasLoaded: typeof window.html2canvas === 'function'
+      });
       const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
       const pdf = new JsPDF({
         orientation: 'portrait',
