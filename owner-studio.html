@@ -4460,8 +4460,6 @@ function listenTrustedEditors() {
     box.appendChild(heading);
 
     invitations.forEach(d => {
-      const doc = { id: d.id, data: () => d };
-      const d = doc.data() || {};
       const row = document.createElement('div');
       row.className = 'p-2 rounded-lg bg-amber-50 border border-amber-200';
       row.textContent = [
