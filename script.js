@@ -4443,41 +4443,68 @@ const digits = String(value || '').replace(/\D/g, '');
     exam.submitting = true;
 
     let correct = 0;
+    let incorrect = 0;
     let attempted = 0;
+    let score = 0;
+    let maxMarks = 0;
+
+    const normalizeAnswerIndex = (value, options) => {
+      if (value === undefined || value === null || value === '') return null;
+      if (typeof value === 'number' || /^\d+$/.test(String(value).trim())) {
+        const number = Number(value);
+        return Number.isInteger(number) && number >= 0 && number < options.length ? number : null;
+      }
+      const normalized = String(value).trim().toUpperCase().replace(/[.)]$/, '');
+      if (/^[A-D]$/.test(normalized)) {
+        const index = normalized.charCodeAt(0) - 65;
+        return index < options.length ? index : null;
+      }
+      const optionIndex = options.findIndex(option => {
+        const optionText = typeof option === 'object'
+          ? (option.text || option.label || option.value || '')
+          : option;
+        return String(optionText).trim().toLowerCase() === String(value).trim().toLowerCase();
+      });
+      return optionIndex >= 0 ? optionIndex : null;
+    };
 
     exam.questions.forEach((question, index) => {
-      const key = question.id || index;
+      const key = String(question.id || index);
       const answer = exam.answers[key];
+      const questionMarksRaw = Number(question.marks ?? question.points ?? 1);
+      const questionMarks = Number.isFinite(questionMarksRaw) && questionMarksRaw > 0 ? questionMarksRaw : 1;
+      const negativeMarksRaw = Number(question.negativeMarks ?? 0);
+      const negativeMarks = Number.isFinite(negativeMarksRaw) && negativeMarksRaw >= 0 ? negativeMarksRaw : 0;
+      maxMarks += questionMarks;
 
-      if (answer !== undefined && answer !== null) {
-        attempted++;
+      if (answer === undefined || answer === null || answer === '') return;
+      const options = Array.isArray(question.options)
+        ? question.options
+        : Array.isArray(question.opts)
+          ? question.opts
+          : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '');
+      const selectedIndex = normalizeAnswerIndex(answer, options);
+      if (selectedIndex === null) return;
 
-        const correctAnswer = question.correctAnswer ?? question.answerIndex ?? question.ans;
-        const optionsForScoring = Array.isArray(question.options)
-          ? question.options
-          : Array.isArray(question.opts)
-            ? question.opts
-            : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '');
-        const normalizeAnswerIndex = value => {
-          if (value === undefined || value === null || value === '') return null;
-          if (typeof value === 'number' || /^\d+$/.test(String(value).trim())) {
-            const number = Number(value);
-            return Number.isInteger(number) ? number : null;
-          }
-          const letter = String(value).trim().toUpperCase().replace(/[.)]$/, '');
-          if (/^[A-D]$/.test(letter)) return letter.charCodeAt(0) - 65;
-          const optionIndex = optionsForScoring.findIndex(option => {
-            const optionText = typeof option === 'object'
-              ? (option.text || option.label || option.value || '')
-              : option;
-            return String(optionText).trim().toLowerCase() === String(value).trim().toLowerCase();
-          });
-          return optionIndex >= 0 ? optionIndex : null;
-        };
-        if (normalizeAnswerIndex(answer) !== null &&
-            normalizeAnswerIndex(answer) === normalizeAnswerIndex(correctAnswer)) correct++;
+      attempted++;
+      const correctAnswer = question.correctAnswer ?? question.answerIndex ?? question.ans;
+      const correctIndex = normalizeAnswerIndex(correctAnswer, options);
+      if (correctIndex === null) {
+        // Do not silently treat an invalid/missing key as a wrong answer.
+        return;
+      }
+      if (selectedIndex === correctIndex) {
+        correct++;
+        score += questionMarks;
+      } else {
+        incorrect++;
+        score -= negativeMarks;
       }
     });
+
+    // Avoid floating-point artifacts in scores such as 0.30000000000000004.
+    score = Math.round(score * 10000) / 10000;
+    maxMarks = Math.round(maxMarks * 10000) / 10000;
 
     const instantResult = exam.mode === 'quiz';
     const result = {
@@ -4487,12 +4514,16 @@ const digits = String(value || '').replace(/\D/g, '');
       name: getStudentIdentity().name || state.user.displayName || state.user.email || 'प्रतिभागी',
       email: state.user.email || null,
       mode: exam.mode,
-      total: exam.questions.length,
+      total: maxMarks,
+      totalMarks: maxMarks,
+      maxMarks,
       totalQuestions: exam.questions.length,
       rollNumber: state.profile?.rollNumber || null,
       attempted,
-      // Keep all attempts free of result/mark fields. The student-visible score,
-      // when available, is written to publishedResults in the same atomic batch.
+      correct,
+      incorrect,
+      // The student's score is only exposed in publishedResults for Daily Quiz.
+      // Mock/Main attempts remain pending owner review.
       answers: { ...exam.answers },
       review: { ...exam.review },
       questionSetKey: CONFIG.examCollections[exam.mode] || exam.mode,
@@ -4502,7 +4533,12 @@ const digits = String(value || '').replace(/\D/g, '');
         id: String(question.id || index),
         question: question.question || question.text || question.q || '',
         options: (Array.isArray(question.options) ? question.options : Array.isArray(question.opts) ? question.opts : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '')).map(option => typeof option === 'object' ? { text: option.text || option.label || option.value || '' } : String(option)),
-        marks: Number(question.marks || question.points || 1)
+        marks: Number.isFinite(Number(question.marks ?? question.points ?? 1)) && Number(question.marks ?? question.points ?? 1) > 0
+          ? Number(question.marks ?? question.points ?? 1)
+          : 1,
+        negativeMarks: Number.isFinite(Number(question.negativeMarks ?? 0)) && Number(question.negativeMarks ?? 0) >= 0
+          ? Number(question.negativeMarks ?? 0)
+          : 0
       })),
       submittedAt: serverTimestamp(),
       automatic
@@ -4523,8 +4559,13 @@ const digits = String(value || '').replace(/\D/g, '');
           questionSet: exam.questionSet || 'set1',
           name: result.name,
           rollNumber: result.rollNumber,
-          score: correct,
-          total: exam.questions.length,
+          score,
+          total: maxMarks,
+          maxMarks,
+          totalQuestions: exam.questions.length,
+          attempted,
+          correct,
+          incorrect,
           status: 'published',
           feedback: '',
           publishedAt: serverTimestamp(),
@@ -4541,10 +4582,13 @@ const digits = String(value || '').replace(/\D/g, '');
       if (instantResult) {
         collection('userNotifications').doc(state.user.uid).collection('items').add({
           title: '🏆 दैनिक क्विज़ परिणाम',
-          message: 'आपके अंक: ' + correct + '/' + exam.questions.length + ' · हल किए गए प्रश्न: ' + attempted + '।',
+          message: 'आपके अंक: ' + score + '/' + maxMarks + ' · सही: ' + correct + ' · गलत: ' + incorrect + ' · हल किए: ' + attempted + '।',
           type: 'quiz-result',
-          resultScore: correct,
-          resultTotal: exam.questions.length,
+          resultScore: score,
+          resultTotal: maxMarks,
+          totalQuestions: exam.questions.length,
+          correctAnswers: correct,
+          incorrectAnswers: incorrect,
           recipientUid: state.user.uid,
           active: true,
           audience: 'private',
@@ -4552,7 +4596,7 @@ const digits = String(value || '').replace(/\D/g, '');
         }).catch(error => console.warn('Quiz result notification was not saved; check private notification rules.', error));
       }
       setText('examResult', instantResult
-        ? `दैनिक क्विज़ परिणाम: ${correct}/${exam.questions.length}. Attempted: ${attempted}.`
+        ? `दैनिक क्विज़ परिणाम: ${score}/${maxMarks} अंक · सही: ${correct} · गलत: ${incorrect} · हल किए: ${attempted}.`
         : 'आपके उत्तर जमा हो गए हैं। परिणाम Owner द्वारा जाँच और घोषित किए जाने के बाद ही दिखेगा।');
       notify('Exam submitted successfully.', 'success');
       setVisible('previousQuestionBtn', false);
