@@ -3125,8 +3125,6 @@ const selected =
               const feedback = String(card.querySelector('[data-check-feedback]')?.value || '').trim().slice(0, 1000);
               const publishedAt = serverTimestamp();
               
-              const publishedAt = serverTimestamp();
-
               const submissionRef = state.db
                 .collection(sourceCollection)
                 .doc(submissionId);
