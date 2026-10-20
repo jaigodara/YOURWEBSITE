@@ -3291,7 +3291,19 @@ const selected =
       }
     };
     document.addEventListener('visibilitychange', state.exam.visibilityHandler);
-    if (state.exam.kicked) setText('examResult', 'परीक्षा अस्थायी रूप से लॉक है। Owner से पुनः प्रवेश की अनुमति की प्रतीक्षा करें।');
+   
+    if (state.exam.kicked) {
+      setText(
+        'examResult',
+        'परीक्षा अस्थायी रूप से लॉक है। Owner से पुनः प्रवेश की अनुमति की प्रतीक्षा करें।'
+      );
+
+      setVisible('submitExamBtn', false);
+      setVisible('nextQuestionBtn', false);
+      setVisible('previousQuestionBtn', false);
+      setVisible('exitExamWorkspace', true);
+    }
+
     if (state.exam.endAt <= Date.now()) window.submitPortalExam(true);
     else notify('आपकी परीक्षा पिछली स्थिति से फिर शुरू हुई है।', 'success');
   }
