@@ -1299,7 +1299,7 @@ if (cardRect.width === 0 || cardRect.height === 0) {
   height: surface.scrollHeight,
   windowWidth: Math.max(window.innerWidth, surface.scrollWidth),
   windowHeight: Math.max(window.innerHeight, surface.scrollHeight),
- onclone: clonedDocument => {
+onclone: clonedDocument => {
   const clonedSurface =
     clonedDocument.getElementById('bishnoiAdmitCardCapture');
 
@@ -1327,14 +1327,6 @@ if (cardRect.width === 0 || cardRect.height === 0) {
     element.style.setProperty('text-shadow', 'none', 'important');
     element.style.setProperty('mix-blend-mode', 'normal', 'important');
   });
-}
-if (!canvas.width || !canvas.height) {
-  throw new Error(
-    'PDF canvas खाली है: ' +
-    canvas.width + ' × ' + canvas.height +
-    '. Card dimensions: ' +
-    surface.scrollWidth + ' × ' + surface.scrollHeight
-  );
 }
 
       const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
