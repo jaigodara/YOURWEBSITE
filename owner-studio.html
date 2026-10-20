@@ -1750,6 +1750,54 @@ if (studioSearch) {
         answerSelect.addEventListener('change', () => { question.ans = Number(answerSelect.value); persistBulkQuestionDrafts(); });
         answerLabel.appendChild(answerSelect);
         card.appendChild(answerLabel);
+
+        const marksLabel = document.createElement('label');
+        marksLabel.className = 'block text-xs font-semibold text-stone-700';
+        marksLabel.textContent = 'इस प्रश्न के अंक';
+        const marksInput = document.createElement('input');
+        marksInput.type = 'number';
+        marksInput.min = '0.01';
+        marksInput.step = 'any';
+        marksInput.inputMode = 'decimal';
+        marksInput.value = String(Number(question.marks) > 0 ? Number(question.marks) : 1);
+        marksInput.className = 'mt-1 w-full rounded-xl border border-stone-300 p-2.5 text-sm';
+        marksInput.addEventListener('input', () => {
+          question.marks = marksInput.value === '' ? '' : Number(marksInput.value);
+          persistBulkQuestionDrafts();
+        });
+        marksLabel.appendChild(marksInput);
+        card.appendChild(marksLabel);
+
+        const subjectLabel = document.createElement('label');
+        subjectLabel.className = 'block text-xs font-semibold text-stone-700';
+        subjectLabel.textContent = 'विषय / सेक्शन (वैकल्पिक)';
+        const subjectInput = document.createElement('input');
+        subjectInput.type = 'text';
+        subjectInput.maxLength = 120;
+        subjectInput.value = String(question.subject || '');
+        subjectInput.className = 'mt-1 w-full rounded-xl border border-stone-300 p-2.5 text-sm font-normal';
+        subjectInput.addEventListener('input', () => {
+          question.subject = subjectInput.value;
+          persistBulkQuestionDrafts();
+        });
+        subjectLabel.appendChild(subjectInput);
+        card.appendChild(subjectLabel);
+
+        const explanationLabel = document.createElement('label');
+        explanationLabel.className = 'block text-xs font-semibold text-stone-700';
+        explanationLabel.textContent = 'उत्तर की व्याख्या (वैकल्पिक)';
+        const explanationInput = document.createElement('textarea');
+        explanationInput.rows = 2;
+        explanationInput.maxLength = 3000;
+        explanationInput.value = String(question.explanation || '');
+        explanationInput.className = 'mt-1 w-full rounded-xl border border-stone-300 p-2.5 text-sm font-normal';
+        explanationInput.addEventListener('input', () => {
+          question.explanation = explanationInput.value;
+          persistBulkQuestionDrafts();
+        });
+        explanationLabel.appendChild(explanationInput);
+        card.appendChild(explanationLabel);
+
         host.appendChild(card);
       });
       persistBulkQuestionDrafts();
@@ -2053,6 +2101,24 @@ async function saveBulkQuestionDrafts() {
     return showToast('हर प्रश्न में पूरा पाठ, चार विकल्प और सही उत्तर होना चाहिए।');
   }
 
+  const invalidMarks = drafts.findIndex(q => {
+    const marks = Number(q.marks);
+    return !Number.isFinite(marks) || marks <= 0;
+  });
+  if (invalidMarks !== -1) {
+    showToast('प्रश्न ' + (invalidMarks + 1) + ' के अंक शून्य से बड़ी वैध संख्या होने चाहिए।');
+    return;
+  }
+
+  const duplicateDrafts = duplicateQuestionIndexes(drafts);
+  if (duplicateDrafts.length) {
+    const detail = duplicateDrafts.slice(0, 4).map(item =>
+      'प्रश्न ' + item.duplicate + ' (पहला ' + item.first + ')'
+    ).join(', ');
+    showToast('Draft में डुप्लिकेट प्रश्न-पाठ मिला: ' + detail + '। दोहराए प्रश्न सुधारें या हटाएँ।');
+    return;
+  }
+
   // Each non-quiz question needs two writes: question + answer key.
   const writesPerQuestion = target === 'quiz' ? 1 : 2;
   if (drafts.length * writesPerQuestion > 500) {
@@ -2167,6 +2233,11 @@ async function saveBulkQuestionDrafts() {
         const options = Array.isArray(d.options) ? d.options : Array.isArray(d.opts) ? d.opts : [];
         if (options.length !== 4) return showToast('इस प्रश्न में चार विकल्प नहीं हैं; पहले डेटा सुधारें।');
         document.getElementById('bulkQuestionTarget').value = target;
+        const storedSet = d.questionSetKey || d.questionSet;
+        const setSelect = document.getElementById('bulkQuestionSet');
+        if (setSelect && ['set1', 'set2', 'set3', 'set4'].includes(storedSet)) {
+          setSelect.value = storedSet;
+        }
         let storedAnswer = d.correctAnswer ?? d.answerIndex ?? d.ans;
         if (target !== 'quiz') {
           const keySnap = await db.collection('examAnswerKeys').doc(target).collection('items').doc(id).get();
@@ -2177,7 +2248,10 @@ async function saveBulkQuestionDrafts() {
           id,
           q: String(d.question || d.text || d.q || ''),
           opts: options.map(option => String(typeof option === 'object' ? (option.text || option.label || option.value || '') : option)),
-          ans: Number(storedAnswer)
+          ans: Number(storedAnswer),
+          marks: Number(d.marks) > 0 ? Number(d.marks) : 1,
+          subject: String(d.subject || ''),
+          explanation: String(d.explanation || '')
         }];
         bulkEditingQuestionId = id;
         renderBulkQuestionPreview();
