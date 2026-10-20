@@ -153,12 +153,11 @@ service cloud.firestore {
     match /roles/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
 
-      // Phone-first editor acceptance: the invitation must match the verified
-      // Firebase Auth phone number and the requested role/permissions.
+      // An editor can claim only the invitation pre-bound by the owner to the
+      // existing mobileIndex UID for the invited phone number.
       allow create: if superOwner() || (
         signedIn()
         && request.auth.uid == uid
-        && request.auth.token.keys().hasAny(['phone_number'])
         && request.resource.data.get('role', '') == 'editor'
         && request.resource.data.keys().hasOnly([
           'role', 'fullName', 'phone', 'email', 'permissions',
@@ -166,10 +165,12 @@ service cloud.firestore {
         ])
         && request.resource.data.get('invitationId', '') is string
         && request.resource.data.get('invitationId', '').matches('^phone_\\+91[6-9][0-9]{9}$')
-        && request.resource.data.get('invitationId', '') == 'phone_' + request.auth.token.phone_number
         && exists(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', '')))
         && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('status', '') == 'pending'
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phoneE164', '') == request.auth.token.phone_number
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('targetUid', '') == request.auth.uid
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phoneE164', '') == '+91' + get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
+        && exists(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')))
+        && get(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', ''))).data.get('uid', '') == request.auth.uid
         && request.resource.data.get('permissions', {}) == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('permissions', {})
         && request.resource.data.get('fullName', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('fullName', '')
         && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
@@ -179,28 +180,34 @@ service cloud.firestore {
     }
 
     match /pending_editors/{inviteId} {
-      // Owner manages invitations; recipient can read only their verified phone invite.
+      // Owners manage invites; only the UID bound to the phone index can read theirs.
       allow read: if examOwner() || (
         signedIn()
-        && request.auth.token.keys().hasAny(['phone_number'])
-        && resource.data.get('phoneE164', '') == request.auth.token.phone_number
+        && resource.data.get('targetUid', '') == request.auth.uid
+        && exists(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', '')))
+        && get(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', ''))).data.get('uid', '') == request.auth.uid
       );
 
       allow create: if examOwner()
         && request.resource.data.get('status', '') == 'pending'
         && request.resource.data.get('phoneE164', '') is string
         && request.resource.data.get('phoneE164', '').matches('^\\+91[6-9][0-9]{9}$')
-        && inviteId == 'phone_' + request.resource.data.get('phoneE164', '')
         && request.resource.data.get('phone', '') is string
         && request.resource.data.get('phone', '').matches('^[6-9][0-9]{9}$')
+        && inviteId == 'phone_' + request.resource.data.get('phoneE164', '')
+        && request.resource.data.get('phoneE164', '') == '+91' + request.resource.data.get('phone', '')
+        && request.resource.data.get('targetUid', '') is string
+        && exists(/databases/$(database)/documents/mobileIndex/$(request.resource.data.get('phone', '')))
+        && get(/databases/$(database)/documents/mobileIndex/$(request.resource.data.get('phone', ''))).data.get('uid', '') == request.resource.data.get('targetUid', '')
         && request.resource.data.get('fullName', '') is string
         && request.resource.data.get('email', '') is string
         && request.resource.data.get('permissions', {}) is map;
 
       allow update: if examOwner() || (
         signedIn()
-        && request.auth.token.keys().hasAny(['phone_number'])
-        && request.auth.token.phone_number == resource.data.get('phoneE164', '')
+        && resource.data.get('targetUid', '') == request.auth.uid
+        && exists(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', '')))
+        && get(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', ''))).data.get('uid', '') == request.auth.uid
         && resource.data.get('status', '') == 'pending'
         && request.resource.data.get('status', '') == 'claimed'
         && request.resource.data.get('claimedUid', '') == request.auth.uid
