@@ -705,3 +705,157 @@ a {
     font-size: 16px;
   }
 }
+
+
+/* CBT exam workspace: keep controls inside their cards and make palette mobile-friendly. */
+#mockHub article,
+#mainExamSection {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+#mockHub article > button,
+#mainExamSection > button,
+#enrollmentSection button[type="submit"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 48px;
+  flex: 0 0 auto;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+#mockHub article > button *,
+#mainExamSection > button *,
+#enrollmentSection button[type="submit"] * {
+  flex: 0 0 auto;
+}
+
+#portalExamWorkspace {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  scroll-margin-top: 1rem;
+}
+
+#portalExamWorkspace #examQuestionPalette button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0.45rem;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+#portalExamWorkspace .exam-palette-drawer > summary {
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#portalExamWorkspace .exam-palette-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+
+#portalExamWorkspace .exam-palette-drawer > summary::after {
+  content: "＋";
+  margin-left: auto;
+  color: #143622;
+  font-weight: 900;
+}
+
+#portalExamWorkspace .exam-palette-drawer[open] > summary::after {
+  content: "−";
+}
+
+#portalExamWorkspace .exam-palette-drawer[open] > summary .exam-palette-toggle {
+  display: inline;
+}
+
+#portalExamWorkspace #examTimer {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+#ownerStudioContent #owner-question-upload,
+#ownerStudioContent #owner-question-bank,
+#ownerStudioContent #owner-exam-checking,
+#ownerStudioContent #owner-data-exports,
+#ownerStudioContent #owner-editors {
+  scroll-margin-top: 1rem;
+}
+
+#ownerStudioContent [data-question-preview-output]:not(.hidden) {
+  border-left: 4px solid #b34a1b;
+  background: #fffdf7;
+}
+
+#ownerStudioContent [data-owner-submission-list] button,
+#ownerStudioContent [data-owner-question-bank-list] button {
+  min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+  #portalExamWorkspace .exam-palette-drawer > summary {
+    cursor: default;
+  }
+
+  #portalExamWorkspace .exam-palette-drawer > summary::after {
+    display: none;
+  }
+
+  #portalExamWorkspace .exam-palette-drawer > summary .exam-palette-toggle {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  #portalExamWorkspace .exam-palette-drawer:not([open]) {
+    padding-bottom: 0.5rem;
+  }
+
+  #portalExamWorkspace .exam-palette-drawer:not([open]) > summary {
+    margin-bottom: 0;
+  }
+
+  #portalExamWorkspace .exam-palette-drawer[open] #examQuestionPalette {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  #portalExamWorkspace .grid.grid-cols-2 > button {
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 640px) {
+  #mockHub article,
+  #mainExamSection {
+    gap: 0.85rem;
+  }
+
+  #portalExamWorkspace {
+    padding: 0.75rem !important;
+    border-radius: 1rem;
+  }
+
+  #portalExamWorkspace #examQuestion {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  #portalExamWorkspace .exam-palette-drawer > summary {
+    padding-inline: 0.5rem;
+  }
+
+  #portalExamWorkspace .exam-palette-drawer[open] #examQuestionPalette {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  #ownerStudioContent #owner-exam-checking > div:first-child {
+    align-items: stretch;
+  }
+}
