@@ -5427,6 +5427,53 @@ window.BishnoiApp.importExamQuestions = async function (
     return data.length;
   };
 
+  window.BishnoiApp.exportRowsXlsx = function(
+    rows,
+    filename = 'bishnoism-export.xlsx'
+  ) {
+    if (!window.XLSX) {
+      throw new Error('Excel library उपलब्ध नहीं है।');
+    }
+
+    const data = Array.isArray(rows) ? rows : [];
+    if (!data.length) {
+      throw new Error('Export करने के लिए कोई रिकॉर्ड नहीं है।');
+    }
+
+    const headers = [...new Set(
+      data.flatMap(row => Object.keys(row || {}))
+    )];
+
+    const values = data.map(row =>
+      headers.map(key => {
+        const value = row?.[key];
+        if (value == null) return '';
+        return typeof value === 'object'
+          ? JSON.stringify(value)
+          : value;
+      })
+    );
+
+    const worksheet = window.XLSX.utils.aoa_to_sheet([
+      headers,
+      ...values
+    ]);
+
+    const workbook = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      'Exam Records'
+    );
+
+    window.XLSX.writeFile(
+      workbook,
+      filename.endsWith('.xlsx') ? filename : filename + '.xlsx'
+    );
+
+    return data.length;
+  };
+
   // Use the same visible identity model in all student-facing exam UI.
   window.BishnoiApp.getExamIdentitySummary = function() {
     const identity = getStudentIdentity();
