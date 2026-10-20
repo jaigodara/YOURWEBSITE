@@ -463,6 +463,7 @@ try {
     return mobile.length === 10 ? mobile.slice(0, 2) + 'XXXXXX' + mobile.slice(-2) : '';
   }
 
+
 async function claimPendingEditorInvitation(user) {
   if (!user || !user.uid || !user.email || user.emailVerified !== true) {
     return null;
@@ -472,16 +473,22 @@ async function claimPendingEditorInvitation(user) {
   const roleRef = collection('roles').doc(user.uid);
 
   try {
+    // Keep an existing role unchanged.
     const existingRole = await roleRef.get();
-    if (existingRole.exists) return existingRole.data() || null;
+    if (existingRole.exists) {
+      return existingRole.data() || null;
+    }
 
+    // Find an invitation matching the verified Google email.
     const invitations = await collection('pending_editors')
       .where('email', '==', email)
       .where('status', '==', 'pending')
       .limit(1)
       .get();
 
-    if (invitations.empty) return null;
+    if (invitations.empty) {
+      return null;
+    }
 
     const inviteSnapshot = invitations.docs[0];
     const invitation = inviteSnapshot.data() || {};
@@ -498,7 +505,7 @@ async function claimPendingEditorInvitation(user) {
       role: 'editor',
       fullName: String(invitation.fullName || '').slice(0, 100),
       phone: String(invitation.phone || ''),
-      email,
+      email: email,
       permissions: {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
@@ -509,8 +516,10 @@ async function claimPendingEditorInvitation(user) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
+    // Create the editor role first.
     await roleRef.set(roleData);
 
+    // Mark the invitation as claimed.
     await inviteSnapshot.ref.update({
       status: 'claimed',
       claimedUid: user.uid,
