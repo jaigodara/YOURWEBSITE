@@ -3049,13 +3049,26 @@ await Promise.all(questionCollections.map(async questionCollection => {
 
       if (!['set1', 'set2', 'set3', 'set4'].includes(set)) return;
 
-      answerKeyByQuestionId.set(
-        questionCollection + '::' + questionDoc.id,
-        {
-          set,
-          answer: question.correctAnswer ?? question.answerIndex ?? question.ans
-        }
-      );
+     
+const answerKey = {
+  set,
+  answer: question.correctAnswer ?? question.answerIndex ?? question.ans
+};
+
+// Match the Firestore document ID.
+answerKeyByQuestionId.set(
+  questionCollection + '::' + questionDoc.id,
+  answerKey
+);
+
+// Also match the stored question ID for legacy records.
+if (question.id !== undefined && question.id !== null) {
+  answerKeyByQuestionId.set(
+    questionCollection + '::' + String(question.id),
+    answerKey
+  );
+}
+
     });
   } catch (error) {
     console.warn(
