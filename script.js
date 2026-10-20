@@ -3143,7 +3143,9 @@ await batch.commit();
   // authorization key for existing Firestore rules and backward compatibility.
   // A phone-only document-key migration must be paired with matching rules/data migration.
   function normalizeStudentPhone(value) {
-    const digits = String(value || '').replace(/\\D/g, '');
+    
+const digits = String(value || '').replace(/\D/g, '');
+
     if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
     if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
     return digits.length === 10 ? digits : '';
