@@ -4292,9 +4292,12 @@ async function addTrustedEditor() {
     return setTrustedEditorStatus('वैध 10 अंकों का भारतीय मोबाइल नंबर दर्ज करें।', true);
   }
 
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return setTrustedEditorStatus('ईमेल पता सही नहीं है।', true);
-  }
+ if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  return setTrustedEditorStatus(
+    'संपादक का वही Google ईमेल दर्ज करें जिससे वह लॉगिन करेगा।',
+    true
+  );
+}
 
   if (fullName.length < 2 || fullName.length > 100) {
     return setTrustedEditorStatus('पूरा नाम 2 से 100 अक्षरों के बीच दर्ज करें।', true);
