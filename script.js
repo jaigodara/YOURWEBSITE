@@ -2778,18 +2778,35 @@ window.renderExamVisibility = function renderExamVisibility() {
       workspace.setAttribute('role', 'region');
       workspace.setAttribute('aria-label', 'परीक्षा प्रश्न-पत्र');
       workspace.innerHTML = `
-        <div class="flex items-start justify-between gap-3 border-b border-stone-200 pb-3">
-          <div class="min-w-0">
-            <p class="text-[10px] uppercase tracking-widest font-extrabold text-emerald-800">EXAM IN PROGRESS</p>
-            <h2 id="portalExamTitle" class="font-yatra text-xl sm:text-2xl text-forest">परीक्षा</h2>
-            <p id="examQuestionNumber" class="mt-1 text-xs font-semibold text-stone-500" aria-live="polite">प्रश्न 0/0</p>
+        <div class="sticky top-0 z-20 -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 flex flex-col gap-3 rounded-t-3xl border-b border-stone-200 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-[10px] uppercase tracking-widest font-extrabold text-emerald-800">EXAM IN PROGRESS · CBT</p>
+              <h2 id="portalExamTitle" class="font-yatra text-xl sm:text-2xl text-forest">परीक्षा</h2>
+              <p id="examQuestionNumber" class="mt-1 text-xs font-semibold text-stone-500" aria-live="polite">प्रश्न 0/0</p>
+            </div>
+            <div class="shrink-0 rounded-xl bg-forest px-4 py-3 text-center text-white shadow">
+              <span class="block text-[10px] uppercase tracking-wide text-emerald-100">शेष समय</span>
+              <strong id="examTimer" class="font-mono text-xl tabular-nums">--:--</strong>
+            </div>
           </div>
-          <div class="shrink-0 rounded-xl bg-forest px-3 py-2 text-center text-white">
-            <span class="block text-[9px] uppercase tracking-wide text-emerald-100">शेष समय</span>
-            <strong id="examTimer" class="font-mono text-lg">--:--</strong>
+          <div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">विद्यार्थी</span><strong id="cbtStudentName" class="break-words text-forest">—</strong></div>
+            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">रोल नंबर</span><strong id="cbtRollNumber" class="break-words text-forest">—</strong></div>
+            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">फोन नंबर</span><strong id="cbtPhoneNumber" class="break-words text-forest">—</strong></div>
           </div>
         </div>
-        <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div class="min-w-0 space-y-4">
+            <div id="examQuestion" class="space-y-4 text-sm text-stone-800"></div>
+            <button id="markReviewBtn" type="button" class="min-h-12 w-full rounded-xl border border-amber-500 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">⚑ समीक्षा के लिए चिह्नित करें</button>
+          </div>
+          <aside class="h-fit rounded-2xl border border-stone-200 bg-stone-50 p-3" aria-label="प्रश्न पैलेट">
+            <h3 class="font-bold text-forest">प्रश्न पैलेट</h3>
+            <p class="mt-1 text-[11px] text-stone-600">हरा: उत्तर दिया · धूसर: बाकी · पीला: समीक्षा</p>
+            <div id="examQuestionPalette" class="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6 lg:grid-cols-5"></div>
+          </aside>
+        </div>
         <p id="examResult" class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-900" role="status" aria-live="polite"></p>
         <div class="grid grid-cols-2 gap-2">
           <button id="previousQuestionBtn" type="button" class="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700">← पिछला प्रश्न</button>
@@ -2806,6 +2823,16 @@ window.renderExamVisibility = function renderExamVisibility() {
       byId('previousQuestionBtn').addEventListener('click', () => window.previousExamQuestion());
       byId('nextQuestionBtn').addEventListener('click', () => window.nextExamQuestion());
       byId('submitExamBtn').addEventListener('click', () => window.submitPortalExam(false));
+      byId('markReviewBtn').addEventListener('click', () => {
+        const exam = state.exam;
+        if (!exam?.active || exam.kicked || exam.lockedAtDeadline) return;
+        const question = exam.questions[exam.index];
+        const key = String(question?.id || exam.index);
+        exam.review = exam.review && typeof exam.review === 'object' ? exam.review : {};
+        exam.review[key] = !exam.review[key];
+        persistActiveExam();
+        renderExamQuestion();
+      });
       byId('exitExamWorkspace').addEventListener('click', () => {
         setVisible('portalExamWorkspace', false);
         window.renderExamVisibility();
@@ -2862,8 +2889,46 @@ window.renderExamVisibility = function renderExamVisibility() {
       input.addEventListener('change', () => {
         exam.answers[answerKey] = Number(input.value);
         persistActiveExam();
+        renderExamQuestion();
       });
     });
+
+    const profile = state.profile || {};
+    setText('cbtStudentName', profile.fullName || profile.displayName || profile.name || state.user?.displayName || 'पंजीकृत विद्यार्थी');
+    setText('cbtRollNumber', profile.rollNumber || profile.roll || profile.admissionRollNumber || 'पंजीकरण रिकॉर्ड में उपलब्ध होने पर दिखेगा');
+    setText('cbtPhoneNumber', profile.phoneNumber || profile.phone || state.user?.phoneNumber || 'प्रोफ़ाइल में उपलब्ध होने पर दिखेगा');
+    const palette = byId('examQuestionPalette');
+    if (palette) {
+      palette.innerHTML = exam.questions.map((item, index) => {
+        const key = String(item?.id || index);
+        const answered = Object.prototype.hasOwnProperty.call(exam.answers || {}, key);
+        const marked = !!(exam.review && exam.review[key]);
+        const current = index === exam.index;
+        const stateClass = marked
+          ? 'border-amber-600 bg-amber-300 text-amber-950'
+          : answered
+            ? 'border-emerald-700 bg-emerald-700 text-white'
+            : 'border-stone-300 bg-white text-stone-700';
+        return `<button type="button" data-palette-index="${index}" aria-label="प्रश्न ${index + 1}${answered ? ', उत्तर दिया' : ', उत्तर नहीं दिया'}${marked ? ', समीक्षा के लिए चिह्नित' : ''}" aria-current="${current ? 'step' : 'false'}" class="min-h-12 rounded-lg border text-sm font-extrabold ${stateClass} ${current ? 'ring-2 ring-offset-2 ring-forest' : ''}" ${(exam.kicked || exam.lockedAtDeadline) ? 'disabled' : ''}>${index + 1}</button>`;
+      }).join('');
+      palette.querySelectorAll('[data-palette-index]').forEach(button => {
+        button.addEventListener('click', () => {
+          if (exam.kicked || exam.lockedAtDeadline) return;
+          const target = Number(button.getAttribute('data-palette-index'));
+          if (!Number.isInteger(target) || target < 0 || target >= exam.questions.length) return;
+          exam.index = target;
+          persistActiveExam();
+          renderExamQuestion();
+        });
+      });
+    }
+    const reviewButton = byId('markReviewBtn');
+    const currentKey = String(question.id || exam.index);
+    if (reviewButton) {
+      reviewButton.textContent = exam.review?.[currentKey] ? '✓ समीक्षा चिह्न हटाएँ' : '⚑ समीक्षा के लिए चिह्नित करें';
+      reviewButton.disabled = exam.kicked || exam.lockedAtDeadline;
+      reviewButton.classList.toggle('opacity-50', reviewButton.disabled);
+    }
 
     setText('examQuestionNumber', `प्रश्न ${exam.index + 1}/${exam.questions.length}`);
     const previous = byId('previousQuestionBtn');
