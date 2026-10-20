@@ -2865,20 +2865,27 @@ window.renderExamVisibility = function renderExamVisibility() {
         list.innerHTML = rows.map(row => {
           const snapshots = Array.isArray(row.questionSnapshots) ? row.questionSnapshots : [];
 
-const total = Math.max(
-  1,
-  Number(
-    row.totalMarks ??
-    row.maxMarks ??
-    row.total ??
-    row.totalQuestions ??
-    snapshots.reduce((sum, question) => {
-      const marks = Number(question.marks);
-      return sum + (Number.isFinite(marks) && marks > 0 ? marks : 1);
-    }, 0) ??
-    1
-  )
-);
+
+          const snapshotTotal = snapshots.length
+            ? snapshots.reduce((sum, question) => {
+                const marks = Number(question.marks ?? question.points ?? 1);
+                return sum + (
+                  Number.isFinite(marks) && marks > 0 ? marks : 1
+                );
+              }, 0)
+            : 0;
+
+          const configuredTotal = Number(row.totalMarks ?? row.maxMarks);
+
+          const total = Math.max(
+            1,
+            Number.isFinite(configuredTotal) && configuredTotal > 0
+              ? configuredTotal
+              : snapshotTotal > 0
+                ? snapshotTotal
+                : Number(row.total ?? row.totalQuestions ?? 1)
+          );
+
           const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
           const answers = row.answers && typeof row.answers === 'object' ? row.answers : {};
           const questionHtml = snapshots.map((q, qi) => {
