@@ -1,6 +1,8 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function signedIn() {
       return request.auth != null;
     }
@@ -16,7 +18,7 @@ service cloud.firestore {
         || request.auth.uid == 'rdP0ZXzSP9fGzmJshEVvbOfb31g2'
         || (
           exists(/databases/$(database)/documents/roles/$(request.auth.uid))
-          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role == 'owner'
+          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.get('role', '') == 'owner'
         )
       );
     }
@@ -26,7 +28,7 @@ service cloud.firestore {
         || (
           signedIn()
           && exists(/databases/$(database)/documents/roles/$(request.auth.uid))
-          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role in ['owner', 'editor']
+          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.get('role', '') in ['owner', 'editor']
         );
     }
 
@@ -34,7 +36,7 @@ service cloud.firestore {
       let rolePath = /databases/$(database)/documents/roles/$(request.auth.uid);
       return signedIn()
         && exists(rolePath)
-        && get(rolePath).data.role == 'editor'
+        && get(rolePath).data.get('role', '') == 'editor'
         && get(rolePath).data.get('permissions', {}).get(permission, false) == true;
     }
 
@@ -59,12 +61,16 @@ service cloud.firestore {
       return exists(configPath)
         && get(configPath).data.get('examPortalVisible', true) != false
         && (
-          (mode == 'quiz' && get(configPath).data.get('dailyQuizVisible', true) != false)
-          || (mode == 'mock1' && get(configPath).data.get('mockVisible', true) != false
+          (mode == 'quiz'
+            && get(configPath).data.get('dailyQuizVisible', true) != false)
+          || (mode == 'mock1'
+            && get(configPath).data.get('mockVisible', true) != false
             && get(configPath).data.get('mock1Visible', true) != false)
-          || (mode == 'mock2' && get(configPath).data.get('mockVisible', true) != false
+          || (mode == 'mock2'
+            && get(configPath).data.get('mockVisible', true) != false
             && get(configPath).data.get('mock2Visible', true) != false)
-          || (mode == 'main' && get(configPath).data.get('mainExamVisible', true) != false)
+          || (mode == 'main'
+            && get(configPath).data.get('mainExamVisible', true) != false)
         );
     }
 
@@ -82,9 +88,33 @@ service cloud.firestore {
 
     function examStarted(fieldName) {
       let configPath = /databases/$(database)/documents/examConfig/current;
-      return exists(configPath)
-        && get(configPath).data.get(fieldName, null) != null
-        && request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1));
+      return exists(configPath) && (
+        (
+          get(configPath).data.get(fieldName, null) is timestamp
+          && request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1))
+        )
+        || (
+          (
+            fieldName == 'quizStartAt'
+              && get(configPath).data.get('quizStartAtMs', null) is int
+            || fieldName == 'mock1StartAt'
+              && get(configPath).data.get('mock1StartAtMs', null) is int
+            || fieldName == 'mock2StartAt'
+              && get(configPath).data.get('mock2StartAtMs', null) is int
+            || fieldName == 'mainStartAt'
+              && get(configPath).data.get('mainStartAtMs', null) is int
+          )
+          && (
+            request.time.seconds() * 1000
+            + request.time.nanos() / 1000000
+          ) >= (
+            fieldName == 'quizStartAt' ? get(configPath).data.get('quizStartAtMs', 0) :
+            fieldName == 'mock1StartAt' ? get(configPath).data.get('mock1StartAtMs', 0) :
+            fieldName == 'mock2StartAt' ? get(configPath).data.get('mock2StartAtMs', 0) :
+            get(configPath).data.get('mainStartAtMs', 0)
+          )
+        )
+      );
     }
 
     function gmailVerifiedStudent() {
@@ -102,6 +132,7 @@ service cloud.firestore {
         && get(enrollmentPath).data.get('rollNumber', '') != ''
         && !get(enrollmentPath).data.get('rollNumber', '').matches('^BIS-.*$');
     }
+
     function sessionDeadlineReached(mode) {
       let sessionPath = /databases/$(database)/documents/examSessions/$(request.auth.uid + '_' + mode);
       return exists(sessionPath)
@@ -119,13 +150,9 @@ service cloud.firestore {
       );
     }
 
-   
-    // Roles: top-level role documents.
     match /roles/{uid} {
-      allow read: if owner()
-        || (signedIn() && request.auth.uid == uid);
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
 
-      // A verified phone user may claim only their own pending invitation.
       allow create: if superOwner() || (
         signedIn()
         && request.auth.uid == uid
@@ -136,35 +163,18 @@ service cloud.firestore {
         ])
         && request.auth.token.keys().hasAny(['phone_number'])
         && request.auth.token.phone_number.matches('^\\+91[6-9][0-9]{9}$')
-        && request.resource.data.get('invitationId', '')
-          == 'phone_' + request.auth.token.phone_number
-        && exists(
-          /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-        )
-        && get(
-          /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-        ).data.get('status', '') == 'pending'
-        && get(
-          /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-        ).data.get('phoneE164', '') == request.auth.token.phone_number
-        && request.resource.data.get('permissions', {})
-          == get(
-            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-          ).data.get('permissions', {})
-        && request.resource.data.get('fullName', '')
-          == get(
-            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-          ).data.get('fullName', '')
-        && request.resource.data.get('phone', '')
-          == get(
-            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-          ).data.get('phone', '')
+        && request.resource.data.get('invitationId', '') == 'phone_' + request.auth.token.phone_number
+        && exists(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', '')))
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('status', '') == 'pending'
+        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phoneE164', '') == request.auth.token.phone_number
+        && request.resource.data.get('permissions', {}) == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('permissions', {})
+        && request.resource.data.get('fullName', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('fullName', '')
+        && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
       );
 
       allow update, delete: if superOwner();
     }
 
-    // Pending editor invitations: this must be a top-level collection.
     match /pending_editors/{inviteId} {
       allow read: if examOwner() || (
         signedIn()
@@ -200,6 +210,7 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
+
       allow create: if signedIn()
         && request.auth.uid == uid
         && !request.resource.data.keys().hasAny(['role', 'roles', 'isOwner'])
@@ -221,87 +232,97 @@ service cloud.firestore {
             && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
           )
         );
-      allow update: if owner()
-        || (
-          signedIn()
-          && request.auth.uid == uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName', 'displayName', 'email', 'photoUrl', 'rollNumber', 'mala', 'location', 'village',
-            'phone', 'phoneVerified', 'phoneAuthVerifiedAt', 'updatedAt', 'mobile', 'gmailVerified',
-            'createdAt', 'presenceStatus', 'lastLoginAt', 'lastSeenAt', 'verificationStatus', 'authProvider'
+
+      allow update: if owner() || (
+        signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'fullName', 'displayName', 'email', 'photoUrl',
+          'rollNumber', 'mala', 'location', 'village',
+          'phone', 'phoneVerified', 'phoneAuthVerifiedAt',
+          'updatedAt', 'mobile', 'gmailVerified', 'createdAt',
+          'presenceStatus', 'lastLoginAt', 'lastSeenAt',
+          'verificationStatus', 'authProvider'
+        ])
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
+          || (
+            request.resource.data.get('mobile', '') is string
+            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
+            && getAfter(/databases/$(database)/documents/mobileIndex/$(request.resource.data.get('mobile', ''))).data.uid == request.auth.uid
+            && (
+              !resource.data.keys().hasAny(['mobile'])
+              || !existsAfter(/databases/$(database)/documents/mobileIndex/$(resource.data.get('mobile', '')))
+            )
+          )
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+          || !resource.data.keys().hasAny(['gmailVerified'])
+          || (
+            resource.data.get('gmailVerified', false) == false
+            && request.resource.data.get('gmailVerified', false) == true
+            && request.auth.token.firebase.identities['google.com'] != null
+          )
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+          || request.resource.data.get('gmailVerified', false) != true
+          || request.auth.token.firebase.identities['google.com'] != null
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
+          || (
+            request.resource.data.get('mobile', '') is string
+            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
+          )
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'phone', 'phoneVerified', 'phoneAuthVerifiedAt'
           ])
-          && (
-           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
-|| (
-  request.resource.data.get('mobile', '') is string
-  && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
-  && getAfter(
-    /databases/$(database)/documents/mobileIndex/$(request.resource.data.get('mobile', ''))
-  ).data.uid == request.auth.uid
-  && (
-    !resource.data.keys().hasAny(['mobile'])
-    || !existsAfter(
-      /databases/$(database)/documents/mobileIndex/$(resource.data.get('mobile', ''))
-    )
-  )
-)
+          || (
+            request.resource.data.get('phoneVerified', false) != true
+            && request.resource.data.get('phoneAuthVerifiedAt', null) == null
           )
-          && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
-            || !resource.data.keys().hasAny(['gmailVerified'])
-            || (
-              resource.data.get('gmailVerified', false) == false
-              && request.resource.data.get('gmailVerified', false) == true
-              && request.auth.token.firebase.identities['google.com'] != null
-            )
+          || (
+            request.resource.data.get('phoneVerified', false) == true
+            && resource.data.get('phoneVerified', false) == true
+            && request.resource.data.get('phone', '') == resource.data.get('phone', '')
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'phoneVerified', 'phoneAuthVerifiedAt'
+            ])
           )
-          && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
-            || request.resource.data.get('gmailVerified', false) != true
-            || request.auth.token.firebase.identities['google.com'] != null
+          || (
+            request.resource.data.get('phoneVerified', false) == true
+            && request.auth.token.keys().hasAny(['phone_number'])
+            && request.auth.token.phone_number == request.resource.data.get('phone', '')
+            && request.resource.data.get('phoneAuthVerifiedAt', null) is timestamp
           )
-          && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
-            || (
-              request.resource.data.get('mobile', '') is string
-              && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
-            )
-          )
-          && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phone', 'phoneVerified', 'phoneAuthVerifiedAt'])
-            || (
-              request.resource.data.get('phoneVerified', false) != true
-              && request.resource.data.get('phoneAuthVerifiedAt', null) == null
-            )
-            || (
-              request.resource.data.get('phoneVerified', false) == true
-              && resource.data.get('phoneVerified', false) == true
-              && request.resource.data.get('phone', '') == resource.data.get('phone', '')
-              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['phoneVerified', 'phoneAuthVerifiedAt'])
-            )
-            || (
-              request.resource.data.get('phoneVerified', false) == true
-              && request.auth.token.keys().hasAny(['phone_number'])
-              && request.auth.token.phone_number == request.resource.data.get('phone', '')
-              && request.resource.data.get('phoneAuthVerifiedAt', null) is timestamp
-            )
-          )
-        );
+        )
+      );
+
       allow delete: if owner();
     }
 
     match /mobileIndex/{mobile} {
-      allow read: if owner() || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      allow read: if owner() || (
+        signedIn()
+        && exists(/databases/$(database)/documents/mobileIndex/$(mobile))
+        && get(/databases/$(database)/documents/mobileIndex/$(mobile)).data.get('uid', '') == request.auth.uid
+      );
+
       allow create: if signedIn()
         && mobile.matches('^[6-9][0-9]{9}$')
         && !exists(/databases/$(database)/documents/mobileIndex/$(mobile))
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.get('uid', '') == request.auth.uid;
-      allow update: if false;
 
-allow delete: if signedIn()
-  && resource.data.get('uid', '') == request.auth.uid
-  && mobile.matches('^[6-9][0-9]{9}$');
+      allow delete: if signedIn()
+        && mobile.matches('^[6-9][0-9]{9}$')
+        && resource.data.get('uid', '') == request.auth.uid;
+
+      allow update: if false;
     }
 
     match /settings/{id} {
@@ -314,36 +335,60 @@ allow delete: if signedIn()
       allow write: if examOwner();
     }
 
-    // Student-visible question documents must contain no secret answer key.
     match /quiz/{questionId} {
-      allow read: if examOwner() || canEditQuizDrafts()
-        || (resource.data.get('published', false) == true && examEnabled('quiz') && examStarted('quizStartAt'));
-      allow create: if examOwner()
-        || (canEditQuizDrafts()
-          && request.resource.data.get('published', false) == false
-          && request.resource.data.get('status', '') == 'draft');
-      allow update: if examOwner()
-        || (canEditQuizDrafts()
-          && request.resource.data.get('published', false) == false
-          && request.resource.data.get('status', '') == 'draft');
+      allow read: if examOwner()
+        || canEditQuizDrafts()
+        || (
+          resource.data.get('published', false) == true
+          && examEnabled('quiz')
+          && examStarted('quizStartAt')
+        );
+
+      allow create: if examOwner() || (
+        canEditQuizDrafts()
+        && request.resource.data.get('published', false) == false
+        && request.resource.data.get('status', '') == 'draft'
+      );
+
+      allow update: if examOwner() || (
+        canEditQuizDrafts()
+        && request.resource.data.get('published', false) == false
+        && request.resource.data.get('status', '') == 'draft'
+      );
+
       allow delete: if examOwner();
     }
 
     match /mainExamQuestions/{questionId} {
       allow read: if canReviewExam()
-        || (resource.data.get('published', false) == true && examEnabled('main') && examStarted('mainStartAt'));
+        || (
+          resource.data.get('published', false) == true
+          && examEnabled('main')
+          && examStarted('mainStartAt')
+        );
+
       allow create, update, delete: if examOwner();
     }
 
     match /mockExam_1/{questionId} {
       allow read: if canReviewExam()
-        || (resource.data.get('published', false) == true && examEnabled('mock1') && examStarted('mock1StartAt'));
+        || (
+          resource.data.get('published', false) == true
+          && examEnabled('mock1')
+          && examStarted('mock1StartAt')
+        );
+
       allow create, update, delete: if examOwner();
     }
 
     match /mockExam_2/{questionId} {
       allow read: if canReviewExam()
-        || (resource.data.get('published', false) == true && examEnabled('mock2') && examStarted('mock2StartAt'));
+        || (
+          resource.data.get('published', false) == true
+          && examEnabled('mock2')
+          && examStarted('mock2StartAt')
+        );
+
       allow create, update, delete: if examOwner();
     }
 
@@ -359,25 +404,26 @@ allow delete: if signedIn()
 
     match /examEnrolledStudents/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
-      // Students create pending records only after Google verification.
-      allow create: if examOwner()
-        || (
-          gmailVerifiedStudent()
-          && request.auth.uid == uid
-          && request.resource.data.get('uid', '') == uid
-          && request.resource.data.get('verificationStatus', '') == 'pending'
-          && !('rollNumber' in request.resource.data)
-        );
-      // Editing enrollment details must never change approval or assigned roll.
-      allow update: if examOwner()
-        || (
-          gmailVerifiedStudent()
-          && request.auth.uid == uid
-          && request.resource.data.get('uid', '') == uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'fullName', 'name', 'phone', 'mobile', 'dateOfBirth', 'examName', 'location', 'email', 'updatedAt'
-          ])
-        );
+
+      allow create: if examOwner() || (
+        gmailVerifiedStudent()
+        && request.auth.uid == uid
+        && request.resource.data.get('uid', '') == uid
+        && request.resource.data.get('verificationStatus', '') == 'pending'
+        && !('rollNumber' in request.resource.data)
+      );
+
+      allow update: if examOwner() || (
+        gmailVerifiedStudent()
+        && request.auth.uid == uid
+        && request.resource.data.get('uid', '') == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'fullName', 'name', 'phone', 'mobile',
+          'dateOfBirth', 'examName', 'location',
+          'email', 'updatedAt'
+        ])
+      );
+
       allow delete: if examOwner();
     }
 
@@ -388,6 +434,7 @@ allow delete: if signedIn()
     match /reviews/{reviewId} {
       allow read, create, update: if canReviewExam();
       allow delete: if examOwner();
+
       match /history/{historyId} {
         allow read, create: if canReviewExam();
         allow update, delete: if examOwner();
@@ -397,40 +444,49 @@ allow delete: if signedIn()
     match /publishedResults/{resultId} {
       allow read: if examOwner()
         || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
-      allow create: if canReviewExam()
-        || (
-          signedIn()
-          && request.resource.data.get('uid', '') == request.auth.uid
-          && request.resource.data.get('mode', '') == 'quiz'
-          && request.resource.data.get('status', '') == 'published'
-          && request.resource.data.keys().hasOnly([
-            'uid', 'sourceCollection', 'sourceSubmissionId', 'mode', 'name',
-            'rollNumber', 'score', 'total', 'status', 'feedback', 'publishedAt', 'publishedBy'
-          ])
-        );
+
+      allow create: if canReviewExam() || (
+        signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') == 'quiz'
+        && request.resource.data.get('status', '') == 'published'
+        && request.resource.data.keys().hasOnly([
+          'uid', 'sourceCollection', 'sourceSubmissionId',
+          'mode', 'name', 'rollNumber', 'score', 'total',
+          'status', 'feedback', 'publishedAt', 'publishedBy'
+        ])
+      );
+
       allow update, delete: if canReviewExam();
     }
 
-    // Student answer sheets remain private to authorized reviewers.
     match /mainExamSubmissions/{attemptId} {
       allow create: if confirmedExamStudent()
         && examEnabled('main')
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'main'
         && examStarted('mainStartAt');
+
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
     }
 
     match /mockExamSubmissions/{attemptId} {
       allow create: if confirmedExamStudent()
-        && request.resource.data.get('uid', '') == request.auth.uid
         && (
-          (request.resource.data.get('mode', '') == 'mock1'
-            && examEnabled('mock1') && examStarted('mock1StartAt'))
-          || (request.resource.data.get('mode', '') == 'mock2'
-            && examEnabled('mock2') && examStarted('mock2StartAt'))
-        );
+          (
+            request.resource.data.get('mode', '') == 'mock1'
+            && examEnabled('mock1')
+            && examStarted('mock1StartAt')
+          )
+          || (
+            request.resource.data.get('mode', '') == 'mock2'
+            && examEnabled('mock2')
+            && examStarted('mock2StartAt')
+          )
+        )
+        && request.resource.data.get('uid', '') == request.auth.uid;
+
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
     }
@@ -441,36 +497,47 @@ allow delete: if signedIn()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'quiz'
         && examStarted('quizStartAt');
+
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
     }
 
     match /examSubmissions/{id} {
-      allow read: if examOwner()
-        || (signedIn() && (
+      allow read: if examOwner() || (
+        signedIn()
+        && (
           resource.data.get('uid', '') == request.auth.uid
           || resource.data.get('studentUid', '') == request.auth.uid
-        ));
-      allow create: if signedIn() && (
-        request.resource.data.get('uid', '') == request.auth.uid
-        || request.resource.data.get('studentUid', '') == request.auth.uid
+        )
       );
+
+      allow create: if signedIn()
+        && (
+          request.resource.data.get('uid', '') == request.auth.uid
+          || request.resource.data.get('studentUid', '') == request.auth.uid
+        );
+
       allow update, delete: if examOwner();
     }
 
     match /examSessions/{sessionId} {
       function isOwnSession() {
-  return signedIn() && (
-    sessionId == request.auth.uid + '_quiz' ||
-    sessionId == request.auth.uid + '_mock1' ||
-    sessionId == request.auth.uid + '_mock2' ||
-    sessionId == request.auth.uid + '_main'
-  );
-}
+        return signedIn()
+          && sessionId.matches('^' + request.auth.uid + '_(quiz|mock1|mock2|main)$');
+      }
+
+      allow read: if examOwner()
+        || isOwnSession()
+        || (
+          signedIn()
+          && resource.data.get('uid', '') == request.auth.uid
+        );
+
       allow create: if signedIn()
+        && isOwnSession()
+        && request.resource.data.get('uid', '') == request.auth.uid
         && sessionId == request.auth.uid + '_' + request.resource.data.get('mode', '')
         && examEnabled(request.resource.data.get('mode', ''))
-        && request.resource.data.get('uid', '') == request.auth.uid
         && (
           request.resource.data.get('status', '') == 'late_request'
           || (
@@ -488,15 +555,15 @@ allow delete: if signedIn()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == resource.data.get('mode', '')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
-          'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt', 'lateEntryRequested',
-          'requestedAt', 'reentryGrantConsumedAt', 'kickedAt', 'reason', 'submittedAt'
+          'uid', 'name', 'mode', 'status', 'currentQuestion',
+          'totalQuestions', 'tabSwitches', 'endAtMs', 'updatedAt',
+          'startedAt', 'lateEntryRequested', 'requestedAt',
+          'reentryGrantConsumedAt', 'kickedAt', 'reason', 'submittedAt'
         ])
         && request.resource.data.get('endAt', null) == resource.data.get('endAt', null)
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
-          || request.resource.data.get('status', '') == 'kicked'
-          || request.resource.data.get('status', '') == 'submitted'
+          || request.resource.data.get('status', '') in ['kicked', 'submitted']
           || (
             request.resource.data.get('status', '') == 'late_request'
             && request.resource.data.get('lateEntryRequested', false) == true
@@ -518,15 +585,21 @@ allow delete: if signedIn()
 
     match /admitCards/{cardId} {
       allow read: if examOwner()
-        || (signedIn() && (
-          resource.data.get('studentUid', '') == request.auth.uid
-          || resource.data.get('uid', '') == request.auth.uid
-        ));
+        || (
+          signedIn()
+          && (
+            resource.data.get('studentUid', '') == request.auth.uid
+            || resource.data.get('uid', '') == request.auth.uid
+          )
+        );
+
       allow create, update, delete: if examOwner();
     }
 
     match /userAccessLogs/{id} {
-      allow create: if signedIn() && request.resource.data.get('uid', '') == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid;
+
       allow read, update, delete: if owner();
     }
 
@@ -535,22 +608,28 @@ allow delete: if signedIn()
       allow read, update, delete: if owner();
     }
 
-    // Public announcements only. Never store private recipient notifications here.
     match /notifications/{id} {
       allow read: if true;
+
       allow create: if canSendNotifications()
         && request.resource.data.get('title', null) is string
         && request.resource.data.get('message', null) is string
         && request.resource.data.get('audience', '') == 'all'
         && request.resource.data.get('active', false) == true
         && request.resource.data.get('createdBy', '') == request.auth.uid;
+
       allow update, delete: if canSendNotifications();
     }
 
     match /userNotifications/{notificationId} {
-      allow read: if signedIn() && resource.data.get('uid', '') in ['ALL', request.auth.uid];
+      allow read: if signedIn()
+        && resource.data.get('uid', '') in ['ALL', request.auth.uid];
+
       allow create: if examOwner()
-        && request.resource.data.keys().hasOnly(['uid', 'type', 'title', 'body', 'important', 'pinnedByOwner', 'fileUrl', 'createdAt'])
+        && request.resource.data.keys().hasOnly([
+          'uid', 'type', 'title', 'body', 'important',
+          'pinnedByOwner', 'fileUrl', 'createdAt'
+        ])
         && request.resource.data.get('uid', '') is string
         && request.resource.data.get('uid', '').size() <= 128
         && request.resource.data.get('type', '') is string
@@ -558,56 +637,72 @@ allow delete: if signedIn()
         && request.resource.data.get('body', '') is string
         && request.resource.data.get('important', false) is bool
         && request.resource.data.get('pinnedByOwner', false) is bool;
+
       allow update, delete: if examOwner();
     }
 
     match /notificationReads/{markerId} {
-      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
+      allow read: if signedIn()
+        && resource.data.get('uid', '') == request.auth.uid;
+
       allow create, update: if signedIn()
-        && request.resource.data.keys().hasOnly(['uid', 'notificationId', 'read', 'readAt'])
+        && request.resource.data.keys().hasOnly([
+          'uid', 'notificationId', 'read', 'readAt'
+        ])
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('notificationId', '') is string
         && request.resource.data.get('read', false) == true;
+
       allow delete: if false;
     }
 
     match /userNotifications/{uid}/items/{notificationId} {
       allow read: if signedIn() && request.auth.uid == uid;
+
       allow create: if (
-          canSendNotifications()
-          && request.resource.data.get('recipientUid', '') == uid
-        ) || (
-          canReviewExam()
-          && request.resource.data.get('type', '') == 'exam-result'
-          && request.resource.data.get('recipientUid', '') == uid
-        ) || (
-          signedIn()
-          && request.auth.uid == uid
-          && request.resource.data.get('recipientUid', '') == uid
-          && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
-          && request.resource.data.get('active', false) == true
-        );
+        canSendNotifications()
+        && request.resource.data.get('recipientUid', '') == uid
+      ) || (
+        canReviewExam()
+        && request.resource.data.get('type', '') == 'exam-result'
+        && request.resource.data.get('recipientUid', '') == uid
+      ) || (
+        signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.get('recipientUid', '') == uid
+        && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
+        && request.resource.data.get('active', false) == true
+      );
+
       allow update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'read', 'readAt', 'isRead'
         ]);
+
       allow delete: if examOwner();
     }
 
     match /userNotificationReads/{uid}/items/{notificationId} {
-      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+      allow read, create, update, delete: if signedIn()
+        && request.auth.uid == uid;
     }
 
     match /posts/{id} {
       allow read: if true;
+
       allow create: if signedIn()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('body', null) is string
         && request.resource.data.body.size() <= 2000;
+
       allow update: if owner();
+
       allow delete: if owner()
-        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+        || (
+          signedIn()
+          && resource.data.get('uid', '') == request.auth.uid
+        );
     }
 
     match /audios/{id} {
@@ -627,9 +722,11 @@ allow delete: if signedIn()
 
     match /treePledges/{uid} {
       allow read: if true;
+
       allow create, update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.get('uid', '') == request.auth.uid;
+
       allow delete: if owner();
     }
 
@@ -656,203 +753,8 @@ allow delete: if signedIn()
       allow create, update, delete: if owner();
     }
 
-    // Deny any collection not explicitly covered above.
     match /{document=**} {
       allow read, write: if false;
-    }
-  }
-}
-          );
-      }
-
-      allow read: if examOwner() || isOwnSession();
-
-      allow create: if signedIn()
-        && sessionId == request.auth.uid + '_' + request.resource.data.get('mode', '')
-        && examEnabled(request.resource.data.get('mode', ''))
-        && request.resource.data.get('uid', '') == request.auth.uid
-        && (
-          request.resource.data.get('status', '') == 'late_request'
-          || (
-            request.resource.data.get('status', '') == 'active'
-            && validScheduledSessionEnd(
-              request.resource.data.get('mode', ''),
-              request.resource.data.get('endAt', null)
-            )
-          )
-        );
-
-      allow update: if examOwner() || (
-        isOwnSession()
-        && request.resource.data.get('uid', '') == request.auth.uid
-        && request.resource.data.get('mode', '') == resource.data.get('mode', '')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'uid', 'name', 'mode', 'status', 'currentQuestion', 'totalQuestions',
-          'tabSwitches', 'endAtMs', 'updatedAt', 'startedAt', 'lateEntryRequested',
-          'requestedAt', 'reentryGrantConsumedAt', 'kickedAt', 'reason', 'submittedAt'
-        ])
-        && request.resource.data.get('endAt', null) == resource.data.get('endAt', null)
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
-          || request.resource.data.get('status', '') == 'kicked'
-          || request.resource.data.get('status', '') == 'submitted'
-          || (
-            request.resource.data.get('status', '') == 'late_request'
-            && request.resource.data.get('lateEntryRequested', false) == true
-          )
-          || (
-            request.resource.data.get('status', '') == 'active'
-            && resource.data.get('status', '') == 'active'
-          )
-        )
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lateEntryRequested'])
-          || request.resource.data.get('lateEntryRequested', false) == true
-          || request.resource.data.get('status', '') == 'active'
-        )
-      );
-
-      allow delete: if examOwner();
-    }
-
-    match /admitCards/{cardId} {
-      allow read: if examOwner()
-        || (signedIn() && (
-          resource.data.get('studentUid', '') == request.auth.uid
-          || resource.data.get('uid', '') == request.auth.uid
-        ));
-      allow create, update, delete: if examOwner();
-    }
-
-    match /userAccessLogs/{id} {
-      allow create: if signedIn() && request.resource.data.get('uid', '') == request.auth.uid;
-      allow read, update, delete: if owner();
-    }
-
-    match /feedbacks/{id} {
-      allow create: if signedIn();
-      allow read, update, delete: if owner();
-    }
-
-    // Public announcements only. Never store private recipient notifications here.
-    match /notifications/{id} {
-      allow read: if true;
-      allow create: if canSendNotifications()
-        && request.resource.data.get('title', null) is string
-        && request.resource.data.get('message', null) is string
-        && request.resource.data.get('audience', '') == 'all'
-        && request.resource.data.get('active', false) == true
-        && request.resource.data.get('createdBy', '') == request.auth.uid;
-      allow update, delete: if canSendNotifications();
-    }
-
-    match /userNotifications/{notificationId} {
-      allow read: if signedIn() && resource.data.get('uid', '') in ['ALL', request.auth.uid];
-      allow create: if examOwner()
-        && request.resource.data.keys().hasOnly(['uid', 'type', 'title', 'body', 'important', 'pinnedByOwner', 'fileUrl', 'createdAt'])
-        && request.resource.data.get('uid', '') is string
-        && request.resource.data.get('uid', '').size() <= 128
-        && request.resource.data.get('type', '') is string
-        && request.resource.data.get('title', '') is string
-        && request.resource.data.get('body', '') is string
-        && request.resource.data.get('important', false) is bool
-        && request.resource.data.get('pinnedByOwner', false) is bool;
-      allow update, delete: if examOwner();
-    }
-
-    match /notificationReads/{markerId} {
-      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
-      allow create, update: if signedIn()
-        && request.resource.data.keys().hasOnly(['uid', 'notificationId', 'read', 'readAt'])
-        && request.resource.data.get('uid', '') == request.auth.uid
-        && request.resource.data.get('notificationId', '') is string
-        && request.resource.data.get('read', false) == true;
-      allow delete: if false;
-    }
-
-    match /userNotifications/{uid}/items/{notificationId} {
-      allow read: if signedIn() && request.auth.uid == uid;
-      allow create: if (
-          canSendNotifications()
-          && request.resource.data.get('recipientUid', '') == uid
-        ) || (
-          canReviewExam()
-          && request.resource.data.get('type', '') == 'exam-result'
-          && request.resource.data.get('recipientUid', '') == uid
-        ) || (
-          signedIn()
-          && request.auth.uid == uid
-          && request.resource.data.get('recipientUid', '') == uid
-          && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
-          && request.resource.data.get('active', false) == true
-        );
-      allow update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'read', 'readAt', 'isRead'
-        ]);
-      allow delete: if examOwner();
-    }
-
-    match /userNotificationReads/{uid}/items/{notificationId} {
-      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
-    }
-
-    match /posts/{id} {
-      allow read: if true;
-      allow create: if signedIn()
-        && request.resource.data.get('uid', '') == request.auth.uid
-        && request.resource.data.get('body', null) is string
-        && request.resource.data.body.size() <= 2000;
-      allow update: if owner();
-      allow delete: if owner()
-        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
-    }
-
-    match /audios/{id} {
-      allow read: if true;
-      allow write: if canManageMedia();
-    }
-
-    match /pdfs/{id} {
-      allow read: if true;
-      allow write: if canManageMedia();
-    }
-
-    match /shabadwani/{id} {
-      allow read: if true;
-      allow write: if canManageMedia();
-    }
-
-    match /treePledges/{uid} {
-      allow read: if true;
-      allow create, update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.get('uid', '') == request.auth.uid;
-      allow delete: if owner();
-    }
-
-    match /stats/{id} {
-      allow read: if true;
-      allow write: if owner();
-    }
-
-    match /visitorLogs/{id} {
-      allow create: if true;
-      allow read, update, delete: if owner();
-    }
-
-    match /draftQueue/{id} {
-      allow read, write: if owner();
-    }
-
-    match /scheduledTasks/{id} {
-      allow read, write: if owner();
-    }
-
-    match /historyItems/{id} {
-      allow read: if true;
-      allow create, update, delete: if owner();
     }
   }
 }
