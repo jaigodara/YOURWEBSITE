@@ -971,65 +971,104 @@ Ans: B"></textarea>
     }
 
 async function claimPendingEditorInvitation(user) {
-  if (!user || !user.uid || !user.email || user.emailVerified !== true) {
-    return null;
-  }
+  if (!user || !user.uid) return null;
 
-  const email = user.email.trim().toLowerCase();
+  // Phone number is the invitation identifier; Firebase UID remains the secure
+  // internal account key. The mobileIndex binding prevents another account
+  // from claiming an invitation by merely entering someone else's number.
+  let profilePhone = '';
+  try {
+    const profileSnap = await db.collection('users').doc(user.uid).get();
+    const profile = profileSnap.exists ? (profileSnap.data() || {}) : {};
+    const rawPhone = String(
+      user.phoneNumber || profile.verifiedPhone || profile.phone ||
+      profile.phoneNumber || profile.mobile || ''
+    ).replace(/\D/g, '');
+    profilePhone = rawPhone.length >= 10 ? rawPhone.slice(-10) : '';
+  } catch (error) {
+    console.warn('Could not read editor candidate profile:', error);
+  }
+  if (!/^[6-9]\d{9}$/.test(profilePhone)) return null;
+
+  const phoneIndex = await db.collection('mobileIndex').doc(profilePhone).get().catch(() => null);
+  if (!phoneIndex?.exists || phoneIndex.data()?.uid !== user.uid) return null;
+
+  const phoneE164 = '+91' + profilePhone;
+  const invitationId = 'phone_' + phoneE164;
+  const inviteRef = db.collection('pending_editors').doc(invitationId);
   const roleRef = db.collection('roles').doc(user.uid);
 
   try {
     const existingRole = await roleRef.get();
-    if (existingRole.exists) {
-      return existingRole.data() || null;
-    }
+    if (existingRole.exists) return existingRole.data() || null;
 
-    const invitations = await db.collection('pending_editors')
-      .where('email', '==', email)
-      .where('status', '==', 'pending')
-      .limit(1)
-      .get();
-
-    if (invitations.empty) return null;
-
-    const inviteSnapshot = invitations.docs[0];
+    const inviteSnapshot = await inviteRef.get();
+    if (!inviteSnapshot.exists) return null;
     const invitation = inviteSnapshot.data() || {};
-
     if (
-      String(invitation.email || '').trim().toLowerCase() !== email ||
+      invitation.status !== 'pending' ||
+      invitation.targetUid !== user.uid ||
+      invitation.phoneE164 !== phoneE164 ||
+      String(invitation.phone || '') !== profilePhone ||
       !invitation.permissions ||
       typeof invitation.permissions !== 'object'
-    ) {
-      return null;
-    }
+    ) return null;
+
+    const permissionLabels = [
+      invitation.permissions.media === true ? 'Media/PDF/Audio' : '',
+      invitation.permissions.quizDrafts === true ? 'Daily Quiz Drafts' : '',
+      invitation.permissions.examReview === true ? 'Exam Checking & Results' : '',
+      invitation.permissions.notifications === true ? 'Notifications' : ''
+    ].filter(Boolean);
+
+    if (!window.confirm(
+      'Bishnoism Owner Studio invitation\n\n' +
+      (invitation.fullName || 'Owner') + ' ने आपको Assistant Editor के रूप में आमंत्रित किया है।\n' +
+      'Phone: ' + profilePhone + '\n' +
+      'Permissions: ' + (permissionLabels.join(', ') || 'None') + '\n\n' +
+      'क्या आप यह Editor भूमिका स्वीकार करते हैं?'
+    )) return null;
 
     const roleData = {
       role: 'editor',
       fullName: String(invitation.fullName || '').slice(0, 100),
-      phone: String(invitation.phone || ''),
-      email,
+      phone: profilePhone,
+      email: String(invitation.email || user.email || '').trim().toLowerCase(),
       permissions: {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
         examReview: invitation.permissions.examReview === true,
         notifications: invitation.permissions.notifications === true
       },
-      invitationId: inviteSnapshot.id,
+      invitationId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    await roleRef.set(roleData);
-
-    await inviteSnapshot.ref.update({
-      status: 'claimed',
-      claimedUid: user.uid,
-      claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+    await db.runTransaction(async transaction => {
+      const freshInvite = await transaction.get(inviteRef);
+      const freshRole = await transaction.get(roleRef);
+      const fresh = freshInvite.exists ? (freshInvite.data() || {}) : {};
+      if (freshRole.exists) throw new Error('ROLE_ALREADY_EXISTS');
+      if (!freshInvite.exists || fresh.status !== 'pending' ||
+          fresh.targetUid !== user.uid || fresh.phoneE164 !== phoneE164) {
+        throw new Error('INVITATION_NOT_PENDING');
+      }
+      transaction.set(roleRef, roleData);
+      transaction.update(inviteRef, {
+        status: 'claimed',
+        claimedUid: user.uid,
+        claimedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
 
     return roleData;
   } catch (error) {
-    console.error('Editor invitation claim failed:', error);
-    throw error;
+    if (!['ROLE_ALREADY_EXISTS', 'INVITATION_NOT_PENDING'].includes(error.message)) {
+      console.error('Phone-bound editor invitation claim failed:', error);
+      showToast('Editor invitation स्वीकार नहीं हुई। Firebase rules प्रकाशित हैं या नहीं, जाँचें।');
+    }
+    return null;
   }
 }
 
@@ -4406,16 +4445,23 @@ function listenTrustedEditors() {
 
     box.replaceChildren();
 
-    const pending = snapshot.docs.filter(doc =>
-      (doc.data() || {}).status === 'pending'
-    );
+    const invitations = snapshot.docs
+      .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
+      .filter(d => ['pending', 'claimed', 'declined'].includes(d.status))
+      .sort((a, b) => {
+        const at = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const bt = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
 
+    const pendingCount = invitations.filter(d => d.status === 'pending').length;
     const heading = document.createElement('div');
     heading.className = 'font-bold text-amber-800';
-    heading.textContent = 'लंबित आमंत्रण: ' + pending.length;
+    heading.textContent = 'लंबित आमंत्रण: ' + pendingCount + ' · कुल स्थिति रिकॉर्ड: ' + invitations.length;
     box.appendChild(heading);
 
-    pending.forEach(doc => {
+    invitations.forEach(d => {
+      const doc = { id: d.id, data: () => d };
       const d = doc.data() || {};
       const row = document.createElement('div');
       row.className = 'p-2 rounded-lg bg-amber-50 border border-amber-200';
@@ -4423,7 +4469,7 @@ function listenTrustedEditors() {
         d.fullName || 'नाम नहीं',
         d.phone || '',
         d.email || '',
-        'खाता सत्यापन लंबित'
+        (d.status === 'claimed' ? 'स्वीकार किया गया' : d.status === 'declined' ? 'अस्वीकार किया गया' : 'स्वीकृति लंबित')
       ].filter(Boolean).join(' · ');
       box.appendChild(row);
     });
@@ -4441,22 +4487,16 @@ async function addTrustedEditor() {
   const phoneInput = document.getElementById('newEditorPhoneInput');
   const emailInput = document.getElementById('newEditorEmailInput');
   const nameInput = document.getElementById('newEditorFullNameInput');
-
-  const phone = (phoneInput?.value || '').replace(/\D/g, '');
-  const email = (emailInput?.value || '').trim().toLowerCase();
-  const fullName = (nameInput?.value || '').trim();
+  const phone = String(phoneInput?.value || '').replace(/\D/g, '');
+  const email = String(emailInput?.value || '').trim().toLowerCase();
+  const fullName = String(nameInput?.value || '').trim();
 
   if (!/^[6-9]\d{9}$/.test(phone)) {
     return setTrustedEditorStatus('वैध 10 अंकों का भारतीय मोबाइल नंबर दर्ज करें।', true);
   }
-
- if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-  return setTrustedEditorStatus(
-    'संपादक का वही Google ईमेल दर्ज करें जिससे वह लॉगिन करेगा।',
-    true
-  );
-}
-
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return setTrustedEditorStatus('ईमेल वैध नहीं है; या इसे खाली छोड़ दें।', true);
+  }
   if (fullName.length < 2 || fullName.length > 100) {
     return setTrustedEditorStatus('पूरा नाम 2 से 100 अक्षरों के बीच दर्ज करें।', true);
   }
@@ -4466,36 +4506,67 @@ async function addTrustedEditor() {
     return setTrustedEditorStatus('कम-से-कम एक संपादन अधिकार चुनें।', true);
   }
 
-  const inviteId = 'phone_+91' + phone;
-  const invitation = {
-    contactType: 'phone',
-    contactValue: '+91' + phone,
-    phone,
-    phoneE164: '+91' + phone,
-    email: email || '',
-    fullName,
-    permissions,
-    status: 'pending',
-    invitationId: inviteId,
-    grantedBy: auth.currentUser?.uid || null,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
+  const status = document.getElementById('trustedEditorStatus');
   try {
-    const ref = db.collection('pending_editors').doc(inviteId);
-    const existing = await ref.get();
-
-    if (existing.exists && existing.data()?.status === 'claimed') {
-      return setTrustedEditorStatus('इस आमंत्रण का उपयोग हो चुका है। पहले सक्रिय भूमिका जाँचें।', true);
+    if (status) status.textContent = 'Registered account और phone binding जाँची जा रही है…';
+    const phoneIndex = await db.collection('mobileIndex').doc(phone).get();
+    if (!phoneIndex.exists || !phoneIndex.data()?.uid) {
+      return setTrustedEditorStatus('इस नंबर का Bishnoism account पहले register/login होना चाहिए। बिना मौजूदा account के सुरक्षित invitation नहीं भेजा गया।', true);
     }
 
+    const targetUid = String(phoneIndex.data().uid);
+    const phoneE164 = '+91' + phone;
+    const inviteId = 'phone_' + phoneE164;
+    const ref = db.collection('pending_editors').doc(inviteId);
+    const existing = await ref.get();
+    if (existing.exists && existing.data()?.status === 'claimed') {
+      return setTrustedEditorStatus('यह invitation पहले स्वीकार हो चुका है। पहले सक्रिय editor role जाँचें।', true);
+    }
+    if (existing.exists && existing.data()?.status === 'pending') {
+      return setTrustedEditorStatus('इस नंबर के लिए invitation पहले से pending है। सूची Refresh करें या उपयोगकर्ता से Notification Bell खोलने को कहें।', true);
+    }
+
+    const invitation = {
+      contactType: 'phone',
+      contactValue: phoneE164,
+      phone,
+      phoneE164,
+      targetUid,
+      email,
+      fullName,
+      permissions,
+      status: 'pending',
+      invitationId: inviteId,
+      createdBy: auth.currentUser?.uid || null,
+      grantedBy: auth.currentUser?.uid || null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
     await ref.set(invitation);
+
+    let notificationSent = false;
+    try {
+      await db.collection('userNotifications').doc(targetUid).collection('items').add({
+        title: '🛡️ Assistant Editor invitation',
+        message: (fullName || 'Owner') + ' ने आपको Assistant Editor के रूप में आमंत्रित किया है। अपनी permissions देखें और नीचे दिए गए बटन से भूमिका स्वीकार करें।',
+        type: 'editor-invitation',
+        invitationId: inviteId,
+        recipientUid: targetUid,
+        audience: 'private',
+        active: true,
+        important: true,
+        createdBy: auth.currentUser?.uid || null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      notificationSent = true;
+    } catch (notificationError) {
+      console.error('Editor invite saved but notification failed:', notificationError);
+    }
 
     if (phoneInput) phoneInput.value = '';
     if (emailInput) emailInput.value = '';
     if (nameInput) nameInput.value = '';
-
     [
       'editorPermissionMedia',
       'editorPermissionQuizDrafts',
@@ -4506,7 +4577,10 @@ async function addTrustedEditor() {
       if (el) el.checked = false;
     });
 
-    setTrustedEditorStatus('आमंत्रण सहेजा गया। उसी सत्यापित Google ईमेल से लॉगिन करने पर भूमिका सक्रिय होगी।');
+    setTrustedEditorStatus(notificationSent
+      ? 'Invitation सेव हो गया। उपयोगकर्ता के main website Notification Bell पर “Editor भूमिका स्वीकार करें” बटन भेजा गया है।'
+      : 'Invitation सेव हो गया, लेकिन notification नहीं भेजा जा सका। Firestore notification rules जाँचें।',
+      !notificationSent);
   } catch (error) {
     console.error('Editor invitation save failed:', error);
     setTrustedEditorStatus('आमंत्रण नहीं सहेजा गया: ' + error.message, true);
