@@ -500,24 +500,6 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
     }
   }
 
-
-  let verifiedPhone = '';
-
-  for (const candidate of candidates) {
-    const phoneIndex = await collection('mobileIndex')
-      .doc(candidate)
-      .get()
-      .catch(error => {
-        console.error('Could not verify editor mobile:', error);
-        return null;
-      });
-
-    if (phoneIndex?.exists && phoneIndex.data()?.uid === user.uid) {
-      verifiedPhone = candidate;
-      break;
-    }
-  }
-
   if (!verifiedPhone) {
     console.warn('Editor invitation could not be matched to this account.', {
       uid: user.uid,
