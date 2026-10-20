@@ -478,15 +478,19 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
   const requestedMatch = String(requestedInvitationId || '').match(/^phone_\+91([6-9]\d{9})$/);
   const invitationPhone = requestedMatch ? requestedMatch[1] : '';
   const candidates = [...new Set([authPhone, profilePhone, invitationPhone].filter(phone => /^[6-9]\d{9}$/.test(phone)))];
-  let verifiedPhone = '';
-  for (const candidate of candidates) {
-    const phoneIndex = await collection('mobileIndex').doc(candidate).get().catch(() => null);
-    if (phoneIndex?.exists && phoneIndex.data()?.uid === user.uid) {
-      verifiedPhone = candidate;
-      break;
-    }
+   if (!verifiedPhone) {
+    console.warn('Editor invitation could not be matched to this account.', {
+      uid: user.uid,
+      hasAuthPhone: !!authPhone,
+      hasProfilePhone: !!profilePhone,
+      hasInvitationPhone: !!invitationPhone
+    });
+    notify(
+      'Invitation स्वीकार नहीं हुई: लॉगिन खाते का मोबाइल नंबर Bishnoism खाते के मोबाइल रिकॉर्ड से मेल नहीं खाता। उसी registered account से लॉगिन करें।',
+      'error'
+    );
+    return null;
   }
-  if (!verifiedPhone) return null;
   const phoneE164 = '+91' + verifiedPhone;
   const invitationId = requestedInvitationId || ('phone_' + phoneE164);
   if (invitationId !== 'phone_' + phoneE164) return null;
