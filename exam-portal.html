@@ -177,6 +177,9 @@
       font-size: 17px;
     }
 
+    .exam-meta { display:inline-flex; align-items:center; gap:6px; width:fit-content; max-width:100%; margin:8px 0 0; padding:6px 10px; border-radius:999px; background:#edf3e9; color:var(--forest); font-size:12px; font-weight:800; }
+    .exam-meta[data-state="off"] { background:#f5e9e4; color:#8f3218; }
+
     .exam p, .muted {
       color: var(--muted);
       font-size: 13px;
@@ -248,6 +251,7 @@
       <article id="mock1Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">📝</div>
         <h3>मॉक परीक्षा 1</h3>
+        <p id="mock1SetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
         <p>समयबद्ध अभ्यास परीक्षा। प्रवेश के लिए निर्धारित समय और पंजीकरण की शर्तें लागू होंगी।</p>
         <div class="card-actions">
           <button class="button" type="button" data-launch-exam="mock1">मॉक परीक्षा 1 खोलें</button>
@@ -257,6 +261,7 @@
       <article id="mock2Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🎯</div>
         <h3>मॉक परीक्षा 2</h3>
+        <p id="mock2SetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
         <p>दूसरा अभ्यास सेट। परीक्षा शुरू करने से पहले मुख्य वेबसाइट पर संबंधित विकल्प चुनें।</p>
         <div class="card-actions">
           <button class="button" type="button" data-launch-exam="mock2">मॉक परीक्षा 2 खोलें</button>
@@ -266,6 +271,7 @@
       <article id="mainExamCard" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🏆</div>
         <h3>मुख्य परीक्षा</h3>
+        <p id="mainSetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
         <p>पंजीकरण की पुष्टि, निर्धारित समय और वैध प्रवेश-पत्र/रोल नंबर की शर्तें लागू हो सकती हैं।</p>
         <div class="card-actions">
           <button class="button gold" type="button" data-launch-exam="main">मुख्य परीक्षा खोलें</button>
@@ -283,7 +289,7 @@
 
       <article id="resultsCard" class="exam hide">
         <div class="exam-icon" aria-hidden="true">📊</div>
-        <h3>परिणाम डेस्क</h3>
+        <h3>RS · परिणाम डेस्क</h3>
         <p>प्रकाशित परीक्षा परिणाम और उपलब्ध अंक-पत्र मुख्य वेबसाइट पर देखें।</p>
         <div class="card-actions">
           <button class="button" type="button" data-launch-exam="results">परिणाम देखें</button>
@@ -459,6 +465,16 @@
     setCard("mock2Card", mock2Visible);
     setCard("mainExamCard", config.mainExamVisible !== false);
     setCard("enrollmentCard", config.enrollmentVisible !== false);
+    const setLabel = value => ({ set1: "Set 1", set2: "Set 2", set3: "Set 3", set4: "Set 4" })[value] || "Set 1";
+    const updateSetBadge = (id, value, visible) => {
+      const badge = byId(id);
+      if (!badge) return;
+      badge.textContent = visible ? "उपलब्ध प्रश्न सेट: " + setLabel(value) : "यह परीक्षा अभी बंद है";
+      badge.dataset.state = visible ? "on" : "off";
+    };
+    updateSetBadge("mock1SetStatus", config.mock1QuestionSet, mock1Visible);
+    updateSetBadge("mock2SetStatus", config.mock2QuestionSet, mock2Visible);
+    updateSetBadge("mainSetStatus", config.mainQuestionSet, config.mainExamVisible !== false);
     setCard("resultsCard", config.resultsVisible !== false);
 
     const visibleCount = [
