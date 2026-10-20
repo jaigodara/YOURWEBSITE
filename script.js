@@ -2724,6 +2724,7 @@ window.renderExamVisibility = function renderExamVisibility() {
   <button type="button" data-owner-load-submissions class="min-h-12 rounded-xl bg-emerald-900 px-4 font-bold text-white">उत्तर-पत्र लोड करें</button>
   <button type="button" data-export-results-csv class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">CSV Export</button>
   <button type="button" data-export-results-xlsx class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Excel Export</button>
+  <button type="button" data-export-results-pdf class="min-h-12 rounded-xl border border-amber-500 bg-amber-50 px-4 font-bold text-amber-900">PDF Export</button>
 </div>
 
         <p data-owner-submission-status class="text-sm text-stone-600" aria-live="polite">उत्तर-पत्र देखने के लिए “उत्तर-पत्र लोड करें” दबाएँ।</p>
@@ -2751,6 +2752,18 @@ window.renderExamVisibility = function renderExamVisibility() {
         </div>
         <button type="button" data-editor-invite class="min-h-12 rounded-xl bg-emerald-900 px-5 font-bold text-white">Invite Editor</button>
         <p data-editor-invite-status class="text-sm text-stone-600" aria-live="polite"></p>
+      </section>
+
+      <section class="mt-5 space-y-3 rounded-2xl border border-amber-200 bg-white p-4 sm:p-5">
+        <div>
+          <h2 class="text-xl font-extrabold text-emerald-950">सुरक्षित डेटा डाउनलोड केंद्र</h2>
+          <p class="mt-1 text-sm text-stone-600">पंजीकृत सदस्यों और प्रकाशित परिणामों को CSV, Excel या PDF में डाउनलोड करें। संवेदनशील डेटा केवल Owner access से पढ़ा जाता है।</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-export-members="csv" class="min-h-12 rounded-xl border border-emerald-800 px-4 font-bold text-emerald-900">Members CSV</button>
+          <button type="button" data-export-members="xlsx" class="min-h-12 rounded-xl bg-emerald-900 px-4 font-bold text-white">Members Excel</button>
+          <button type="button" data-export-members="pdf" class="min-h-12 rounded-xl border border-amber-500 bg-amber-50 px-4 font-bold text-amber-900">Members PDF</button>
+        </div>
       </section>
  `;
     
@@ -3327,6 +3340,8 @@ notify('जाँच सेव हुई और परिणाम प्रक�
 
         if (format === 'xlsx') {
           window.BishnoiApp.exportRowsXlsx(rows, 'exam-results.xlsx');
+        } else if (format === 'pdf') {
+          window.BishnoiApp.exportRowsPdf(rows, 'exam-results.pdf', 'Published Exam Results');
         } else {
           window.BishnoiApp.exportRowsCsv(rows, 'exam-results.csv');
         }
@@ -3343,6 +3358,44 @@ notify('जाँच सेव हुई और परिणाम प्रक�
 
     host.querySelector('[data-export-results-xlsx]')
       ?.addEventListener('click', () => exportPublishedExamResults('xlsx'));
+    host.querySelector('[data-export-results-pdf]')
+      ?.addEventListener('click', () => exportPublishedExamResults('pdf'));
+
+    async function exportRegisteredMembers(format) {
+      if (!requireOwner()) return;
+      try {
+        const snap = await collection('examEnrolledStudents').get();
+        const rows = snap.docs.map(doc => {
+          const d = doc.data() || {};
+          return {
+            'Roll Number': d.rollNumber || d.roll || d.admissionRollNumber || '',
+            'Full Name': d.fullName || d.name || d.displayName || '',
+            "Father's Name": d.fatherName || d.fathersName || '',
+            'Phone Number': normalizeStudentPhone(d.phone || d.phoneNumber || d.mobile || d.studentPhone || ''),
+            'Email': d.email || '',
+            'Assigned Exam Set': d.questionSet || d.examSet || d.assignedExamSet || state.examConfig?.mainQuestionSet || 'set1',
+            'Exam': d.examName || d.examTitle || 'मुख्य परीक्षा',
+            'Status': d.verificationStatus || d.status || (d.verified === true ? 'verified' : 'pending')
+          };
+        });
+        if (!rows.length) {
+          notify('डाउनलोड के लिए पंजीकरण रिकॉर्ड नहीं मिले।', 'error');
+          return;
+        }
+        const fileBase = 'Bishnoism_Registered_Members';
+        if (format === 'xlsx') window.BishnoiApp.exportRowsXlsx(rows, fileBase + '.xlsx');
+        else if (format === 'pdf') window.BishnoiApp.exportRowsPdf(rows, fileBase + '.pdf', 'Registered Members');
+        else window.BishnoiApp.exportRowsCsv(rows, fileBase + '.csv');
+        notify(rows.length + ' पंजीकरण रिकॉर्ड export किए गए।', 'success');
+      } catch (error) {
+        console.error('Registered member export failed:', error);
+        notify('पंजीकरण डेटा export नहीं हुआ। Owner access और Firestore rules जाँचें।', 'error');
+      }
+    }
+
+    host.querySelectorAll('[data-export-members]').forEach(button => {
+      button.addEventListener('click', () => exportRegisteredMembers(button.dataset.exportMembers));
+    });
 
     host.querySelector('[data-owner-load-questions]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
@@ -3812,10 +3865,11 @@ const digits = String(value || '').replace(/\D/g, '');
               <strong id="examTimer" class="font-mono text-xl tabular-nums">--:--</strong>
             </div>
           </div>
-          <div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+          <div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">विद्यार्थी</span><strong id="cbtStudentName" class="break-words text-forest">—</strong></div>
             <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">रोल नंबर</span><strong id="cbtRollNumber" class="break-words text-forest">—</strong></div>
-            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">फोन नंबर</span><strong id="cbtPhoneNumber" class="break-words text-forest">—</strong></div>
+            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">सत्यापित फोन</span><strong id="cbtPhoneNumber" class="break-words text-forest">—</strong></div>
+            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">परीक्षा सेट</span><strong id="cbtQuestionSet" class="break-words text-forest">—</strong></div>
           </div>
         </div>
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -3832,7 +3886,7 @@ const digits = String(value || '').replace(/\D/g, '');
         <p id="examResult" class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-900" role="status" aria-live="polite"></p>
         <div class="grid grid-cols-2 gap-2">
           <button id="previousQuestionBtn" type="button" class="rounded-xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700">← पिछला प्रश्न</button>
-          <button id="nextQuestionBtn" type="button" class="rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white">अगला प्रश्न →</button>
+          <button id="nextQuestionBtn" type="button" class="rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white">उत्तर सेव करें और अगला →</button>
         </div>
         <button id="submitExamBtn" type="button" class="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-extrabold text-stone-950">उत्तर जमा करें</button>
         <button id="exitExamWorkspace" type="button" class="hidden w-full rounded-xl border border-stone-300 px-4 py-3 text-sm font-bold text-stone-700">परीक्षा सूची पर वापस जाएँ</button>
@@ -3945,7 +3999,9 @@ const digits = String(value || '').replace(/\D/g, '');
     const identity = getStudentIdentity();
     setText('cbtStudentName', identity.name || 'पंजीकृत विद्यार्थी');
     setText('cbtRollNumber', identity.rollNumber || 'पंजीकरण रिकॉर्ड में उपलब्ध होने पर दिखेगा');
-    setText('cbtPhoneNumber', identity.phone || 'प्रोफ़ाइल में उपलब्ध होने पर दिखेगा');
+    const verifiedPhone = normalizeStudentPhone(state.user?.phoneNumber || '');
+    setText('cbtPhoneNumber', verifiedPhone || 'Firebase verified phone उपलब्ध नहीं');
+    setText('cbtQuestionSet', String(exam.questionSet || 'set1').toUpperCase());
     renderExamQuestionPalette(exam);
 
     if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5755,10 +5811,9 @@ window.BishnoiApp.importExamQuestions = async function (
       return '"' + textValue.replace(/"/g, '""') + '"';
     };
     const csv = [headers.map(escapeCell).join(','), ...data.map(row => headers.map(key => escapeCell(row[key])).join(','))].join('\r\n');
-    const blob = const blob = new Blob(['\uFEFF', csv], {
-  type: 'text/csv;charset=utf-8;'
-});
-    , { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF', csv], {
+      type: 'text/csv;charset=utf-8;'
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url; link.download = filename; link.style.display = 'none';
@@ -5811,6 +5866,39 @@ window.BishnoiApp.importExamQuestions = async function (
       filename.endsWith('.xlsx') ? filename : filename + '.xlsx'
     );
 
+    return data.length;
+  };
+
+  // PDF export helper shared by Owner Studio reporting buttons.
+  window.BishnoiApp.exportRowsPdf = function(rows, filename = 'bishnoism-export.pdf', title = 'Bishnoism Report') {
+    const data = Array.isArray(rows) ? rows : [];
+    if (!data.length) throw new Error('PDF बनाने के लिए कोई रिकॉर्ड नहीं है।');
+    const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+    if (!JsPDF) throw new Error('PDF library उपलब्ध नहीं है।');
+    const pdf = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    if (typeof pdf.autoTable !== 'function') throw new Error('PDF table plugin उपलब्ध नहीं है।');
+    const headers = [...new Set(data.flatMap(row => Object.keys(row || {})))];
+    const body = data.map(row => headers.map(key => {
+      const value = row?.[key];
+      if (value == null) return '';
+      return typeof value === 'object' ? JSON.stringify(value) : String(value);
+    }));
+    pdf.setFontSize(14);
+    pdf.text(String(title).slice(0, 100), 36, 30);
+    pdf.autoTable({
+      head: [headers],
+      body,
+      startY: 42,
+      margin: { left: 28, right: 28 },
+      styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fontSize: 7 },
+      horizontalPageBreak: true,
+      horizontalPageBreakRepeat: 0
+    });
+    const safeFilename = String(filename || 'bishnoism-export.pdf').endsWith('.pdf')
+      ? String(filename || 'bishnoism-export.pdf')
+      : String(filename || 'bishnoism-export') + '.pdf';
+    pdf.save(safeFilename);
     return data.length;
   };
 
