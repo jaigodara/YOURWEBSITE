@@ -2931,7 +2931,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     return workspace;
   }
 
-  function renderExamQuestion(options = {}) {
+  function renderExamQuestion(renderOptions = {}) {
     const exam = state.exam;
     const question = exam.questions[exam.index];
     const workspace = ensureExamWorkspace(exam.mode);
@@ -2939,7 +2939,7 @@ window.renderExamVisibility = function renderExamVisibility() {
 
     if (!host || !question) return;
 
-    const options = Array.isArray(question.options)
+    const questionOptions = Array.isArray(question.options)
       ? question.options
       : Array.isArray(question.opts)
         ? question.opts
@@ -2951,9 +2951,9 @@ window.renderExamVisibility = function renderExamVisibility() {
     host.innerHTML = `
       <article class="space-y-4">
         <h3 class="text-base sm:text-lg font-bold leading-relaxed text-stone-900">${exam.index + 1}. ${escapeHtml(question.question || question.text || question.q || question.title || 'प्रश्न')}</h3>
-        ${options.length ? `
+        ${questionOptions.length ? `
           <div class="space-y-2">
-            ${options.map((option, index) => `
+            ${questionOptions.map((option, index) => `
               <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 hover:border-emerald-500 hover:bg-emerald-50">
                 <input class="mt-1 shrink-0 accent-emerald-800" type="radio" name="examAnswer" value="${index}" ${String(selectedAnswer) === String(index) ? 'checked' : ''} ${(exam.kicked || exam.lockedAtDeadline) ? 'disabled' : ''}>
                 <span>${escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || JSON.stringify(option)) : option)}</span>
@@ -3018,7 +3018,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (submitButton) submitButton.disabled = exam.kicked || exam.lockedAtDeadline;
     if (previous) previous.classList.toggle('opacity-40', previous.disabled);
     if (next) next.classList.toggle('opacity-40', next.disabled);
-    if (workspace && !options.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   window.startPortalExam = async function (mode = 'quiz') {
