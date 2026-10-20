@@ -3124,47 +3124,45 @@ const selected =
               const mode = button.dataset.mode;
               const feedback = String(card.querySelector('[data-check-feedback]')?.value || '').trim().slice(0, 1000);
               const publishedAt = serverTimestamp();
-              await state.db.collection(sourceCollection).doc(submissionId).set({
-                manualCheckStatus: 'published', checkedScore: score, feedback,
-                checkedAt: publishedAt, checkedBy: state.user.uid
-              }, { merge: true });
               
-const publishedAt = serverTimestamp();
+              const publishedAt = serverTimestamp();
 
-const submissionRef = state.db
-  .collection(sourceCollection)
-  .doc(submissionId);
+              const submissionRef = state.db
+                .collection(sourceCollection)
+                .doc(submissionId);
 
-const resultRef = collection('publishedResults')
-  .doc('manual_' + mode + '_' + submissionId);
+              const resultRef = collection('publishedResults')
+                .doc('manual_' + mode + '_' + submissionId);
 
-const batch = state.db.batch();
+              const batch = state.db.batch();
 
-batch.set(submissionRef, {
-  manualCheckStatus: 'published',
-  checkedScore: score,
-  feedback,
-  checkedAt: publishedAt,
-  checkedBy: state.user.uid
-}, { merge: true });
+              batch.set(submissionRef, {
+                manualCheckStatus: 'published',
+                checkedScore: score,
+                feedback,
+                checkedAt: publishedAt,
+                checkedBy: state.user.uid
+              }, { merge: true });
 
-batch.set(resultRef, {
-  uid,
-  studentPhone: button.dataset.phone || '',
-  studentIdentityKey: button.dataset.phone || ('uid:' + uid),
-  name: button.dataset.name || 'विद्यार्थी',
-  rollNumber: button.dataset.roll || null,
-  mode,
-  questionSet: button.dataset.set || 'set1',
-  score,
-  total,
-  status: 'published',
-  feedback,
-  sourceCollection,
-  sourceSubmissionId: submissionId,
-  publishedAt,
-  publishedBy: state.user.uid
-}, { merge: true });
+              batch.set(resultRef, {
+                uid,
+                studentPhone: button.dataset.phone || '',
+                studentIdentityKey: button.dataset.phone || ('uid:' + uid),
+                name: button.dataset.name || 'विद्यार्थी',
+                rollNumber: button.dataset.roll || null,
+                mode,
+                questionSet: button.dataset.set || 'set1',
+                score,
+                total,
+                status: 'published',
+                feedback,
+                sourceCollection,
+                sourceSubmissionId: submissionId,
+                publishedAt,
+                publishedBy: state.user.uid
+              }, { merge: true });
+
+              await batch.commit();
 
 await batch.commit();
 
