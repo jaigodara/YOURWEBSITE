@@ -4653,24 +4653,6 @@ window.toggleProfileMobilePassword = function (id, button) {
     return data.length;
   };
 
-  window.BishnoiApp.verifyMyResultIdentity = async function(identity = {}) {
-    if (!state.user || !state.db) throw new Error('परिणाम देखने के लिए मुख्य वेबसाइट पर लॉगिन करें।');
-    const roll = String(identity.rollNumber || '').trim().toLowerCase();
-    const name = String(identity.fullName || '').trim().replace(/\s+/g, ' ').toLowerCase();
-    const dob = String(identity.dateOfBirth || '').trim();
-    if (!roll || !name || !dob) throw new Error('रोल नंबर, पूरा नाम और जन्मतिथि तीनों भरें।');
-    const snap = await state.db.collection('publishedResults').where('uid', '==', state.user.uid).limit(100).get();
-    const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(row => row.status === 'published');
-    const match = rows.find(row => {
-      const rowRoll = String(row.rollNumber || row.roll || '').trim().toLowerCase();
-      const rowName = String(row.fullName || row.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
-      const rowDob = String(row.dateOfBirth || row.dob || '').trim();
-      return rowRoll === roll && rowName === name && rowDob === dob;
-    });
-    if (!match) throw new Error('इन विवरणों से प्रकाशित परिणाम नहीं मिला। अपने पंजीकरण विवरण जाँचें या Owner से संपर्क करें।');
-    return match;
-  };
-
   // Use the same visible identity model in all student-facing exam UI.
   window.BishnoiApp.getExamIdentitySummary = function() {
     const identity = getStudentIdentity();
