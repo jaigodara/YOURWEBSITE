@@ -2972,6 +2972,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     const attemptEndAt = lateEntryGranted ? ownerGrantedEndAt : scheduledEndAt;
 
     const collectionName = CONFIG.examCollections[mode];
+    const questionSetConfigKey = ({ quiz: 'quizQuestionSet', mock1: 'mock1QuestionSet', mock2: 'mock2QuestionSet', main: 'mainQuestionSet' })[mode];
+    const selectedQuestionSet = ['set1','set2','set3','set4'].includes(config[questionSetConfigKey]) ? config[questionSetConfigKey] : 'set1';
     if (!collectionName) {
       notify('Unknown exam type.', 'error');
       return;
@@ -2984,7 +2986,8 @@ window.renderExamVisibility = function renderExamVisibility() {
       const questions = snapshot.docs
         .filter(doc => {
           const data = doc.data() || {};
-          return data.published === true && data.status !== 'draft';
+          const docSet = ['set1','set2','set3','set4'].includes(data.questionSet || data.questionSetKey || data.set) ? (data.questionSet || data.questionSetKey || data.set) : 'set1';
+          return data.published === true && data.status !== 'draft' && docSet === selectedQuestionSet;
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -3007,6 +3010,8 @@ window.renderExamVisibility = function renderExamVisibility() {
       state.exam = {
         active: true,
         mode,
+        questionSet: selectedQuestionSet,
+        questionSetKey: collectionName,
         questions,
         index: 0,
         answers: {},
@@ -3156,6 +3161,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       answers: { ...exam.answers },
       review: { ...exam.review },
       questionSetKey: CONFIG.examCollections[exam.mode] || exam.mode,
+      questionSet: exam.questionSet || 'set1',
       questionOrder: exam.questions.map((question, index) => String(question.id || index)),
       questionSnapshots: exam.questions.map((question, index) => ({
         id: String(question.id || index),
@@ -3177,6 +3183,7 @@ window.renderExamVisibility = function renderExamVisibility() {
           sourceCollection: CONFIG.submissionCollections[exam.mode],
           sourceSubmissionId: submissionRef.id,
           mode: exam.mode,
+          questionSet: exam.questionSet || 'set1',
           name: result.name,
           rollNumber: result.rollNumber,
           score: correct,
