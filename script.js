@@ -3356,7 +3356,7 @@ window.renderExamVisibility = function renderExamVisibility() {
             : [question.optionA, question.optionB, question.optionC, question.optionD].filter(value => value !== undefined && value !== null && value !== '');
         const normalizeAnswerIndex = value => {
           if (value === undefined || value === null || value === '') return null;
-          if (typeof value === 'number' || /^\\d+$/.test(String(value).trim())) {
+          if (typeof value === 'number' || /^\d+$/.test(String(value).trim())) {
             const number = Number(value);
             return Number.isInteger(number) ? number : null;
           }
