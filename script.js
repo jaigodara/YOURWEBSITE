@@ -2616,7 +2616,25 @@ window.renderExamVisibility = function renderExamVisibility() {
     };
     const checkbox = (key, label) => `<label class="flex min-h-12 items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 text-sm"><input class="h-5 w-5 accent-emerald-800" type="checkbox" data-exam-visibility="${key}" ${c[key] !== false ? 'checked' : ''}><span>${escapeHtml(label)}</span></label>`;
     host.innerHTML = `
-      <section class="space-y-4 rounded-2xl border border-emerald-200 bg-stone-50 p-4 sm:p-5">
+      <section class="mb-4 overflow-hidden rounded-2xl border border-emerald-900 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-800 p-4 text-white shadow-md sm:p-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-amber-300">BISHNOISM • OWNER WORKSPACE</p>
+            <h2 class="mt-1 text-xl font-extrabold sm:text-2xl">परीक्षा संचालन केंद्र</h2>
+            <p class="mt-1 text-sm text-emerald-100">प्रश्न अपलोड → Answer Key जाँच → उत्तर-पत्र जाँच → परिणाम प्रकाशित</p>
+          </div>
+          <span class="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-600 bg-emerald-950/40 px-3 py-2 text-xs font-bold text-emerald-100"><span class="h-2 w-2 rounded-full bg-emerald-300"></span> Owner Session</span>
+        </div>
+        <nav class="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Owner Studio sections">
+          <button type="button" data-owner-jump="owner-exam-config" class="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">⚙️ सेटिंग</button>
+          <button type="button" data-owner-jump="owner-question-upload" class="shrink-0 rounded-xl bg-amber-300 px-3 py-2 text-xs font-extrabold text-emerald-950 hover:bg-amber-200">📥 प्रश्न अपलोड</button>
+          <button type="button" data-owner-jump="owner-question-bank" class="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">🗂️ Question Bank</button>
+          <button type="button" data-owner-jump="owner-exam-checking" class="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">📝 Exam Checking</button>
+          <button type="button" data-owner-jump="owner-data-exports" class="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">📊 Downloads</button>
+          <button type="button" data-owner-jump="owner-editors" class="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">👥 Editors</button>
+        </nav>
+      </section>
+      <section id="owner-exam-config" class="scroll-mt-4 space-y-4 rounded-2xl border border-emerald-200 bg-stone-50 p-4 sm:p-5">
         <div><h2 class="text-xl font-extrabold text-emerald-950">Owner Studio — परीक्षा नियंत्रण</h2>
         <p class="mt-1 break-words text-xs text-stone-600">Signed in as ${escapeHtml(state.user?.email || state.user?.uid || 'Owner')}</p></div>
         <div><h3 class="mb-2 font-bold text-stone-900">विद्यार्थियों को दिखने वाले अनुभाग</h3>
@@ -2640,10 +2658,13 @@ window.renderExamVisibility = function renderExamVisibility() {
         <button type="button" data-owner-refresh class="min-h-12 rounded-xl border border-stone-300 bg-white px-5 font-bold">डेटा रीफ़्रेश करें</button></div>
       </section>
 
-      <section class="mt-5 space-y-4 rounded-2xl border border-amber-200 bg-white p-4 sm:p-5">
-        <div>
-          <h2 class="text-xl font-extrabold text-emerald-950">Question Studio — प्रश्न अपलोड एवं समीक्षा</h2>
-          <p class="mt-1 text-sm text-stone-600">JSON, CSV या Excel फ़ाइल चुनें। पहले Preview में प्रश्न और Answer Key जाँचें; अपलोड किए गए प्रश्न Draft रहेंगे, जब तक आप उन्हें प्रकाशित न करें।</p>
+      <section id="owner-question-upload" class="scroll-mt-4 mt-5 space-y-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-stone-50 p-4 shadow-sm sm:p-5">
+        <div class="flex items-start gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-300 text-xl" aria-hidden="true">📥</span>
+          <div>
+            <h2 class="text-xl font-extrabold text-emerald-950">Question Studio — प्रश्न अपलोड एवं समीक्षा</h2>
+            <p class="mt-1 text-sm text-stone-600">JSON, CSV या Excel फ़ाइल चुनें। पहले Preview में प्रश्न और Answer Key जाँचें; अपलोड किए गए प्रश्न Draft रहेंगे, जब तक आप उन्हें प्रकाशित न करें।</p>
+          </div>
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
           <label class="text-sm font-semibold text-stone-700">परीक्षा संग्रह
@@ -2673,7 +2694,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         <p class="text-xs leading-relaxed text-stone-500">Required columns: question, A, B, C, D, correctAnswer. correctAnswer may be A/B/C/D or 0/1/2/3. Optional: marks, negativeMarks, explanation, id.</p>
       </section>
 
-      <section class="mt-5 space-y-3 rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5">
+      <section id="owner-question-bank" class="scroll-mt-4 mt-5 space-y-3 rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="text-xl font-extrabold text-emerald-950">Question Bank — Draft Review & Publish</h2>
           <p class="mt-1 text-sm text-stone-600">Uploaded questions are drafts. Review them and publish only after verifying the answer key.</p></div>
@@ -2683,7 +2704,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         <div data-owner-question-bank-list class="space-y-3"></div>
       </section>
 
-      <section class="mt-5 space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5">
+      <section id="owner-exam-checking" class="scroll-mt-4 mt-5 space-y-4 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-stone-50 p-4 sm:p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h2 class="text-xl font-extrabold text-emerald-950">Exam Checking Desk — जाँच एवं परिणाम</h2>
           <p class="mt-1 text-sm text-stone-600">Mock/Main उत्तर-पत्र देखें, अंक जाँचें और परिणाम प्रकाशित करें। Daily Quiz के परिणाम स्वतः प्रकाशित होते हैं।</p></div>
@@ -2698,7 +2719,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         <p data-owner-submission-status class="text-sm text-stone-600" aria-live="polite">उत्तर-पत्र देखने के लिए “उत्तर-पत्र लोड करें” दबाएँ।</p>
         <div data-owner-submission-list class="space-y-3"></div>
       </section> 
-      <section class="mt-5 space-y-4 rounded-2xl border border-emerald-200 bg-stone-50 p-4 sm:p-5">
+      <section id="owner-editors" class="scroll-mt-4 mt-5 space-y-4 rounded-2xl border border-emerald-200 bg-stone-50 p-4 sm:p-5">
         <div>
           <h2 class="text-xl font-extrabold text-emerald-950">Assistant Editor — Invite & Permissions</h2>
           <p class="mt-1 text-sm text-stone-600">10-digit phone number is required. Email is optional.</p>
@@ -2729,7 +2750,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         </div>
       </section>
 
-      <section class="mt-5 space-y-3 rounded-2xl border border-amber-200 bg-white p-4 sm:p-5">
+      <section id="owner-data-exports" class="scroll-mt-4 mt-5 space-y-3 rounded-2xl border border-amber-300 bg-white p-4 shadow-sm sm:p-5">
         <div>
           <h2 class="text-xl font-extrabold text-emerald-950">सुरक्षित डेटा डाउनलोड केंद्र</h2>
           <p class="mt-1 text-sm text-stone-600">पंजीकृत सदस्यों और प्रकाशित परिणामों को CSV, Excel या PDF में डाउनलोड करें। संवेदनशील डेटा केवल Owner access से पढ़ा जाता है।</p>
@@ -2742,6 +2763,16 @@ window.renderExamVisibility = function renderExamVisibility() {
       </section>
  `;
     
+    host.querySelectorAll('[data-owner-jump]').forEach(button => {
+      button.addEventListener('click', () => {
+        const target = host.querySelector('#' + button.dataset.ownerJump);
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('ring-2', 'ring-amber-400');
+        window.setTimeout(() => target.classList.remove('ring-2', 'ring-amber-400'), 1200);
+      });
+    });
+
     host.querySelector('[data-editor-invite]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
 
