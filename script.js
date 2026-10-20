@@ -464,39 +464,85 @@ try {
   }
 
 
-async function claimPendingEditorInvitation(user) {
-  if (!user || !user.uid || !user.email || user.emailVerified !== true) {
-    return null;
-  }
 
-  const email = String(user.email).trim().toLowerCase();
+async function claimPendingEditorInvitation(user) {
+  if (!user || !user.uid) return null;
+
+  const email = user.emailVerified === true
+    ? String(user.email || '').trim().toLowerCase()
+    : '';
+
+  const phoneDigits = user.phoneNumber
+    ? String(user.phoneNumber).replace(/\D/g, '')
+    : '';
+
+  // Phone must come from Firebase Auth, not an editable profile field.
+  const verifiedPhone = phoneDigits.length >= 10
+    ? phoneDigits.slice(-10)
+    : '';
+
   const roleRef = collection('roles').doc(user.uid);
 
   try {
-    // Keep an existing role unchanged.
     const existingRole = await roleRef.get();
-    if (existingRole.exists) {
-      return existingRole.data() || null;
+    if (existingRole.exists) return existingRole.data() || null;
+
+    let inviteSnapshot = null;
+
+    // Prefer a verified email invitation when available.
+    if (email) {
+      const byEmail = await collection('pending_editors')
+        .where('email', '==', email)
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get();
+
+      if (!byEmail.empty) {
+        inviteSnapshot = byEmail.docs[0];
+      }
     }
 
-    // Find an invitation matching the verified Google email.
-    const invitations = await collection('pending_editors')
-      .where('email', '==', email)
-      .where('status', '==', 'pending')
-      .limit(1)
-      .get();
+    // Phone-only invitations require a verified Firebase Auth phone.
+    if (!inviteSnapshot && verifiedPhone) {
+      const byPhone = await collection('pending_editors')
+        .where('phone', '==', verifiedPhone)
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get();
 
-    if (invitations.empty) {
-      return null;
+      if (!byPhone.empty) {
+        const candidate = byPhone.docs[0];
+        const data = candidate.data() || {};
+        const invitedEmail = String(data.email || '')
+          .trim().toLowerCase();
+
+        // If an email was specified, it must also match a verified email.
+        if (!invitedEmail || invitedEmail === email) {
+          inviteSnapshot = candidate;
+        }
+      }
     }
 
-    const inviteSnapshot = invitations.docs[0];
+    if (!inviteSnapshot) return null;
+
     const invitation = inviteSnapshot.data() || {};
+    const invitedEmail = String(invitation.email || '')
+      .trim().toLowerCase();
+    const invitedPhone = String(invitation.phone || '')
+      .replace(/\D/g, '');
+
+    const emailMatches = !!email && !!invitedEmail &&
+      email === invitedEmail;
+
+    const phoneMatches = !!verifiedPhone &&
+      invitedPhone.length === 10 &&
+      verifiedPhone === invitedPhone;
 
     if (
-      String(invitation.email || '').trim().toLowerCase() !== email ||
       !invitation.permissions ||
-      typeof invitation.permissions !== 'object'
+      typeof invitation.permissions !== 'object' ||
+      (!emailMatches && !phoneMatches) ||
+      (invitedEmail && !emailMatches)
     ) {
       return null;
     }
@@ -504,8 +550,8 @@ async function claimPendingEditorInvitation(user) {
     const roleData = {
       role: 'editor',
       fullName: String(invitation.fullName || '').slice(0, 100),
-      phone: String(invitation.phone || ''),
-      email: email,
+      phone: invitedPhone,
+      email: emailMatches ? email : invitedEmail,
       permissions: {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
@@ -516,22 +562,40 @@ async function claimPendingEditorInvitation(user) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    // Create the editor role first.
-    await roleRef.set(roleData);
+    // Claim only if the invitation is still pending.
+    await state.db.runTransaction(async transaction => {
+      const freshInvite = await transaction.get(inviteSnapshot.ref);
+      const freshRole = await transaction.get(roleRef);
 
-    // Mark the invitation as claimed.
-    await inviteSnapshot.ref.update({
-      status: 'claimed',
-      claimedUid: user.uid,
-      claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+      if (freshRole.exists) throw new Error('ROLE_ALREADY_EXISTS');
+
+      if (
+        !freshInvite.exists ||
+        freshInvite.data()?.status !== 'pending'
+      ) {
+        throw new Error('INVITATION_ALREADY_CLAIMED');
+      }
+
+      transaction.set(roleRef, roleData);
+      transaction.update(inviteSnapshot.ref, {
+        status: 'claimed',
+        claimedUid: user.uid,
+        claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
 
     return roleData;
   } catch (error) {
-    console.error('Editor invitation claim failed:', error);
+    if (
+      error.message !== 'ROLE_ALREADY_EXISTS' &&
+      error.message !== 'INVITATION_ALREADY_CLAIMED'
+    ) {
+      console.error('Editor invitation claim failed:', error);
+    }
     return null;
   }
 }
+
   async function loadUserProfile(user) {
     state.profile = {};
     try {
