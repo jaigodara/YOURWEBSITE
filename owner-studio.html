@@ -3656,7 +3656,7 @@ next.addEventListener('click', async () => {
       };
       try {
         let payload;
-        if (selected === 'examAnswerKeys' && (format === 'csv' || format === 'xlsx')) {
+        if (selected === 'examAnswerKeys' && (format === 'csv' || format === 'xlsx' || format === 'pdf')) {
           payload = {};
           for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
             const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
@@ -3730,9 +3730,6 @@ next.addEventListener('click', async () => {
           download('bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv');
           if (status) status.textContent = 'CSV डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
         } else if (format === 'xlsx') {
-          const rows = Array.isArray(payload) ? payload : Object.entries(payload).flatMap(([setName, items]) =>
-            (Array.isArray(items) ? items : []).map(item => ({ questionSet: setName, ...item }))
-          );
           if (!window.XLSX || !XLSX.utils || !XLSX.writeFile) throw new Error('Excel लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करके फिर प्रयास करें।');
           const safeRows = rows.map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [
             key, value && typeof value === 'object' ? JSON.stringify(value) : value
