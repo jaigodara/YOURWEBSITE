@@ -3420,12 +3420,39 @@ notify('जाँच सेव हुई और परिणाम प्रक�
             '<ul class="mt-2 space-y-1 text-sm text-stone-700">' + options.map((option, index) =>
               '<li class="' + (index === correct ? 'font-bold text-emerald-800' : '') + '">' + String.fromCharCode(65 + index) + '. ' + escapeHtml(typeof option === 'object' ? (option.text || '') : option) +
               (index === correct ? ' ✓ Answer Key' : '') + '</li>'
-            ).join('') + '</ul><p class="mt-2 text-xs text-stone-500">ID: ' + escapeHtml(row.id) + ' · Marks: ' + Number(row.marks || 1) + '</p>' +
+            ).join('') + '</ul><label class="mt-3 block text-sm font-semibold text-stone-700">सही उत्तर बदलें<select data-answer-key-edit data-question-id="' + escapeHtml(row.id) + '" class="mt-1 min-h-10 w-full rounded-lg border border-stone-300 bg-white p-2">' +
+            options.map((option, index) => '<option value="' + index + '"' + (index === correct ? ' selected' : '') + '>' + String.fromCharCode(65 + index) + ' — ' + escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || '') : option) + '</option>').join('') +
+            '</select></label><button type="button" data-save-answer-key data-question-id="' + escapeHtml(row.id) + '" class="mt-2 min-h-10 rounded-lg border border-emerald-800 px-4 font-bold text-emerald-900">Answer Key सेव करें</button>' +
+            '<p class="mt-2 text-xs text-stone-500">ID: ' + escapeHtml(row.id) + ' · Marks: ' + Number(row.marks || 1) + '</p>' +
             (row.published === true
               ? '<button type="button" data-unpublish-question data-question-id="' + escapeHtml(row.id) + '" class="mt-3 min-h-10 rounded-lg border border-amber-500 px-4 font-bold text-amber-900">Unpublish</button>'
               : '<button type="button" data-publish-question data-question-id="' + escapeHtml(row.id) + '" class="mt-3 min-h-10 rounded-lg bg-emerald-900 px-4 font-bold text-white">Answer Key सही है — Publish</button>') +
             '</article>';
         }).join('');
+        list.querySelectorAll('[data-save-answer-key]').forEach(button => {
+          button.addEventListener('click', async () => {
+            if (!requireOwner()) return;
+            const id = button.dataset.questionId;
+            const select = [...list.querySelectorAll('[data-answer-key-edit]')].find(el => el.dataset.questionId === id);
+            const answerIndex = Number(select?.value);
+            if (!select || !Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= select.options.length) {
+              notify('Answer Key के लिए valid विकल्प चुनें।', 'error'); return;
+            }
+            button.disabled = true;
+            try {
+              await collection(target).doc(id).set({
+                correctAnswer: answerIndex, answerIndex, published: false, status: 'draft',
+                publishedBy: null, publishedAt: null, updatedAt: serverTimestamp(), updatedBy: state.user.uid
+              }, { merge: true });
+              notify('Answer Key सेव हुआ। सुरक्षा के लिए प्रश्न Draft में रखा गया; जाँचकर फिर publish करें।', 'success');
+              host.querySelector('[data-owner-load-questions]')?.click();
+            } catch (error) {
+              console.error('Answer key update failed:', error);
+              notify('Answer Key सेव नहीं हुआ। Firestore rules जाँचें।', 'error');
+              button.disabled = false;
+            }
+          });
+        });
         list.querySelectorAll('[data-publish-question], [data-unpublish-question]').forEach(button => {
           button.addEventListener('click', async () => {
             if (!requireOwner()) return;
@@ -3529,8 +3556,7 @@ const digits = String(value || '').replace(/\D/g, '');
     const profile = state.profile || {};
     const user = state.user || {};
     const phone = normalizeStudentPhone(
-      profile.phone || profile.phoneNumber || profile.mobile ||
-      user.phoneNumber || user.phone || ''
+      user.phoneNumber || profile.verifiedPhone || profile.phone || profile.phoneNumber || profile.mobile || user.phone || ''
     );
     const name = String(profile.fullName || profile.displayName || profile.name || user.displayName || '').trim();
     const rollNumber = String(profile.rollNumber || profile.roll || profile.admissionRollNumber || '').trim();
@@ -5583,28 +5609,33 @@ window.toggleProfileMobilePassword = function (id, button) {
   }
 
   function parseQuestionCsv(textValue) {
-    const lines = String(textValue || '')
-      .replace(/^\uFEFF/, '')
-      .split(/\r?\n/)
-      .filter(line => line.trim());
-
-    if (!lines.length) return [];
-    const parseLine = line => {
-      const out = []; let current = ''; let quoted = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"' && line[i + 1] === '"' && quoted) { current += '"'; i++; }
-        else if (ch === '"') quoted = !quoted;
-        else if (ch === ',' && !quoted) { out.push(current.trim()); current = ''; }
-        else current += ch;
-      }
-      out.push(current.trim());
-      return out;
-    };
-    const headers = parseLine(lines.shift()).map(x => x.trim());
-    return lines.map(line => {
-      const cells = parseLine(line); const row = {};
-      headers.forEach((header, index) => { row[header] = cells[index] ?? ''; });
+    // Supports escaped quotes, commas and quoted multiline fields.
+    const source = String(textValue || '').replace(/^\uFEFF/, '');
+    const records = [];
+    let record = [], field = '', quoted = false;
+    for (let i = 0; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === '"') {
+        if (quoted && source[i + 1] === '"') { field += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === ',' && !quoted) {
+        record.push(field.trim()); field = '';
+      } else if ((ch === '\n' || ch === '\r') && !quoted) {
+        if (ch === '\r' && source[i + 1] === '\n') i++;
+        record.push(field.trim()); field = '';
+        if (record.some(cell => cell !== '')) records.push(record);
+        record = [];
+      } else field += ch;
+    }
+    if (quoted) throw new Error('CSV में quote बंद नहीं हुआ है। फ़ाइल की quotes जाँचें।');
+    record.push(field.trim());
+    if (record.some(cell => cell !== '')) records.push(record);
+    if (!records.length) return [];
+    const headers = records.shift().map(value => value.trim());
+    if (!headers.some(Boolean)) throw new Error('CSV header row खाली है।');
+    return records.map(cells => {
+      const row = {};
+      headers.forEach((header, index) => { if (header) row[header] = cells[index] ?? ''; });
       return row;
     });
   }
@@ -5613,6 +5644,20 @@ window.toggleProfileMobilePassword = function (id, button) {
     const setName = VALID_QUESTION_SETS.has(String(questionSet)) ? String(questionSet) : 'set1';
     const list = Array.isArray(rows) ? rows : [];
     const normalized = list.map((row, index) => normalizeImportedQuestion(row, index, setName));
+    const seenText = new Map();
+    normalized.forEach((entry, index) => {
+      const key = String(entry.value.question || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+      if (!key) return;
+      if (seenText.has(key)) {
+        const firstIndex = seenText.get(key);
+        entry.valid = false;
+        entry.errors.push('Duplicate question text (पहली बार Row ' + (firstIndex + 1) + ' पर)');
+        normalized[firstIndex].valid = false;
+        if (!normalized[firstIndex].errors.some(error => error.startsWith('Duplicate question text'))) {
+          normalized[firstIndex].errors.push('Duplicate question text (दोबारा Row ' + (index + 1) + ' पर)');
+        }
+      } else seenText.set(key, index);
+    });
     return {
       total: normalized.length,
       valid: normalized.filter(row => row.valid).length,
@@ -5876,7 +5921,6 @@ window.BishnoiApp.importExamQuestions = async function (
     const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
     if (!JsPDF) throw new Error('PDF library उपलब्ध नहीं है।');
     const pdf = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    if (typeof pdf.autoTable !== 'function') throw new Error('PDF table plugin उपलब्ध नहीं है।');
     const headers = [...new Set(data.flatMap(row => Object.keys(row || {})))];
     const body = data.map(row => headers.map(key => {
       const value = row?.[key];
@@ -5885,16 +5929,35 @@ window.BishnoiApp.importExamQuestions = async function (
     }));
     pdf.setFontSize(14);
     pdf.text(String(title).slice(0, 100), 36, 30);
-    pdf.autoTable({
-      head: [headers],
-      body,
-      startY: 42,
-      margin: { left: 28, right: 28 },
-      styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
-      headStyles: { fontSize: 7 },
-      horizontalPageBreak: true,
-      horizontalPageBreakRepeat: 0
-    });
+    if (typeof pdf.autoTable === 'function') {
+      pdf.autoTable({ head: [headers], body, startY: 42, margin: { left: 28, right: 28 },
+        styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' }, headStyles: { fontSize: 7 },
+        horizontalPageBreak: true, horizontalPageBreakRepeat: 0 });
+    } else {
+      // Fallback for deployments that load jsPDF but not jsPDF-AutoTable.
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 28, usableWidth = pageWidth - margin * 2;
+      const maxCols = Math.max(1, Math.floor(usableWidth / 110));
+      const chunks = [];
+      for (let i = 0; i < headers.length; i += maxCols) chunks.push(headers.slice(i, i + maxCols));
+      chunks.forEach((columnHeaders, chunkIndex) => {
+        if (chunkIndex) pdf.addPage();
+        let y = 48;
+        pdf.setFontSize(8);
+        pdf.text(String(title).slice(0, 100) + (chunks.length > 1 ? ' (' + (chunkIndex + 1) + '/' + chunks.length + ')' : ''), margin, 30);
+        const start = chunkIndex * maxCols;
+        body.forEach((row, rowIndex) => {
+          const line = (rowIndex + 1) + '. ' + columnHeaders.map((h, i) =>
+            String(h).slice(0, 24) + ': ' + String(row[start + i] ?? '').replace(/\s+/g, ' ').slice(0, 70)
+          ).join(' | ');
+          const wrapped = pdf.splitTextToSize(line, usableWidth);
+          if (y + wrapped.length * 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
+          pdf.text(wrapped, margin, y);
+          y += wrapped.length * 10 + 4;
+        });
+      });
+    }
     const safeFilename = String(filename || 'bishnoism-export.pdf').endsWith('.pdf')
       ? String(filename || 'bishnoism-export.pdf')
       : String(filename || 'bishnoism-export') + '.pdf';
