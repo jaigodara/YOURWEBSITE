@@ -1186,9 +1186,12 @@ async function claimPendingEditorInvitation(user) {
       notify('प्रवेश-पत्र PDF तैयार हो रही है…', 'info');
 
       surface = document.createElement('div');
-      surface.style.cssText =
-        'position:fixed;left:-10000px;top:0;width:794px;padding:30px;background:#fffdf7;color:#143622;font-family:Arial,sans-serif;box-sizing:border-box;';
-
+     surface.id = 'bishnoiAdmitCardCapture';
+surface.style.cssText =
+  'position:absolute;left:0;top:0;width:794px;padding:30px;' +
+  'background:#fffdf7;color:#143622;font-family:Arial,sans-serif;' +
+  'box-sizing:border-box;opacity:0;pointer-events:none;z-index:-1;';
+      
       const cfg = record.admitCardSettings || state.examConfig || {};
       const esc = escapeHtml;
 
@@ -1260,15 +1263,36 @@ surface.innerHTML =
       if (document.fonts?.ready) await document.fonts.ready;
 
       const canvas = await window.html2canvas(surface, {
-        scale: 2,
-        backgroundColor: '#fffdf7',
-        useCORS: true,
-        logging: false
-      });
+  scale: 2,
+  backgroundColor: '#fffdf7',
+  useCORS: true,
+  logging: false,
+  width: surface.scrollWidth,
+  height: surface.scrollHeight,
+  windowWidth: Math.max(window.innerWidth, surface.scrollWidth),
+  windowHeight: Math.max(window.innerHeight, surface.scrollHeight),
+  onclone: clonedDocument => {
+    const clonedSurface =
+      clonedDocument.getElementById('bishnoiAdmitCardCapture');
 
-      if (!canvas.width || !canvas.height) {
-        throw new Error('PDF canvas खाली है।');
-      }
+    if (clonedSurface) {
+      clonedSurface.style.setProperty('position', 'absolute');
+      clonedSurface.style.setProperty('left', '0', 'important');
+      clonedSurface.style.setProperty('top', '0', 'important');
+      clonedSurface.style.setProperty('opacity', '1', 'important');
+      clonedSurface.style.setProperty('z-index', 'auto', 'important');
+    }
+  }
+});
+
+if (!canvas.width || !canvas.height) {
+  throw new Error(
+    'PDF canvas खाली है: ' +
+    canvas.width + ' × ' + canvas.height +
+    '. Card dimensions: ' +
+    surface.scrollWidth + ' × ' + surface.scrollHeight
+  );
+}
 
       const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
       const pdf = new JsPDF({
