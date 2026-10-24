@@ -868,3 +868,10 @@ button, [role="button"], select { touch-action: manipulation; }
 input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
 .password-visibility-toggle { min-height: 44px; margin-top: 4px; padding: 8px 12px; border: 1px solid #d6d3d1; border-radius: 10px; color: #143622; background: #fffdf7; font-size: 12px; font-weight: 700; }
 @media (max-width: 640px) { .bnav-mobile button, .bnav-mobile a { min-height: 48px; } .bnav-mobile { padding-bottom: env(safe-area-inset-bottom, 0px); } input, select, textarea { scroll-margin-bottom: 180px; } }
+
+.profile-accordion { border: 1px solid #e7e5e4; border-radius: 14px; background: #fffdf7; overflow: hidden; }
+.profile-accordion + .profile-accordion { margin-top: 8px; }
+.profile-accordion > summary { min-height: 48px; padding: 14px; color: #143622; font-weight: 800; cursor: pointer; background: #faf6ee; }
+.profile-accordion[open] > summary { border-bottom: 1px solid #e7e5e4; }
+.profile-accordion > :not(summary) { margin: 12px; }
+.profile-accordion-link { display: block; width: calc(100% - 24px); min-height: 48px; margin: 8px 12px; padding: 12px; border-radius: 10px; background: #143622; color: white; text-align: center; font-weight: 800; }
