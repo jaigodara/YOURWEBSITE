@@ -167,8 +167,13 @@
     try {
       if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
       const snapshot = await firebase.firestore().collection('platform_media')
-        .where('active', '==', true).orderBy('createdAt', 'desc').limit(30).get();
-      renderMediaFeed(container, snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        .where('active', '==', true).limit(30).get();
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      items.sort((a, b) => {
+        const toMs = value => value && typeof value.toMillis === 'function' ? value.toMillis() : 0;
+        return toMs(b.createdAt) - toMs(a.createdAt);
+      });
+      renderMediaFeed(container, items);
     } catch (error) {
       console.warn('[Bishnoism media] Feed unavailable:', error);
       container.replaceChildren(node('p', { className: 'bishnoi-media-empty' }, 'मीडिया सूची लोड नहीं हुई। कृपया कुछ देर बाद पुनः प्रयास करें।'));
@@ -180,7 +185,7 @@
     const titleInput = document.getElementById('mediaLinkTitle');
     const urlInput = document.getElementById('mediaLinkUrl');
     const typeInput = document.getElementById('mediaLinkType');
-    const title = titleInput ? titleInput.value.trim() : '';
+    let title = titleInput ? titleInput.value.trim() : '';
     const rawUrl = urlInput ? urlInput.value.trim() : '';
     const type = typeInput ? typeInput.value : 'youtube';
     const setStatus = message => { if (status) status.textContent = message; };
@@ -188,10 +193,17 @@
       if (!window.firebase || !firebase.apps || !firebase.apps.length) throw new Error('Firebase अभी तैयार नहीं है।');
       const user = firebase.auth().currentUser;
       if (!user) throw new Error('पहले Owner Studio में सत्यापित खाते से लॉगिन करें।');
-      if (!title || !rawUrl) throw new Error('शीर्षक और लिंक दोनों भरें।');
+      if (!rawUrl) throw new Error('लिंक भरें।');
       const videoId = type === 'youtube' ? extractYouTubeId(rawUrl) : '';
       const driveId = type === 'pdf' ? extractDriveId(rawUrl) : '';
       if (type === 'youtube' && !videoId) throw new Error('YouTube watch, Shorts या youtu.be लिंक मान्य नहीं है।');
+      if (!title && type === 'youtube') {
+        try {
+          const response = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + videoId));
+          if (response.ok) { const metadata = await response.json(); title = String(metadata.title || '').trim(); }
+        } catch (_) {}
+      }
+      if (!title) title = type === 'pdf' ? 'Google Drive साहित्य' : type === 'audio' ? 'भजन / ऑडियो' : 'YouTube वीडियो';
       if (type === 'pdf' && !driveId) throw new Error('Google Drive file/document लिंक मान्य नहीं है।');
       if (type === 'audio' && !/^https:\/\//i.test(rawUrl)) throw new Error('ऑडियो लिंक HTTPS होना चाहिए।');
       const db = firebase.firestore();
@@ -229,6 +241,14 @@
 
   function boot() {
     if (document.getElementById('platformMediaFeed')) loadMediaFeed();
+    document.addEventListener('click', event => {
+      const link = event.target.closest('#pdfGrid a, #pdfLibrary a, #literatureFiles a');
+      if (!link || !link.href || !window.BishnoiMedia) return;
+      event.preventDefault();
+      const card = link.closest('article');
+      const heading = card && card.querySelector('strong, h3, h4');
+      openMedia({ type: 'pdf', title: heading ? heading.textContent.trim() : 'साहित्य PDF', url: link.href });
+    });
     if (document.getElementById('bishnoiMediaStyles')) return;
     const style = node('style', { id: 'bishnoiMediaStyles' });
     style.textContent = [
