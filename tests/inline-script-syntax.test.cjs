@@ -23,6 +23,11 @@ test('Owner Studio and main-page inline JavaScript remain syntactically valid', 
         file + ' inline script ' + (index + 1) + ' must parse');
     });
   }
-  assert.doesNotThrow(() => new vm.Script(read('script.js'), { filename: 'script.js' }));
-  assert.doesNotThrow(() => new vm.Script(read('mediaEngine.js'), { filename: 'mediaEngine.js' }));
+  for (const file of ['script.js', 'mediaEngine.js', 'languageToggle.js']) {
+    assert.doesNotThrow(() => new vm.Script(read(file), { filename: file }));
+  }
+  const owner = read('owner-studio.html');
+  for (const route of ['dashboard', 'questions', 'checking', 'admit', 'notifications', 'settings', 'exports']) {
+    assert.ok(owner.includes('data-studio-page="' + route + '"'), 'Owner Studio must expose the ' + route + ' route');
+  }
 });
