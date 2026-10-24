@@ -186,15 +186,16 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
+        <button type="button" data-language-toggle class="min-h-10 rounded-xl border border-stone-300 bg-white px-2.5 text-[11px] font-extrabold text-forest" aria-label="Switch interface language">हिं / ENG</button>
         <a href="owner-studio.html" id="ownerStudioPortalBtn" class="hidden px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
-          <span>🛡️ ओनर स्टूडियो</span>
+          <span data-lang-key="owner-studio">🛡️ ओनर स्टूडियो</span>
         </a>
         <button id="notificationBellButton" type="button" onclick="window.toggleNotificationPanel()" class="hidden relative rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-forest transition" aria-label="सूचनाएँ खोलें" title="सूचनाएँ">
           <span id="notificationBellGlyph" class="inline-block text-lg">🔔</span>
           <span id="notificationUnreadCount" class="hidden absolute -right-1 -top-1 min-w-4 h-4 rounded-full bg-red-600 px-1 text-[9px] font-extrabold leading-4 text-white">0</span>
         </button>
         <div id="authActionsContainer">
-          <button id="authLoginButton" type="button" onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
+          <button id="authLoginButton" type="button" onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm" data-lang-key="login">
             लॉगिन करें
           </button>
         </div>
@@ -207,27 +208,27 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="max-w-xl mx-auto grid grid-cols-5 gap-1.5 text-center">
       <button onclick="window.switchTab('home')" id="bnav-home" class="bnav-active flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] text-stone-600 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">🏡</span>
-        <span class="bnav-label">मुखपृष्ठ</span>
+        <span class="bnav-label" data-lang-key="nav-home">मुखपृष्ठ</span>
       </button>
 
       <button onclick="window.switchTab('library')" id="bnav-library" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">📚</span>
-        <span class="bnav-label">साहित्य</span>
+        <span class="bnav-label" data-lang-key="nav-library">साहित्य</span>
       </button>
 
       <button onclick="window.switchTab('quiz')" id="bnav-quiz" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">🏆</span>
-        <span class="bnav-label">परीक्षा</span>
+        <span class="bnav-label" data-lang-key="nav-exam">परीक्षा</span>
       </button>
 
       <button onclick="window.switchTab('community')" id="bnav-community" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">💬</span>
-        <span class="bnav-label">संवाद</span>
+        <span class="bnav-label" data-lang-key="nav-community">संवाद</span>
       </button>
 
       <button onclick="window.BishnoiApp.openProfileOrAuth()" id="bnav-profile" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">👤</span>
-       <span id="bnavProfileLabel" class="bnav-label">प्रोफ़ाइल</span>
+       <span id="bnavProfileLabel" class="bnav-label" data-lang-key="nav-profile">प्रोफ़ाइल</span>
       </button>
     </div>
   </nav>
@@ -922,6 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- APPLICATION SCRIPT -->
 <script src="script.js?v=20261020-2"></script>
 <script src="/mediaEngine.js"></script>
+<script src="/languageToggle.js"></script>
 <script>
   (() => {
     const banner = document.getElementById('offlineIndicator');
