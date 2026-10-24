@@ -6205,8 +6205,11 @@ window.BishnoiApp.importExamQuestions = async function (
   function installPasswordVisibilityControls() {
     document.querySelectorAll('input[type="password"]').forEach(field => {
       if (!field.id) field.id = 'password-field-' + Math.random().toString(36).slice(2, 9);
-      const hasToggle = Array.from(document.querySelectorAll('button[aria-controls]'))
-        .some(button => button.getAttribute('aria-controls') === field.id);
+      const hasToggle = Array.from(document.querySelectorAll('button')).some(button =>
+        button.getAttribute('aria-controls') === field.id ||
+        /toggleAuthPassword|toggleProfileMobilePassword/.test(button.getAttribute('onclick') || '') &&
+        (button.getAttribute('onclick') || '').includes(field.id)
+      );
       if (hasToggle) return;
       const button = document.createElement('button');
       button.type = 'button';
