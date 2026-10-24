@@ -1380,6 +1380,132 @@ if (environmentEl) {
       }
     }
 
+/* FIX: Make every Owner Studio menu button clickable. */
+(function bindOwnerStudioNavigation() {
+  const navButtons = document.querySelectorAll('[data-studio-page]');
+  if (!navButtons.length) return;
+
+  const routePanels = [
+    'ownerDailyWinnersPanel',
+    'ownerQuestionBankPanel',
+    'ownerExamSessionMonitorPanel',
+    'manualExamReviewSection',
+    'ownerProctoringPanel',
+    'ownerExamVisibilitySettingsPanel',
+    'ownerRegistrationReviewPanel',
+    'ownerAdmitCardSettingsPanel',
+    'ownerNotificationCard',
+    'ownerMaintenanceSettingsPanel',
+    'ownerTrustedEditorsPanel',
+    'ownerExportPanel'
+  ];
+
+  const routes = {
+    dashboard: {
+      pane: 'pane_overview',
+      panels: ['ownerDailyWinnersPanel']
+    },
+    questions: {
+      pane: 'pane_quiz',
+      panels: ['ownerQuestionBankPanel']
+    },
+    checking: {
+      pane: 'pane_exam',
+      panels: [
+        'ownerExamSessionMonitorPanel',
+        'manualExamReviewSection'
+      ]
+    },
+    admit: {
+      pane: 'pane_overview',
+      panels: ['ownerAdmitCardSettingsPanel']
+    },
+    notifications: {
+      pane: 'pane_system',
+      panels: ['ownerNotificationCard']
+    },
+    settings: {
+      pane: 'pane_overview',
+      panels: [
+        'ownerExamVisibilitySettingsPanel',
+        'ownerMaintenanceSettingsPanel',
+        'ownerTrustedEditorsPanel',
+        'ownerExportPanel'
+      ]
+    },
+    media: {
+      pane: 'pane_media',
+      panels: []
+    }
+  };
+
+  navButtons.forEach(button => {
+    if (button.dataset.navigationBound === 'true') return;
+    button.dataset.navigationBound = 'true';
+
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const page = button.dataset.studioPage;
+      const route = routes[page];
+      if (!route) {
+        showToast('यह अनुभाग उपलब्ध नहीं है।');
+        return;
+      }
+
+      const owner = isPrimaryOwner();
+
+      const permissions = {
+        questions: 'quizDrafts',
+        checking: 'examReview',
+        notifications: 'notifications',
+        media: 'media'
+      };
+
+      const permission = permissions[page];
+
+      if (
+        !owner &&
+        (
+          page === 'admit' ||
+          page === 'settings' ||
+          !permission ||
+          !hasEditorPermission(permission)
+        )
+      ) {
+        showToast('इस अनुभाग के लिए आपके खाते को अनुमति नहीं है।');
+        return;
+      }
+
+      switchStudioPane(route.pane);
+
+      routePanels.forEach(id => {
+        const panel = document.getElementById(id);
+        if (panel) panel.dataset.studioRouteHidden = 'true';
+      });
+
+      route.panels.forEach(id => {
+        const panel = document.getElementById(id);
+        if (panel) delete panel.dataset.studioRouteHidden;
+      });
+
+      navButtons.forEach(item => {
+        const active = item.dataset.studioPage === page;
+        item.classList.toggle('studio-nav-active', active);
+        item.setAttribute('aria-current', active ? 'page' : 'false');
+      });
+
+      const target = route.panels
+        .map(id => document.getElementById(id))
+        .find(panel => panel && !panel.dataset.studioRouteHidden);
+
+      (target || document.getElementById(route.pane))
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+})();
+
     async function refreshStudioAnalytics() {
       try {
         if (!isPrimaryOwner()) {
