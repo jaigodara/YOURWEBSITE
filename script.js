@@ -1253,7 +1253,7 @@ notify(
     }
 
     if (record.verificationStatus !== 'confirmed' ||
-        !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || ''))) {
+       !/^JAMBH-2026-\d{5}$/.test(String(record.rollNumber || ''))) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
