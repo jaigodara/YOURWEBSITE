@@ -192,6 +192,8 @@
     const titleInput = document.getElementById('mediaLinkTitle');
     const urlInput = document.getElementById('mediaLinkUrl');
     const typeInput = document.getElementById('mediaLinkType');
+    const categoryInput = document.getElementById('mediaLinkCategory');
+    const category = categoryInput ? categoryInput.value : 'literature';
     let title = titleInput ? titleInput.value.trim() : '';
     const rawUrl = urlInput ? urlInput.value.trim() : '';
     const type = typeInput ? typeInput.value : 'youtube';
