@@ -92,7 +92,7 @@
       </div>
       <div>
         <h3 class="font-yatra text-xl text-forest">सुरक्षा एवं अधिकार सत्यापन</h3>
-        <p class="text-xs text-stone-500 mt-1">व्यवस्थापक (Owner / Editor) क्रेडेंशियल्स की जाँच की जा रही है...</p>
+        <p id="adminAuthLockMessage" class="text-xs text-stone-500 mt-1" aria-live="polite">व्यवस्थापक (Owner / Editor) क्रेडेंशियल्स की जाँच की जा रही है...</p>
       </div>
       <div class="inline-block w-6 h-6 border-2 border-forest border-t-transparent rounded-full animate-spin"></div>
     </div>
@@ -1049,6 +1049,8 @@ Ans: B"></textarea>
     const SUPER_OWNER_UID = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
     const RECOVERED_OWNER_UID = "rdP0ZXzSP9fGzmJshEVvbOfb31g2";
     let currentAdminUser = null;
+    let studioVerificationInProgress = false;
+    let studioInitializedUid = null;
     function isPrimaryOwner() {
       return !!currentAdminUser && (
         currentAdminUser.role === 'owner' ||
@@ -1203,6 +1205,24 @@ async function claimPendingEditorInvitation(user) {
           window.location.href = "index.html";
           return;
         }
+        if (studioInitializedUid === user.uid || studioVerificationInProgress) return;
+        studioVerificationInProgress = true;
+        const verificationTimer = window.setTimeout(() => {
+          const lock = document.getElementById('adminAuthLock');
+          if (!lock || lock.classList.contains('hidden')) return;
+          const message = document.getElementById('adminAuthLockMessage');
+          if (message) message.textContent = 'सत्यापन में सामान्य से अधिक समय लग रहा है। इंटरनेट कनेक्शन जाँचें या पुनः प्रयास करें।';
+          lock.querySelector('.animate-spin')?.classList.add('hidden');
+          if (!document.getElementById('adminAuthRetryButton')) {
+            const retry = document.createElement('button');
+            retry.id = 'adminAuthRetryButton';
+            retry.type = 'button';
+            retry.className = 'min-h-12 w-full rounded-xl bg-forest px-4 py-3 text-sm font-bold text-white';
+            retry.textContent = 'पुनः प्रयास करें';
+            retry.addEventListener('click', () => window.location.reload());
+            lock.querySelector('.text-center')?.appendChild(retry);
+          }
+        }, 12000);
 
         try {
           await claimPendingEditorInvitation(user);
@@ -1270,6 +1290,8 @@ if (environmentEl) {
               }
             }
           }
+          studioInitializedUid = user.uid;
+          window.clearTimeout(verificationTimer);
           document.getElementById('adminAuthLock')?.classList.add('hidden');
 
           // Initialize only the listeners granted to this account.
@@ -1293,6 +1315,8 @@ if (environmentEl) {
         } catch (err) {
           alert("सुरक्षा सत्यापन त्रुटि: " + err.message);
           window.location.href = "index.html";
+        } finally {
+          studioVerificationInProgress = false;
         }
       });
     });
