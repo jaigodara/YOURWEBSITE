@@ -96,7 +96,7 @@
     });
     exams.append(note, portal, results);
 
-    [personal, exams, security, actions].forEach(section => content.append(section));
+    content.prepend(personal, exams, security, actions);
   }
 
   function boot() {
