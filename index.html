@@ -2,7 +2,7 @@
 <html lang="hi" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- The standalone exam portal embeds this page with a mode query parameter.
        Set the mode before CSS is applied so the correct exam/enrollment/results
        panel is visible inside the iframe. -->
@@ -376,6 +376,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
       <div id="pdfGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <section class="space-y-3 border-t border-stone-200 pt-5" aria-labelledby="platformMediaHeading">
+        <div>
+          <h3 id="platformMediaHeading" class="font-yatra text-xl text-forest">🎬 डिजिटल साहित्य, भजन व प्रवचन</h3>
+          <p class="text-xs text-stone-600">PDF पढ़ें और वीडियो/ऑडियो वेबसाइट के अंदर चलाएँ। वीडियो पर YouTube की सामान्य शर्तें और विज्ञापन लागू हो सकते हैं।</p>
+        </div>
+        <div id="platformMediaFeed" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-live="polite">
+          <p class="text-xs text-stone-500">साहित्य और वीडियो लोड हो रहे हैं…</p>
+        </div>
+      </section>
 
       <div class="pt-6 border-t border-stone-200 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -912,6 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <!-- APPLICATION SCRIPT -->
 <script src="script.js?v=20261020-2"></script>
+<script src="/mediaEngine.js"></script>
 <script>
   (() => {
     const banner = document.getElementById('offlineIndicator');
