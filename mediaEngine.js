@@ -139,21 +139,27 @@
     }
   }
 
+  let mediaItemsCache = [];
+  let mediaFilter = 'all';
+  const mediaCategoryLabels = { bhajan: 'आरती / भजन', katha: 'कथा / प्रवचन', history: 'इतिहास', literature: 'साहित्य' };
+
   function renderMediaFeed(container, items) {
     if (!container) return;
     container.replaceChildren();
-    if (!items.length) {
+    const visibleItems = mediaFilter === 'all' ? items : items.filter(item => (item.category || 'literature') === mediaFilter);
+    if (!visibleItems.length) {
       container.append(node('p', { className: 'bishnoi-media-empty' }, 'अभी कोई नया साहित्य या वीडियो प्रकाशित नहीं है।'));
       return;
     }
-    items.forEach(item => {
+    visibleItems.forEach(item => {
       const card = node('article', { className: 'bishnoi-media-card' });
       const type = String(item.type || item.category || '').toLowerCase();
       const videoId = item.videoId || extractYouTubeId(item.url || item.rawUrl || '');
       const thumb = videoId ? 'https://i.ytimg.com/vi/' + videoId + '/hqdefault.jpg' : '';
       if (thumb) card.append(node('img', { src: thumb, alt: '', loading: 'lazy', className: 'bishnoi-media-thumb' }));
       const heading = node('h3', { className: 'bishnoi-media-card-title' }, item.title || 'शीर्षक उपलब्ध नहीं');
-      const badge = node('span', { className: 'bishnoi-media-badge' }, type.includes('youtube') || type.includes('video') ? 'वीडियो' : type.includes('audio') ? 'ऑडियो' : 'PDF / साहित्य');
+      const category = mediaCategoryLabels[item.category] || (type.includes('youtube') || type.includes('video') ? 'वीडियो' : type.includes('audio') ? 'ऑडियो' : 'साहित्य');
+      const badge = node('span', { className: 'bishnoi-media-badge' }, category + ' · ' + (type.includes('youtube') || type.includes('video') ? 'वीडियो' : type.includes('audio') ? 'ऑडियो' : 'PDF'));
       const open = node('button', { type: 'button', className: 'bishnoi-media-open' }, type.includes('youtube') || type.includes('video') ? '▶ ऐप में चलाएँ' : type.includes('audio') ? '♫ सुनें' : '📖 ऐप में पढ़ें');
       open.addEventListener('click', () => openMedia(item));
       card.append(badge, heading, open);
@@ -173,7 +179,8 @@
         const toMs = value => value && typeof value.toMillis === 'function' ? value.toMillis() : 0;
         return toMs(b.createdAt) - toMs(a.createdAt);
       });
-      renderMediaFeed(container, items);
+      mediaItemsCache = items;
+      renderMediaFeed(container, mediaItemsCache);
     } catch (error) {
       console.warn('[Bishnoism media] Feed unavailable:', error);
       container.replaceChildren(node('p', { className: 'bishnoi-media-empty' }, 'मीडिया सूची लोड नहीं हुई। कृपया कुछ देर बाद पुनः प्रयास करें।'));
@@ -210,6 +217,7 @@
       await db.collection('platform_media').add({
         title: title.slice(0, 180),
         type,
+        category,
         url: rawUrl,
         ...(videoId ? { videoId } : {}),
         ...(driveId ? { driveId, previewUrl: 'https://drive.google.com/file/d/' + driveId + '/preview' } : {}),
@@ -240,7 +248,30 @@
   };
 
   function boot() {
-    if (document.getElementById('platformMediaFeed')) loadMediaFeed();
+    const feed = document.getElementById('platformMediaFeed');
+    if (feed) {
+      const filterBar = node('div', { className: 'bishnoi-media-filters', role: 'group', 'aria-label': 'साहित्य श्रेणी फ़िल्टर' });
+      [['all', 'सभी'], ['bhajan', 'आरती / भजन'], ['katha', 'कथा / प्रवचन'], ['history', 'इतिहास'], ['literature', 'साहित्य']].forEach(([key, label]) => {
+        const button = node('button', { type: 'button', className: 'bishnoi-media-filter', 'data-media-filter': key }, label);
+        button.addEventListener('click', () => {
+          mediaFilter = key;
+          filterBar.querySelectorAll('button').forEach(item => item.classList.toggle('is-active', item.dataset.mediaFilter === key));
+          renderMediaFeed(feed, mediaItemsCache);
+        });
+        filterBar.append(button);
+      });
+      feed.parentElement.insertBefore(filterBar, feed);
+      filterBar.querySelector('[data-media-filter="all"]')?.classList.add('is-active');
+      loadMediaFeed();
+    }
+    const titleField = document.getElementById('mediaLinkTitle');
+    if (titleField && !document.getElementById('mediaLinkCategory')) {
+      const label = node('label', { className: 'block text-xs font-bold text-stone-700' }, 'श्रेणी');
+      const select = node('select', { id: 'mediaLinkCategory', className: 'mt-1 w-full min-h-12 rounded-xl border border-stone-300 bg-white p-3 text-sm' });
+      [['bhajan', 'आरती / भजन / साखी'], ['katha', 'कथा / प्रवचन'], ['history', 'ऐतिहासिक वृत्तचित्र'], ['literature', 'साहित्य / धार्मिक ग्रंथ']].forEach(([value, textValue]) => select.append(node('option', { value }, textValue)));
+      label.append(select);
+      titleField.closest('label')?.insertAdjacentElement('beforebegin', label);
+    }
     document.addEventListener('click', event => {
       const link = event.target.closest('#pdfGrid a, #pdfLibrary a, #literatureFiles a');
       if (!link || !link.href || !window.BishnoiMedia) return;
@@ -267,6 +298,9 @@
       '.bishnoi-media-reader.is-mini .bishnoi-media-tool{min-height:34px;padding:5px 8px;font-size:11px}',
       '.bishnoi-media-reader.is-mini .bishnoi-media-body{height:190px;flex:none}',
       '.bishnoi-media-reader.is-mini .bishnoi-media-body iframe{height:190px}',
+      '.bishnoi-media-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}',
+      '.bishnoi-media-filter{min-height:44px;padding:8px 12px;border:1px solid #d6d3d1;border-radius:999px;background:#fff;color:#143622;font-size:12px;font-weight:800}',
+      '.bishnoi-media-filter.is-active{background:#143622;color:#fff;border-color:#143622}',
       '.bishnoi-media-card{display:flex;flex-direction:column;gap:10px;border:1px solid #e7e5e4;border-radius:16px;background:#fff;padding:14px;box-shadow:0 4px 12px #1436220a}',
       '.bishnoi-media-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#f1f5f9}',
       '.bishnoi-media-card-title{font-weight:800;color:#143622;overflow-wrap:anywhere}',
