@@ -1327,7 +1327,7 @@ if (environmentEl) {
       const route = OWNER_STUDIO_ROUTES[page];
       if (!route) { showToast('यह अनुभाग उपलब्ध नहीं है।'); return; }
       const owner = isPrimaryOwner();
-      if (!owner && (!route.permission || !hasEditorPermission(route.permission))) {
+      if (!owner && page !== 'dashboard' && (!route.permission || !hasEditorPermission(route.permission))) {
         showToast('इस अनुभाग के लिए आपके खाते को अनुमति नहीं है।');
         return;
       }
@@ -3856,7 +3856,7 @@ next.addEventListener('click', async () => {
           });
         }
         renderOwnerDashboardRows('ownerEnrolledStudentsList', enrolled.slice(0,10), row =>
-          (row.fullName || row.name || row.displayName || 'विद्यार्थी') + ' · रोल: ' + (row.rollNumber || ('BIS-' + (row.uid || row.id))) + ' · स्थिति: ' + (row.verificationStatus || 'pending'), 'अभी नामांकन रिकॉर्ड नहीं मिले।');
+          (row.fullName || row.name || row.displayName || 'विद्यार्थी') + ' · रोल: ' + (row.rollNumber || 'रोल नंबर जारी नहीं हुआ') + ' · स्थिति: ' + (row.verificationStatus || 'pending'), 'अभी नामांकन रिकॉर्ड नहीं मिले।');
         renderOwnerDashboardRows('ownerRecentLoginList', recent.slice(0,10), row =>
           (row.displayName || row.name || row.email || row.uid || row.id) + ' · ' + (row.email || 'ईमेल नहीं') + ' · ' +
           (row.presenceStatus === 'online' && ownerDashboardMillis(row.lastSeenAt) >= onlineCutoff ? 'हाल में ऑनलाइन' : 'अंतिम गतिविधि: ' +
