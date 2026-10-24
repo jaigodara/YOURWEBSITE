@@ -110,6 +110,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
+      <button type="button" data-language-toggle class="min-h-10 rounded-xl border border-amber-200 bg-white/10 px-2.5 text-[11px] font-extrabold text-amber-100" aria-label="Switch interface language">हिं / ENG</button>
       <a href="index.html" class="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
         <span>← मुख्य वेबसाइट</span>
       </a>
@@ -4111,7 +4112,8 @@ window.clearExamReviewFilters = clearExamReviewFilters;
       }
       printWindow.document.open();
       printWindow.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bishnoism — परीक्षा जाँच रिपोर्ट</title><style>' +
-        'body{font:14px/1.55 Arial,"Noto Sans Devanagari",sans-serif;color:#143622;margin:20px}h1{font-size:24px}h2{font-size:18px;border-bottom:2px solid #D6A43A;padding-bottom:6px}h3{font-size:15px}.student{break-after:page;page-break-after:always}.student:last-child{break-after:auto;page-break-after:auto}.question{border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin:8px 0;break-inside:avoid}.question p{margin:4px 0}.reason{background:#fff7df;border-left:4px solid #D6A43A;padding:8px}.toolbar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd}button{padding:10px 16px;background:#143622;color:#fff;border:0;border-radius:8px}@media print{body{margin:10mm}.toolbar{display:none}@page{size:A4;margin:12mm}}</style></head><body><div class="toolbar"><button onclick="window.print()">प्रिंट करें / Save as PDF</button> <span>प्रिंट विंडो में Destination: Save as PDF चुनें।</span></div><h1>बिश्नोइज़्म — विद्यार्थी उत्तर-पत्र एवं मैन्युअल जाँच रिपोर्ट</h1><p>परीक्षा: ' + escapeHtml(examReviewCollection) + ' · कुल रिकॉर्ड: ' + examReviewQueue.length + ' · रिपोर्ट तिथि: ' + escapeHtml(new Date().toLocaleString('hi-IN')) + '</p>' + sections + '<script src="/mediaEngine.js"></script>\n</body></html>');
+        'body{font:14px/1.55 Arial,"Noto Sans Devanagari",sans-serif;color:#143622;margin:20px}h1{font-size:24px}h2{font-size:18px;border-bottom:2px solid #D6A43A;padding-bottom:6px}h3{font-size:15px}.student{break-after:page;page-break-after:always}.student:last-child{break-after:auto;page-break-after:auto}.question{border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin:8px 0;break-inside:avoid}.question p{margin:4px 0}.reason{background:#fff7df;border-left:4px solid #D6A43A;padding:8px}.toolbar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd}button{padding:10px 16px;background:#143622;color:#fff;border:0;border-radius:8px}@media print{body{margin:10mm}.toolbar{display:none}@page{size:A4;margin:12mm}}</style></head><body><div class="toolbar"><button onclick="window.print()">प्रिंट करें / Save as PDF</button> <span>प्रिंट विंडो में Destination: Save as PDF चुनें।</span></div><h1>बिश्नोइज़्म — विद्यार्थी उत्तर-पत्र एवं मैन्युअल जाँच रिपोर्ट</h1><p>परीक्षा: ' + escapeHtml(examReviewCollection) + ' · कुल रिकॉर्ड: ' + examReviewQueue.length + ' · रिपोर्ट तिथि: ' + escapeHtml(new Date().toLocaleString('hi-IN')) + '</p>' + sections + '<script src="/mediaEngine.js"></script>\n<script src="/languageToggle.js"></script>
+</body></html>');
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => { try { printWindow.print(); } catch (e) {} }, 350);
