@@ -1322,7 +1322,7 @@ if (environmentEl) {
     });
 
     const OWNER_STUDIO_ROUTES = {
-      dashboard: { pane: 'pane_overview', permission: null, panels: [] },
+      dashboard: { pane: 'pane_overview', permission: null, panels: ['ownerDailyWinnersPanel'] },
       media: { pane: 'pane_media', permission: 'media', panels: [] },
       questions: { pane: 'pane_quiz', permission: 'quizDrafts', panels: ['ownerQuestionBankPanel'] },
       checking: { pane: 'pane_exam', permission: 'examReview', panels: ['ownerExamSessionMonitorPanel', 'manualExamReviewSection'] },
