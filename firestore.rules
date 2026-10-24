@@ -787,6 +787,29 @@ service cloud.firestore {
       allow create, update, delete: if owner();
     }
 
+    // Publicly published media links. Only the owner or a media-permitted editor may publish/manage records.
+    match /platform_media/{mediaId} {
+      allow get, list: if canManageMedia() || resource.data.get('active', false) == true;
+      allow create: if canManageMedia()
+        && request.resource.data.keys().hasOnly([
+          'title', 'type', 'url', 'videoId', 'driveId', 'previewUrl',
+          'active', 'createdBy', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.get('title', '') is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 180
+        && request.resource.data.get('type', '') in ['youtube', 'pdf', 'audio']
+        && request.resource.data.get('url', '') is string
+        && request.resource.data.get('active', false) == true
+        && request.resource.data.get('createdBy', '') == request.auth.uid;
+      allow update: if canManageMedia()
+        && request.resource.data.get('createdBy', resource.data.get('createdBy', '')) == resource.data.get('createdBy', '')
+        && request.resource.data.get('title', '') is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 180;
+      allow delete: if canManageMedia();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
