@@ -204,7 +204,7 @@
         } catch (_) {}
       }
       if (!title) title = type === 'pdf' ? 'Google Drive साहित्य' : type === 'audio' ? 'भजन / ऑडियो' : 'YouTube वीडियो';
-      if (type === 'pdf' && !driveId) throw new Error('Google Drive file/document लिंक मान्य नहीं है।');
+      if (type === 'pdf' && !driveId && !/^https:\/\//i.test(rawUrl)) throw new Error('PDF लिंक HTTPS होना चाहिए।');
       if (type === 'audio' && !/^https:\/\//i.test(rawUrl)) throw new Error('ऑडियो लिंक HTTPS होना चाहिए।');
       const db = firebase.firestore();
       await db.collection('platform_media').add({
