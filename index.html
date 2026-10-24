@@ -38,7 +38,7 @@
   
 
   <style>
-    body { background-color: #FAF6EE !important; padding-bottom: 90px !important; }
+    body { background-color: #FAF6EE !important; padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important; }
     .bnav-active {
       color: #143622 !important;
       font-weight: 800 !important;
@@ -819,7 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
               class="w-full p-2.5 rounded-xl border border-stone-300"
               placeholder="वर्तमान पासवर्ड">
             <button type="button"
-  onclick="window.toggleProfileMobilePassword('profileMobileNewPassword', this)"
+  onclick="window.toggleProfileMobilePassword('profileCurrentPassword', this)"
   class="mt-1 text-sm font-semibold text-forest underline">
   Show password
 </button>
