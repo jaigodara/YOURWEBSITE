@@ -5906,7 +5906,7 @@ window.BishnoiApp.importExamQuestions = async function (
       : 'परीक्षा प्रश्न बदलने के लिए Exam Checking permission आवश्यक है।');
   }
 
-  const collectionName = examQuestionTarget(target);
+  const collectionName = ({ quiz: 'quiz', mainExamQuestions: 'mainExamQuestions', mockExam_1: 'mockExam_1', mockExam_2: 'mockExam_2' })[requestedTarget] || '';
 
   if (!collectionName) {
     throw new Error('अमान्य परीक्षा चुनी गई है।');
