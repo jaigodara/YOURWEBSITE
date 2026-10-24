@@ -1349,12 +1349,7 @@ if (environmentEl) {
   document.getElementById('ownerStudioSidebar')
     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-    document.querySelectorAll('[data-studio-page]').forEach(button => {
-      const matches = button.textContent.toLocaleLowerCase().includes(query);
-      button.hidden = !matches;
-    });
-  });
-}
+   
     function switchStudioPane(paneId) {
       const isOwner = isPrimaryOwner();
       const panePermission = {
