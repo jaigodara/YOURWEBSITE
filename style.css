@@ -859,3 +859,12 @@ a {
     align-items: stretch;
   }
 }
+
+
+/* Mobile keyboard, safe-area and accessible touch-target refinements. */
+:root { scroll-padding-bottom: 180px; }
+body { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+button, [role="button"], select { touch-action: manipulation; }
+input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
+.password-visibility-toggle { min-height: 44px; margin-top: 4px; padding: 8px 12px; border: 1px solid #d6d3d1; border-radius: 10px; color: #143622; background: #fffdf7; font-size: 12px; font-weight: 700; }
+@media (max-width: 640px) { .bnav-mobile button, .bnav-mobile a { min-height: 48px; } .bnav-mobile { padding-bottom: env(safe-area-inset-bottom, 0px); } input, select, textarea { scroll-margin-bottom: 180px; } }
