@@ -1253,7 +1253,7 @@ notify(
     }
 
     if (record.verificationStatus !== 'confirmed' ||
-        !/^JAMBH-2026-\d{4,}$/.test(String(record.rollNumber || ''))) {
+       !/^JAMBH-2026-\d{5}$/.test(String(record.rollNumber || ''))) {
       notify('प्रवेश-पत्र के लिए स्वीकृत पंजीकरण और वैध रोल नंबर आवश्यक हैं।', 'error');
       return;
     }
@@ -5906,7 +5906,7 @@ window.BishnoiApp.importExamQuestions = async function (
       : 'परीक्षा प्रश्न बदलने के लिए Exam Checking permission आवश्यक है।');
   }
 
-  const collectionName = examQuestionTarget(target);
+  const collectionName = ({ quiz: 'quiz', mainExamQuestions: 'mainExamQuestions', mockExam_1: 'mockExam_1', mockExam_2: 'mockExam_2' })[requestedTarget] || '';
 
   if (!collectionName) {
     throw new Error('अमान्य परीक्षा चुनी गई है।');
@@ -6201,7 +6201,56 @@ window.BishnoiApp.importExamQuestions = async function (
   };
   // ===== End exam portal feature APIs =====
 
-  // Keep the public aliases available to inline HTML event handlers.
+    // Add accessible visibility controls to password fields that do not already have one.
+  function installPasswordVisibilityControls() {
+    document.querySelectorAll('input[type="password"]').forEach(field => {
+      if (!field.id) field.id = 'password-field-' + Math.random().toString(36).slice(2, 9);
+      const hasToggle = Array.from(document.querySelectorAll('button')).some(button =>
+        button.getAttribute('aria-controls') === field.id ||
+        /toggleAuthPassword|toggleProfileMobilePassword/.test(button.getAttribute('onclick') || '') &&
+        (button.getAttribute('onclick') || '').includes(field.id)
+      );
+      if (hasToggle) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'password-visibility-toggle';
+      button.textContent = 'पासवर्ड दिखाएँ';
+      button.setAttribute('aria-controls', field.id);
+      button.setAttribute('aria-pressed', 'false');
+      button.addEventListener('click', () => {
+        const reveal = field.type === 'password';
+        field.type = reveal ? 'text' : 'password';
+        button.textContent = reveal ? 'पासवर्ड छिपाएँ' : 'पासवर्ड दिखाएँ';
+        button.setAttribute('aria-pressed', String(reveal));
+      });
+      field.insertAdjacentElement('afterend', button);
+    });
+  }
+
+  function keepFocusedFieldVisible() {
+    document.addEventListener('focusin', event => {
+      const field = event.target;
+      if (!field || !field.matches || !field.matches('input, select, textarea')) return;
+      window.requestAnimationFrame(() => {
+        try { field.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (_) {}
+      });
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const field = document.activeElement;
+        if (field && field.matches && field.matches('input, select, textarea')) {
+          window.requestAnimationFrame(() => {
+            try { field.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (_) {}
+          });
+        }
+      });
+    }
+  }
+
+  installPasswordVisibilityControls();
+  keepFocusedFieldVisible();
+
+// Keep the public aliases available to inline HTML event handlers.
   window.Bishnoi = window.Bishnoi || window.BishnoiPortal;
 
   // script.js is loaded after the page markup in index.html. Start now so

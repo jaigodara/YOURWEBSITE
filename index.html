@@ -2,7 +2,7 @@
 <html lang="hi" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- The standalone exam portal embeds this page with a mode query parameter.
        Set the mode before CSS is applied so the correct exam/enrollment/results
        panel is visible inside the iframe. -->
@@ -38,7 +38,7 @@
   
 
   <style>
-    body { background-color: #FAF6EE !important; padding-bottom: 90px !important; }
+    body { background-color: #FAF6EE !important; padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important; }
     .bnav-active {
       color: #143622 !important;
       font-weight: 800 !important;
@@ -186,15 +186,16 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
+        <button type="button" data-language-toggle class="min-h-10 rounded-xl border border-stone-300 bg-white px-2.5 text-[11px] font-extrabold text-forest" aria-label="Switch interface language">हिं / ENG</button>
         <a href="owner-studio.html" id="ownerStudioPortalBtn" class="hidden px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
-          <span>🛡️ ओनर स्टूडियो</span>
+          <span data-lang-key="owner-studio">🛡️ ओनर स्टूडियो</span>
         </a>
         <button id="notificationBellButton" type="button" onclick="window.toggleNotificationPanel()" class="hidden relative rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-forest transition" aria-label="सूचनाएँ खोलें" title="सूचनाएँ">
           <span id="notificationBellGlyph" class="inline-block text-lg">🔔</span>
           <span id="notificationUnreadCount" class="hidden absolute -right-1 -top-1 min-w-4 h-4 rounded-full bg-red-600 px-1 text-[9px] font-extrabold leading-4 text-white">0</span>
         </button>
         <div id="authActionsContainer">
-          <button id="authLoginButton" type="button" onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm">
+          <button id="authLoginButton" type="button" onclick="window.BishnoiAuth.openAuthModal()" class="px-3.5 py-1.5 rounded-xl bg-forest text-white text-xs font-bold shadow-sm" data-lang-key="login">
             लॉगिन करें
           </button>
         </div>
@@ -207,27 +208,27 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="max-w-xl mx-auto grid grid-cols-5 gap-1.5 text-center">
       <button onclick="window.switchTab('home')" id="bnav-home" class="bnav-active flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] text-stone-600 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">🏡</span>
-        <span class="bnav-label">मुखपृष्ठ</span>
+        <span class="bnav-label" data-lang-key="nav-home">मुखपृष्ठ</span>
       </button>
 
       <button onclick="window.switchTab('library')" id="bnav-library" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">📚</span>
-        <span class="bnav-label">साहित्य</span>
+        <span class="bnav-label" data-lang-key="nav-library">साहित्य</span>
       </button>
 
       <button onclick="window.switchTab('quiz')" id="bnav-quiz" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">🏆</span>
-        <span class="bnav-label">परीक्षा</span>
+        <span class="bnav-label" data-lang-key="nav-exam">परीक्षा</span>
       </button>
 
       <button onclick="window.switchTab('community')" id="bnav-community" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">💬</span>
-        <span class="bnav-label">संवाद</span>
+        <span class="bnav-label" data-lang-key="nav-community">संवाद</span>
       </button>
 
       <button onclick="window.BishnoiApp.openProfileOrAuth()" id="bnav-profile" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border border-transparent text-[11px] font-semibold text-stone-600 hover:bg-stone-100 transition-all">
         <span class="bnav-icon h-8 w-14 rounded-full flex items-center justify-center text-base mb-0.5" aria-hidden="true">👤</span>
-       <span id="bnavProfileLabel" class="bnav-label">प्रोफ़ाइल</span>
+       <span id="bnavProfileLabel" class="bnav-label" data-lang-key="nav-profile">प्रोफ़ाइल</span>
       </button>
     </div>
   </nav>
@@ -376,6 +377,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
       <div id="pdfGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <section class="space-y-3 border-t border-stone-200 pt-5" aria-labelledby="platformMediaHeading">
+        <div>
+          <h3 id="platformMediaHeading" class="font-yatra text-xl text-forest">🎬 डिजिटल साहित्य, भजन व प्रवचन</h3>
+          <p class="text-xs text-stone-600">PDF पढ़ें और वीडियो/ऑडियो वेबसाइट के अंदर चलाएँ। वीडियो पर YouTube की सामान्य शर्तें और विज्ञापन लागू हो सकते हैं।</p>
+        </div>
+        <div id="platformMediaFeed" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-live="polite">
+          <p class="text-xs text-stone-500">साहित्य और वीडियो लोड हो रहे हैं…</p>
+        </div>
+      </section>
 
       <div class="pt-6 border-t border-stone-200 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -810,7 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
               class="w-full p-2.5 rounded-xl border border-stone-300"
               placeholder="वर्तमान पासवर्ड">
             <button type="button"
-  onclick="window.toggleProfileMobilePassword('profileMobileNewPassword', this)"
+  onclick="window.toggleProfileMobilePassword('profileCurrentPassword', this)"
   class="mt-1 text-sm font-semibold text-forest underline">
   Show password
 </button>
@@ -912,6 +922,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <!-- APPLICATION SCRIPT -->
 <script src="script.js?v=20261020-2"></script>
+<script src="/mediaEngine.js"></script>
+<script src="/languageToggle.js"></script>
 <script>
   (() => {
     const banner = document.getElementById('offlineIndicator');
