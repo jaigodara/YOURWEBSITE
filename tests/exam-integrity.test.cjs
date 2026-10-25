@@ -67,3 +67,9 @@ test('Exam checking renders a responsive split-screen candidate and evaluation w
   assert.match(owner, /grid-template-columns:minmax\(240px/);
   assert.match(owner, /@media\(max-width:900px\)/);
 });
+
+test('Owner live session queue offers confirmed force-kick for active attempts', () => {
+  assert.match(owner, /⛔ परीक्षा रोकें \/ Force Kick/);
+  assert.match(owner, /setExamSessionDecision\(row\.id, 'kicked'\)/);
+  assert.match(owner, /reason = 'owner_force_kick'/);
+});
