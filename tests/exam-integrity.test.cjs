@@ -41,3 +41,11 @@ test('Main and mock results remain hidden until the Owner releases the result ga
   assert.match(owner, /resultsPublished: releasing/);
   assert.match(owner, /function toggleExamResultsRelease\(\)/);
 });
+
+test('Owner controls Fisher-Yates question and option shuffling', () => {
+  assert.match(owner, /id="ownerRandomizeSets"/);
+  assert.match(owner, /randomizeSets: !!document\.getElementById\('ownerRandomizeSets'\)\?\.checked/);
+  assert.match(script, /if \(config\.randomizeSets !== false\)/);
+  assert.match(script, /const shuffled = options\.map\(\(option, oldIndex\) => \(\{ option, oldIndex \}\)\)/);
+  assert.match(script, /const newCorrectIndex = shuffled\.findIndex\(item => item\.oldIndex === oldCorrectIndex\)/);
+});
