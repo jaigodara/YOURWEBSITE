@@ -37,3 +37,12 @@ test('Digital Jap Mala persists an offline daily goal and updates progress', () 
   assert.match(script, /localStorage\.setItem\('bishnoi_mala_v2'/);
   assert.match(script, /navigator\.vibrate/);
 });
+
+test('Literature search filters PDF, media, and Niyam cards from one search field', () => {
+  assert.ok(html.includes('id="literatureSearchInput"'));
+  assert.ok(html.includes('id="literatureSearchStatus"'));
+  assert.match(script, /app\.searchLiterature = function/);
+  assert.match(script, /id: 'pdfGrid'/);
+  assert.match(script, /id: 'platformMediaFeed'/);
+  assert.match(script, /id: 'niyamGrid'/);
+});
