@@ -279,6 +279,12 @@
             <option value="mockExam_1">मॉक परीक्षा सेट 1 प्रश्न</option><option value="mockExam_2">मॉक परीक्षा सेट 2 प्रश्न</option>
             <option value="quiz">दैनिक क्विज़ प्रश्न</option><option value="examConfig">परीक्षा सेटिंग्स</option>
             <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option>
+            <option value="live_violations">लाइव परीक्षा उल्लंघन लॉग</option>
+            <option value="assistantEditors">सहायक संपादक और अनुमतियाँ</option>
+            <option value="trustedEditors">विश्वसनीय संपादक सूची</option>
+            <option value="userNotifications">विद्यार्थी सूचनाएँ</option>
+            <option value="notifications">सूचना केंद्र</option>
+            <option value="admitCards">प्रवेश-पत्र रजिस्टर</option>
           </select>
         </label>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -4153,7 +4159,7 @@ next.addEventListener('click', async () => {
         } else if (format === 'csv' || format === 'xlsx') payload = await readAll(selected);
         else {
           payload = {};
-          for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig']) {
+          for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig','live_violations','assistantEditors','trustedEditors','userNotifications','notifications','admitCards']) {
             try { payload[name] = await readAll(name); } catch (error) { payload[name] = { exportError: error.message || String(error) }; }
           }
           payload.examAnswerKeys = {};
