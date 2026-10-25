@@ -1368,6 +1368,9 @@ if (environmentEl) {
       }
     }
 
+    // Bind the sidebar once the route map and navigation functions exist.
+    bindOwnerStudioNavigation();
+
     function switchStudioPane(paneId) {
       const isOwner = isPrimaryOwner();
       const panePermission = { pane_media: 'media', pane_quiz: 'quizDrafts', pane_exam: 'examReview', pane_system: 'notifications' }[paneId];
