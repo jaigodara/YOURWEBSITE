@@ -984,6 +984,12 @@ Ans: B"></textarea>
       cursor: pointer;
       line-height: 1.6;
     }
+    .checking-workspace{display:grid;grid-template-columns:minmax(240px,.75fr) minmax(0,1.65fr);gap:14px;align-items:start}
+    .candidate-queue-panel{position:sticky;top:76px;display:flex;flex-direction:column;gap:10px;min-width:0;max-height:78vh;overflow:auto}
+    .candidate-eval-panel{min-width:0}
+    .candidate-eval-panel>article{min-width:0}
+    @media(max-width:900px){.checking-workspace{grid-template-columns:minmax(0,1fr)}.candidate-queue-panel{position:static;max-height:none;overflow:visible}}
+
     @media (max-width:640px) {
       #ownerQuestionBankPanel,
       #manualExamReviewSection,
@@ -3823,7 +3829,18 @@ next.addEventListener('click', async () => {
         controls.append(previous, save, approve, next);
       }
       card.append(scoreLabel, decisionLabel, feedback, controls);
-      list.append(searchWrap, top, card);
+      const checkingWorkspace = document.createElement('div');
+      checkingWorkspace.className = 'checking-workspace';
+      const queuePanel = document.createElement('aside');
+      queuePanel.className = 'candidate-queue-panel';
+      queuePanel.setAttribute('aria-label', 'परीक्षार्थी चयन');
+      queuePanel.append(searchWrap, top);
+      const evaluationPanel = document.createElement('section');
+      evaluationPanel.className = 'candidate-eval-panel';
+      evaluationPanel.setAttribute('aria-label', 'उत्तर-पत्र मूल्यांकन');
+      evaluationPanel.appendChild(card);
+      checkingWorkspace.append(queuePanel, evaluationPanel);
+      list.appendChild(checkingWorkspace);
     }
 
     async function setExamSessionDecision(sessionId, status) {
