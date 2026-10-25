@@ -14,14 +14,14 @@ const {
 const PROJECT_ID = "bishnoi-platform-rules-test";
 const STUDENT = "student-test-uid";
 const OWNER = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
-const googleStudentContext = (uid) => env.authenticatedContext(uid, {
-  firebase: { identities: { "google.com": ["student-test@example.com"] } },
-});
-
 test("Firestore security rules regression suite", async (t) => {
   const env = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: { rules: readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8") },
+  });
+
+  const googleStudentContext = (uid) => env.authenticatedContext(uid, {
+    firebase: { identities: { "google.com": ["student-test@example.com"] } },
   });
 
   async function reset() {
