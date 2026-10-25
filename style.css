@@ -875,3 +875,8 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
 .profile-accordion[open] > summary { border-bottom: 1px solid #e7e5e4; }
 .profile-accordion > :not(summary) { margin: 12px; }
 .profile-accordion-link { display: block; width: calc(100% - 24px); min-height: 48px; margin: 8px 12px; padding: 12px; border-radius: 10px; background: #143622; color: white; text-align: center; font-weight: 800; }
+
+
+/* Owner Studio sticky header and mobile-safe student roll labels. */
+.top-admin-header { position: sticky; top: 0; z-index: 1000; }
+.student-roll-badge { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
