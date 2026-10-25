@@ -6406,53 +6406,139 @@ window.toggleAuthPassword = function (id, button) {
   }
 
 
-  function normalizeImportedQuestion(row, index, setName) {
-    const item = row && typeof row === 'object' ? row : {};
-    const question = String(item.question ?? item.Question ?? item.q ?? item.Q ?? item.text ?? '').trim();
-    const optionsRaw = item.options ?? item.Options ?? item.opts;
-    const options = Array.isArray(optionsRaw)
-      ? optionsRaw
-      : [
-          item.A ?? item.a ?? item.optionA,
-          item.B ?? item.b ?? item.optionB,
-          item.C ?? item.c ?? item.optionC,
-          item.D ?? item.d ?? item.optionD
-        ].filter(value => value !== undefined && value !== null && String(value).trim() !== '');
-    const rawAnswer = item.correctAnswer ?? item.answer ?? item.Ans ?? item.ans ?? item.answerIndex;
-    let correctAnswer = rawAnswer;
-    if (typeof rawAnswer === 'string') {
-      const letter = rawAnswer.trim().toUpperCase().replace(/[.)]$/, '');
-      if (/^[A-D]$/.test(letter)) correctAnswer = letter.charCodeAt(0) - 65;
-      else if (/^\d+$/.test(letter)) correctAnswer = Number(letter);
-      else {
-        const found = options.findIndex(option => String(typeof option === 'object' ? (option.text || option.label || option.value || '') : option).trim().toLowerCase() === rawAnswer.trim().toLowerCase());
-        if (found >= 0) correctAnswer = found;
-      }
+ function normalizeImportedQuestion(row, index, setName) {
+  const item = row && typeof row === 'object' ? row : {};
+
+  const question = String(
+    item.question ?? item.Question ?? item.q ?? item.Q ?? item.text ?? ''
+  ).trim();
+
+  const optionsRaw = item.options ?? item.Options ?? item.opts;
+
+  const options = Array.isArray(optionsRaw)
+    ? optionsRaw
+    : [
+        item.A ?? item.a ?? item.optionA,
+        item.B ?? item.b ?? item.optionB,
+        item.C ?? item.c ?? item.optionC,
+        item.D ?? item.d ?? item.optionD
+      ].filter(
+        value =>
+          value !== undefined &&
+          value !== null &&
+          String(value).trim() !== ''
+      );
+
+  const rawAnswer =
+    item.correctAnswer ??
+    item.answer ??
+    item.Ans ??
+    item.ans ??
+    item.answerIndex;
+
+  let correctAnswer = rawAnswer;
+
+  if (typeof rawAnswer === 'string') {
+    const answerText = rawAnswer.trim();
+    const letter = answerText.toUpperCase().replace(/[.)]$/, '');
+
+    if (/^[A-D]$/.test(letter)) {
+      correctAnswer = letter.charCodeAt(0) - 65;
+    } else if (/^\d+$/.test(letter)) {
+      correctAnswer = Number(letter);
+    } else {
+      const found = options.findIndex(option => {
+        const optionText =
+          typeof option === 'object'
+            ? option.text || option.label || option.value || ''
+            : option;
+
+        return String(optionText).trim().toLowerCase() ===
+          answerText.toLowerCase();
+      });
+
+      if (found >= 0) correctAnswer = found;
     }
-    const hasAnswer = rawAnswer !== undefined && rawAnswer !== null && String(rawAnswer).trim() !== '';
-    const valid = question.length > 0 && options.length >= 2 && hasAnswer &&
-      Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length;
-    return {
-      valid,
-      errors: [
-        !question ? 'प्रश्न खाली है' : '',
-        options.length < 2 ? 'कम से कम दो विकल्प चाहिए' : '',
-        !hasAnswer || !(Number.isInteger(Number(correctAnswer)) && Number(correctAnswer) >= 0 && Number(correctAnswer) < options.length) ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें' : ''
-      ].filter(Boolean),
-      value: {
-        id: String(item.id || item.questionId || ('q_' + (index + 1))),
-        question,
-        options: options.map(option => typeof option === 'object' ? String(option.text || option.label || option.value || '') : String(option)),
-        correctAnswer: Number(correctAnswer),
-        answerIndex: Number(correctAnswer),
-        questionSet: VALID_QUESTION_SETS.has(String(item.questionSet || item.set || setName)) ? String(item.questionSet || item.set || setName) : setName,
-        marks: Number(item.marks) > 0 ? Number(item.marks) : 1,
-        negativeMarks: Number(item.negativeMarks) >= 0 ? Number(item.negativeMarks) : 0,
-        explanation: String(item.explanation || item.solution || ''),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }
-    };
   }
+
+  const hasAnswer =
+    rawAnswer !== undefined &&
+    rawAnswer !== null &&
+    String(rawAnswer).trim() !== '';
+
+  const validAnswer =
+    hasAnswer &&
+    Number.isInteger(Number(correctAnswer)) &&
+    Number(correctAnswer) >= 0 &&
+    Number(correctAnswer) < options.length;
+
+  const hasMarks =
+    item.marks !== undefined &&
+    item.marks !== null &&
+    String(item.marks).trim() !== '';
+
+  const marks = hasMarks ? Number(item.marks) : 1;
+  const validMarks = Number.isFinite(marks) && marks > 0;
+
+  const hasNegativeMarks =
+    item.negativeMarks !== undefined &&
+    item.negativeMarks !== null &&
+    String(item.negativeMarks).trim() !== '';
+
+  const negativeMarks = hasNegativeMarks
+    ? Number(item.negativeMarks)
+    : 0;
+
+  const validNegativeMarks =
+    Number.isFinite(negativeMarks) && negativeMarks >= 0;
+
+  const errors = [
+    !question ? 'प्रश्न खाली है' : '',
+    options.length < 2 ? 'कम से कम दो विकल्प चाहिए' : '',
+    !validAnswer
+      ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें'
+      : '',
+    !validMarks
+      ? 'अंक 0 से अधिक संख्या में दें'
+      : '',
+    !validNegativeMarks
+      ? 'Negative Marks शून्य या उससे अधिक संख्या में दें'
+      : ''
+  ].filter(Boolean);
+
+  return {
+    valid: errors.length === 0,
+
+    errors,
+
+    value: {
+      id: String(item.id || item.questionId || ('q_' + (index + 1))),
+      question,
+
+      options: options.map(option =>
+        typeof option === 'object'
+          ? String(option.text || option.label || option.value || '')
+          : String(option)
+      ),
+
+      correctAnswer: Number(correctAnswer),
+      answerIndex: Number(correctAnswer),
+
+      questionSet: VALID_QUESTION_SETS.has(
+        String(item.questionSet || item.set || setName)
+      )
+        ? String(item.questionSet || item.set || setName)
+        : setName,
+
+      marks: validMarks ? marks : 1,
+      negativeMarks: validNegativeMarks ? negativeMarks : 0,
+
+      explanation: String(item.explanation || item.solution || ''),
+
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }
+  };
+}
 
   function parseQuestionCsv(textValue) {
     // Supports escaped quotes, commas and quoted multiline fields.
