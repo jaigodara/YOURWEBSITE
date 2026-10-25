@@ -4020,7 +4020,10 @@ async function changeCustomExamStatus(nextStatus) {
         const customScore = document.createElement('input');
         customScore.type = 'number';
         customScore.min = '0';
-        customScore.max = '10';
+        customScore.max = String(Math.max(0, Math.min(
+          Number(q.marks ?? q.points ?? q.marksPerQuestion ?? autoPoint ?? 1),
+          Number(d.total ?? d.totalQuestions ?? 100)
+        )));
         customScore.step = '0.25';
         customScore.value = String(Number.isFinite(questionScore) ? questionScore : 0);
         customScore.disabled = d.reviewLocked === true;
@@ -4350,7 +4353,10 @@ next.addEventListener('click', async () => {
             deny.type = 'button';
             deny.className = 'rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-bold text-red-700';
             deny.textContent = 'प्रवेश अस्वीकार करें';
-            deny.addEventListener('click', () => setExamSessionDecision(row.id, 'denied'));
+            deny.addEventListener('click', () => {
+              if (!confirm('क्या इस विद्यार्थी का परीक्षा प्रवेश अस्वीकार करना है? यह निर्णय उसके वर्तमान सत्र को रोक सकता है।')) return;
+              setExamSessionDecision(row.id, 'denied');
+            });
             actions.appendChild(deny);
           }
           card.appendChild(actions);
