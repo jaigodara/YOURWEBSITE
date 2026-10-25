@@ -726,20 +726,9 @@ Ans: B"></textarea>
         <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">📎 किसी एक विद्यार्थी को Admit Card PDF भेजें</h4>
-          <p class="text-[11px] text-stone-600">रोल नंबर से एक विद्यार्थी को प्रवेश-पत्र जारी करें। पुराना PDF अपलोड विकल्प नीचे सुरक्षित रखा गया है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे JAMBH-2026-00001)">
-          <button id="releaseIndividualAdmitCardButton" type="button" onclick="releaseAdmitCardForRollNumber()" class="w-full rounded-lg bg-forest px-3 py-2.5 text-xs font-extrabold text-white">🎟️ इस रोल नंबर पर प्रवेश-पत्र जारी करें</button>
-          <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
-          <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">⬆️ निजी Notification में Admit Card PDF अपलोड करें</button>
-          <p class="text-[11px] text-stone-600">रोल नंबर से विद्यार्थी खोजकर प्रवेश-पत्र ब्राउज़र में PDF बनाया जाएगा। Firebase Storage पर अपलोड की आवश्यकता नहीं है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे JAMBH-2026-0001)">
-          <button id="releaseAdmitCardByRollButton" type="button" onclick="releaseAdmitCardToRollNumber()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">🎟️ रोल नंबर से प्रवेश-पत्र जारी करें</button>
-          <details class="rounded-lg border border-stone-200 bg-white p-3">
-            <summary class="cursor-pointer text-xs font-bold text-stone-600">उन्नत विकल्प: पुराना PDF अपलोड</summary>
-            <p class="mt-2 text-[11px] text-stone-500">पुराना Storage-आधारित अपलोड विकल्प संगतता के लिए रखा गया है। नई विधि की सिफारिश की जाती है।</p>
-            <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="mt-2 w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
-            <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="mt-2 w-full rounded-lg border border-stone-300 px-3 py-2.5 text-xs font-bold text-stone-700">⬆️ पुराना PDF अपलोड करें</button>
-          </details>
+          <p class="text-[11px] text-stone-600">प्रवेश-पत्र विद्यार्थी के स्वीकृत रिकॉर्ड से ब्राउज़र में तैयार होगा; PDF फाइल मैन्युअल रूप से अपलोड करने की आवश्यकता नहीं है।</p>
+          <input id="individualAdmitCardUid" type="text" maxlength="40" autocomplete="off" class="student-roll-badge w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="रोल नंबर (जैसे JAMBH-2026-0001)" aria-label="विद्यार्थी का रोल नंबर">
+          <button id="releaseIndividualAdmitCardButton" type="button" onclick="releaseAdmitCardForRollNumber()" class="w-full rounded-lg bg-forest px-3 py-2.5 text-xs font-extrabold text-white">🎟️ प्रवेश-पत्र जारी करें</button>
           <p id="individualAdmitCardUploadStatus" class="text-[11px] text-stone-600" aria-live="polite"></p>
         </div>
         <button type="button" onclick="revokeAdmitCardRelease()" class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700">रिलीज़ रोकें</button>
