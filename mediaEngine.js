@@ -43,6 +43,16 @@
     return id ? 'https://drive.google.com/file/d/' + id + '/preview' : '';
   }
 
+  function driveDocumentViewerUrl(input) {
+    const raw = String(input || '').trim();
+    if (!/^https:\/\//i.test(raw)) return '';
+    try {
+      const url = new URL(raw);
+      if (!/(^|\.)drive\.google\.com$/.test(url.hostname)) return '';
+      return 'https://docs.google.com/viewer?url=' + encodeURIComponent(url.href) + '&embedded=true';
+    } catch (_) { return ''; }
+  }
+
   function normalizePhone(input) {
     const digits = String(input || '').replace(/\D/g, '');
     const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2)
@@ -130,9 +140,10 @@
       modal.dataset.canMinimize = 'true';
       mini.hidden = false;
     } else {
-      const preview = driveUrl || item.url || item.rawUrl || '';
+      const rawDocumentUrl = item.url || item.rawUrl || item.embedUrl || '';
+      const preview = driveDocumentViewerUrl(rawDocumentUrl) || driveUrl || rawDocumentUrl;
       if (!/^https:\/\//i.test(preview)) { body.append(node('p', { className: 'bishnoi-media-error' }, 'दस्तावेज़ लिंक मान्य नहीं है।')); return; }
-      const frame = node('iframe', { title: item.title || 'PDF reader', src: preview, loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin' });
+      const frame = node('iframe', { title: item.title || 'PDF reader', src: preview, loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin', allow: 'fullscreen' });
       body.append(frame);
       delete modal.dataset.canMinimize;
       mini.hidden = true;
