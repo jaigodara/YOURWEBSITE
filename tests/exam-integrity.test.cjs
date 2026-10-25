@@ -59,3 +59,11 @@ test('Exam checking supports per-question score overrides, draft save, and final
   assert.match(owner, /textContent = '✓ अंतिम अनुमोदन एवं लॉक'/);
   assert.match(owner, /Owner: लॉक हटाएँ/);
 });
+
+test('Exam checking renders a responsive split-screen candidate and evaluation workspace', () => {
+  assert.match(owner, /checking-workspace/);
+  assert.match(owner, /candidate-queue-panel/);
+  assert.match(owner, /candidate-eval-panel/);
+  assert.match(owner, /grid-template-columns:minmax\(240px/);
+  assert.match(owner, /@media\(max-width:900px\)/);
+});
