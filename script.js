@@ -393,7 +393,19 @@ try {
     const raw = String(id || '').replace(/^tab-/, '');
     // Profile is a modal in this static site, not a separate tab panel.
     if (raw === 'profile') {
-      window.BishnoiApp?.openProfileOrAuth?.();
+      if (state.user) {
+        window.BishnoiApp?.openProfileOrAuth?.();
+      } else {
+        window.BishnoiAuth?.openAuthModal?.();
+        const modal = byId('authModal');
+        if (modal) {
+          modal.hidden = false;
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          modal.style.display = 'flex';
+          modal.setAttribute('aria-hidden', 'false');
+        }
+      }
       return true;
     }
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
