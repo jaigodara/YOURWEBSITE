@@ -850,6 +850,14 @@ Ans: B"></textarea>
         <p class="text-xs text-stone-500">यह संदेश मुख्य वेबसाइट के ऊपर “नई सूचनाएँ और घोषणाएँ” में सभी visitors को दिखाई देगा। प्रवेश-पत्र, परीक्षा तारीख या नई सामग्री की जानकारी यहाँ लिखें।</p>
         <input id="notificationTitle" maxlength="100" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="सूचना का शीर्षक (जैसे प्रवेश-पत्र उपलब्ध हैं)">
         <textarea id="notificationMessage" maxlength="2000" rows="3" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="पूरी जानकारी लिखें…"></textarea>
+        <label class="block text-xs font-bold text-stone-700">सूचना कितने समय तक दिखे?
+          <select id="notificationLifetime" class="mt-1 w-full min-h-11 rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
+            <option value="permanent">स्थायी — जब तक Owner हटाए</option>
+            <option value="1">1 दिन</option>
+            <option value="7">7 दिन</option>
+            <option value="30">30 दिन</option>
+          </select>
+        </label>
         <label class="block text-xs font-bold text-stone-700">किसे भेजना है? (खाली छोड़ें = सभी लॉगिन उपयोगकर्ता)
           <input id="notificationRecipientUid" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" class="mt-1 w-full p-3 rounded-xl border border-stone-300 text-sm font-normal" placeholder="10-digit मोबाइल नंबर (केवल उसी को)">
         </label>
@@ -5849,16 +5857,21 @@ async function removeTrustedEditor(uid) {
         return;
       }
       if (file) {
-        const validType = file.type === 'application/pdf' || file.type.startsWith('image/');
-        if (!validType) {
-          if (status) status.textContent = 'केवल PDF या image फ़ाइल अपलोड करें।';
+        const extension = String(file.name || '').split('.').pop().toLowerCase();
+        const isPdf = extension === 'pdf' && file.type === 'application/pdf';
+        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+        const isImage = imageExtensions.includes(extension) && /^image\/(png|jpeg|gif|webp)$/i.test(file.type || '');
+        if (!isPdf && !isImage) {
+          if (status) status.textContent = 'केवल सही MIME type वाली PDF या PNG/JPG/GIF/WebP image फ़ाइल अपलोड करें।';
           return;
         }
-        if (file.size > 10 * 1024 * 1024) {
-          if (status) status.textContent = 'फ़ाइल 10 MB से छोटी होनी चाहिए।';
+        if (!Number.isFinite(file.size) || file.size <= 0 || file.size > 10 * 1024 * 1024) {
+          if (status) status.textContent = 'फ़ाइल खाली नहीं होनी चाहिए और 10 MB से छोटी होनी चाहिए।';
           return;
         }
       }
+      if (!recipientPhoneRaw && !confirm('यह सूचना सभी उपयोगकर्ताओं के लिए प्रकाशित होगी। क्या आप जारी रखना चाहते हैं?')) return;
+      if (button?.disabled) return;
       if (button) button.disabled = true;
       if (status) status.textContent = 'सूचना/फ़ाइल अपलोड की जा रही है…';
 
@@ -5889,6 +5902,7 @@ async function removeTrustedEditor(uid) {
           fileType = file.type;
         }
 
+        const lifetimeValue = document.getElementById('notificationLifetime')?.value || 'permanent';
         const notification = {
           title,
           message,
@@ -5899,7 +5913,13 @@ async function removeTrustedEditor(uid) {
           active: true,
           type: /admit.?card|प्रवेश.?पत्र/i.test(title) && fileType === 'application/pdf' ? 'admit-card' : fileType === 'application/pdf' ? 'document' : fileType.startsWith('image/') ? 'image' : 'announcement',
           createdBy: auth.currentUser?.uid || null,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          ...(lifetimeValue !== 'permanent' ? {
+            expiresAt: firebase.firestore.Timestamp.fromDate(
+              new Date(Date.now() + Math.max(1, Number(lifetimeValue) || 1) * 24 * 60 * 60 * 1000)
+            ),
+            lifetimeDays: Math.max(1, Number(lifetimeValue) || 1)
+          } : { lifetime: 'permanent' })
         };
 
         if (recipientUid) {
@@ -5919,6 +5939,8 @@ async function removeTrustedEditor(uid) {
         if (messageInput) messageInput.value = '';
         if (recipientInput) recipientInput.value = '';
         if (attachmentInput) attachmentInput.value = '';
+        const lifetimeInput = document.getElementById('notificationLifetime');
+        if (lifetimeInput) lifetimeInput.value = 'permanent';
         if (status) status.textContent = recipientUid
           ? 'व्यक्तिगत सूचना उस मोबाइल नंबर से जुड़े खाते को भेज दी गई।'
           : 'सूचना प्रकाशित हो गई। यह केवल लॉगिन किए हुए उपयोगकर्ताओं को दिखाई जाएगी।';
