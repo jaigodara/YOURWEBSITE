@@ -557,7 +557,9 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
   db.collection("examConfig").doc("current").onSnapshot(snapshot => {
     const config = snapshot.exists ? snapshot.data() : {};
     window.__bishnoismExamConfig = config;
-    const portalEnabled = config.examPortalVisible !== false && config.separateExamPortalActive !== false;
+    const portalEnabled = config.examPortalVisible !== false &&
+      config.separateExamPortalVisible !== false &&
+      config.separateExamPortalActive !== false;
 
     area.classList.toggle("hide", !portalEnabled);
     disabledPanel.classList.toggle("hide", portalEnabled);
@@ -575,6 +577,7 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
     setCard("mock2Card", mock2Visible);
     setCard("mainExamCard", config.mainExamVisible !== false);
     setCard("enrollmentCard", config.enrollmentVisible !== false);
+    setCard("resultsCard", config.resultsVisible !== false);
     const setLabel = value => ({ set1: "Set 1", set2: "Set 2", set3: "Set 3", set4: "Set 4" })[value] || "Set 1";
     const updateSetBadge = (id, value, visible) => {
       const badge = byId(id);
