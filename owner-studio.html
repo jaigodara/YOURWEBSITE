@@ -645,6 +645,7 @@ Ans: B"></textarea>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMainExam" type="checkbox" class="accent-forest"> मुख्य परीक्षा दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowEnrollment" type="checkbox" class="accent-forest"> विद्यार्थी पंजीकरण दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowResults" type="checkbox" class="accent-forest"> परिणाम डेस्क दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerRandomizeSets" type="checkbox" class="accent-forest" checked> प्रश्न और विकल्प शफल करें</label>
         </div>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-sm font-extrabold text-forest">🔐 मुख्य / मॉक परिणाम रिलीज़</h4>
@@ -2537,6 +2538,7 @@ async function saveBulkQuestionDrafts() {
           ['ownerShowMainExam', data.mainExamVisible !== false],
           ['ownerShowEnrollment', data.enrollmentVisible !== false],
           ['ownerShowResults', data.resultsVisible !== false],
+          ['ownerRandomizeSets', data.randomizeSets !== false],
           ['ownerQuizQuestionSet', ['set1','set2','set3','set4'].includes(data.quizQuestionSet) ? data.quizQuestionSet : 'set1'],
           ['ownerMock1QuestionSet', ['set1','set2','set3','set4'].includes(data.mock1QuestionSet) ? data.mock1QuestionSet : 'set1'],
           ['ownerMock2QuestionSet', ['set1','set2','set3','set4'].includes(data.mock2QuestionSet) ? data.mock2QuestionSet : 'set1'],
@@ -3194,6 +3196,7 @@ async function saveBulkQuestionDrafts() {
         mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
+        randomizeSets: !!document.getElementById('ownerRandomizeSets')?.checked,
         quizQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerQuizQuestionSet')?.value) ? document.getElementById('ownerQuizQuestionSet').value : 'set1',
         mock1QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock1QuestionSet')?.value) ? document.getElementById('ownerMock1QuestionSet').value : 'set1',
         mock2QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock2QuestionSet')?.value) ? document.getElementById('ownerMock2QuestionSet').value : 'set1',
