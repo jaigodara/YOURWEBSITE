@@ -33,6 +33,7 @@ test('student roster report only includes enrollment fields and approval status'
   assert.deepEqual(report.columns, ['आवंटित अनुक्रमांक', 'विद्यार्थी का नाम', 'पिता / अभिभावक', 'मोबाइल', 'प्रवेश स्थिति']);
   assert.equal(report.rows[0]['आवंटित अनुक्रमांक'], 'JAMBH-2026-0001');
   assert.equal(report.rows[0]['प्रवेश स्थिति'], 'स्वीकृत');
+  assert.equal(report.rows[0]['मोबाइल'], '98••••••00');
   assert.equal(report.rows[1]['आवंटित अनुक्रमांक'], 'लंबित');
   assert.equal(report.rows[1]['प्रवेश स्थिति'], 'समीक्षाधीन');
   assert.equal(JSON.stringify(report).includes('private-uid'), false);
@@ -116,4 +117,16 @@ test('custom exam configuration validates and exposes the saved grading fields i
   }
   assert.ok(ownerHtml.includes('customExamNegativeMarks: customNegativeMarks'));
   assert.ok(ownerHtml.includes('customPassingMarks > customTotalMarks'));
+});
+
+test('PDF exports query only the selected collection and use the formatter for standalone reports', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const ownerHtml = fs.readFileSync(path.join(__dirname, '..', 'owner-studio.html'), 'utf8');
+  assert.ok(ownerHtml.includes("['csv', 'xlsx', 'pdf'].includes(format)"));
+  assert.ok(ownerHtml.includes("payload = await getRegisteredMemberExportRows()"));
+  assert.ok(ownerHtml.includes("payload = await getExamResultExportRows()"));
+  assert.ok(ownerHtml.includes("formatOwnerExportReport('publishedResults', rawRows)"));
+  assert.ok(ownerHtml.includes("formatOwnerExportReport('examEnrolledStudents', rawRows)"));
+  assert.ok(ownerHtml.includes('href="./export-report.css"'));
 });
