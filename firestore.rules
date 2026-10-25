@@ -848,44 +848,8 @@ service cloud.firestore {
         && request.resource.data.get('targetName', '') is string
         && request.resource.data.get('targetName', '').size() <= 100
         && request.resource.data.get('targetPhoneLast4', '') is string
-        && (
-          request.resource.data.get('targetPhoneLast4', '') == ''
-          || request.resource.data.get('targetPhoneLast4', '').matches('^[0-9]{4}
-    // The 192-bit random token is required for get-only access; collection listing is denied.
-    match /publicAdmitCardVerifications/{token} {
-      allow get: if resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) is timestamp
-        && resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
-      allow list: if false;
-      allow create: if examOwner()
-        && token.matches('^[a-f0-9]{48}
-  }
-}
-)
-        && request.resource.data.keys().hasOnly([
-          'rollNumber', 'examTitle', 'status', 'issuedAt', 'expiresAt'
-        ])
-        && request.resource.data.get('rollNumber', '') is string
-        && request.resource.data.get('rollNumber', '').matches('^JAMBH-[0-9]{4}-[0-9]{4,}
-  }
-}
-)
-        && request.resource.data.get('examTitle', '') is string
-        && request.resource.data.get('examTitle', '').size() > 0
-        && request.resource.data.get('examTitle', '').size() <= 120
-        && request.resource.data.get('status', '') == 'valid'
-        && request.resource.data.get('issuedAt', null) is timestamp
-        && request.resource.data.get('expiresAt', null) is timestamp
-        && request.resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
-      allow update, delete: if examOwner();
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-)
-        )
+        && (request.resource.data.get('targetPhoneLast4', '') == ''
+          || request.resource.data.get('targetPhoneLast4', '').matches('^[0-9]{4}$'))
         && request.resource.data.get('targetRole', '') == 'editor'
         && request.resource.data.get('permissions', {}) is map
         && request.resource.data.get('changedByName', '') is string
@@ -894,25 +858,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Public QR verification exposes only the minimum admit-card fields.
-    // The 192-bit random token is required for get-only access; collection listing is denied.
+    // Public QR verification exposes only minimal admit-card fields; token IDs are unguessable.
     match /publicAdmitCardVerifications/{token} {
       allow get: if resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) is timestamp
         && resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
       allow list: if false;
       allow create: if examOwner()
-        && token.matches('^[a-f0-9]{48}
-  }
-}
-)
+        && token.matches('^[a-f0-9]{48}$')
         && request.resource.data.keys().hasOnly([
           'rollNumber', 'examTitle', 'status', 'issuedAt', 'expiresAt'
         ])
         && request.resource.data.get('rollNumber', '') is string
-        && request.resource.data.get('rollNumber', '').matches('^JAMBH-[0-9]{4}-[0-9]{4,}
-  }
-}
-)
+        && request.resource.data.get('rollNumber', '').matches('^JAMBH-[0-9]{4}-[0-9]{4,}$')
         && request.resource.data.get('examTitle', '') is string
         && request.resource.data.get('examTitle', '').size() > 0
         && request.resource.data.get('examTitle', '').size() <= 120
