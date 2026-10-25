@@ -21,7 +21,10 @@ test("exam portal embed mode is set before page styles and selects the requested
 
 test("portal navigation opens the selected section even before login; exam start remains guarded in the app", () => {
   const launchHandler = portalHtml.slice(portalHtml.indexOf('document.querySelectorAll("[data-launch-exam]")'));
-  assert.match(launchHandler, /examFrame\\.src = "\\.\\/index\\.html\\?examEmbed=" \\+ encodeURIComponent\\(mode\\)/);
+ assert.ok(
+  launchHandler.includes('examFrame.src = "./index.html?examEmbed=" + encodeURIComponent(mode)'),
+  "portal should load the requested exam section"
+);
   assert.match(launchHandler, /Always open the requested section/);
   assert.match(launchHandler, /examFrame\\.src = "\\.\\/index\\.html\\?examEmbed="/);
   assert.doesNotMatch(launchHandler, /if \\(!auth\\.currentUser/);
