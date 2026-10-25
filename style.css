@@ -879,4 +879,6 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
 
 /* Owner Studio sticky header and mobile-safe student roll labels. */
 .top-admin-header { position: sticky; top: 0; z-index: 1000; }
-.student-roll-badge { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
+.student-roll-badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; min-width: max-content; flex: 0 0 auto; white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
+.student-roll-badge, .roll-number, [data-roll-number] { white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
+@media (max-width: 640px) { .checking-workspace { grid-template-columns: minmax(0, 1fr) !important; } .checking-workspace > * { min-width: 0; } .student-roll-badge { max-width: 100%; overflow-x: auto; } }
