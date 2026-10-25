@@ -279,7 +279,7 @@
             <option value="reviews">निजी मैन्युअल जाँच</option><option value="mainExamQuestions">मुख्य परीक्षा प्रश्न</option>
             <option value="mockExam_1">मॉक परीक्षा सेट 1 प्रश्न</option><option value="mockExam_2">मॉक परीक्षा सेट 2 प्रश्न</option>
             <option value="quiz">दैनिक क्विज़ प्रश्न</option><option value="examConfig">परीक्षा सेटिंग्स</option>
-            <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option>
+            <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option><option value="roleAuditLogs">सहायक संपादक अनुमति ऑडिट</option>
             <option value="live_violations">लाइव परीक्षा उल्लंघन लॉग</option>
             <option value="assistantEditors">सहायक संपादक और अनुमतियाँ</option>
             <option value="trustedEditors">विश्वसनीय संपादक सूची</option>
@@ -915,6 +915,16 @@ Ans: B"></textarea>
     <div id="pendingEditorsListBox" class="space-y-2 pt-1 text-xs" aria-live="polite">आमंत्रण की स्थिति लोड हो रही है…</div>
   </div>
 </div>
+
+      <section id="editorPermissionAuditPanel" class="bg-white p-5 rounded-3xl border border-amber-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <div><h3 class="font-yatra text-base text-forest">🧾 संपादक अनुमति ऑडिट लॉग</h3>
+            <p class="text-xs text-stone-500">आमंत्रण और भूमिका हटाने के हाल के रिकॉर्ड। यहाँ Firebase UID नहीं दिखाए जाते।</p></div>
+          <button type="button" onclick="loadEditorAuditLogs()" class="rounded-xl border border-amber-300 px-3 py-2 text-xs font-bold text-forest">लॉग ताज़ा करें</button>
+        </div>
+        <p id="editorAuditStatus" role="status" aria-live="polite" class="text-xs text-stone-500"></p>
+        <div id="editorAuditList" class="space-y-2 text-xs"><p class="text-stone-500">ऑडिट लॉग देखने के लिए “लॉग ताज़ा करें” दबाएँ।</p></div>
+      </section>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
       <div id="ownerExportPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
@@ -4907,6 +4917,80 @@ return review ? {
     }
 
     
+async function writeEditorAudit(action, data = {}) {
+  try {
+    if (!isPrimaryOwner()) return;
+    const digits = String(data.phone || '').replace(/\\D/g, '');
+    const permissions = data.permissions && typeof data.permissions === 'object' ? data.permissions : {};
+    await db.collection('roleAuditLogs').add({
+      action: String(action || 'unknown'),
+      targetName: String(data.fullName || data.name || 'सहायक संपादक').slice(0, 100),
+      targetPhoneLast4: digits.length >= 4 ? digits.slice(-4) : '',
+      targetRole: 'editor',
+      permissions: {
+        media: permissions.media === true,
+        quizDrafts: permissions.quizDrafts === true,
+        examReview: permissions.examReview === true,
+        notifications: permissions.notifications === true
+      },
+      changedByName: String(auth.currentUser?.displayName || 'व्यवस्थापक').slice(0, 120),
+      changedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.warn('Editor permission audit event was not written:', error);
+  }
+}
+
+async function loadEditorAuditLogs() {
+  const host = document.getElementById('editorAuditList');
+  const status = document.getElementById('editorAuditStatus');
+  if (!host) return;
+  if (!isPrimaryOwner()) {
+    if (status) status.textContent = 'ऑडिट लॉग केवल Owner देख सकता है।';
+    return;
+  }
+  if (status) status.textContent = 'ऑडिट लॉग लोड हो रहे हैं…';
+  host.replaceChildren();
+  try {
+    const snap = await db.collection('roleAuditLogs').orderBy('changedAt', 'desc').limit(50).get();
+    if (snap.empty) {
+      if (status) status.textContent = 'अभी कोई संपादक अनुमति परिवर्तन दर्ज नहीं है।';
+      return;
+    }
+    snap.forEach(doc => {
+      const data = doc.data() || {};
+      const card = document.createElement('article');
+      card.className = 'rounded-xl border border-stone-200 bg-stone-50 p-3';
+      const actionLabels = {
+        invitation_created: 'नया संपादक आमंत्रण',
+        editor_removed: 'संपादक की भूमिका हटाई गई'
+      };
+      const title = document.createElement('div');
+      title.className = 'font-bold text-forest';
+      title.textContent = (actionLabels[data.action] || 'अनुमति परिवर्तन') + ' · ' + (data.targetName || 'सहायक संपादक');
+      const meta = document.createElement('p');
+      meta.className = 'mt-1 text-stone-600';
+      const date = data.changedAt?.toDate ? data.changedAt.toDate().toLocaleString('hi-IN') : 'समय उपलब्ध नहीं';
+      meta.textContent = 'मोबाइल के अंतिम 4 अंक: ' + (data.targetPhoneLast4 || '—') + ' · ' + date;
+      const permissions = data.permissions || {};
+      const access = document.createElement('p');
+      access.className = 'mt-1 text-stone-600';
+      access.textContent = 'अधिकार: ' + [
+        permissions.media && 'मीडिया',
+        permissions.quizDrafts && 'क्विज़ Draft',
+        permissions.examReview && 'परीक्षा जाँच',
+        permissions.notifications && 'सूचनाएँ'
+      ].filter(Boolean).join(', ') || 'कोई अतिरिक्त अधिकार नहीं';
+      card.append(title, meta, access);
+      host.appendChild(card);
+    });
+    if (status) status.textContent = 'पिछले ' + snap.size + ' ऑडिट रिकॉर्ड दिखाए गए।';
+  } catch (error) {
+    console.error('Editor audit log failed:', error);
+    if (status) status.textContent = 'ऑडिट लॉग लोड नहीं हुए: ' + error.message + ' · Firestore rules जाँचें।';
+  }
+}
+
 function setTrustedEditorStatus(message, isError = false) {
   const status = document.getElementById('trustedEditorStatus');
   if (status) {
@@ -5081,6 +5165,7 @@ async function addTrustedEditor() {
     };
 
     await ref.set(invitation);
+    await writeEditorAudit('invitation_created', { phone, fullName, permissions });
 
     let notificationSent = false;
     try {
@@ -5132,7 +5217,15 @@ async function removeTrustedEditor(uid) {
   if (!uid || !confirm('इस सहायक संपादक की भूमिका हटाएँ?')) return;
 
   try {
-    await db.collection('roles').doc(uid).delete();
+    const roleRef = db.collection('roles').doc(uid);
+    const roleSnapshot = await roleRef.get();
+    const roleData = roleSnapshot.exists ? (roleSnapshot.data() || {}) : {};
+    await roleRef.delete();
+    await writeEditorAudit('editor_removed', {
+      phone: roleData.phone || '',
+      fullName: roleData.fullName || roleData.displayName || 'सहायक संपादक',
+      permissions: roleData.permissions || {}
+    });
     setTrustedEditorStatus('संपादक की भूमिका हटा दी गई।');
   } catch (error) {
     console.error('Editor role removal failed:', error);
