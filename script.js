@@ -2142,16 +2142,22 @@ pdf.addImage(
   window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
     if (!host) return;
-    const rows = Array.isArray(state.myResults) ? state.myResults : [];
+    const allRows = Array.isArray(state.myResults) ? state.myResults : [];
+    const resultsReleased = state.examConfig?.resultsPublished === true;
+    // Daily quiz keeps its own publication flow; main/mock results stay hidden
+    // until the Owner explicitly releases the global result gate.
+    const rows = allRows.filter(row => row.mode === 'quiz' || resultsReleased);
     const intro = byId('myResultsIntro');
     if (!rows.length) {
-      if (intro) intro.textContent = state.user
-        ? 'अभी आपके खाते के लिए कोई परिणाम प्रकाशित नहीं हुआ है। परिणाम परीक्षक द्वारा घोषित होने के बाद यहाँ दिखाई देंगे।'
-        : 'अपने परिणाम देखने के लिए लॉगिन करें। प्रकाशित परिणाम ही यहाँ दिखाए जाते हैं।';
-      host.innerHTML = '<div class="results-empty"><span class="results-empty-icon" aria-hidden="true">📘</span><p class="font-bold text-sm text-forest">अभी कोई घोषित परिणाम नहीं</p><p class="mt-1 text-xs leading-relaxed text-stone-500">जैसे ही परीक्षक आपका परिणाम प्रकाशित करेंगे, अंक और परिणाम का समय यहाँ दिखाई देगा।</p></div>';
+      if (intro) intro.textContent = !state.user
+        ? 'अपने परिणाम देखने के लिए लॉगिन करें। प्रकाशित परिणाम ही यहाँ दिखाए जाते हैं।'
+        : (allRows.length && !resultsReleased
+          ? 'मुख्य और मॉक परीक्षा के परिणाम अभी लॉक हैं। व्यवस्थापक द्वारा “परिणाम जारी करें” करने पर यहाँ दिखेंगे।'
+          : 'अभी आपके खाते के लिए कोई परिणाम प्रकाशित नहीं हुआ है। परिणाम परीक्षक द्वारा घोषित होने के बाद यहाँ दिखाई देंगे।');
+      host.innerHTML = '<div class="results-empty"><span class="results-empty-icon" aria-hidden="true">📘</span><p class="font-bold text-sm text-forest">' + (allRows.length && !resultsReleased ? 'परिणाम अभी लॉक हैं' : 'अभी कोई घोषित परिणाम नहीं') + '</p><p class="mt-1 text-xs leading-relaxed text-stone-500">' + (allRows.length && !resultsReleased ? 'मुख्य/मॉक परिणाम Owner के रिलीज़ करने तक छिपे रहेंगे।' : 'जैसे ही परीक्षक आपका परिणाम प्रकाशित करेंगे, अंक और परिणाम का समय यहाँ दिखाई देगा।') + '</p></div>';
       return;
     }
-    if (intro) intro.textContent = 'नीचे केवल आपके लिए प्रकाशित परिणाम हैं। लंबित या जाँचाधीन प्रयासों के अंक यहाँ नहीं दिखाए जाते।';
+    if (intro) intro.textContent = 'नीचे केवल आपके लिए जारी किए गए परिणाम हैं। लंबित या जाँचाधीन प्रयासों के अंक यहाँ नहीं दिखाए जाते।';
     const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा' };
     host.innerHTML = rows.map(row => {
       const scoreVisible = row.mode === 'quiz' || state.resultsIdentityVerified === true;
