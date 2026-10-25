@@ -280,7 +280,7 @@
         <p id="ownerDataDashboardStatus" class="text-[10px] text-stone-500" aria-live="polite">डेटा अपडेट होने की प्रतीक्षा में।</p>
       </section>
 
-      <section id="ownerDataExportPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
+      <section id="ownerDataExportPanel" data-editor-permission="reports" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">⬇️ सुरक्षित डेटा डाउनलोड</h3>
         <p class="text-sm text-stone-600">Excel और CSV रिपोर्ट देखने के लिए हैं; JSON पूरा बैकअप है। निजी विद्यार्थी जानकारी वाली फ़ाइल सुरक्षित रखें।</p>
         <label class="block text-sm font-bold text-stone-700">1. कौन-सा डेटा डाउनलोड करना है?
@@ -963,6 +963,7 @@ Ans: B"></textarea>
     <label class="flex items-center gap-2"><input id="editorPermissionQuizDrafts" type="checkbox"> दैनिक क्विज़ Draft संपादन</label>
     <label class="flex items-center gap-2"><input id="editorPermissionExamReview" type="checkbox"> परीक्षा जाँच/परिणाम प्रकाशित करना</label>
     <label class="flex items-center gap-2"><input id="editorPermissionNotifications" type="checkbox"> सूचनाएँ भेजना</label>
+    <label class="flex items-center gap-2"><input id="editorPermissionReports" type="checkbox"> रिपोर्ट / डेटा एक्सपोर्ट</label>
   </div>
 
   <button type="button" onclick="addTrustedEditor()"
@@ -993,7 +994,7 @@ Ans: B"></textarea>
       </section>
 
       <!-- PDF & EXCEL REPORTS EXPORT -->
-      <div id="ownerExportPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+      <div id="ownerExportPanel" data-editor-permission="reports" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📄 सुरक्षित डेटा एक्सपोर्ट केंद्र (PDF, Excel &amp; CSV)</h3>
         <p class="text-xs text-stone-500">परीक्षा परिणाम एवं सदस्यों का डेटाबेस एक क्लिक में डाउनलोड करें:</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold">
@@ -4475,7 +4476,7 @@ next.addEventListener('click', async () => {
     window.loadOwnerDataDashboard = loadOwnerDataDashboard;
 
     async function exportOwnerData(format) {
-      if (!isPrimaryOwner()) return showToast('डेटा डाउनलोड केवल Super Owner कर सकता है।');
+      if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('डेटा डाउनलोड के लिए Reports permission आवश्यक है।');
       const status = document.getElementById('ownerExportStatus');
       const selected = document.getElementById('ownerExportCollection')?.value || 'examEnrolledStudents';
       const button = document.querySelector('#ownerDataExportPanel button[data-export-format="' + format + '"]');
@@ -5287,7 +5288,8 @@ async function writeEditorAudit(action, data = {}) {
         media: permissions.media === true,
         quizDrafts: permissions.quizDrafts === true,
         examReview: permissions.examReview === true,
-        notifications: permissions.notifications === true
+        notifications: permissions.notifications === true,
+        reports: permissions.reports === true
       },
       changedByName: String(auth.currentUser?.displayName || 'व्यवस्थापक').slice(0, 120),
       changedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -5360,7 +5362,8 @@ function editorPermissionsFromForm() {
     media: !!document.getElementById('editorPermissionMedia')?.checked,
     quizDrafts: !!document.getElementById('editorPermissionQuizDrafts')?.checked,
     examReview: !!document.getElementById('editorPermissionExamReview')?.checked,
-    notifications: !!document.getElementById('editorPermissionNotifications')?.checked
+    notifications: !!document.getElementById('editorPermissionNotifications')?.checked,
+    reports: !!document.getElementById('editorPermissionReports')?.checked
   };
 }
 
@@ -5401,7 +5404,8 @@ function listenTrustedEditors() {
         p.media && 'मीडिया',
         p.quizDrafts && 'क्विज़ Draft',
         p.examReview && 'परीक्षा जाँच',
-        p.notifications && 'सूचनाएँ'
+        p.notifications && 'सूचनाएँ',
+        p.reports && 'रिपोर्ट/एक्सपोर्ट'
       ].filter(Boolean).join(', ') || 'कोई अतिरिक्त अधिकार नहीं';
 
       const remove = document.createElement('button');
@@ -5565,7 +5569,8 @@ async function addTrustedEditor() {
       'editorPermissionMedia',
       'editorPermissionQuizDrafts',
       'editorPermissionExamReview',
-      'editorPermissionNotifications'
+      'editorPermissionNotifications',
+      'editorPermissionReports'
     ].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.checked = false;
