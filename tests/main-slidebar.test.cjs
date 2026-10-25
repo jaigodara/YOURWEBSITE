@@ -46,3 +46,11 @@ test('Literature search filters PDF, media, and Niyam cards from one search fiel
   assert.match(script, /id: 'platformMediaFeed'/);
   assert.match(script, /id: 'niyamGrid'/);
 });
+
+test('Literature bookmarks persist locally and render in the profile panel', () => {
+  assert.ok(html.includes('id="savedLiteratureBookmarks"'));
+  assert.match(script, /bishnoi_literature_bookmarks_v1/);
+  assert.match(script, /data-literature-bookmark-toggle/);
+  assert.match(script, /data-remove-literature-bookmark/);
+  assert.match(script, /function renderLiteratureBookmarks/);
+});
