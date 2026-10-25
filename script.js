@@ -4478,7 +4478,10 @@ const digits = String(value || '').replace(/\D/g, '');
           const correctKeys = ['correctAnswer', 'answerIndex', 'ans', 'correctOption'].filter(key =>
             question[key] !== undefined && question[key] !== null && question[key] !== ''
           );
-          const rawCorrect = correctKeys.length ? question[correctKeys[0]] : null;
+          // Main/mock answer keys live in a separate private collection. Do not
+          // shuffle their options until the engine can remap private keys safely.
+          if (!correctKeys.length) return;
+          const rawCorrect = question[correctKeys[0]];
           const optionText = option => String(option && typeof option === 'object'
             ? (option.text ?? option.label ?? option.value ?? '') : option).trim().toLowerCase();
           let oldCorrectIndex = -1;
