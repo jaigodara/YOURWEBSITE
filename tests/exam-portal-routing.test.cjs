@@ -25,8 +25,11 @@ test("portal navigation opens the selected section even before login; exam start
   assert.match(launchHandler, /Always open the requested section/);
   assert.match(launchHandler, /examFrame\.src = "\.\/index\.html\?examEmbed="/);
   assert.doesNotMatch(launchHandler, /if \(!auth\.currentUser/);
-  assert.doesNotMatch(launchHandler.slice(0, launchHandler.indexOf('examFrame.src')), /return;/,
-    "the navigation handler must not return early before loading the requested section");
+  // Invalid modes and future scheduled exams intentionally return early;
+  // authentication must not block opening the selected portal section.
+  assert.match(launchHandler, /if \(!examTitles\[mode\]\) return;/);
+  assert.match(launchHandler, /if \(date[^\n]*\)\s*\{?setPortalStatus/);
+  assert.doesNotMatch(launchHandler, /if \(!auth\.currentUser[^\n]*return;/);
 });
 
 test("exam schedule changes only publish notifications after explicit owner opt-in", () => {
