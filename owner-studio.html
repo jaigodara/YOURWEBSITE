@@ -4286,7 +4286,7 @@ next.addEventListener('click', async () => {
               const pageWidthPx = orientation === 'portrait' ? 794 : 1122;
               const pageHeightPx = orientation === 'portrait' ? 1122 : 794;
               const wrapper = document.createElement('section');
-              wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + pageWidthPx + 'px;height:' + pageHeightPx + 'px;box-sizing:border-box;padding:30px 34px 24px;background:#fff;color:#17211b;font-family:Arial,"Noto Sans Devanagari",sans-serif;display:flex;flex-direction:column;overflow:hidden;';
+              wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + pageWidthPx + 'px;min-height:' + pageHeightPx + 'px;height:auto;box-sizing:border-box;padding:30px 34px 24px;background:#fff;color:#17211b;font-family:Arial,"Noto Sans Devanagari",sans-serif;display:flex;flex-direction:column;overflow:visible;';
               const columns = exportReport.columns || Object.keys(pageRows[0] || {});
               const heading = '<header style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #1b4332;padding-bottom:14px;margin-bottom:14px;">' +
                 '<div><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b34a1b;">BISHNOISM DIGITAL EXAM COUNCIL</div>' +
@@ -4303,10 +4303,16 @@ next.addEventListener('click', async () => {
               if (document.fonts && document.fonts.ready) await document.fonts.ready;
               const canvas = await window.html2canvas(wrapper, {
                 scale: 1.35, backgroundColor: '#ffffff', useCORS: true, logging: false,
-                width: pageWidthPx, height: pageHeightPx, windowWidth: pageWidthPx
+                width: pageWidthPx, height: wrapper.scrollHeight, windowWidth: pageWidthPx
               });
               if (pageIndex > 0) doc.addPage('a4', orientation);
-              doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+              const renderedHeight = canvas.height * (pdfWidth / canvas.width);
+              const fitScale = Math.min(1, pdfHeight / renderedHeight);
+              const imageWidth = pdfWidth * fitScale;
+              const imageHeight = renderedHeight * fitScale;
+              doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG',
+                (pdfWidth - imageWidth) / 2, (pdfHeight - imageHeight) / 2,
+                imageWidth, imageHeight, undefined, 'FAST');
               wrapper.remove();
             }
           } else {
