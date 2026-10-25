@@ -44,8 +44,14 @@
     return String(value);
   };
   const setText = (row, fallback) => {
-    const raw = String(valueOf(row, ['questionSet', 'questionSetKey', 'set', 'setName']) || fallback || '').trim();
-    if (!raw) return 'Unspecified';
+    const source = String(row && row._sourceCollection || fallback || '').trim();
+    const raw = String(valueOf(row, ['questionSet', 'questionSetKey', 'set', 'setName']) || '').trim();
+    if (source && SET_NAMES[source]) {
+      const sourceName = SET_NAMES[source];
+      const suffix = raw && !new RegExp(sourceName, 'i').test(raw) ? ' — ' + raw.replace(/^set[\s_-]*/i, 'Set ') : '';
+      return sourceName + suffix;
+    }
+    if (!raw) return source && SET_NAMES[source] ? SET_NAMES[source] : 'Unspecified';
     if (/^set[\s_-]*([1-4])$/i.test(raw)) return 'Set ' + raw.match(/[1-4]/)[0];
     if (SET_NAMES[raw]) return SET_NAMES[raw];
     return raw.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
