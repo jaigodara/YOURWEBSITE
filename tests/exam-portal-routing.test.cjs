@@ -21,21 +21,22 @@ test("exam portal embed mode is set before page styles and selects the requested
 
 test("portal navigation opens the selected section even before login; exam start remains guarded in the app", () => {
   const launchHandler = portalHtml.slice(portalHtml.indexOf('document.querySelectorAll("[data-launch-exam]")'));
-  assert.match(launchHandler, /examFrame\.src = "\.\/index\.html\?examEmbed=" \+ encodeURIComponent\(mode\)/);
+  assert.match(launchHandler, /examFrame\\.src = "\\.\\/index\\.html\\?examEmbed=" \\+ encodeURIComponent\\(mode\\)/);
   assert.match(launchHandler, /Always open the requested section/);
-  assert.match(launchHandler, /examFrame\.src = "\.\/index\.html\?examEmbed="/);
-  assert.doesNotMatch(launchHandler, /if \(!auth\.currentUser/);
+  assert.match(launchHandler, /examFrame\\.src = "\\.\\/index\\.html\\?examEmbed="/);
+  assert.doesNotMatch(launchHandler, /if \\(!auth\\.currentUser/);
   // Invalid modes and future scheduled exams intentionally return early;
   // authentication must not block opening the selected portal section.
-  assert.match(launchHandler, /if \(!examTitles\[mode\]\) return;/);
-  assert.match(launchHandler, /if \(date[^\n]*\)\s*\{?setPortalStatus/);
-  assert.doesNotMatch(launchHandler, /if \(!auth\.currentUser[^\n]*return;/);
+  assert.match(launchHandler, /if \\(!examTitles\\[mode\\]\\) return;/);
+  assert.match(launchHandler, /toScheduleDate\\(value\\)/);
+  assert.match(launchHandler, /date\\.getTime\\(\\)>Date\\.now\\(\\)\\)\\{setPortalStatus/);
+  assert.doesNotMatch(launchHandler, /if \\(!auth\\.currentUser[^\\n]*return;/);
 });
 
 test("exam schedule changes only publish notifications after explicit owner opt-in", () => {
   assert.match(ownerHtml, /id="ownerPublishExamNotifications" type="checkbox"/);
-  assert.match(ownerHtml, /const publishNotifications = document\.getElementById\('ownerPublishExamNotifications'\)\?\.checked === true/);
-  assert.match(ownerHtml, /if \(publishNotifications\) for \(const \[title, message\] of notices\)/);
-  assert.match(ownerHtml, /if \(publishNotifications\) for \(const \[mode, startAt, oldStartAt, title, body\] of startEvents\)/);
-  assert.match(ownerHtml, /publishControl\.checked = false/);
+  assert.match(ownerHtml, /const publishNotifications = document\\.getElementById\\('ownerPublishExamNotifications'\\)\\?\\.checked === true/);
+  assert.match(ownerHtml, /if \\(publishNotifications\\) for \\(const \\[title, message\\] of notices\\)/);
+  assert.match(ownerHtml, /if \\(publishNotifications\\) for \\(const \\[mode, startAt, oldStartAt, title, body\\] of startEvents\\)/);
+  assert.match(ownerHtml, /publishControl\\.checked = false/);
 });
