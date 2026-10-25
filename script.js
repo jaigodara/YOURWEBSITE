@@ -3270,12 +3270,18 @@ window.renderExamVisibility = function renderExamVisibility() {
           ['mock2', CONFIG.submissionCollections.mock2]
         ];
         const groups = await Promise.all(sources.map(async ([mode, sourceCollection]) => {
-          const snap = await collection(sourceCollection).limit(100).get();
+          const snap = await collection(sourceCollection).limit(500).get();
           return snap.docs.map(doc => ({ ...doc.data(), id: doc.id, mode: doc.data()?.mode || mode, sourceCollection }));
         }));
-        const rows = groups.flat().sort(
-  (a, b) => timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt)
-);
+       // Keep only answer sheets that still need checking.
+// Published results remain saved in Firestore.
+const rows = groups
+  .flat()
+  .filter(row => row.manualCheckStatus !== 'published')
+  .sort(
+    (a, b) =>
+      timestampMillis(b.submittedAt) - timestampMillis(a.submittedAt)
+  );
 
 // Load published answer keys from each relevant exam question collection.
 // Keep manual checking available even if an answer-key query fails.
@@ -3304,7 +3310,11 @@ await Promise.all(questionCollections.map(async questionCollection => {
      
 const answerKey = {
   set,
-  answer: question.correctAnswer ?? question.answerIndex ?? question.ans
+ answer:
+  question.correctAnswer ??
+  question.answerIndex ??
+  question.ans ??
+  question.answer
 };
 
 // Match the Firestore document ID.
@@ -3346,28 +3356,42 @@ if (question.id !== undefined && question.id !== null) {
 
           const configuredTotal = Number(row.totalMarks ?? row.maxMarks);
 
-          const total = Math.max(
-            1,
-            Number.isFinite(configuredTotal) && configuredTotal > 0
-              ? configuredTotal
-              : snapshotTotal > 0
-                ? snapshotTotal
-                : Number(row.total ?? row.totalQuestions ?? 1)
-          );
+const total = Math.max(
+  1,
+  snapshotTotal > 0
+    ? snapshotTotal
+    : Number.isFinite(configuredTotal) && configuredTotal > 0
+      ? configuredTotal
+      : Number(row.total ?? row.totalQuestions ?? 1)
+);
 
           const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
           const answers = row.answers && typeof row.answers === 'object' ? row.answers : {};
 const questionCollection =
   CONFIG.examCollections[row.mode] || row.questionSetKey || '';
 
-const rowSet = ['set1', 'set2', 'set3', 'set4'].includes(row.questionSet)
-  ? row.questionSet
+const rawSet = String(
+  row.questionSet ?? row.questionSetKey ?? row.set ?? 'set1'
+).trim().toLowerCase();
+
+const rowSet = /^([1-4])$/.test(rawSet)
+  ? 'set' + rawSet
+  : rawSet;
+
+const validRowSet = ['set1', 'set2', 'set3', 'set4'].includes(rowSet)
+  ? rowSet
   : 'set1';
 
 const questionHtml = snapshots.map((q, qi) => {
-  const questionId = String(q.id || qi);
+ const questionId = String(q.id ?? qi);
   const answer = answers[q.id] ?? answers[qi];
-  const options = Array.isArray(q.options) ? q.options : [];
+  const options = Array.isArray(q.options)
+  ? q.options
+  : Array.isArray(q.opts)
+    ? q.opts
+    : [q.optionA, q.optionB, q.optionC, q.optionD].filter(
+        value => value !== undefined && value !== null && value !== ''
+      );
 
   const normalizeAnswerIndex = value => {
     if (value === undefined || value === null || value === '') return -1;
@@ -3401,10 +3425,10 @@ const questionHtml = snapshots.map((q, qi) => {
     questionCollection + '::' + questionId
   );
 
-  const correctIndex = keyRecord && keyRecord.set === rowSet
-    ? normalizeAnswerIndex(keyRecord.answer)
-    : -1;
-
+  const correctIndex = keyRecord && keyRecord.set === validRowSet
+  ? normalizeAnswerIndex(keyRecord.answer)
+  : -1;
+  
   const answerLabel = index => index >= 0
     ? String.fromCharCode(65 + index)
     : 'पहचान उपलब्ध नहीं';
@@ -3464,8 +3488,11 @@ const questionHtml = snapshots.map((q, qi) => {
             '</textarea></label></div><button type="button" data-publish-result data-submission-id="' + escapeHtml(row.id) +
             '" data-source-collection="' + escapeHtml(row.sourceCollection) + '" data-mode="' + escapeHtml(row.mode) +
 '" data-uid="' + escapeHtml(row.uid || row.studentUid || row.userId || '') + '" data-total="' + total + '" data-name="' + escapeHtml(row.name || 'विद्यार्थी') +
-            '" data-phone="' + escapeHtml(row.studentPhone || '') + '" data-roll="' + escapeHtml(row.rollNumber || '') +
-            '" data-set="' + escapeHtml(row.questionSet || 'set1') + '" class="mt-3 min-h-12 w-full rounded-xl bg-emerald-900 px-4 font-bold text-white">' +
+           '" data-phone="' + escapeHtml(row.studentPhone || row.phone || '') +
+'" data-roll="' + escapeHtml(row.rollNumber || '') +
+'" data-father-name="' + escapeHtml(row.fatherName || row.fathersName || '') +
+'" data-email="' + escapeHtml(row.email || '') +
+'" data-set="' + escapeHtml(row.questionSet || 'set1') + '" class="mt-3 min-h-12 w-full rounded-xl bg-emerald-900 px-4 font-bold text-white">' +
             (isPublished ? 'परिणाम अपडेट करें' : 'जाँच सेव करें और परिणाम प्रकाशित करें') + '</button></article>';
         }).join('');
 
@@ -3473,10 +3500,26 @@ const questionHtml = snapshots.map((q, qi) => {
           button.addEventListener('click', async () => {
             if (!requireOwner()) return;
             const card = button.closest('[data-check-card]');
-            const score = Number(card?.querySelector('[data-check-score]')?.value);
+           const scoreInput = card?.querySelector('[data-check-score]');
+const rawScore = String(scoreInput?.value ?? '').trim();
+const score = Number(rawScore);
             const total = Number(button.dataset.total);
             const uid = button.dataset.uid;
-            if (!Number.isFinite(score) || score < 0 || score > total) return notify('अंक 0 से ' + total + ' के बीच दर्ज करें।', 'error');
+if (
+  rawScore === '' ||
+  !Number.isFinite(score) ||
+  !Number.isFinite(total) ||
+  total <= 0 ||
+  score < 0 ||
+  score > total ||
+  !Number.isInteger(score * 2)
+) {
+  return notify(
+    'अंक खाली न छोड़ें। 0 से ' + total +
+    ' के बीच अंक दर्ज करें; अधिकतम 0.5 के अंतर से।',
+    'error'
+  );
+}
           if (!uid) {
            return notify(
           'इस उत्तर-पत्र में Firebase UID नहीं मिला। विद्यार्थी की पहचान जाँचें; सुरक्षा के लिए परिणाम अभी प्रकाशित नहीं किया गया।',
@@ -3513,9 +3556,11 @@ const questionHtml = snapshots.map((q, qi) => {
                 uid,
                 studentPhone: button.dataset.phone || '',
                 studentIdentityKey: button.dataset.phone || ('uid:' + uid),
-                name: button.dataset.name || 'विद्यार्थी',
-                rollNumber: button.dataset.roll || null,
-                mode,
+               name: button.dataset.name || 'विद्यार्थी',
+rollNumber: button.dataset.roll || null,
+fatherName: button.dataset.fatherName || '',
+email: button.dataset.email || '',
+mode,
                 questionSet: button.dataset.set || 'set1',
                 score,
                 total,
@@ -3530,9 +3575,19 @@ const questionHtml = snapshots.map((q, qi) => {
               await batch.commit();
 
 notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
-              const badge = card.querySelector('[data-check-status]');
-              if (badge) { badge.textContent = 'परिणाम प्रकाशित'; badge.className = 'rounded-full px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-900'; }
-              button.textContent = 'परिणाम अपडेट करें';
+
+if (card) {
+  card.remove();
+}
+
+const status = host.querySelector('[data-owner-submission-status]');
+const remaining = host.querySelectorAll('[data-check-card]').length;
+
+if (status) {
+  status.textContent = remaining
+    ? remaining + ' उत्तर-पत्र जाँच के लिए बाकी हैं।'
+    : 'सभी उपलब्ध उत्तर-पत्र जाँच लिए गए हैं।';
+}
             } catch (error) {
               console.error('Manual result publish failed:', error);
               notify('परिणाम प्रकाशित नहीं हुआ। Firestore rules में submission और publishedResults write permissions जाँचें।', 'error');
@@ -3550,7 +3605,7 @@ notify('जाँच सेव हुई और परिणाम प्रक�
       if (!requireOwner()) return;
 
       try {
-        const snap = await collection('publishedResults').limit(500).get();
+        const snap = await collection('publishedResults').get();
 
         const rows = snap.docs
           .map(doc => {
@@ -3643,8 +3698,20 @@ notify('जाँच सेव हुई और परिणाम प्रक�
       if (status) status.textContent = 'प्रश्न लोड हो रहे हैं…';
       if (list) list.innerHTML = '';
       try {
-        const snap = await collection(target).where('questionSet', '==', set).limit(100).get();
-        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+       const snap = await collection(target).limit(200).get();
+
+const normalizeSet = value => {
+  const text = String(value ?? 'set1').trim().toLowerCase();
+  return /^[1-4]$/.test(text) ? 'set' + text : text;
+};
+
+const rows = snap.docs
+  .map(doc => ({ ...doc.data(), id: doc.id }))
+  .filter(row =>
+    normalizeSet(
+      row.questionSet ?? row.questionSetKey ?? row.set
+    ) === normalizeSet(set)
+  );
         if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस संग्रह और Set में प्रश्न नहीं मिले।';
         if (!list) return;
         list.innerHTML = rows.map(row => {
@@ -3663,7 +3730,13 @@ notify('जाँच सेव हुई और परिणाम प्रक�
             '</p><span class="rounded-full px-2 py-1 text-xs font-bold ' + (row.published === true ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900') +
             '">' + (row.published === true ? 'Published' : 'Draft') + '</span></div>' +
             '<ul class="mt-2 space-y-1 text-sm text-stone-700">' + options.map((option, index) =>
-              '<li class="' + (index === correct ? 'font-bold text-emerald-800' : '') + '">' + String.fromCharCode(65 + index) + '. ' + escapeHtml(typeof option === 'object' ? (option.text || '') : option) +
+             '<li class="' + (index === correct ? 'font-bold text-emerald-800' : '') + '">' +
+  String.fromCharCode(65 + index) + '. ' +
+  escapeHtml(
+    typeof option === 'object'
+      ? (option.text || option.label || option.value || '')
+      : option
+  ) +
               (index === correct ? ' ✓ Answer Key' : '') + '</li>'
             ).join('') + '</ul><label class="mt-3 block text-sm font-semibold text-stone-700">सही उत्तर बदलें<select data-answer-key-edit data-question-id="' + escapeHtml(row.id) + '" class="mt-1 min-h-10 w-full rounded-lg border border-stone-300 bg-white p-2">' +
             options.map((option, index) => '<option value="' + index + '"' + (index === correct ? ' selected' : '') + '>' + String.fromCharCode(65 + index) + ' — ' + escapeHtml(typeof option === 'object' ? (option.text || option.label || option.value || '') : option) + '</option>').join('') +
@@ -4748,7 +4821,11 @@ const digits = String(value || '').replace(/\D/g, '');
       if (selectedIndex === null) return;
 
       attempted++;
-      const correctAnswer = question.correctAnswer ?? question.answerIndex ?? question.ans;
+     const correctAnswer =
+  question.correctAnswer ??
+  question.answerIndex ??
+  question.ans ??
+  question.answer;
       const correctIndex = normalizeAnswerIndex(correctAnswer, options);
       if (correctIndex === null) {
         // Do not silently treat an invalid/missing key as a wrong answer.
