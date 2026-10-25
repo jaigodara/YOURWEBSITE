@@ -5250,8 +5250,9 @@ async function removeTrustedEditor(uid) {
 
     async function exportQuizResultsPdf() {
       try {
-        const rows = await getExamResultExportRows();
-        await downloadPdfReport(rows, 'परीक्षा परिणाम एवं उत्तर-पुस्तिका मूल्यांकन लेजर | Exam Results', 'Bishnoism_Exam_Results.pdf');
+        const rawRows = await getExamResultExportRows();
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('publishedResults', rawRows);
+        await downloadPdfReport(report.rows, report.title, 'Bishnoism_Exam_Results.pdf');
       } catch (error) {
         console.error('Results PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -5260,9 +5261,10 @@ async function removeTrustedEditor(uid) {
 
     async function exportQuizResultsExcel() {
       try {
-        const rows = await getExamResultExportRows();
-        if (!rows.length) return showToast('कोई परीक्षा परिणाम नहीं मिला।');
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const rawRows = await getExamResultExportRows();
+        if (!rawRows.length) return showToast('कोई परीक्षा परिणाम नहीं मिला।');
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('publishedResults', rawRows);
+        const ws = XLSX.utils.json_to_sheet(report.rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'ExamResults');
         XLSX.writeFile(wb, 'Bishnoism_Exam_Results.xlsx');
@@ -5275,8 +5277,9 @@ async function removeTrustedEditor(uid) {
 
     async function exportMembersPdf() {
       try {
-        const rows = await getRegisteredMemberExportRows();
-        await downloadPdfReport(rows, 'विद्यार्थी नामांकन एवं रोल नंबर आवंटन रजिस्टर | Student Enrollment', 'Bishnoism_Registered_Members.pdf');
+        const rawRows = await getRegisteredMemberExportRows();
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('examEnrolledStudents', rawRows);
+        await downloadPdfReport(report.rows, report.title, 'Bishnoism_Registered_Members.pdf');
       } catch (error) {
         console.error('Members PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -5285,9 +5288,10 @@ async function removeTrustedEditor(uid) {
 
     async function exportMembersExcel() {
       try {
-        const rows = await getRegisteredMemberExportRows();
-        if (!rows.length) return showToast('कोई पंजीकृत सदस्य नहीं मिला।');
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const rawRows = await getRegisteredMemberExportRows();
+        if (!rawRows.length) return showToast('कोई पंजीकृत सदस्य नहीं मिला।');
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('examEnrolledStudents', rawRows);
+        const ws = XLSX.utils.json_to_sheet(report.rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Members');
         XLSX.writeFile(wb, 'Bishnoism_Registered_Members.xlsx');
