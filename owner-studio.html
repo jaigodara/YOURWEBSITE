@@ -56,6 +56,18 @@
     #examSubmissionsList article, #examSessionQueue article { min-width: 0; overflow-wrap: anywhere; }
     #examSubmissionsList pre { white-space: pre-wrap; overflow-wrap: anywhere; }
     #ownerDataExportPanel button { min-height: 46px; }
+    .exam-review-actions {
+      position: sticky;
+      bottom: max(.5rem, env(safe-area-inset-bottom));
+      z-index: 35;
+      padding: .65rem;
+      border: 1px solid #d6d3d1;
+      border-radius: 1rem;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 -4px 18px rgba(20,54,34,.12);
+      backdrop-filter: blur(10px);
+    }
+    .exam-review-actions button { min-height: 44px; }
     @media (max-width: 640px) {
       body { font-size: 15px; }
       header { align-items: flex-start !important; gap: .65rem; }
@@ -4083,7 +4095,7 @@ async function changeCustomExamStatus(nextStatus) {
       feedback.className = 'w-full p-3 rounded-lg border border-stone-300 text-sm';
 
       const controls = document.createElement('div');
-      controls.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+      controls.className = 'exam-review-actions grid grid-cols-2 sm:grid-cols-3 gap-2';
       const previous = document.createElement('button');
       previous.type = 'button';
       previous.className = 'p-3 rounded-lg bg-stone-200 text-stone-800 text-xs font-bold disabled:opacity-40';
