@@ -3277,10 +3277,14 @@ async function saveBulkQuestionDrafts() {
     let examReviewCollection = 'quizAttempts';
     let examReviewQuestionLookup = {};
 
-    async function saveCurrentExamReview(showMessage = true) {
+    async function saveCurrentExamReview(showMessage = true, finalLock = false) {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('मैन्युअल परिणाम समीक्षा की अनुमति नहीं है।');
       const d = examReviewQueue[examReviewIndex];
       if (!d) return false;
+      if (d.reviewLocked === true && !finalLock) {
+        showToast('यह जाँच अंतिम रूप से लॉक है। बदलाव के लिए Owner से लॉक हटवाएँ।');
+        return false;
+      }
       const scoreInput = document.getElementById('currentReviewScore');
       const decision = document.getElementById('currentReviewDecision');
       const feedback = document.getElementById('currentReviewFeedback');
@@ -3327,6 +3331,7 @@ async function saveBulkQuestionDrafts() {
           rollNumber: d.rollNumber || null,
           manualScore: value,
           questionScores: d.questionScores || {},
+          reviewLocked: finalLock === true,
           total,
           feedback: feedback.value.trim(),
           status,
@@ -3358,6 +3363,7 @@ async function saveBulkQuestionDrafts() {
 
         d.manualScore = value;
         d.questionScores = d.questionScores || {};
+        d.reviewLocked = finalLock === true;
         d.finalScore = published ? value : null;
         d.resultPublished = published;
         d.manualFeedback = feedback.value.trim();
@@ -3625,6 +3631,7 @@ async function saveBulkQuestionDrafts() {
           button.type = 'button';
           button.className = 'min-h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-900';
           button.textContent = labelText;
+          button.disabled = d.reviewLocked === true;
           button.addEventListener('click', () => setQuestionScore(value));
           scoreActions.appendChild(button);
         });
@@ -3634,6 +3641,7 @@ async function saveBulkQuestionDrafts() {
         customScore.max = '10';
         customScore.step = '0.25';
         customScore.value = String(Number.isFinite(questionScore) ? questionScore : 0);
+        customScore.disabled = d.reviewLocked === true;
         customScore.setAttribute('aria-label', 'प्रश्न ' + (index + 1) + ' के मैन्युअल अंक');
         customScore.className = 'w-20 min-h-9 rounded-lg border border-stone-300 px-2 text-xs';
         customScore.addEventListener('change', () => setQuestionScore(customScore.value));
@@ -3747,7 +3755,7 @@ async function saveBulkQuestionDrafts() {
       approve.addEventListener('click', () => {
         if (!confirm('क्या जाँच अंतिम रूप से स्वीकृत करके विद्यार्थी का परिणाम प्रकाशित करना है? पहले कुल अंक जाँच लें।')) return;
         decision.value = 'publish';
-        saveCurrentExamReview(true);
+        saveCurrentExamReview(true, true);
       });
       const next = document.createElement('button');
       next.type = 'button';
@@ -3793,7 +3801,27 @@ next.addEventListener('click', async () => {
   }
 });
 
-      controls.append(previous, save, approve, next);
+      if (d.reviewLocked === true) {
+        scoreInput.disabled = true;
+        decision.disabled = true;
+        feedback.disabled = true;
+        save.disabled = true;
+        approve.disabled = true;
+        next.disabled = true;
+        const unlock = document.createElement('button');
+        unlock.type = 'button';
+        unlock.className = 'p-3 rounded-lg border border-red-300 bg-red-50 text-red-800 text-xs font-extrabold';
+        unlock.textContent = '🔓 Owner: लॉक हटाएँ';
+        unlock.addEventListener('click', () => {
+          if (!isPrimaryOwner()) return showToast('लॉक हटाने का अधिकार केवल Owner को है।');
+          if (!confirm('क्या इस अंतिम जाँच को फिर से संपादन के लिए खोलना है?')) return;
+          d.reviewLocked = false;
+          saveCurrentExamReview(true).then(saved => { if (saved) renderCurrentExamReview(); });
+        });
+        controls.append(previous, unlock);
+      } else {
+        controls.append(previous, save, approve, next);
+      }
       card.append(scoreLabel, decisionLabel, feedback, controls);
       list.append(searchWrap, top, card);
     }
