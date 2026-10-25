@@ -44,7 +44,7 @@ test('Question uploader validates answer choices and Firestore batch write limit
   assert.match(ownerHtml, /function importBulkQuestions\(\)/);
   assert.match(ownerHtml, /duplicateQuestionIndexes\(parsed\)/);
   assert.match(ownerHtml, /const writesPerQuestion = target === 'quiz' \? 1 : 2/);
-  assert.match(ownerHtml, /Math\.floor\(500 \/ writesPerQuestion\)/);
+  assert.match(ownerHtml, /Math\.floor\(400 \/ writesPerQuestion\)/);
   assert.match(ownerHtml, /function saveBulkQuestionDrafts\(\)/);
 });
 
