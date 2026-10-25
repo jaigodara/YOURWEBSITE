@@ -620,6 +620,14 @@ Ans: B"></textarea>
         <div id="proctoringStatusBadge" class="p-2.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold">
           स्थिति: कैमरा निगरानी उपलब्ध नहीं है।
         </div>
+        <div class="border-t border-stone-200 pt-3 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div><h4 class="text-sm font-extrabold text-forest">🚨 लाइव परीक्षा उल्लंघन</h4><p class="text-[11px] text-stone-500">टैब बदलने और फुल-स्क्रीन से बाहर निकलने के लॉग</p></div>
+            <button type="button" onclick="loadLiveExamViolations()" class="min-h-10 rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">↻ रिफ्रेश</button>
+          </div>
+          <p id="liveViolationsStatus" class="text-xs text-stone-500" aria-live="polite">लॉग देखने के लिए रिफ्रेश करें।</p>
+          <div id="liveViolationsList" class="max-h-72 space-y-2 overflow-y-auto" aria-live="polite"></div>
+        </div>
       </div>
 
 
@@ -3694,6 +3702,43 @@ next.addEventListener('click', async () => {
         showToast('सत्र स्थिति नहीं बदली: ' + error.message + ' — examSessions rules जाँचें।');
       }
     }
+
+    async function loadLiveExamViolations() {
+      if (!isPrimaryOwner()) return showToast('लाइव उल्लंघन लॉग केवल Owner देख सकता है।');
+      const list = document.getElementById('liveViolationsList');
+      const status = document.getElementById('liveViolationsStatus');
+      if (!list) return;
+      list.replaceChildren();
+      if (status) status.textContent = 'हाल के उल्लंघन लोड हो रहे हैं…';
+      try {
+        const snap = await db.collection('live_violations').orderBy('occurredAtMs', 'desc').limit(50).get();
+        if (!snap.size) {
+          if (status) status.textContent = 'अभी कोई उल्लंघन लॉग नहीं है।';
+          return;
+        }
+        if (status) status.textContent = snap.size + ' हालिया रिकॉर्ड';
+        snap.forEach(doc => {
+          const row = doc.data() || {};
+          const card = document.createElement('article');
+          card.className = 'rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1';
+          const title = document.createElement('strong');
+          title.className = 'block text-xs text-forest';
+          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (row.rollNumber || 'रोल नंबर उपलब्ध नहीं');
+          const details = document.createElement('p');
+          details.className = 'text-[11px] text-stone-700 break-words';
+          details.textContent = (row.mode || 'exam') + ' · ' + (row.type || 'violation') + ' · ' +
+            (row.occurredAtMs ? new Date(row.occurredAtMs).toLocaleString('hi-IN') : 'समय उपलब्ध नहीं');
+          const description = document.createElement('p');
+          description.className = 'text-[11px] text-stone-500 break-words';
+          description.textContent = row.detail || '';
+          card.append(title, details, description);
+          list.appendChild(card);
+        });
+      } catch (error) {
+        if (status) status.textContent = 'लॉग लोड नहीं हुए: ' + error.message + ' · live_violations Firestore rules जाँचें।';
+      }
+    }
+    window.loadLiveExamViolations = loadLiveExamViolations;
 
     async function loadExamSessionQueue() {
       if (!isPrimaryOwner()) return showToast('लाइव सत्र केवल Owner देख सकता है।');
