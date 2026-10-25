@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tailwindcss -i ./src/tailwind.css -o ./tailwind.generated.css --minify",
     "lint": "eslint script.js",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test --test-force-exit tests/*.test.cjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.10",
