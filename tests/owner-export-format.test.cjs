@@ -15,14 +15,14 @@ test('answer key report uses purpose-specific columns and human-readable option 
     fatherName: '',
     mobile: ''
   }]);
-  assert.deepEqual(report.columns, ['No.', 'Exam / Set', 'Question Ref.', 'Correct Option', 'Last Edited By', 'Last Edited']);
-  assert.equal(report.rows[0]['Exam / Set'], 'Main Exam — Set 1');
-  assert.equal(report.rows[0]['Correct Option'], 'Option B');
-  assert.equal(report.rows[0]['Question Ref.'], 'Q-001');
-  assert.equal(report.rows[0]['Last Edited By'], 'Authorized admin/editor');
+  assert.deepEqual(report.columns, ['क्र. सं.', 'प्रश्न सेट', 'प्रश्न संदर्भ', 'सही विकल्प', 'अंतिम संशोधनकर्ता', 'संशोधन दिनांक']);
+  assert.equal(report.rows[0]['Exam / Set'], 'मुख्य परीक्षा — Set 1');
+  assert.equal(report.rows[0]['Correct Option'], 'विकल्प B');
+  assert.equal(report.rows[0]['प्रश्न संदर्भ'], 'Q-001');
+  assert.equal(report.rows[0]['अंतिम संशोधनकर्ता'], 'व्यवस्थापक / संपादक');
   assert.equal(JSON.stringify(report).includes('private-firebase-uid'), false);
   assert.equal(JSON.stringify(report).includes('rdP0ZXzSP9fGzm'), false);
-  assert.equal(Object.keys(report.rows[0]).some(key => /Roll Number|Full Name|Father|Mobile/.test(key)), false);
+  assert.equal(Object.keys(report.rows[0]).some(key => /अनुक्रमांक|नाम|पिता|मोबाइल/.test(key)), false);
 });
 
 test('student roster report only includes enrollment fields and approval status', () => {
@@ -30,11 +30,11 @@ test('student roster report only includes enrollment fields and approval status'
     { rollNumber: 'JAMBH-2026-0001', fullName: 'Student One', fatherName: 'Guardian One', mobile: '9812000000', isApproved: true, uid: 'private-uid' },
     { fullName: 'Student Two', fatherName: 'Guardian Two', mobile: '9812000001', isApproved: false }
   ]);
-  assert.deepEqual(report.columns, ['Roll Number', 'Student Name', 'Father / Guardian', 'Mobile', 'Admission Status']);
-  assert.equal(report.rows[0]['Roll Number'], 'JAMBH-2026-0001');
-  assert.equal(report.rows[0]['Admission Status'], 'Approved');
-  assert.equal(report.rows[1]['Roll Number'], 'Pending');
-  assert.equal(report.rows[1]['Admission Status'], 'Pending review');
+  assert.deepEqual(report.columns, ['आवंटित अनुक्रमांक', 'विद्यार्थी का नाम', 'पिता / अभिभावक', 'मोबाइल', 'प्रवेश स्थिति']);
+  assert.equal(report.rows[0]['आवंटित अनुक्रमांक'], 'JAMBH-2026-0001');
+  assert.equal(report.rows[0]['प्रवेश स्थिति'], 'स्वीकृत');
+  assert.equal(report.rows[1]['आवंटित अनुक्रमांक'], 'Pending');
+  assert.equal(report.rows[1]['प्रवेश स्थिति'], 'समीक्षाधीन');
   assert.equal(JSON.stringify(report).includes('private-uid'), false);
 });
 
@@ -51,10 +51,10 @@ test('exam result report exposes score and violations without raw database ident
     resultStatus: 'Pass',
     updatedBy: 'private-uid'
   }]);
-  assert.ok(report.columns.includes('Marks'));
-  assert.ok(report.columns.includes('Violations'));
-  assert.equal(report.rows[0].Marks, 95);
-  assert.equal(report.rows[0].Violations, 1);
+  assert.ok(report.columns.includes('प्राप्तांक'));
+  assert.ok(report.columns.includes('उल्लंघन'));
+  assert.equal(report.rows[0]['प्राप्तांक'], 95);
+  assert.equal(report.rows[0]['उल्लंघन'], 1);
   assert.equal(JSON.stringify(report).includes('random-doc-id'), false);
   assert.equal(JSON.stringify(report).includes('private-uid'), false);
 });
