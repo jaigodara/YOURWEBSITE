@@ -67,3 +67,13 @@ test('Owner Studio sidebar buttons are bound after the route handler is defined'
   assert.match(ownerHtml.slice(binderEnd - 180, binderEnd), /bindOwnerStudioNavigation\(\);/,
     'navigation binder must be called before the pane functions are used');
 });
+
+test('Admit-card release uses one roll-number input and no legacy file upload controls', () => {
+  assert.equal((ownerHtml.match(/id="individualAdmitCardUid"/g) || []).length, 1,
+    'there must be exactly one roll-number input');
+  assert.doesNotMatch(ownerHtml, /id="individualAdmitCardPdf"/,
+    'manual PDF upload is removed in favor of browser-generated cards');
+  assert.doesNotMatch(ownerHtml, /id="uploadIndividualAdmitCardButton"/,
+    'the obsolete upload action must not remain');
+  assert.match(ownerHtml, /id="releaseIndividualAdmitCardButton"[^>]*onclick="releaseAdmitCardForRollNumber\(\)"/);
+});
