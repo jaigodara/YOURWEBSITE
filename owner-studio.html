@@ -4210,7 +4210,7 @@ next.addEventListener('click', async () => {
         };
         const isFilteredFormat = ['csv','xlsx','pdf'].includes(format);
         let rows = Array.isArray(payload) ? payload : Object.entries(payload || {}).flatMap(([setName, items]) =>
-          (Array.isArray(items) ? items : []).map(item => ({ questionSet: item.questionSet || item.questionSetKey || setName, ...item }))
+          (Array.isArray(items) ? items : []).map(item => ({ ...item, _sourceCollection: setName }))
         );
         if (isFilteredFormat) {
           const year = document.getElementById('ownerExportYear')?.value || '';
