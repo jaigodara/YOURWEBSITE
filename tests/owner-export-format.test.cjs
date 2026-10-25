@@ -146,3 +146,31 @@ test('manual review report includes checking reason without raw reviewer UID', (
   assert.equal(report.rows[0]['प्राप्तांक'], 72);
   assert.equal(JSON.stringify(report).includes('private-reviewer-uid'), false);
 });
+
+test('editor permission audit export excludes UIDs and shows human-readable permissions', () => {
+  const report = formatOwnerExportReport('roleAuditLogs', [{
+    id: 'internal-doc-id',
+    uid: 'internal-user-id',
+    action: 'invitation_created',
+    targetName: 'Editor Name',
+    targetPhoneLast4: '1234',
+    targetRole: 'editor',
+    permissions: { media: true, quizDrafts: false, examReview: true, notifications: false },
+    changedByName: 'व्यवस्थापक',
+    changedAt: '2026-10-25T06:00:00.000Z'
+  }]);
+  assert.ok(report.columns.includes('अनुमतियाँ'));
+  assert.equal(report.rows[0]['अनुमतियाँ'], 'मीडिया, परीक्षा जाँच');
+  assert.equal(JSON.stringify(report).includes('internal-user-id'), false);
+  assert.equal(JSON.stringify(report).includes('internal-doc-id'), false);
+});
+
+test('Owner Studio exposes the editor audit panel without UID inputs', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'owner-studio.html'), 'utf8');
+  assert.ok(html.includes('id="editorPermissionAuditPanel"'));
+  assert.ok(html.includes('function loadEditorAuditLogs()'));
+  assert.ok(html.includes('roleAuditLogs'));
+  assert.ok(!html.includes('id="editorAuditUidInput"'));
+});
