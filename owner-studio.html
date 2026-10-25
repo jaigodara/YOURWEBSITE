@@ -2240,19 +2240,19 @@ async function saveBulkQuestionDrafts() {
     return;
   }
 
-  // Each non-quiz question needs two writes: question + answer key.
+  // Keep each Firestore batch at or below 400 writes. Non-quiz questions
+  // write both a question and a private answer-key record, so each such chunk
+  // contains at most 200 questions.
   const writesPerQuestion = target === 'quiz' ? 1 : 2;
-  if (drafts.length * writesPerQuestion > 500) {
-    return showToast(
-      `एक बार में अधिकतम ${Math.floor(500 / writesPerQuestion)} प्रश्न सहेजें।`
-    );
-  }
+  const questionsPerBatch = Math.max(1, Math.floor(400 / writesPerQuestion));
+  let committedCount = 0;
 
   try {
-    const batch = db.batch();
     const uid = auth.currentUser?.uid || null;
-
-    drafts.forEach(question => {
+    for (let offset = 0; offset < drafts.length; offset += questionsPerBatch) {
+      const chunk = drafts.slice(offset, offset + questionsPerBatch);
+      const batch = db.batch();
+      chunk.forEach(question => {
       const ref = question.id
         ? db.collection(target).doc(question.id)
         : db.collection(target).doc();
@@ -2314,11 +2314,13 @@ async function saveBulkQuestionDrafts() {
       }
 
       batch.set(ref, data, { merge: true });
-    });
+      });
 
-    await batch.commit();
+      await batch.commit();
+      committedCount += chunk.length;
+    }
 
-    // Clear the local draft only after Firebase confirms success.
+    // Clear the local draft only after all Firestore chunks confirm success.
     const count = drafts.length;
     bulkQuestionDrafts = [];
     bulkEditingQuestionId = null;
@@ -2340,7 +2342,8 @@ async function saveBulkQuestionDrafts() {
     );
   } catch (err) {
     console.error('Question draft save failed:', err);
-    showToast('Draft सहेजने में त्रुटि: ' + (err.message || 'अज्ञात त्रुटि'));
+    showToast('Draft सहेजने में त्रुटि: ' + (err.message || 'अज्ञात त्रुटि') +
+      (committedCount ? ' · ' + committedCount + ' प्रश्न पहले से सहेजे जा चुके हैं; दोबारा जाँचकर जारी रखें।' : ''));
   }
 }
 
