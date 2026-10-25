@@ -4464,11 +4464,57 @@ const digits = String(value || '').replace(/\D/g, '');
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Give each attempt its own randomized question order. Do not mutate the
-      // Firestore order, so different devices/attempts need not see the same series.
-      for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [questions[i], questions[j]] = [questions[j], questions[i]];
+      // Randomize question and option order only when the Owner enables it.
+      // Fisher-Yates is applied to attempt-local copies; Firestore question records are untouched.
+      if (config.randomizeSets !== false) {
+        for (let i = questions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+        questions.forEach(question => {
+          const optionsKey = ['options', 'opts', 'choices'].find(key => Array.isArray(question[key]));
+          if (!optionsKey || question[optionsKey].length < 2) return;
+          const options = question[optionsKey];
+          const correctKeys = ['correctAnswer', 'answerIndex', 'ans', 'correctOption'].filter(key =>
+            question[key] !== undefined && question[key] !== null && question[key] !== ''
+          );
+          const rawCorrect = correctKeys.length ? question[correctKeys[0]] : null;
+          const optionText = option => String(option && typeof option === 'object'
+            ? (option.text ?? option.label ?? option.value ?? '') : option).trim().toLowerCase();
+          let oldCorrectIndex = -1;
+          if (rawCorrect !== null) {
+            const text = String(rawCorrect).trim();
+            if (/^\d+$/.test(text)) {
+              const n = Number(text);
+              if (Number.isInteger(n) && n >= 0 && n < options.length) oldCorrectIndex = n;
+            } else if (/^[A-D]$/i.test(text)) {
+              const n = text.toUpperCase().charCodeAt(0) - 65;
+              if (n >= 0 && n < options.length) oldCorrectIndex = n;
+            } else {
+              oldCorrectIndex = options.findIndex(option => optionText(option) === text.toLowerCase());
+            }
+          }
+          const shuffled = options.map((option, oldIndex) => ({ option, oldIndex }));
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          question[optionsKey] = shuffled.map(item => item.option);
+          if (oldCorrectIndex >= 0) {
+            const newCorrectIndex = shuffled.findIndex(item => item.oldIndex === oldCorrectIndex);
+            const newCorrectText = optionText(question[optionsKey][newCorrectIndex]);
+            correctKeys.forEach(key => {
+              const oldValue = question[key];
+              if (typeof oldValue === 'string' && /^[A-D]$/i.test(oldValue.trim())) {
+                question[key] = String.fromCharCode(65 + newCorrectIndex);
+              } else if (typeof oldValue === 'string' && !/^\d+$/.test(oldValue.trim())) {
+                question[key] = newCorrectText;
+              } else {
+                question[key] = newCorrectIndex;
+              }
+            });
+          }
+        });
       }
 
       if (!questions.length) {
