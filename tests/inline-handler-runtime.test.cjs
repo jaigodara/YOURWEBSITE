@@ -257,6 +257,12 @@ test("auth/profile handlers and all five navigation tabs run without throwing an
   assert.equal(window.document.getElementById("authModal").hidden, false);
   for (const tab of ["home", "sahitya", "pariksha", "community", "profile"]) {
     assert.doesNotThrow(() => window.switchTab(tab), tab);
+    if (tab === "profile") {
+      // Profile is intentionally implemented as a modal, not a tab-profile panel.
+      const modal = window.document.getElementById("authModal");
+      assert.ok(modal && !modal.hidden, "expected auth/profile modal for tab profile");
+      continue;
+    }
     const expected = tab === "sahitya" ? ["tab-sahitya", "tab-library"] :
       tab === "pariksha" ? ["tab-pariksha", "tab-quiz"] : ["tab-" + tab];
     assert.ok(expected.some(id => {
