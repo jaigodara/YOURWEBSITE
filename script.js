@@ -2309,8 +2309,118 @@ moreButton.textContent =
   }
 
 
+
+window.toggleExamResultsRelease = async function toggleExamResultsRelease() {
+  const button = byId('ownerResultsReleaseButton');
+  const status = byId('ownerResultsReleaseStatus');
+  if (!state.user || !state.isOwner || !state.db) {
+    notify('परिणाम रिलीज़ बदलने के लिए Owner खाते से लॉगिन करें।', 'error');
+    return;
+  }
+  if (button?.dataset.saving === 'true') return;
+  if (button) {
+    button.dataset.saving = 'true';
+    button.disabled = true;
+  }
+  const nextPublished = state.examConfig?.resultsPublished !== true;
+  if (status) status.textContent = 'परिणाम रिलीज़ स्थिति सेव हो रही है…';
+  try {
+    const update = {
+      resultsPublished: nextPublished,
+      updatedAt: serverTimestamp(),
+      updatedBy: state.user.uid
+    };
+    await collection('examConfig').doc('current').set(update, { merge: true });
+    state.examConfig = { ...state.examConfig, ...update };
+    window.renderExamVisibility();
+    window.renderMyResults?.();
+    notify(nextPublished ? 'मुख्य / मॉक परिणाम जारी कर दिए गए।' : 'मुख्य / मॉक परिणाम फिर लॉक कर दिए गए।', 'success');
+  } catch (error) {
+    console.error('Exam results release toggle failed:', error);
+    if (status) status.textContent = '❌ बदलाव सेव नहीं हुआ। Firestore rules / Owner permission जाँचें।';
+    notify(error?.message || 'परिणाम रिलीज़ स्थिति सेव नहीं हुई।', 'error');
+  } finally {
+    if (button) {
+      button.dataset.saving = 'false';
+      button.disabled = false;
+    }
+  }
+};
+
 window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
+
+  // Keep the legacy Owner Studio controls connected to the live Firestore config.
+  const visibilityInputs = [
+    ['ownerShowDailyQuiz', 'dailyQuizVisible'],
+    ['ownerShowDailyQuizResults', 'dailyQuizResultsVisible'],
+    ['ownerShowExamPortal', 'separateExamPortalVisible'],
+    ['ownerShowMock', 'mockVisible'],
+    ['ownerShowMock1', 'mock1Visible'],
+    ['ownerShowMock2', 'mock2Visible'],
+    ['ownerShowMainExam', 'mainExamVisible'],
+    ['ownerShowEnrollment', 'enrollmentVisible'],
+    ['ownerShowResults', 'resultsVisible'],
+    ['ownerRandomizeSets', 'randomizeSets']
+  ];
+  visibilityInputs.forEach(([id, key]) => {
+    const input = byId(id);
+    if (input && input.dataset.configBound !== 'true') {
+      input.dataset.configBound = 'true';
+      input.addEventListener('change', () => {
+        const status = byId('ownerExamVisibilitySaveStatus');
+        if (status) status.textContent = 'बदलाव अभी सेव नहीं हुए हैं। 💾 परीक्षा सेटिंग सेव करें दबाएँ।';
+      });
+    }
+    if (input) input.checked = c[key] !== false;
+  });
+
+  const saveVisibilityButton = byId('ownerSaveExamVisibilitySettings');
+  if (saveVisibilityButton && saveVisibilityButton.dataset.bound !== 'true') {
+    saveVisibilityButton.dataset.bound = 'true';
+    saveVisibilityButton.addEventListener('click', async () => {
+      if (!state.user || !state.isOwner || !state.db) {
+        notify('सेटिंग सेव करने के लिए Owner खाते से लॉगिन करें।', 'error');
+        return;
+      }
+      if (saveVisibilityButton.dataset.saving === 'true') return;
+      saveVisibilityButton.dataset.saving = 'true';
+      saveVisibilityButton.disabled = true;
+      const status = byId('ownerExamVisibilitySaveStatus');
+      const update = {};
+      visibilityInputs.forEach(([id, key]) => {
+        const input = byId(id);
+        if (input) update[key] = Boolean(input.checked);
+      });
+      update.updatedAt = serverTimestamp();
+      update.updatedBy = state.user.uid;
+      if (status) status.textContent = 'सेटिंग Firestore में सेव हो रही हैं…';
+      try {
+        await collection('examConfig').doc('current').set(update, { merge: true });
+        state.examConfig = { ...state.examConfig, ...update };
+        window.renderExamVisibility();
+        if (status) status.textContent = '✅ परीक्षा सेटिंग सफलतापूर्वक सेव हो गईं। पेज रीफ़्रेश करके भी जाँचें।';
+        notify('परीक्षा अनुभाग सेटिंग सेव हो गईं।', 'success');
+      } catch (error) {
+        console.error('Owner exam visibility settings save failed:', error);
+        if (status) status.textContent = '❌ सेव नहीं हुआ। Firestore rules / Owner permission जाँचें।';
+        notify(error?.message || 'परीक्षा सेटिंग सेव नहीं हुईं।', 'error');
+      } finally {
+        saveVisibilityButton.dataset.saving = 'false';
+        saveVisibilityButton.disabled = false;
+      }
+    });
+  }
+
+  const releaseButton = byId('ownerResultsReleaseButton');
+  const releaseStatus = byId('ownerResultsReleaseStatus');
+  if (releaseButton) {
+    const published = c.resultsPublished === true;
+    releaseButton.textContent = published ? '🔒 परिणाम रोकें' : '📣 परिणाम जारी करें';
+    if (releaseStatus) releaseStatus.textContent = published
+      ? 'स्थिति: मुख्य / मॉक परिणाम जारी हैं।'
+      : 'स्थिति: मुख्य / मॉक परिणाम अभी लॉक हैं।';
+  }
 
   // Use real container IDs. The daily quiz container includes both
   // its introduction and active attempt UI; results have their own panel.
