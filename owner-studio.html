@@ -5933,6 +5933,7 @@ async function removeTrustedEditor(uid) {
           createdBy: auth.currentUser?.uid || null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           ...(lifetimeValue !== 'permanent' ? {
+            lifetime: 'temporary',
             expiresAt: firebase.firestore.Timestamp.fromDate(
               new Date(Date.now() + Math.max(1, Number(lifetimeValue) || 1) * 24 * 60 * 60 * 1000)
             ),
