@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -153,8 +152,6 @@ service cloud.firestore {
     match /roles/{uid} {
       allow read: if owner() || (signedIn() && request.auth.uid == uid);
 
-      // Existing invitation claim flow: the invited account creates its own role
-      // only while its invitation is pending and its mobile index matches.
       allow create: if superOwner() || (
         signedIn()
         && request.auth.uid == uid
@@ -176,8 +173,6 @@ service cloud.firestore {
         && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
         && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
       ) || (
-        // Recovery: an authenticated owner may recreate only the editor role
-        // bound to an already-claimed invitation for the same UID.
         examOwner()
         && request.resource.data.get('role', '') == 'editor'
         && request.resource.data.keys().hasOnly([
@@ -199,7 +194,6 @@ service cloud.firestore {
         && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
       );
 
-      // Only owner accounts can update or remove roles.
       allow update, delete: if examOwner();
     }
 
@@ -362,6 +356,11 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if id != 'rollCounter' || examOwner();
       allow write: if id == 'rollCounter' ? examOwner() : owner();
+    }
+
+    // Added for Owner Studio's separate custom-exam registry.
+    match /customExams/{examId} {
+      allow read, create, update, delete: if examOwner();
     }
 
     match /examConfig/{id} {
@@ -787,9 +786,9 @@ service cloud.firestore {
       allow create, update, delete: if owner();
     }
 
-    // Publicly published media links. Only the owner or a media-permitted editor may publish/manage records.
     match /platform_media/{mediaId} {
       allow get, list: if canManageMedia() || resource.data.get('active', false) == true;
+
       allow create: if canManageMedia()
         && request.resource.data.keys().hasOnly([
           'title', 'type', 'category', 'url', 'videoId', 'driveId', 'previewUrl',
@@ -803,15 +802,16 @@ service cloud.firestore {
         && request.resource.data.get('url', '') is string
         && request.resource.data.get('active', false) == true
         && request.resource.data.get('createdBy', '') == request.auth.uid;
+
       allow update: if canManageMedia()
         && request.resource.data.get('createdBy', resource.data.get('createdBy', '')) == resource.data.get('createdBy', '')
         && request.resource.data.get('title', '') is string
         && request.resource.data.title.size() > 0
         && request.resource.data.title.size() <= 180;
+
       allow delete: if canManageMedia();
     }
 
-    // Student-owned proctoring events; only exam staff may monitor them.
     match /live_violations/{violationId} {
       allow create: if signedIn()
         && request.resource.data.get('uid', '') == request.auth.uid
@@ -832,13 +832,14 @@ service cloud.firestore {
         && request.resource.data.get('detail', '') is string
         && request.resource.data.get('detail', '').size() <= 240
         && request.resource.data.get('occurredAtMs', 0) is int;
+
       allow read: if examOwner();
       allow update, delete: if owner();
     }
 
-    // Immutable, owner-only editor-permission audit records. No Firebase UIDs are stored.
     match /roleAuditLogs/{eventId} {
       allow read: if examOwner();
+
       allow create: if examOwner()
         && request.resource.data.keys().hasOnly([
           'action', 'targetName', 'targetPhoneLast4', 'targetRole',
@@ -848,21 +849,25 @@ service cloud.firestore {
         && request.resource.data.get('targetName', '') is string
         && request.resource.data.get('targetName', '').size() <= 100
         && request.resource.data.get('targetPhoneLast4', '') is string
-        && (request.resource.data.get('targetPhoneLast4', '') == ''
-          || request.resource.data.get('targetPhoneLast4', '').matches('^[0-9]{4}$'))
+        && (
+          request.resource.data.get('targetPhoneLast4', '') == ''
+          || request.resource.data.get('targetPhoneLast4', '').matches('^[0-9]{4}$')
+        )
         && request.resource.data.get('targetRole', '') == 'editor'
         && request.resource.data.get('permissions', {}) is map
         && request.resource.data.get('changedByName', '') is string
         && request.resource.data.get('changedByName', '').size() <= 120
         && request.resource.data.get('changedAt', null) is timestamp;
+
       allow update, delete: if false;
     }
 
-    // Public QR verification exposes only minimal admit-card fields; token IDs are unguessable.
     match /publicAdmitCardVerifications/{token} {
       allow get: if resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) is timestamp
         && resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
+
       allow list: if false;
+
       allow create: if examOwner()
         && token.matches('^[a-f0-9]{48}$')
         && request.resource.data.keys().hasOnly([
@@ -877,6 +882,7 @@ service cloud.firestore {
         && request.resource.data.get('issuedAt', null) is timestamp
         && request.resource.data.get('expiresAt', null) is timestamp
         && request.resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
+
       allow update, delete: if examOwner();
     }
 
