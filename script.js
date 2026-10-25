@@ -238,7 +238,7 @@ try {
     maintenance: { globalMode: 'off', message: '', sections: {} },
     historyItems: [],
     myResults: [],
-    mala: { count: 0, laps: 0 },
+    mala: { count: 0, laps: 0, dailyCount: 0, dailyGoal: 108, dailyDate: '' },
     fontSize: 16,
     quizQuestions: [],
     initialized: false,
@@ -2320,26 +2320,38 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   // Jaap Mala: local counters are personal convenience; signed-in sync is best-effort.
   function initMalaState() {
+    const today = localDateKey();
     try {
       const saved = JSON.parse(localStorage.getItem('bishnoi_mala_v2') || '{}');
-      state.mala.count = Math.min(108, Math.max(0, Number(saved.count) || 0));
+      state.mala.count = Math.min(107, Math.max(0, Number(saved.count) || 0));
       state.mala.laps = Math.max(0, Number(saved.laps) || 0);
-    } catch (_) {}
-
+      state.mala.dailyCount = saved.date === today ? Math.max(0, Number(saved.dailyCount) || 0) : 0;
+      state.mala.dailyGoal = Math.min(10000, Math.max(1, Number(saved.dailyGoal) || 108));
+      state.mala.dailyDate = today;
+    } catch (_) {
+      state.mala.dailyCount = 0;
+      state.mala.dailyGoal = 108;
+      state.mala.dailyDate = today;
+    }
     window.renderMala();
   }
 
   function saveMala() {
+    const today = localDateKey();
+    if (state.mala.dailyDate !== today) {
+      state.mala.dailyCount = 0;
+      state.mala.dailyDate = today;
+    }
     localStorage.setItem('bishnoi_mala_v2', JSON.stringify({
       ...state.mala,
-      date: localDateKey()
+      date: today
     }));
 
     if (state.user && state.db) {
       collection('users').doc(state.user.uid).set({
         mala: {
           ...state.mala,
-          dateKey: localDateKey(),
+          dateKey: today,
           updatedAt: serverTimestamp()
         }
       }, { merge: true }).catch(() => {});
@@ -2353,21 +2365,52 @@ window.renderExamVisibility = function renderExamVisibility() {
     setText('currentBeadDisplay', state.mala.count);
     setText('malaTotalDisplay', state.mala.laps * 108 + state.mala.count);
     setText('malaLapsDisplay', state.mala.laps);
+    const today = localDateKey();
+    if (state.mala.dailyDate !== today) {
+      state.mala.dailyDate = today;
+      state.mala.dailyCount = 0;
+    }
+    const goal = Math.min(10000, Math.max(1, Number(state.mala.dailyGoal) || 108));
+    const dailyCount = Math.max(0, Number(state.mala.dailyCount) || 0);
+    setText('malaDailyGoalSummary', dailyCount + ' / ' + goal);
+    const dailyProgress = byId('malaDailyGoalProgress');
+    if (dailyProgress) dailyProgress.style.width = Math.min(100, dailyCount / goal * 100) + '%';
+    const goalInput = byId('malaDailyGoalInput');
+    if (goalInput && document.activeElement !== goalInput) goalInput.value = String(goal);
     const p = byId('malaProgressBar');
     if (p) p.style.width = `${state.mala.count / 108 * 100}%`;
     $$('.mala-bead').forEach((b, i) => b.classList.toggle('bead-done', i < state.mala.count));
   }
 
   window.tapHomeMalaBead = function () {
+    const today = localDateKey();
+    if (state.mala.dailyDate !== today) {
+      state.mala.dailyDate = today;
+      state.mala.dailyCount = 0;
+    }
     state.mala.count++;
+    state.mala.dailyCount = Math.max(0, Number(state.mala.dailyCount) || 0) + 1;
     if (state.mala.count >= 108) {
       state.mala.count = 0;
       state.mala.laps++;
       notify('एक माला पूरी हुई! साधना के लिए धन्यवाद।', 'success');
     }
-    if (navigator.vibrate && byId('hapticToggle')?.checked) navigator.vibrate(25);
+    if (navigator.vibrate && byId('hapticToggle')?.checked && typeof navigator.vibrate === 'function') navigator.vibrate(25);
     saveMala();
     window.renderMala();
+  };
+
+  window.setMalaDailyGoal = function (value) {
+    const goal = Number(value);
+    if (!Number.isInteger(goal) || goal < 1 || goal > 10000) {
+      notify('दैनिक लक्ष्य 1 से 10000 के बीच पूरा अंक होना चाहिए।', 'error');
+      return false;
+    }
+    state.mala.dailyGoal = goal;
+    saveMala();
+    window.renderMala();
+    notify('दैनिक जप लक्ष्य सहेज लिया गया।', 'success');
+    return true;
   };
 
   window.resetMala = function () {
