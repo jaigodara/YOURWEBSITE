@@ -7,12 +7,12 @@
 
   const LETTERS = ['A', 'B', 'C', 'D'];
   const SET_NAMES = {
-    mainExamQuestions: 'Main Exam',
-    mockExam_1: 'Mock Exam 1',
-    mockExam_2: 'Mock Exam 2',
-    quiz: 'Daily Quiz',
-    mainExamSubmissions: 'Main Exam',
-    mockExamSubmissions: 'Mock Exam'
+    mainExamQuestions: 'मुख्य परीक्षा',
+    mockExam_1: 'मॉक परीक्षा — सेट 1',
+    mockExam_2: 'मॉक परीक्षा — सेट 2',
+    quiz: 'दैनिक क्विज़',
+    mainExamSubmissions: 'मुख्य परीक्षा',
+    mockExamSubmissions: 'मॉक परीक्षा'
   };
   const valueOf = (row, keys) => {
     for (const key of keys) {
@@ -30,16 +30,16 @@
     }) : '';
   };
   const optionText = value => {
-    if (value === '' || value == null) return 'Pending';
+    if (value === '' || value == null) return 'लंबित';
     if (typeof value === 'string') {
       const trimmed = value.trim();
-      if (/^[A-D]$/i.test(trimmed)) return 'Option ' + trimmed.toUpperCase();
-      if (/^[0-3]$/.test(trimmed)) return 'Option ' + LETTERS[Number(trimmed)];
-      if (/^[1-4]$/.test(trimmed)) return 'Option ' + LETTERS[Number(trimmed) - 1];
+      if (/^[A-D]$/i.test(trimmed)) return 'विकल्प ' + trimmed.toUpperCase();
+      if (/^[0-3]$/.test(trimmed)) return 'विकल्प ' + LETTERS[Number(trimmed)];
+      if (/^[1-4]$/.test(trimmed)) return 'विकल्प ' + LETTERS[Number(trimmed) - 1];
       return trimmed;
     }
     if (Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= 3) {
-      return 'Option ' + LETTERS[Number(value)];
+      return 'विकल्प ' + LETTERS[Number(value)];
     }
     return String(value);
   };
@@ -63,7 +63,7 @@
   };
   const actorLabel = row => valueOf(row, ['updatedBy', 'createdBy', 'reviewedBy', 'approvedBy'])
     ? 'Authorized admin/editor' : '—';
-  const roll = row => valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber']) || 'Pending';
+  const roll = row => valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber', 'Roll Number']) || 'Pending';
   const questionReference = (row, index) => {
     const publicRef = valueOf(row, ['questionNumber', 'displayId', 'publicId', 'questionCode', 'slug']);
     if (publicRef && String(publicRef).length <= 32 && !/^[a-z0-9_-]{18,}$/i.test(String(publicRef))) return String(publicRef);
@@ -121,12 +121,12 @@
     if (['mainExamSubmissions', 'mockExamSubmissions', 'quizAttempts', 'publishedResults', 'reviews'].includes(type)) {
       const ranked = rows.map(row => ({
         row,
-        score: Number(valueOf(row, ['finalMarks', 'checkedScore', 'score', 'marks', 'obtainedMarks']))
+        score: Number(valueOf(row, ['finalMarks', 'checkedScore', 'score', 'marks', 'obtainedMarks', 'Marks']))
       })).sort((a, b) => (Number.isFinite(b.score) ? b.score : -Infinity) - (Number.isFinite(a.score) ? a.score : -Infinity));
       let priorScore = null;
       let priorRank = 0;
       const formatted = ranked.map(({ row, score }, index) => {
-        const explicitRank = valueOf(row, ['rank', 'meritRank']);
+        const explicitRank = valueOf(row, ['rank', 'meritRank', 'Rank']);
         let rank = explicitRank || '—';
         if (!explicitRank && Number.isFinite(score)) {
           rank = score === priorScore ? priorRank : index + 1;
@@ -134,19 +134,19 @@
           priorRank = Number(rank);
         }
         const violationValue = Array.isArray(row.violations) ? row.violations.length
-          : valueOf(row, ['violationCount', 'violationsCount', 'tabSwitchCount', 'tabSwitches', 'liveViolationCount']);
+          : valueOf(row, ['violationCount', 'violationsCount', 'tabSwitchCount', 'tabSwitches', 'liveViolationCount', 'Violations']);
         return {
           'रैंक': rank === '—' ? '—' : '#' + rank,
           'अनुक्रमांक': valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber']) || '—',
-          'परीक्षार्थी का नाम': valueOf(row, ['fullName', 'displayName', 'studentName', 'name']) || '—',
-          'कुल प्रश्न': valueOf(row, ['totalQuestions', 'questionCount', 'totalQuestion']) || '—',
-          'सही उत्तर': valueOf(row, ['correctCount', 'correctAnswers', 'correct']) || 0,
-          'गलत उत्तर': valueOf(row, ['wrongCount', 'incorrectCount', 'wrongAnswers', 'incorrect']) || 0,
+          'परीक्षार्थी का नाम': valueOf(row, ['fullName', 'displayName', 'studentName', 'name', 'Student Name']) || '—',
+          'कुल प्रश्न': valueOf(row, ['totalQuestions', 'questionCount', 'totalQuestion', 'Total Questions']) || '—',
+          'सही उत्तर': valueOf(row, ['correctCount', 'correctAnswers', 'correct', 'Correct']) || 0,
+          'गलत उत्तर': valueOf(row, ['wrongCount', 'incorrectCount', 'wrongAnswers', 'incorrect', 'Incorrect']) || 0,
           'उल्लंघन': violationValue === '' || violationValue == null ? 0 : violationValue,
           'प्राप्तांक': Number.isFinite(score) ? score : '—',
-          'अधिकतम अंक': valueOf(row, ['maxMarks', 'maximumMarks', 'totalMarks', 'total']) || '—',
-          'समय': valueOf(row, ['timeTakenText', 'timeTaken', 'durationText', 'durationMinutes']) || '—',
-          'परिणाम': valueOf(row, ['resultStatus', 'result', 'status', 'manualCheckStatus']) || 'समीक्षाधीन'
+          'अधिकतम अंक': valueOf(row, ['maxMarks', 'maximumMarks', 'totalMarks', 'total', 'Total Marks']) || '—',
+          'समय': valueOf(row, ['timeTakenText', 'timeTaken', 'durationText', 'durationMinutes', 'Time Taken']) || '—',
+          'परिणाम': valueOf(row, ['resultStatus', 'result', 'status', 'manualCheckStatus', 'Result']) || 'समीक्षाधीन'
         };
       });
       return {
