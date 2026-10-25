@@ -5159,14 +5159,14 @@ async function removeTrustedEditor(uid) {
 
       return records.map(({ uid, enrollment }) => {
         const profile = profiles.get(uid) || {};
+        const rollNumber = enrollment.rollNumber || enrollment.roll || profile.rollNumber || profile.roll || '';
         return {
-          'Roll Number': enrollment.rollNumber || enrollment.roll || profile.rollNumber || profile.roll || '',
-          'Full Name': enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '',
-          "Father's Name": enrollment.fatherName || enrollment.fathersName || profile.fatherName || profile.fathersName || '',
-          'Phone Number': normalizeExportPhone(enrollment.phone || enrollment.studentPhone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || ''),
-          'Email': enrollment.email || profile.email || '',
-          'Assigned Exam Set': enrollment.questionSet || enrollment.examSet || enrollment.assignedExamSet || profile.questionSet || 'set1',
-          'Status': enrollment.verificationStatus || enrollment.status || profile.verificationStatus || (enrollment.verified === true ? 'verified' : 'pending')
+          'Roll Number': rollNumber || 'Pending',
+          'Student Name': enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '—',
+          'Father / Guardian': enrollment.fatherName || enrollment.fathersName || profile.fatherName || profile.fathersName || '—',
+          'Mobile': normalizeExportPhone(enrollment.phone || enrollment.studentPhone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || '') || '—',
+          'Admission Status': enrollment.isApproved === true || enrollment.approved === true || Boolean(rollNumber)
+            ? 'Approved' : (enrollment.verificationStatus || enrollment.status || 'Pending review')
         };
       });
     }
@@ -5180,25 +5180,26 @@ async function removeTrustedEditor(uid) {
       ]);
       const profiles = new Map((usersSnap?.docs || []).map(doc => [doc.id, doc.data() || {}]));
       const enrollments = new Map((enrollmentSnap?.docs || []).map(doc => [doc.id, doc.data() || {}]));
-      const results = resultsSnap && !resultsSnap.empty
-        ? resultsSnap.docs.map(doc => ({ id: doc.id, result: doc.data() || {} }))
-        : (attemptsSnap?.docs || []).map(doc => ({ id: doc.id, result: doc.data() || {} }));
+      const records = resultsSnap && !resultsSnap.empty
+        ? resultsSnap.docs.map(doc => ({ result: doc.data() || {} }))
+        : (attemptsSnap?.docs || []).map(doc => ({ result: doc.data() || {} }));
 
-      return results.map(({ id, result }) => {
+      return records.map(({ result }) => {
         const uid = result.uid || result.studentUid || result.userId || '';
         const profile = profiles.get(uid) || {};
         const enrollment = enrollments.get(uid) || {};
         return {
-          'Roll Number': result.rollNumber || enrollment.rollNumber || enrollment.roll || profile.rollNumber || '',
-          'Full Name': result.fullName || result.name || enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '',
-          "Father's Name": result.fatherName || result.fathersName || enrollment.fatherName || enrollment.fathersName || profile.fatherName || '',
-          'Phone Number': normalizeExportPhone(result.studentPhone || result.phone || enrollment.phone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || ''),
-          'Email': result.email || enrollment.email || profile.email || '',
-          'Assigned Exam Set': result.questionSet || result.examSet || enrollment.questionSet || enrollment.examSet || 'set1',
-          'Exam Mode': result.mode || result.examName || 'quiz',
-          'Status': result.status || result.manualCheckStatus || 'submitted',
-          'Score': result.score ?? result.checkedScore ?? '',
-          'Total Marks': result.total ?? result.totalMarks ?? ''
+          'Rank': result.rank || result.meritRank || '—',
+          'Roll Number': result.rollNumber || enrollment.rollNumber || enrollment.roll || profile.rollNumber || 'Pending',
+          'Student Name': result.fullName || result.name || enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '—',
+          'Total Questions': result.totalQuestions ?? result.questionCount ?? result.totalQuestionCount ?? '—',
+          'Correct': result.correctCount ?? result.correctAnswers ?? result.correct ?? '—',
+          'Incorrect': result.wrongCount ?? result.incorrectCount ?? result.wrongAnswers ?? result.incorrect ?? '—',
+          'Violations': result.violationCount ?? result.violationsCount ?? result.tabSwitchCount ?? result.liveViolationCount ?? 0,
+          'Marks': result.score ?? result.checkedScore ?? result.obtainedMarks ?? result.marks ?? '—',
+          'Total Marks': result.totalMarks ?? result.maxMarks ?? result.total ?? '—',
+          'Time Taken': result.timeTakenText || result.timeTaken || result.durationText || result.durationMinutes || '—',
+          'Result': result.resultStatus || result.status || result.manualCheckStatus || 'Pending'
         };
       });
     }
@@ -5206,33 +5207,69 @@ async function removeTrustedEditor(uid) {
     async function downloadPdfReport(rows, title, filename) {
       if (!rows.length) return showToast('डाउनलोड के लिए कोई रिकॉर्ड नहीं मिला।');
       if (!window.jspdf?.jsPDF) throw new Error('PDF library उपलब्ध नहीं है।');
+      const isRoster = /members|roster|enrollment/i.test(String(filename || '') + ' ' + String(title || ''));
+      const orientation = isRoster ? 'portrait' : 'landscape';
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'landscape' });
-      doc.text(title, 14, 14);
-      if (typeof doc.autoTable === 'function') {
-        const headers = Object.keys(rows[0]);
+      const doc = new jsPDF({ orientation, unit: 'pt', format: 'a4', compress: true });
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = doc.internal.pageSize.getHeight();
+      const headers = [...new Set(rows.flatMap(row => Object.keys(row || {})))];
+      const pageSize = isRoster ? 14 : 12;
+      const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+      const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+      if (typeof window.html2canvas === 'function') {
+        for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+          const pageRows = rows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+          const widthPx = orientation === 'portrait' ? 794 : 1122;
+          const heightPx = orientation === 'portrait' ? 1122 : 794;
+          const wrapper = document.createElement('section');
+          wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + widthPx + 'px;min-height:' + heightPx + 'px;height:auto;box-sizing:border-box;padding:30px 34px 24px;background:#fff;color:#17211b;font-family:Arial,"Noto Sans Devanagari",sans-serif;display:flex;flex-direction:column;overflow:visible;';
+          const heading = '<header style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #1b4332;padding-bottom:14px;margin-bottom:14px;"><div><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b34a1b;">BISHNOISM DIGITAL EXAM COUNCIL</div><h1 style="font-size:21px;line-height:1.3;margin:7px 0;color:#1b4332;">' + escapeHtml(title) + '</h1><p style="font-size:11px;color:#64748b;margin:0;">Generated ' + escapeHtml(new Date().toLocaleString('en-IN')) + ' | Records: ' + rows.length + '</p></div><div style="white-space:nowrap;background:#1b4332;color:#fef08a;border-radius:5px;padding:7px 10px;font-size:10px;font-weight:700;">OFFICIAL REPORT</div></header>';
+          const th = headers.map(key => '<th style="background:#edf2ed;color:#243b2c;text-align:left;font-weight:700;padding:8px 6px;border-bottom:2px solid #cbd5d1;font-size:10px;overflow-wrap:anywhere;">' + escapeHtml(key) + '</th>').join('');
+          const body = pageRows.map((row, index) => '<tr style="background:' + (index % 2 ? '#f7f9f7' : '#fff') + ';">' +
+            headers.map(key => '<td style="padding:7px 6px;border-bottom:1px solid #e2e8e2;font-size:10px;line-height:1.35;vertical-align:top;overflow-wrap:anywhere;word-break:break-word;">' + escapeHtml(row[key] == null || row[key] === '' ? '—' : row[key]) + '</td>').join('') +
+            '</tr>').join('');
+          wrapper.innerHTML = heading + '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody></table><footer style="margin-top:auto;padding-top:12px;border-top:1px solid #cbd5e1;display:flex;justify-content:space-between;font-size:9px;color:#64748b;"><span>Confidential — authorized administrative use only</span><span>Page ' + (pageIndex + 1) + ' / ' + pageCount + '</span></footer>';
+          document.body.appendChild(wrapper);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          const canvas = await window.html2canvas(wrapper, {
+            scale: 1.35, backgroundColor: '#fff', useCORS: true, logging: false,
+            width: widthPx, height: wrapper.scrollHeight, windowWidth: widthPx
+          });
+          if (pageIndex > 0) doc.addPage('a4', orientation);
+          const renderedHeight = canvas.height * (pdfWidth / canvas.width);
+          const fitScale = Math.min(1, pdfHeight / renderedHeight);
+          const imageWidth = pdfWidth * fitScale;
+          const imageHeight = renderedHeight * fitScale;
+          doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG',
+            (pdfWidth - imageWidth) / 2, (pdfHeight - imageHeight) / 2,
+            imageWidth, imageHeight, undefined, 'FAST');
+          wrapper.remove();
+        }
+      } else if (typeof doc.autoTable === 'function') {
+        doc.setFontSize(14);
+        doc.text(String(title).slice(0, 100), 28, 28);
         doc.autoTable({
-          startY: 20,
-          head: [headers],
+          startY: 42, head: [headers],
           body: rows.map(row => headers.map(key => String(row[key] ?? ''))),
-          styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
-          headStyles: { fontSize: 7 }
+          styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+          headStyles: { fillColor: [27, 67, 50], textColor: [255, 255, 255] },
+          alternateRowStyles: { fillColor: [247, 249, 247] },
+          margin: { left: 24, right: 24 }
         });
       } else {
-        doc.setFontSize(8);
-        rows.slice(0, 24).forEach((row, index) => {
-          const line = Object.values(row).map(value => String(value ?? '')).join(' | ').slice(0, 180);
-          doc.text(line, 12, 24 + index * 8);
-        });
+        throw new Error('PDF rendering libraries उपलब्ध नहीं हैं।');
       }
       doc.save(filename);
-      showToast('PDF रिपोर्ट डाउनलोड हो गई।');
+      showToast('साफ़, पेज नंबर वाली PDF रिपोर्ट डाउनलोड हो गई।');
     }
 
     async function exportQuizResultsPdf() {
       try {
         const rows = await getExamResultExportRows();
-        await downloadPdfReport(rows, 'Bishnoism — Exam Results', 'Bishnoism_Exam_Results.pdf');
+        await downloadPdfReport(rows, 'परीक्षा परिणाम एवं उत्तर-पुस्तिका मूल्यांकन लेजर | Exam Results', 'Bishnoism_Exam_Results.pdf');
       } catch (error) {
         console.error('Results PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -5257,7 +5294,7 @@ async function removeTrustedEditor(uid) {
     async function exportMembersPdf() {
       try {
         const rows = await getRegisteredMemberExportRows();
-        await downloadPdfReport(rows, 'Bishnoism — Registered Members', 'Bishnoism_Registered_Members.pdf');
+        await downloadPdfReport(rows, 'विद्यार्थी नामांकन एवं रोल नंबर आवंटन रजिस्टर | Student Enrollment', 'Bishnoism_Registered_Members.pdf');
       } catch (error) {
         console.error('Members PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
