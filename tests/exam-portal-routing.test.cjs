@@ -25,15 +25,15 @@ test("portal navigation opens the selected section even before login; exam start
   launchHandler.includes('examFrame.src = "./index.html?examEmbed=" + encodeURIComponent(mode)'),
   "portal should load the requested exam section"
 );
-  assert.match(launchHandler, /Always open the requested section/);
-  assert.match(launchHandler, /examFrame\\.src = "\\.\\/index\\.html\\?examEmbed="/);
-  assert.doesNotMatch(launchHandler, /if \\(!auth\\.currentUser/);
+  assert.ok(launchHandler.includes("Always open the requested section"));
+  assert.ok(launchHandler.includes('examFrame.src = "./index.html?examEmbed="'));
+  assert.ok(!launchHandler.includes("if (!auth.currentUser"));
   // Invalid modes and future scheduled exams intentionally return early;
   // authentication must not block opening the selected portal section.
-  assert.match(launchHandler, /if \\(!examTitles\\[mode\\]\\) return;/);
-  assert.match(launchHandler, /toScheduleDate\\(value\\)/);
-  assert.match(launchHandler, /date\\.getTime\\(\\)>Date\\.now\\(\\)\\)\\{setPortalStatus/);
-  assert.doesNotMatch(launchHandler, /if \\(!auth\\.currentUser[^\\n]*return;/);
+  assert.ok(launchHandler.includes("if (!examTitles[mode]) return;"));
+  assert.ok(launchHandler.includes("toScheduleDate(value)"));
+  assert.ok(launchHandler.includes("date.getTime()>Date.now()){setPortalStatus"));
+  assert.ok(!/if\s*\(!auth\.currentUser[^\n]*return;/.test(launchHandler));
 });
 
 test("exam schedule changes only publish notifications after explicit owner opt-in", () => {
