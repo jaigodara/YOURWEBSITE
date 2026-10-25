@@ -673,6 +673,51 @@ Ans: B"></textarea>
             <label class="block text-xs font-bold text-stone-700">प्रति गलत उत्तर ऋणात्मक अंक<input id="ownerCustomExamNegativeMarks" type="number" min="0" max="10" step="0.01" value="0.25" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
           </div>
           <p id="ownerCustomExamStatus" class="text-xs text-stone-600" aria-live="polite">कस्टम परीक्षा की सेटिंग्स इसी कॉन्फ़िगरेशन में सुरक्षित होंगी।</p>
+          
+<input id="ownerCustomExamRecordId" type="hidden" value="">
+
+<div class="space-y-3 rounded-xl border border-stone-200 bg-white p-3">
+  <h5 class="font-bold text-sm text-forest">परीक्षा प्रबंधन — अलग-अलग परीक्षाएँ</h5>
+  <p class="text-xs text-stone-600">
+    परीक्षा रिकॉर्ड अलग सहेजे जाएँगे। Publish करने से अभी विद्यार्थी पोर्टल में परीक्षा अपने-आप उपलब्ध नहीं होती।
+  </p>
+
+  <label class="block text-xs font-bold text-stone-700">
+    मौजूदा परीक्षा चुनें
+    <select id="ownerCustomExamSelect"
+      class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
+      <option value="">नई परीक्षा बनाएँ</option>
+    </select>
+  </label>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <button type="button" onclick="newCustomExamRecord()"
+      class="rounded-xl border border-stone-300 p-3 text-sm font-bold">
+      + नई परीक्षा
+    </button>
+    <button type="button" onclick="saveCustomExamRecord()"
+      class="rounded-xl bg-forest p-3 text-sm font-bold text-white">
+      Draft सहेजें
+    </button>
+    <button type="button" onclick="changeCustomExamStatus('published')"
+      class="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold">
+      Publish रिकॉर्ड
+    </button>
+    <button type="button" onclick="changeCustomExamStatus('draft')"
+      class="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold">
+      Unpublish / Draft
+    </button>
+    <button type="button" onclick="changeCustomExamStatus('archived')"
+      class="rounded-xl border border-stone-300 p-3 text-sm font-bold sm:col-span-2">
+      परीक्षा Archive करें
+    </button>
+  </div>
+
+  <p id="customExamRegistryStatus" class="text-xs text-stone-600"
+    role="status" aria-live="polite">परीक्षा रिकॉर्ड लोड हो रहे हैं…</p>
+  <div id="customExamRegistryList" class="space-y-2"></div>
+</div>
+
         </div>
         <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-3">
           <h4 class="font-bold text-sm text-forest">📚 विद्यार्थियों के लिए सक्रिय प्रश्न सेट</h4>
@@ -1316,6 +1361,7 @@ if (environmentEl) {
             loadExistingSettings();
             loadMaintenanceSettings();
             loadExamVisibilitySettings();
+            loadCustomExamRegistry();
             loadAdmitCardSettings();
             loadExamSessionQueue();
           }
@@ -3159,6 +3205,259 @@ async function saveBulkQuestionDrafts() {
       }
     }
     window.toggleExamResultsRelease = toggleExamResultsRelease;
+
+    
+const customExamRegistryCollection = () => db.collection('customExams');
+
+function setCustomExamRegistryStatus(message) {
+  const el = document.getElementById('customExamRegistryStatus');
+  if (el) el.textContent = message;
+}
+
+function newCustomExamRecord() {
+  if (!isPrimaryOwner()) {
+    showToast('यह सुविधा केवल Owner के लिए है।');
+    return;
+  }
+
+  document.getElementById('ownerCustomExamRecordId').value = '';
+  document.getElementById('ownerCustomExamSelect').value = '';
+  document.getElementById('ownerCustomExamTitle').value = '';
+  document.getElementById('ownerCustomExamDuration').value = '60';
+  document.getElementById('ownerCustomExamTotalMarks').value = '100';
+  document.getElementById('ownerCustomExamPassingMarks').value = '33';
+  document.getElementById('ownerCustomExamNegativeMarks').value = '0.25';
+
+  setCustomExamRegistryStatus('नई परीक्षा तैयार है। Draft सहेजें।');
+}
+
+async function loadCustomExamRegistry() {
+  if (!isPrimaryOwner()) return;
+
+  const select = document.getElementById('ownerCustomExamSelect');
+  const list = document.getElementById('customExamRegistryList');
+  if (!select || !list) return;
+
+  setCustomExamRegistryStatus('परीक्षा रिकॉर्ड लोड हो रहे हैं…');
+
+  try {
+    const snapshot = await customExamRegistryCollection()
+      .orderBy('updatedAt', 'desc')
+      .limit(100)
+      .get();
+
+    select.replaceChildren(new Option('नई परीक्षा बनाएँ', ''));
+    list.replaceChildren();
+
+    snapshot.forEach(doc => {
+      const exam = doc.data() || {};
+      const title = String(exam.title || 'बिना नाम की परीक्षा').slice(0, 120);
+      const status = String(exam.status || 'draft');
+
+      select.add(new Option(`${title} — ${status}`, doc.id));
+
+      const card = document.createElement('div');
+      card.className = 'rounded-xl border border-stone-200 bg-stone-50 p-3';
+
+      const heading = document.createElement('strong');
+      heading.className = 'block text-sm text-forest';
+      heading.textContent = title;
+
+      const details = document.createElement('p');
+      details.className = 'mt-1 text-xs text-stone-600';
+      details.textContent =
+        `${status} · ${Number(exam.durationMinutes) || 60} मिनट · ` +
+        `${Number(exam.totalMarks) || 100} कुल अंक`;
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className =
+        'mt-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold';
+      edit.textContent = 'इस परीक्षा को खोलें';
+      edit.addEventListener('click', () => {
+        select.value = doc.id;
+        editCustomExamRecord(doc.id);
+      });
+
+      card.append(heading, details, edit);
+      list.appendChild(card);
+    });
+
+    setCustomExamRegistryStatus(
+      `${snapshot.size} परीक्षा रिकॉर्ड लोड हुए।`
+    );
+  } catch (error) {
+    console.error('Custom exam registry load failed:', error);
+    setCustomExamRegistryStatus(
+      'रिकॉर्ड लोड नहीं हुए। Owner access और Firestore rules जाँचें।'
+    );
+  }
+}
+
+async function editCustomExamRecord(id) {
+  if (!isPrimaryOwner() || !id) return;
+
+  try {
+    const doc = await customExamRegistryCollection().doc(id).get();
+    if (!doc.exists) {
+      showToast('यह परीक्षा रिकॉर्ड नहीं मिला।');
+      await loadCustomExamRegistry();
+      return;
+    }
+
+    const exam = doc.data() || {};
+    document.getElementById('ownerCustomExamRecordId').value = doc.id;
+    document.getElementById('ownerCustomExamTitle').value = exam.title || '';
+    document.getElementById('ownerCustomExamDuration').value =
+      String(exam.durationMinutes ?? 60);
+    document.getElementById('ownerCustomExamTotalMarks').value =
+      String(exam.totalMarks ?? 100);
+    document.getElementById('ownerCustomExamPassingMarks').value =
+      String(exam.passingMarks ?? 33);
+    document.getElementById('ownerCustomExamNegativeMarks').value =
+      String(exam.negativeMarks ?? 0.25);
+
+    setCustomExamRegistryStatus(
+      `चुनी गई परीक्षा: ${exam.title || 'बिना नाम की परीक्षा'} · स्थिति: ${exam.status || 'draft'}`
+    );
+  } catch (error) {
+    console.error('Custom exam load failed:', error);
+    showToast('परीक्षा खोल नहीं सके। Owner access जाँचें।');
+  }
+}
+
+async function saveCustomExamRecord() {
+  if (!isPrimaryOwner()) {
+    showToast('कस्टम परीक्षा बनाने का अधिकार केवल Owner को है।');
+    return;
+  }
+
+  const title = String(
+    document.getElementById('ownerCustomExamTitle')?.value || ''
+  ).trim();
+
+  const duration = Number(
+    document.getElementById('ownerCustomExamDuration')?.value
+  );
+  const totalMarks = Number(
+    document.getElementById('ownerCustomExamTotalMarks')?.value
+  );
+  const passingMarks = Number(
+    document.getElementById('ownerCustomExamPassingMarks')?.value
+  );
+  const negativeMarks = Number(
+    document.getElementById('ownerCustomExamNegativeMarks')?.value
+  );
+
+  if (!title || title.length > 120) {
+    showToast('परीक्षा का नाम 1–120 अक्षरों में भरें।');
+    return;
+  }
+
+  if (
+    !Number.isFinite(duration) || duration < 1 || duration > 360 ||
+    !Number.isFinite(totalMarks) || totalMarks < 1 || totalMarks > 10000 ||
+    !Number.isFinite(passingMarks) || passingMarks < 0 ||
+    passingMarks > totalMarks ||
+    !Number.isFinite(negativeMarks) ||
+    negativeMarks < 0 || negativeMarks > 10
+  ) {
+    showToast('अवधि, कुल अंक, उत्तीर्ण अंक और ऋणात्मक अंक जाँचें।');
+    return;
+  }
+
+  const recordId =
+    document.getElementById('ownerCustomExamRecordId')?.value || '';
+
+  const payload = {
+    title,
+    durationMinutes: duration,
+    totalMarks,
+    passingMarks,
+    negativeMarks,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: auth.currentUser.uid
+  };
+
+  try {
+    if (recordId) {
+      const ref = customExamRegistryCollection().doc(recordId);
+      const existing = await ref.get();
+
+      if (!existing.exists) {
+        showToast('परीक्षा रिकॉर्ड अब मौजूद नहीं है। नई परीक्षा बनाएँ।');
+        return;
+      }
+
+      // Editing a published or archived record does not change its status.
+      await ref.set(payload, { merge: true });
+    } else {
+      const ref = customExamRegistryCollection().doc();
+
+      await ref.set({
+        ...payload,
+        status: 'draft',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy: auth.currentUser.uid
+      });
+
+      document.getElementById('ownerCustomExamRecordId').value = ref.id;
+    }
+
+    showToast('कस्टम परीक्षा रिकॉर्ड सहेजा गया।');
+    await loadCustomExamRegistry();
+    document.getElementById('ownerCustomExamSelect').value =
+      document.getElementById('ownerCustomExamRecordId').value;
+  } catch (error) {
+    console.error('Custom exam save failed:', error);
+    showToast('सहेजना विफल हुआ। Firestore rules और Owner access जाँचें।');
+  }
+}
+
+async function changeCustomExamStatus(nextStatus) {
+  if (!isPrimaryOwner()) {
+    showToast('परीक्षा की स्थिति बदलने का अधिकार केवल Owner को है।');
+    return;
+  }
+
+  if (!['draft', 'published', 'archived'].includes(nextStatus)) return;
+
+  const id =
+    document.getElementById('ownerCustomExamRecordId')?.value ||
+    document.getElementById('ownerCustomExamSelect')?.value;
+
+  if (!id) {
+    showToast('पहले मौजूदा परीक्षा चुनें या Draft सहेजें।');
+    return;
+  }
+
+  const ref = customExamRegistryCollection().doc(id);
+
+  try {
+    const doc = await ref.get();
+    if (!doc.exists) {
+      showToast('परीक्षा रिकॉर्ड नहीं मिला।');
+      return;
+    }
+
+    await ref.update({
+      status: nextStatus,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: auth.currentUser.uid
+    });
+
+    document.getElementById('ownerCustomExamRecordId').value = id;
+    await loadCustomExamRegistry();
+    document.getElementById('ownerCustomExamSelect').value = id;
+
+    setCustomExamRegistryStatus(
+      `रिकॉर्ड की स्थिति बदली गई: ${nextStatus}. यह अभी विद्यार्थी पोर्टल में परीक्षा चालू नहीं करता।`
+    );
+  } catch (error) {
+    console.error('Custom exam status update failed:', error);
+    showToast('स्थिति नहीं बदली। Owner access और Firestore rules जाँचें।');
+  }
+}
 
     async function saveExamVisibilitySettings() {
       if (!isPrimaryOwner()) return showToast('परीक्षा शेड्यूल बदलने का अधिकार केवल Owner को है।');
