@@ -8,7 +8,7 @@ const owner = readFileSync(path.join(__dirname, "..", "owner-studio.html"), "utf
 
 test("student view never displays the internal BIS identifier as a roll number", () => {
   assert.ok(script.includes("const storedRoll = String(record.rollNumber || '').trim();"));
-  assert.ok(script.includes("const roll = /^JAMBH-2026-\\d{4,}$/.test(storedRoll) ? storedRoll : '';"));
+  assert.ok(script.includes("const roll = /^JAMBH-2026-\\d{5}$/.test(storedRoll) ? storedRoll : '';"));
 });
 
 test("admit-card download requires confirmed approval, a five-digit roll, and release", () => {

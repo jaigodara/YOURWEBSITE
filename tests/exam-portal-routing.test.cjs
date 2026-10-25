@@ -21,11 +21,19 @@ test("exam portal embed mode is set before page styles and selects the requested
 
 test("portal navigation opens the selected section even before login; exam start remains guarded in the app", () => {
   const launchHandler = portalHtml.slice(portalHtml.indexOf('document.querySelectorAll("[data-launch-exam]")'));
-  assert.match(launchHandler, /examFrame\.src = "\.\/index\.html\?examEmbed=" \+ encodeURIComponent\(mode\)/);
-  assert.match(launchHandler, /if \(!auth\.currentUser && \["main", "mock1", "mock2"\]\.includes\(mode\)\)/);
-  assert.match(launchHandler, /byId\("authStatus"\)\.textContent/);
-  assert.doesNotMatch(launchHandler.slice(0, launchHandler.indexOf('examFrame.src')), /return;/,
-    "the navigation handler must not return early before loading the requested section");
+ assert.ok(
+  /examFrame\.src\s*=\s*["']\.\/index\.html\?examEmbed=["']\s*\+\s*encodeURIComponent\(mode\)/.test(launchHandler),
+  "portal should load the requested exam section"
+);
+  assert.ok(launchHandler.includes("Always open the requested section"));
+  assert.ok(launchHandler.includes('examFrame.src = "./index.html?examEmbed="'));
+  assert.ok(!launchHandler.includes("if (!auth.currentUser"));
+  // Invalid modes and future scheduled exams intentionally return early;
+  // authentication must not block opening the selected portal section.
+  assert.ok(launchHandler.includes("if (!examTitles[mode]) return;"));
+  assert.ok(launchHandler.includes("toScheduleDate(value)"));
+  assert.ok(launchHandler.includes("date.getTime()>Date.now()){setPortalStatus"));
+  assert.ok(!/if\s*\(!auth\.currentUser[^\n]*return;/.test(launchHandler));
 });
 
 test("exam schedule changes only publish notifications after explicit owner opt-in", () => {

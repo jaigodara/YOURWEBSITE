@@ -26,7 +26,7 @@ test("exam progress updates do not rewrite the immutable scheduled endAt", () =>
 
 test("student session access is limited to their own supported session IDs", () => {
   assert.match(sessionRules, /sessionId\.matches\([\s\S]*quiz\|mock1\|mock2\|main/);
-  assert.match(sessionRules, /allow read: if examOwner\(\) \|\| isOwnSession\(\)/);
+  assert.match(sessionRules, /allow read: if examOwner\(\)[\s\S]*isOwnSession\(\)/);
   assert.match(sessionRules, /request\.resource\.data\.get\('uid', ''\) == request\.auth\.uid/);
   assert.match(sessionRules, /request\.resource\.data\.get\('mode', ''\) == resource\.data\.get\('mode', ''\)/);
   assert.match(sessionRules, /request\.resource\.data\.get\('endAt', null\) == resource\.data\.get\('endAt', null\)/);

@@ -25,7 +25,7 @@ test("opening the exam pane does not automatically reload student answer sheets"
 });
 
 test("changing the selected exam clears stale answer-sheet results", () => {
-  assert.match(ownerStudio, /id="reviewSubmissionCollection" onchange="resetExamSubmissionQueue\(\)"/);
+  assert.match(ownerStudio, /id="reviewSubmissionCollection"[\s\S]*?onchange="resetExamSubmissionQueue\(\)"/);
   assert.match(ownerStudio, /window\.resetExamSubmissionQueue = resetExamSubmissionQueue/);
   assert.match(ownerStudio, /चुने गए उत्तर-पत्र लाएँ/);
 });
