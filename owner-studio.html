@@ -5411,7 +5411,7 @@ function listenTrustedEditors() {
 
     const invitations = snapshot.docs
       .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
-      .filter(d => ['pending', 'claimed', 'declined'].includes(d.status))
+      .filter(d => ['pending', 'claimed', 'declined', 'revoked'].includes(d.status))
       .sort((a, b) => {
         const at = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
         const bt = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
@@ -5427,12 +5427,24 @@ function listenTrustedEditors() {
     invitations.forEach(d => {
       const row = document.createElement('div');
       row.className = 'p-2 rounded-lg bg-amber-50 border border-amber-200';
-      row.textContent = [
+      const details = document.createElement('p');
+      details.textContent = [
         d.fullName || 'नाम नहीं',
         d.phone || '',
         d.email || '',
-        (d.status === 'claimed' ? 'स्वीकार किया गया' : d.status === 'declined' ? 'अस्वीकार किया गया' : 'स्वीकृति लंबित')
+        (d.status === 'claimed' ? 'स्वीकार किया गया' :
+          d.status === 'declined' ? 'अस्वीकार किया गया' :
+          d.status === 'revoked' ? 'रद्द किया गया' : 'स्वीकृति लंबित')
       ].filter(Boolean).join(' · ');
+      row.appendChild(details);
+      if (d.status === 'pending') {
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'mt-2 min-h-10 rounded-lg border border-red-300 bg-white px-3 py-2 font-bold text-red-800';
+        cancel.textContent = 'आमंत्रण रद्द करें';
+        cancel.addEventListener('click', () => revokeEditorInvitation(d.id));
+        row.appendChild(cancel);
+      }
       box.appendChild(row);
     });
   }, error => {
@@ -5482,7 +5494,11 @@ async function addTrustedEditor() {
     const ref = db.collection('pending_editors').doc(inviteId);
     const existing = await ref.get();
     if (existing.exists && existing.data()?.status === 'claimed') {
-      return setTrustedEditorStatus('यह invitation पहले स्वीकार हो चुका है। पहले सक्रिय editor role जाँचें।', true);
+      const activeRole = await db.collection('roles').doc(targetUid).get();
+      if (activeRole.exists && activeRole.data()?.role === 'editor') {
+        return setTrustedEditorStatus('यह editor अभी सक्रिय है। पहले उसकी भूमिका हटाएँ, फिर नया invitation भेजें।', true);
+      }
+      // The previous editor role was removed; permit a fresh invitation for this phone.
     }
     if (existing.exists && existing.data()?.status === 'pending') {
       return setTrustedEditorStatus('इस नंबर के लिए invitation पहले से pending है। सूची Refresh करें या उपयोगकर्ता से Notification Bell खोलने को कहें।', true);
@@ -5547,6 +5563,40 @@ async function addTrustedEditor() {
   } catch (error) {
     console.error('Editor invitation save failed:', error);
     setTrustedEditorStatus('आमंत्रण नहीं सहेजा गया: ' + error.message, true);
+  }
+}
+
+async function revokeEditorInvitation(invitationId) {
+  if (!isPrimaryOwner()) {
+    return setTrustedEditorStatus('आमंत्रण रद्द करने का अधिकार केवल Owner के पास है।', true);
+  }
+  const safeId = String(invitationId || '');
+  if (!/^phone_\+91[6-9]\d{9}$/.test(safeId)) {
+    return setTrustedEditorStatus('आमंत्रण पहचान मान्य नहीं है।', true);
+  }
+  if (!confirm('क्या इस लंबित Assistant Editor invitation को रद्द करना है?')) return;
+  try {
+    const ref = db.collection('pending_editors').doc(safeId);
+    const snap = await ref.get();
+    if (!snap.exists || snap.data()?.status !== 'pending') {
+      return setTrustedEditorStatus('यह invitation अब pending नहीं है। सूची refresh करें।', true);
+    }
+    const data = snap.data() || {};
+    await ref.update({
+      status: 'revoked',
+      revokedBy: auth.currentUser?.uid || null,
+      revokedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await writeEditorAudit('invitation_revoked', {
+      phone: data.phone || '',
+      fullName: data.fullName || 'सहायक संपादक',
+      permissions: data.permissions || {}
+    });
+    setTrustedEditorStatus('लंबित invitation रद्द कर दिया गया।');
+  } catch (error) {
+    console.error('Editor invitation revocation failed:', error);
+    setTrustedEditorStatus('Invitation रद्द नहीं हुआ: ' + error.message + ' · Firestore rules जाँचें।', true);
   }
 }
 
