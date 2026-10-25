@@ -3544,6 +3544,8 @@ async function saveBulkQuestionDrafts() {
         : Object.entries(answers);
       const answerList = document.createElement('div');
       answerList.className = 'space-y-2';
+      let scoreInput = null;
+      let liveScoreBar = null;
       const answerHeading = document.createElement('div');
       answerHeading.className = 'font-bold text-sm text-forest border-b pb-2';
       answerHeading.textContent = 'उत्तर-पत्र (' + answerEntries.length + ' प्रश्न)';
@@ -3560,13 +3562,28 @@ async function saveBulkQuestionDrafts() {
         const q = examReviewQuestionLookup[(d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] || '') + '::' + questionId] || examReviewQuestionLookup[questionId] || {};
         const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
         const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
-        const selectedIndex = Number(answer);
-        const selectedValue = Number.isInteger(selectedIndex) && selectedIndex >= 0 && selectedIndex < options.length ? options[selectedIndex] : null;
+        const normalizeOptionIndex = value => {
+          const raw = value && typeof value === 'object' ? (value.index ?? value.value ?? value.text ?? '') : value;
+          const text = String(raw ?? '').trim();
+          if (/^\d+$/.test(text)) {
+            const n = Number(text);
+            return Number.isInteger(n) && n >= 0 && n < options.length ? n : -1;
+          }
+          if (/^[A-D]$/i.test(text)) {
+            const n = text.toUpperCase().charCodeAt(0) - 65;
+            return n >= 0 && n < options.length ? n : -1;
+          }
+          return options.findIndex(option => String(option && typeof option === 'object'
+            ? (option.text ?? option.label ?? option.value ?? '') : option).trim().toLowerCase() === text.toLowerCase());
+        };
+        const selectedIndex = normalizeOptionIndex(answer);
+        const selectedValue = selectedIndex >= 0 ? options[selectedIndex] : null;
         const selectedText = selectedValue !== null
           ? (typeof selectedValue === 'object' ? (selectedValue.text || selectedValue.label || selectedValue.value || JSON.stringify(selectedValue)) : selectedValue)
           : (answer == null || answer === '' ? 'उत्तर नहीं दिया' : String(answer));
-        const correctIndex = Number(correct);
-        const correctValue = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < options.length ? options[correctIndex] : null;
+        const correctIndex = normalizeOptionIndex(correct);
+        const correctValue = correctIndex >= 0 ? options[correctIndex] : null;
+        const autoPoint = selectedIndex >= 0 && correctIndex >= 0 && selectedIndex === correctIndex ? 1 : 0;
         const correctText = correct == null ? 'प्रश्न बैंक में उपलब्ध नहीं' :
           (correctValue !== null ? (typeof correctValue === 'object' ? (correctValue.text || correctValue.label || correctValue.value || JSON.stringify(correctValue)) : correctValue) : String(correct));
         const item = document.createElement('div');
@@ -3581,6 +3598,45 @@ async function saveBulkQuestionDrafts() {
         correctAnswer.className = 'text-emerald-800';
         correctAnswer.textContent = 'सही उत्तर: ' + correctText;
         item.append(question, selected, correctAnswer);
+        const questionScore = d.questionScores && Object.prototype.hasOwnProperty.call(d.questionScores, questionId)
+          ? Number(d.questionScores[questionId]) : autoPoint;
+        const scoreActions = document.createElement('div');
+        scoreActions.className = 'flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100';
+        const scoreLabel = document.createElement('span');
+        scoreLabel.className = 'text-[11px] font-bold text-stone-600';
+        scoreLabel.textContent = 'इस प्रश्न के अंक: ' + (Number.isFinite(questionScore) ? questionScore : 0);
+        const setQuestionScore = value => {
+          const nextScore = Math.max(0, Math.min(10, Number(value) || 0));
+          const prior = d.questionScores && Object.prototype.hasOwnProperty.call(d.questionScores, questionId)
+            ? Number(d.questionScores[questionId]) : autoPoint;
+          d.questionScores = { ...(d.questionScores || {}), [questionId]: nextScore };
+          const totalLimit = Math.max(0, Number(d.total ?? d.totalQuestions ?? 100));
+          const currentTotal = Number(scoreInput?.value || 0);
+          const recalculated = Math.max(0, Math.min(totalLimit, currentTotal - (Number.isFinite(prior) ? prior : 0) + nextScore));
+          if (scoreInput) scoreInput.value = String(recalculated);
+          d.manualScore = recalculated;
+          scoreLabel.textContent = 'इस प्रश्न के अंक: ' + nextScore;
+          updateLiveReviewScore();
+        };
+        [['+1', 1], ['0', 0]].forEach(([labelText, value]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'min-h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-900';
+          button.textContent = labelText;
+          button.addEventListener('click', () => setQuestionScore(value));
+          scoreActions.appendChild(button);
+        });
+        const customScore = document.createElement('input');
+        customScore.type = 'number';
+        customScore.min = '0';
+        customScore.max = '10';
+        customScore.step = '0.25';
+        customScore.value = String(Number.isFinite(questionScore) ? questionScore : 0);
+        customScore.setAttribute('aria-label', 'प्रश्न ' + (index + 1) + ' के मैन्युअल अंक');
+        customScore.className = 'w-20 min-h-9 rounded-lg border border-stone-300 px-2 text-xs';
+        customScore.addEventListener('change', () => setQuestionScore(customScore.value));
+        scoreActions.append(scoreLabel, customScore);
+        item.appendChild(scoreActions);
         if (options.length) {
           const choices = document.createElement('ol');
           choices.className = 'list-[upper-alpha] pl-5 text-stone-500';
@@ -3613,7 +3669,7 @@ async function saveBulkQuestionDrafts() {
       const scoreLabel = document.createElement('label');
       scoreLabel.className = 'block text-xs font-bold text-stone-700';
       scoreLabel.textContent = 'सत्यापित अंक (0 से ' + Number(d.total ?? d.totalQuestions ?? 100) + ')';
-      const scoreInput = document.createElement('input');
+      scoreInput = document.createElement('input');
       scoreInput.id = 'currentReviewScore';
       scoreInput.type = 'number';
       scoreInput.min = '0';
@@ -3622,6 +3678,18 @@ async function saveBulkQuestionDrafts() {
       scoreInput.value = d.manualScore ?? d.score ?? d.autoScore ?? 0;
       scoreInput.className = 'mt-1 w-full p-3 rounded-lg border border-stone-300 text-sm';
       scoreLabel.appendChild(scoreInput);
+      liveScoreBar = document.createElement('div');
+      liveScoreBar.className = 'sticky bottom-2 z-20 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-forest shadow-lg';
+      liveScoreBar.setAttribute('aria-live', 'polite');
+      const updateLiveReviewScore = () => {
+        const total = Math.max(0, Number(d.total ?? d.totalQuestions ?? 100));
+        const score = Math.max(0, Number(scoreInput?.value || 0));
+        const percent = total > 0 ? (score / total * 100).toFixed(1) : '0.0';
+        if (liveScoreBar) liveScoreBar.textContent = 'कुल अंक: ' + score + ' / ' + total + ' · प्रतिशत: ' + percent + '%';
+      };
+      scoreInput.addEventListener('input', updateLiveReviewScore);
+      updateLiveReviewScore();
+      card.appendChild(liveScoreBar);
 
       const decisionLabel = document.createElement('label');
       decisionLabel.className = 'block text-xs font-bold text-stone-700';
