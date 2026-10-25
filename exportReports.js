@@ -63,7 +63,7 @@
     return phone.length === 10 ? phone.slice(0, 2) + '••••••' + phone.slice(-2) : '—';
   };
   const statusLabel = row => {
-    const value = text(first(row, ['verificationStatus', 'manualCheckStatus', 'resultStatus', 'status'], '')).toLowerCase();
+    const value = text(first(row, ['verificationStatus', 'manualCheckStatus', 'resultStatus', 'status', 'Status', 'प्रवेश स्थिति'], '')).toLowerCase();
     if (row && (row.isApproved === true || row.verified === true || value === 'approved' || value === 'confirmed' || value === 'verified')) return 'स्वीकृत';
     if (value.includes('evaluat') || value.includes('checked')) return 'मूल्यांकन पूर्ण';
     if (value.includes('reject')) return 'अस्वीकृत';
@@ -76,7 +76,7 @@
   function formatAnswerKeys(rawRows) {
     return (Array.isArray(rawRows) ? rawRows : []).map((row, index) => ({
       'क्र. सं.': index + 1,
-      'प्रश्न सेट': humanSet(first(row, ['questionSet', 'questionSetKey', 'set', 'examSet'], '')),
+      'प्रश्न सेट': humanSet(first(row, ['questionSet', 'questionSetKey', 'set', 'examSet', 'Assigned Exam Set', 'प्रश्न सेट'], '')),
       'प्रश्न संदर्भ': shortQuestionId(row),
       'सही विकल्प': optionLetter(row),
       'अंतिम संशोधनकर्ता': actorLabel(row),
@@ -87,10 +87,10 @@
   function formatStudentRoster(rawRows) {
     return (Array.isArray(rawRows) ? rawRows : []).map((row, index) => ({
       'क्र. सं.': index + 1,
-      'आवंटित अनुक्रमांक': text(first(row, ['rollNumber', 'roll', 'roll_number', 'admitCardRollNumber'], '')) || 'लंबित',
-      'विद्यार्थी का नाम': text(first(row, ['fullName', 'displayName', 'studentName', 'name'], '')) || '—',
-      'पिता / अभिभावक': text(first(row, ['fatherName', 'fathersName', 'father_name', 'guardianName'], '')) || '—',
-      'मोबाइल': normalizePhone(first(row, ['mobile', 'phone', 'phoneNumber', 'mobileNumber', 'studentPhone', 'verifiedPhone'], '')),
+      'आवंटित अनुक्रमांक': text(first(row, ['rollNumber', 'roll', 'roll_number', 'admitCardRollNumber', 'Roll Number', 'अनुक्रमांक', 'आवंटित अनुक्रमांक'], '')) || 'लंबित',
+      'विद्यार्थी का नाम': text(first(row, ['fullName', 'displayName', 'studentName', 'name', 'Full Name', 'विद्यार्थी का नाम', 'नाम'], '')) || '—',
+      'पिता / अभिभावक': text(first(row, ['fatherName', 'fathersName', 'father_name', 'guardianName', "Father's Name", 'पिता का नाम', 'पिता / अभिभावक'], '')) || '—',
+      'मोबाइल': normalizePhone(first(row, ['mobile', 'phone', 'phoneNumber', 'mobileNumber', 'studentPhone', 'verifiedPhone', 'Phone Number', 'मोबाइल', 'Mobile Number'], '')),
       'प्रवेश स्थिति': statusLabel(row)
     }));
   }
