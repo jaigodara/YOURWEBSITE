@@ -1920,10 +1920,17 @@ const notificationsForThisAccount =
   const expiresAt = timestampMillis(item.expiresAt);
   const expired = expiresAt > 0 && expiresAt <= Date.now();
 
-  return !expired && !(
-    isPersonalNotification &&
-    seen.includes(item._key)
+  const registrationTime = timestampMillis(
+    state.profile?.createdAt || state.profile?.registrationDate || state.profile?.registeredAt
   );
+  const notificationTime = timestampMillis(item.createdAt);
+  const isBroadcast = !isPersonalNotification && item.uid === 'ALL';
+  const predatesRegistration = isBroadcast && registrationTime > 0 &&
+    notificationTime > 0 && notificationTime < registrationTime;
+
+  // Read notices clear from the user's inbox; broadcasts created before this
+  // account registered are not shown to new users.
+  return !expired && !predatesRegistration && !seen.includes(item._key);
 });
 
 const unseen = inboxItems.filter(item => !seen.includes(item._key));
