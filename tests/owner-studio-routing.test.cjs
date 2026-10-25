@@ -57,3 +57,13 @@ test('Exam portal retains the existing website session and opens requested secti
   assert.match(scriptJs, /function claimPendingEditorInvitation/);
   assert.match(scriptJs, /examSessions/);
 });
+
+test('Owner Studio sidebar buttons are bound after the route handler is defined', () => {
+  const binderStart = ownerHtml.indexOf('function bindOwnerStudioNavigation()');
+  const binderEnd = ownerHtml.indexOf('function switchStudioPane(paneId)', binderStart);
+  assert.ok(binderStart >= 0 && binderEnd > binderStart, 'navigation binder and next function should exist');
+  const binder = ownerHtml.slice(binderStart, binderEnd);
+  assert.match(binder, /sidebar\.addEventListener\('click'/, 'sidebar must delegate navigation clicks');
+  assert.match(ownerHtml.slice(binderEnd - 180, binderEnd), /bindOwnerStudioNavigation\(\);/,
+    'navigation binder must be called before the pane functions are used');
+});
