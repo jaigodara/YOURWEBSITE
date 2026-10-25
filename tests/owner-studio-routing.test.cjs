@@ -44,7 +44,7 @@ test('Question uploader validates answer choices and Firestore batch write limit
   assert.match(ownerHtml, /function importBulkQuestions\(\)/);
   assert.match(ownerHtml, /duplicateQuestionIndexes\(parsed\)/);
   assert.match(ownerHtml, /const writesPerQuestion = target === 'quiz' \? 1 : 2/);
-  assert.match(ownerHtml, /Math\.floor\(500 \/ writesPerQuestion\)/);
+  assert.match(ownerHtml, /Math\.floor\(400 \/ writesPerQuestion\)/);
   assert.match(ownerHtml, /function saveBulkQuestionDrafts\(\)/);
 });
 
@@ -56,4 +56,33 @@ test('Exam portal retains the existing website session and opens requested secti
   }
   assert.match(scriptJs, /function claimPendingEditorInvitation/);
   assert.match(scriptJs, /examSessions/);
+});
+
+test('Owner Studio sidebar buttons are bound after the route handler is defined', () => {
+  const binderStart = ownerHtml.indexOf('function bindOwnerStudioNavigation()');
+  const binderEnd = ownerHtml.indexOf('function switchStudioPane(paneId)', binderStart);
+  assert.ok(binderStart >= 0 && binderEnd > binderStart, 'navigation binder and next function should exist');
+  const binder = ownerHtml.slice(binderStart, binderEnd);
+  assert.match(binder, /sidebar\.addEventListener\('click'/, 'sidebar must delegate navigation clicks');
+  assert.match(ownerHtml.slice(binderEnd - 180, binderEnd), /bindOwnerStudioNavigation\(\);/,
+    'navigation binder must be called before the pane functions are used');
+});
+
+test('Admit-card release uses one roll-number input and no legacy file upload controls', () => {
+  assert.equal((ownerHtml.match(/id="individualAdmitCardUid"/g) || []).length, 1,
+    'there must be exactly one roll-number input');
+  assert.doesNotMatch(ownerHtml, /id="individualAdmitCardPdf"/,
+    'manual PDF upload is removed in favor of browser-generated cards');
+  assert.doesNotMatch(ownerHtml, /id="uploadIndividualAdmitCardButton"/,
+    'the obsolete upload action must not remain');
+  assert.match(ownerHtml, /id="releaseIndividualAdmitCardButton"[^>]*onclick="releaseAdmitCardForRollNumber\(\)"/);
+});
+
+test('Question uploader compares against existing Firestore records and offers duplicate handling', () => {
+  assert.match(ownerHtml, /orderBy\(firebase\.firestore\.FieldPath\.documentId\(\)\)/);
+  assert.match(ownerHtml, /question\.existingDuplicate/);
+  assert.match(ownerHtml, /OK = डुप्लिकेट सहित अपलोड करें/);
+  assert.match(ownerHtml, /डुप्लिकेट छोड़कर बाकी अपलोड करें/);
+  assert.match(ownerHtml, /const questionsPerBatch = Math\.max\(1, Math\.floor\(400 \/ writesPerQuestion\)\)/);
+  assert.match(ownerHtml, /await batch\.commit\(\);[\s\S]*committedCount \+= chunk\.length/);
 });

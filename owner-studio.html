@@ -25,6 +25,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="./owner-export-format.js"></script>
 
   
   <style>
@@ -73,6 +74,7 @@
       #ownerDataExportPanel .grid { grid-template-columns: minmax(0, 1fr); }
     }
   </style>
+<link rel="stylesheet" href="./export-report.css">
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
@@ -277,7 +279,13 @@
             <option value="reviews">निजी मैन्युअल जाँच</option><option value="mainExamQuestions">मुख्य परीक्षा प्रश्न</option>
             <option value="mockExam_1">मॉक परीक्षा सेट 1 प्रश्न</option><option value="mockExam_2">मॉक परीक्षा सेट 2 प्रश्न</option>
             <option value="quiz">दैनिक क्विज़ प्रश्न</option><option value="examConfig">परीक्षा सेटिंग्स</option>
-            <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option>
+            <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option><option value="roleAuditLogs">सहायक संपादक अनुमति ऑडिट</option>
+            <option value="live_violations">लाइव परीक्षा उल्लंघन लॉग</option>
+            <option value="assistantEditors">सहायक संपादक और अनुमतियाँ</option>
+            <option value="trustedEditors">विश्वसनीय संपादक सूची</option>
+            <option value="userNotifications">विद्यार्थी सूचनाएँ</option>
+            <option value="notifications">सूचना केंद्र</option>
+            <option value="admitCards">प्रवेश-पत्र रजिस्टर</option>
           </select>
         </label>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -620,6 +628,14 @@ Ans: B"></textarea>
         <div id="proctoringStatusBadge" class="p-2.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold">
           स्थिति: कैमरा निगरानी उपलब्ध नहीं है।
         </div>
+        <div class="border-t border-stone-200 pt-3 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div><h4 class="text-sm font-extrabold text-forest">🚨 लाइव परीक्षा उल्लंघन</h4><p class="text-[11px] text-stone-500">टैब बदलने और फुल-स्क्रीन से बाहर निकलने के लॉग</p></div>
+            <button type="button" onclick="loadLiveExamViolations()" class="min-h-10 rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">↻ रिफ्रेश</button>
+          </div>
+          <p id="liveViolationsStatus" class="text-xs text-stone-500" aria-live="polite">लॉग देखने के लिए रिफ्रेश करें।</p>
+          <div id="liveViolationsList" class="max-h-72 space-y-2 overflow-y-auto" aria-live="polite"></div>
+        </div>
       </div>
 
 
@@ -637,10 +653,27 @@ Ans: B"></textarea>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMainExam" type="checkbox" class="accent-forest"> मुख्य परीक्षा दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowEnrollment" type="checkbox" class="accent-forest"> विद्यार्थी पंजीकरण दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowResults" type="checkbox" class="accent-forest"> परिणाम डेस्क दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerRandomizeSets" type="checkbox" class="accent-forest" checked> प्रश्न और विकल्प शफल करें</label>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+          <h4 class="text-sm font-extrabold text-forest">🔐 मुख्य / मॉक परिणाम रिलीज़</h4>
+          <p id="ownerResultsReleaseStatus" class="text-xs text-stone-600" aria-live="polite">परिणाम रिलीज़ स्थिति लोड हो रही है…</p>
+          <button id="ownerResultsReleaseButton" type="button" onclick="toggleExamResultsRelease()" class="w-full min-h-11 rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">📣 परिणाम जारी करें</button>
         </div>
         <label class="block text-xs font-bold text-stone-700">परीक्षा की डिफ़ॉल्ट अवधि (मिनट)
           <input id="ownerExamDuration" type="number" min="1" max="360" value="120" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300">
         </label>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-3" id="ownerCustomExamBuilder">
+          <div><h4 class="font-yatra text-sm text-forest">🧩 कस्टम परीक्षा सेटिंग्स</h4><p class="mt-1 text-[11px] text-stone-600">यह परीक्षा कॉन्फ़िगरेशन सहेजता है। इसे विद्यार्थी के लिए उपलब्ध करने से पहले प्रश्न सेट और प्रवेश नियंत्रण भी सत्यापित करें।</p></div>
+          <label class="block text-xs font-bold text-stone-700">परीक्षा का नाम<input id="ownerCustomExamTitle" maxlength="120" type="text" placeholder="उदा. विशेष अभ्यास परीक्षा" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block text-xs font-bold text-stone-700">अवधि (मिनट)<input id="ownerCustomExamDuration" type="number" min="1" max="360" value="60" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
+            <label class="block text-xs font-bold text-stone-700">कुल अंक<input id="ownerCustomExamTotalMarks" type="number" min="1" max="10000" value="100" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
+            <label class="block text-xs font-bold text-stone-700">उत्तीर्ण अंक<input id="ownerCustomExamPassingMarks" type="number" min="0" max="10000" value="33" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
+            <label class="block text-xs font-bold text-stone-700">प्रति गलत उत्तर ऋणात्मक अंक<input id="ownerCustomExamNegativeMarks" type="number" min="0" max="10" step="0.01" value="0.25" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
+          </div>
+          <p id="ownerCustomExamStatus" class="text-xs text-stone-600" aria-live="polite">कस्टम परीक्षा की सेटिंग्स इसी कॉन्फ़िगरेशन में सुरक्षित होंगी।</p>
+        </div>
         <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-3">
           <h4 class="font-bold text-sm text-forest">📚 विद्यार्थियों के लिए सक्रिय प्रश्न सेट</h4>
           <p class="text-xs text-stone-600">हर परीक्षा के लिए सक्रिय सेट चुनें। पुराने प्रश्न जिनमें Set दर्ज नहीं है, वे Set 1 में माने जाएँगे।</p>
@@ -726,20 +759,9 @@ Ans: B"></textarea>
         <button type="button" onclick="releaseAdmitCards()" class="w-full rounded-xl bg-forest px-4 py-3 text-xs font-extrabold text-white">📣 पुष्टि किए विद्यार्थियों को प्रवेश-पत्र रिलीज़ करें</button>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
           <h4 class="text-xs font-extrabold text-forest">📎 किसी एक विद्यार्थी को Admit Card PDF भेजें</h4>
-          <p class="text-[11px] text-stone-600">रोल नंबर से एक विद्यार्थी को प्रवेश-पत्र जारी करें। पुराना PDF अपलोड विकल्प नीचे सुरक्षित रखा गया है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे JAMBH-2026-00001)">
-          <button id="releaseIndividualAdmitCardButton" type="button" onclick="releaseAdmitCardForRollNumber()" class="w-full rounded-lg bg-forest px-3 py-2.5 text-xs font-extrabold text-white">🎟️ इस रोल नंबर पर प्रवेश-पत्र जारी करें</button>
-          <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
-          <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">⬆️ निजी Notification में Admit Card PDF अपलोड करें</button>
-          <p class="text-[11px] text-stone-600">रोल नंबर से विद्यार्थी खोजकर प्रवेश-पत्र ब्राउज़र में PDF बनाया जाएगा। Firebase Storage पर अपलोड की आवश्यकता नहीं है।</p>
-          <input id="individualAdmitCardUid" type="text" maxlength="128" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="विद्यार्थी का रोल नंबर (जैसे JAMBH-2026-0001)">
-          <button id="releaseAdmitCardByRollButton" type="button" onclick="releaseAdmitCardToRollNumber()" class="w-full rounded-lg bg-amber-500 px-3 py-2.5 text-xs font-extrabold text-stone-950">🎟️ रोल नंबर से प्रवेश-पत्र जारी करें</button>
-          <details class="rounded-lg border border-stone-200 bg-white p-3">
-            <summary class="cursor-pointer text-xs font-bold text-stone-600">उन्नत विकल्प: पुराना PDF अपलोड</summary>
-            <p class="mt-2 text-[11px] text-stone-500">पुराना Storage-आधारित अपलोड विकल्प संगतता के लिए रखा गया है। नई विधि की सिफारिश की जाती है।</p>
-            <input id="individualAdmitCardPdf" type="file" accept="application/pdf,.pdf" class="mt-2 w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs">
-            <button id="uploadIndividualAdmitCardButton" type="button" onclick="uploadIndividualAdmitCardPdf()" class="mt-2 w-full rounded-lg border border-stone-300 px-3 py-2.5 text-xs font-bold text-stone-700">⬆️ पुराना PDF अपलोड करें</button>
-          </details>
+          <p class="text-[11px] text-stone-600">प्रवेश-पत्र विद्यार्थी के स्वीकृत रिकॉर्ड से ब्राउज़र में तैयार होगा; PDF फाइल मैन्युअल रूप से अपलोड करने की आवश्यकता नहीं है।</p>
+          <input id="individualAdmitCardUid" type="text" maxlength="40" autocomplete="off" class="student-roll-badge w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="रोल नंबर (जैसे JAMBH-2026-0001)" aria-label="विद्यार्थी का रोल नंबर">
+          <button id="releaseIndividualAdmitCardButton" type="button" onclick="releaseAdmitCardForRollNumber()" class="w-full rounded-lg bg-forest px-3 py-2.5 text-xs font-extrabold text-white">🎟️ प्रवेश-पत्र जारी करें</button>
           <p id="individualAdmitCardUploadStatus" class="text-[11px] text-stone-600" aria-live="polite"></p>
         </div>
         <button type="button" onclick="revokeAdmitCardRelease()" class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700">रिलीज़ रोकें</button>
@@ -894,6 +916,16 @@ Ans: B"></textarea>
   </div>
 </div>
 
+      <section id="editorPermissionAuditPanel" class="bg-white p-5 rounded-3xl border border-amber-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <div><h3 class="font-yatra text-base text-forest">🧾 संपादक अनुमति ऑडिट लॉग</h3>
+            <p class="text-xs text-stone-500">आमंत्रण और भूमिका हटाने के हाल के रिकॉर्ड। यहाँ Firebase UID नहीं दिखाए जाते।</p></div>
+          <button type="button" onclick="loadEditorAuditLogs()" class="rounded-xl border border-amber-300 px-3 py-2 text-xs font-bold text-forest">लॉग ताज़ा करें</button>
+        </div>
+        <p id="editorAuditStatus" role="status" aria-live="polite" class="text-xs text-stone-500"></p>
+        <div id="editorAuditList" class="space-y-2 text-xs"><p class="text-stone-500">ऑडिट लॉग देखने के लिए “लॉग ताज़ा करें” दबाएँ।</p></div>
+      </section>
+
       <!-- PDF & EXCEL REPORTS EXPORT -->
       <div id="ownerExportPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">📄 सुरक्षित डेटा एक्सपोर्ट केंद्र (PDF, Excel &amp; CSV)</h3>
@@ -981,6 +1013,12 @@ Ans: B"></textarea>
       cursor: pointer;
       line-height: 1.6;
     }
+    .checking-workspace{display:grid;grid-template-columns:minmax(240px,.75fr) minmax(0,1.65fr);gap:14px;align-items:start}
+    .candidate-queue-panel{position:sticky;top:76px;display:flex;flex-direction:column;gap:10px;min-width:0;max-height:78vh;overflow:auto}
+    .candidate-eval-panel{min-width:0}
+    .candidate-eval-panel>article{min-width:0}
+    @media(max-width:900px){.checking-workspace{grid-template-columns:minmax(0,1fr)}.candidate-queue-panel{position:static;max-height:none;overflow:visible}}
+
     @media (max-width:640px) {
       #ownerQuestionBankPanel,
       #manualExamReviewSection,
@@ -1367,6 +1405,9 @@ if (environmentEl) {
         });
       }
     }
+
+    // Bind the sidebar once the route map and navigation functions exist.
+    bindOwnerStudioNavigation();
 
     function switchStudioPane(paneId) {
       const isOwner = isPrimaryOwner();
@@ -1758,12 +1799,15 @@ if (environmentEl) {
 
       bulkQuestionDrafts.forEach((question, index) => {
         const card = document.createElement('article');
-        card.className = 'rounded-2xl border border-stone-200 bg-white p-3 space-y-2';
+        card.className = question.existingDuplicate
+          ? 'rounded-2xl border-2 border-amber-400 bg-amber-50 p-3 space-y-2'
+          : 'rounded-2xl border border-stone-200 bg-white p-3 space-y-2';
         const heading = document.createElement('div');
         heading.className = 'flex items-center justify-between gap-2';
         const label = document.createElement('strong');
         label.className = 'text-xs text-forest';
-        label.textContent = 'प्रश्न ' + (index + 1) + (question.id ? ' · मौजूदा प्रश्न संपादन' : ' · Draft Preview');
+        label.textContent = 'प्रश्न ' + (index + 1) + (question.id ? ' · मौजूदा प्रश्न संपादन' : ' · Draft Preview') +
+          (question.existingDuplicate ? ' · ⚠ डेटाबेस में डुप्लिकेट' : '');
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-700';
@@ -2157,7 +2201,7 @@ async function saveBulkQuestionDrafts() {
     return showToast('पहले प्रश्नों का Preview तैयार करें।');
   }
 
-  const drafts = bulkQuestionDrafts;
+  let drafts = [...bulkQuestionDrafts];
 
   if (drafts.some(q =>
     !String(q.q || '').trim() ||
@@ -2189,19 +2233,55 @@ async function saveBulkQuestionDrafts() {
     return;
   }
 
-  // Each non-quiz question needs two writes: question + answer key.
-  const writesPerQuestion = target === 'quiz' ? 1 : 2;
-  if (drafts.length * writesPerQuestion > 500) {
-    return showToast(
-      `एक बार में अधिकतम ${Math.floor(500 / writesPerQuestion)} प्रश्न सहेजें।`
-    );
-  }
-
+  // Compare normalized question text against existing Firestore records in cursor pages.
   try {
-    const batch = db.batch();
-    const uid = auth.currentUser?.uid || null;
+    const normalizeQuestionText = value => String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+    const existingKeys = new Set();
+    let cursor = null;
+    do {
+      let query = db.collection(target)
+        .orderBy(firebase.firestore.FieldPath.documentId())
+        .limit(400);
+      if (cursor) query = query.startAfter(cursor);
+      const page = await query.get();
+      page.forEach(doc => {
+        const row = doc.data() || {};
+        const text = normalizeQuestionText(row.q || row.question || row.questionText || row.text);
+        if (text) existingKeys.add(text);
+      });
+      cursor = page.docs.length === 400 ? page.docs[page.docs.length - 1] : null;
+    } while (cursor);
 
     drafts.forEach(question => {
+      question.existingDuplicate = existingKeys.has(normalizeQuestionText(question.q));
+    });
+    const existingDuplicateCount = drafts.filter(question => question.existingDuplicate).length;
+    if (existingDuplicateCount) {
+      renderBulkQuestionPreview();
+      const uploadAnyway = confirm(
+        existingDuplicateCount + ' प्रश्न डेटाबेस में पहले से मौजूद हैं। OK = डुप्लिकेट सहित अपलोड करें; Cancel = डुप्लिकेट छोड़कर बाकी अपलोड करें।'
+      );
+      if (!uploadAnyway) drafts = drafts.filter(question => !question.existingDuplicate);
+      if (!drafts.length) return showToast('सभी प्रश्न डुप्लिकेट थे; कोई नया प्रश्न सहेजा नहीं गया।');
+    }
+  } catch (duplicateCheckError) {
+    showToast('डेटाबेस में डुप्लिकेट जाँच नहीं हो सकी: ' + duplicateCheckError.message + '। कोई प्रश्न सहेजा नहीं गया।');
+    return;
+  }
+
+  // Keep each Firestore batch at or below 400 writes. Non-quiz questions
+  // write both a question and a private answer-key record, so each such chunk
+  // contains at most 200 questions.
+  const writesPerQuestion = target === 'quiz' ? 1 : 2;
+  const questionsPerBatch = Math.max(1, Math.floor(400 / writesPerQuestion));
+  let committedCount = 0;
+
+  try {
+    const uid = auth.currentUser?.uid || null;
+    for (let offset = 0; offset < drafts.length; offset += questionsPerBatch) {
+      const chunk = drafts.slice(offset, offset + questionsPerBatch);
+      const batch = db.batch();
+      chunk.forEach(question => {
       const ref = question.id
         ? db.collection(target).doc(question.id)
         : db.collection(target).doc();
@@ -2263,11 +2343,13 @@ async function saveBulkQuestionDrafts() {
       }
 
       batch.set(ref, data, { merge: true });
-    });
+      });
 
-    await batch.commit();
+      await batch.commit();
+      committedCount += chunk.length;
+    }
 
-    // Clear the local draft only after Firebase confirms success.
+    // Clear the local draft only after all Firestore chunks confirm success.
     const count = drafts.length;
     bulkQuestionDrafts = [];
     bulkEditingQuestionId = null;
@@ -2289,7 +2371,8 @@ async function saveBulkQuestionDrafts() {
     );
   } catch (err) {
     console.error('Question draft save failed:', err);
-    showToast('Draft सहेजने में त्रुटि: ' + (err.message || 'अज्ञात त्रुटि'));
+    showToast('Draft सहेजने में त्रुटि: ' + (err.message || 'अज्ञात त्रुटि') +
+      (committedCount ? ' · ' + committedCount + ' प्रश्न पहले से सहेजे जा चुके हैं; दोबारा जाँचकर जारी रखें।' : ''));
   }
 }
 
@@ -2532,6 +2615,12 @@ async function saveBulkQuestionDrafts() {
           ['ownerShowMainExam', data.mainExamVisible !== false],
           ['ownerShowEnrollment', data.enrollmentVisible !== false],
           ['ownerShowResults', data.resultsVisible !== false],
+          ['ownerRandomizeSets', data.randomizeSets !== false],
+          ['ownerCustomExamTitle', String(data.customExamTitle || '')],
+          ['ownerCustomExamDuration', Math.min(360, Math.max(1, Number(data.customExamDuration) || 60))],
+          ['ownerCustomExamTotalMarks', Math.min(10000, Math.max(1, Number(data.customExamTotalMarks) || 100))],
+          ['ownerCustomExamPassingMarks', Math.min(10000, Math.max(0, Number(data.customExamPassingMarks) || 0))],
+          ['ownerCustomExamNegativeMarks', Math.min(10, Math.max(0, Number(data.customExamNegativeMarks) || 0))],
           ['ownerQuizQuestionSet', ['set1','set2','set3','set4'].includes(data.quizQuestionSet) ? data.quizQuestionSet : 'set1'],
           ['ownerMock1QuestionSet', ['set1','set2','set3','set4'].includes(data.mock1QuestionSet) ? data.mock1QuestionSet : 'set1'],
           ['ownerMock2QuestionSet', ['set1','set2','set3','set4'].includes(data.mock2QuestionSet) ? data.mock2QuestionSet : 'set1'],
@@ -2543,6 +2632,13 @@ async function saveBulkQuestionDrafts() {
           if (el.type === 'checkbox') el.checked = value;
           else el.value = value;
         });
+        const resultsReleased = data.resultsPublished === true;
+        const releaseStatus = document.getElementById('ownerResultsReleaseStatus');
+        const releaseButton = document.getElementById('ownerResultsReleaseButton');
+        if (releaseStatus) releaseStatus.textContent = resultsReleased
+          ? 'मुख्य और मॉक परीक्षा के प्रकाशित परिणाम विद्यार्थियों को दिखाई दे रहे हैं।'
+          : 'लॉक सक्रिय है। मुख्य और मॉक परीक्षा के परिणाम विद्यार्थियों से छिपे हैं।';
+        if (releaseButton) releaseButton.textContent = resultsReleased ? '🔒 परिणाम फिर छिपाएँ' : '📣 परिणाम जारी करें';
         const duration = document.getElementById('ownerExamDuration');
         if (duration) duration.value = Math.min(360, Math.max(1, Number(data.durationMinutes) || 120));
         const toLocalInput = value => {
@@ -2633,79 +2729,8 @@ async function saveBulkQuestionDrafts() {
       }
     }
 
-    async function uploadIndividualAdmitCardPdf() {
-      if (!isPrimaryOwner()) return showToast('निजी प्रवेश-पत्र PDF भेजने का अधिकार केवल Owner को है।');
-      const uidInput = document.getElementById('individualAdmitCardUid');
-      const fileInput = document.getElementById('individualAdmitCardPdf');
-      const status = document.getElementById('individualAdmitCardUploadStatus');
-      const button = document.getElementById('uploadIndividualAdmitCardButton');
-      const rollNumber = (uidInput?.value || '').trim();
-      const file = fileInput?.files?.[0];
-      if (rollNumber.length < 3 || rollNumber.length > 64) {
-        if (status) status.textContent = 'सही विद्यार्थी रोल नंबर दर्ज करें।';
-        return;
-      }
-      if (!file || (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name))) {
-        if (status) status.textContent = 'कृपया PDF प्रवेश-पत्र चुनें।';
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        if (status) status.textContent = 'PDF 10 MB से छोटी होनी चाहिए।';
-        return;
-      }
-      if (!firebase.storage) {
-        if (status) status.textContent = 'Firebase Storage SDK लोड नहीं है।';
-        return;
-      }
-      if (button) { button.disabled = true; button.textContent = 'PDF अपलोड हो रही है…'; }
-      if (status) status.textContent = 'पहले PDF सुरक्षित Storage में अपलोड होगी, फिर निजी सूचना भेजी जाएगी…';
-      try {
-        const matches = await db.collection('examEnrolledStudents').where('rollNumber', '==', rollNumber).limit(2).get();
-        if (matches.empty) {
-          if (status) status.textContent = 'इस रोल नंबर से कोई नामांकित विद्यार्थी नहीं मिला। पहले नामांकन सूची में रोल नंबर जाँचें।';
-          return;
-        }
-        if (matches.size > 1) {
-          if (status) status.textContent = 'यह रोल नंबर एक से अधिक रिकॉर्ड में है। सुरक्षा के लिए PDF नहीं भेजी गई।';
-          return;
-        }
-        const studentDoc = matches.docs[0];
-        const studentData = studentDoc.data() || {};
-        const uid = studentData.uid || studentDoc.id;
-        if (!uid || uid.length < 5) {
-          if (status) status.textContent = 'इस नामांकन में खाता लिंक नहीं है। विद्यार्थी को नामांकन खाते से जोड़ें।';
-          return;
-        }
-        const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-90) || 'admit-card.pdf';
-        const path = 'notificationUploads/private/' + uid + '/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
-        const upload = await firebase.storage().ref().child(path).put(file, { contentType: 'application/pdf' });
-        await db.collection('userNotifications').doc(uid).collection('items')
-          .doc('admit-card-pdf-' + rollNumber.replace(/[^A-Za-z0-9_-]/g, '_')).set({
-          title: '🎟️ आपका प्रवेश-पत्र PDF जारी हो गया',
-          message: 'Owner ने आपके खाते के लिए प्रवेश-पत्र PDF भेजा है। नीचे “PDF खोलें / डाउनलोड करें” चुनें।',
-          type: 'admit-card',
-          filePath: upload.ref.fullPath || path,
-          fileName: file.name,
-          fileType: 'application/pdf',
-          recipientUid: uid,
-          audience: 'private',
-          active: true,
-          createdBy: auth.currentUser?.uid || null,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        if (status) status.textContent = 'PDF अपलोड और निजी सूचना भेज दी गई। यह केवल दिए गए UID वाले खाते में दिखेगी।';
-        if (uidInput) uidInput.value = '';
-        if (fileInput) fileInput.value = '';
-        showToast('विद्यार्थी को Admit Card PDF भेज दी गई।');
-      } catch (error) {
-        console.error('Individual admit-card upload failed:', error);
-        if (status) status.textContent = 'अपलोड/सूचना विफल: ' + error.message + ' · Firebase Storage तथा userNotifications Firestore rules जाँचें।';
-        showToast('Admit Card PDF नहीं भेजी जा सकी।');
-      } finally {
-        if (button) { button.disabled = false; button.textContent = '⬆️ निजी Notification में Admit Card PDF अपलोड करें'; }
-      }
-    }
-    window.uploadIndividualAdmitCardPdf = uploadIndividualAdmitCardPdf;
+    // Admit cards are generated in the student's browser from the approved enrollment record.
+    // Manual PDF uploads are intentionally not supported.
 
     function pushNotification(uid, data = {}, batch = null) {
       if (!isPrimaryOwner() && !hasEditorPermission('notifications')) throw new Error('सूचना प्रकाशित करने का अधिकार नहीं है।');
@@ -3104,9 +3129,52 @@ async function saveBulkQuestionDrafts() {
       }
     }
 
+    async function toggleExamResultsRelease() {
+      if (!isPrimaryOwner()) return showToast('परिणाम रिलीज़ केवल Owner कर सकता है।');
+      const button = document.getElementById('ownerResultsReleaseButton');
+      const status = document.getElementById('ownerResultsReleaseStatus');
+      const ref = db.collection('examConfig').doc('current');
+      try {
+        const snap = await ref.get();
+        const current = snap.exists ? snap.data() || {} : {};
+        const releasing = current.resultsPublished !== true;
+        if (releasing && !confirm('क्या मुख्य और मॉक परीक्षा के प्रकाशित परिणाम सभी पात्र विद्यार्थियों को दिखाने हैं?')) return;
+        if (!releasing && !confirm('क्या मुख्य और मॉक परीक्षा के परिणाम फिर से छिपाने हैं?')) return;
+        if (button) { button.disabled = true; button.textContent = 'सहेजा जा रहा है…'; }
+        await ref.set({
+          resultsPublished: releasing,
+          resultsPublishedAt: releasing ? firebase.firestore.FieldValue.serverTimestamp() : null,
+          resultsPublishedBy: releasing ? (auth.currentUser?.uid || null) : null,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        if (status) status.textContent = releasing
+          ? 'परिणाम जारी हो गए हैं। विद्यार्थियों का डैशबोर्ड अब मुख्य/मॉक परिणाम दिखा सकता है।'
+          : 'परिणाम लॉक कर दिए गए हैं; मुख्य/मॉक परिणाम विद्यार्थियों से छिपे रहेंगे।';
+        if (button) button.textContent = releasing ? '🔒 परिणाम फिर छिपाएँ' : '📣 परिणाम जारी करें';
+        showToast(releasing ? 'मुख्य/मॉक परिणाम जारी किए गए।' : 'मुख्य/मॉक परिणाम फिर छिपाए गए।');
+      } catch (error) {
+        showToast('परिणाम रिलीज़ स्थिति नहीं बदली: ' + error.message);
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+    window.toggleExamResultsRelease = toggleExamResultsRelease;
+
     async function saveExamVisibilitySettings() {
       if (!isPrimaryOwner()) return showToast('परीक्षा शेड्यूल बदलने का अधिकार केवल Owner को है।');
       const duration = Number(document.getElementById('ownerExamDuration')?.value || 120);
+      const customTitle = String(document.getElementById('ownerCustomExamTitle')?.value || '').trim();
+      const customDuration = Number(document.getElementById('ownerCustomExamDuration')?.value || 60);
+      const customTotalMarks = Number(document.getElementById('ownerCustomExamTotalMarks')?.value || 100);
+      const customPassingMarks = Number(document.getElementById('ownerCustomExamPassingMarks')?.value || 0);
+      const customNegativeMarks = Number(document.getElementById('ownerCustomExamNegativeMarks')?.value || 0);
+      if (!Number.isFinite(customDuration) || customDuration < 1 || customDuration > 360 ||
+          !Number.isFinite(customTotalMarks) || customTotalMarks < 1 || customTotalMarks > 10000 ||
+          !Number.isFinite(customPassingMarks) || customPassingMarks < 0 || customPassingMarks > customTotalMarks ||
+          !Number.isFinite(customNegativeMarks) || customNegativeMarks < 0 || customNegativeMarks > 10) {
+        showToast('कस्टम परीक्षा के समय, कुल/उत्तीर्ण अंक और ऋणात्मक अंक जाँचें।');
+        return;
+      }
       if (!Number.isFinite(duration) || duration < 1 || duration > 360) {
         showToast('परीक्षा अवधि 1 से 360 मिनट के बीच रखें।');
         return;
@@ -3151,11 +3219,22 @@ async function saveBulkQuestionDrafts() {
         mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
+        randomizeSets: !!document.getElementById('ownerRandomizeSets')?.checked,
+        customExamTitle: String(document.getElementById('ownerCustomExamTitle')?.value || '').trim().slice(0, 120),
+        customExamDuration: Math.min(360, Math.max(1, Number(document.getElementById('ownerCustomExamDuration')?.value) || 60)),
+        customExamTotalMarks: Math.min(10000, Math.max(1, Number(document.getElementById('ownerCustomExamTotalMarks')?.value) || 100)),
+        customExamPassingMarks: Math.min(10000, Math.max(0, Number(document.getElementById('ownerCustomExamPassingMarks')?.value) || 0)),
+        customExamNegativeMarks: Math.min(10, Math.max(0, Number(document.getElementById('ownerCustomExamNegativeMarks')?.value) || 0)),
         quizQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerQuizQuestionSet')?.value) ? document.getElementById('ownerQuizQuestionSet').value : 'set1',
         mock1QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock1QuestionSet')?.value) ? document.getElementById('ownerMock1QuestionSet').value : 'set1',
         mock2QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock2QuestionSet')?.value) ? document.getElementById('ownerMock2QuestionSet').value : 'set1',
         mainQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMainQuestionSet')?.value) ? document.getElementById('ownerMainQuestionSet').value : 'set1',
         durationMinutes: duration,
+        customExamTitle: customTitle,
+        customExamDuration: customDuration,
+        customExamTotalMarks: customTotalMarks,
+        customExamPassingMarks: customPassingMarks,
+        customExamNegativeMarks: customNegativeMarks,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.currentUser?.uid || null
       };
@@ -3231,10 +3310,14 @@ async function saveBulkQuestionDrafts() {
     let examReviewCollection = 'quizAttempts';
     let examReviewQuestionLookup = {};
 
-    async function saveCurrentExamReview(showMessage = true) {
+    async function saveCurrentExamReview(showMessage = true, finalLock = false) {
       if (!isPrimaryOwner() && !hasEditorPermission('examReview')) return showToast('मैन्युअल परिणाम समीक्षा की अनुमति नहीं है।');
       const d = examReviewQueue[examReviewIndex];
       if (!d) return false;
+      if (d.reviewLocked === true && !finalLock) {
+        showToast('यह जाँच अंतिम रूप से लॉक है। बदलाव के लिए Owner से लॉक हटवाएँ।');
+        return false;
+      }
       const scoreInput = document.getElementById('currentReviewScore');
       const decision = document.getElementById('currentReviewDecision');
       const feedback = document.getElementById('currentReviewFeedback');
@@ -3280,6 +3363,8 @@ async function saveBulkQuestionDrafts() {
           name: d.name || d.fullName || null,
           rollNumber: d.rollNumber || null,
           manualScore: value,
+          questionScores: d.questionScores || {},
+          reviewLocked: finalLock === true,
           total,
           feedback: feedback.value.trim(),
           status,
@@ -3310,6 +3395,8 @@ async function saveBulkQuestionDrafts() {
         
 
         d.manualScore = value;
+        d.questionScores = d.questionScores || {};
+        d.reviewLocked = finalLock === true;
         d.finalScore = published ? value : null;
         d.resultPublished = published;
         d.manualFeedback = feedback.value.trim();
@@ -3498,6 +3585,8 @@ async function saveBulkQuestionDrafts() {
         : Object.entries(answers);
       const answerList = document.createElement('div');
       answerList.className = 'space-y-2';
+      let scoreInput = null;
+      let liveScoreBar = null;
       const answerHeading = document.createElement('div');
       answerHeading.className = 'font-bold text-sm text-forest border-b pb-2';
       answerHeading.textContent = 'उत्तर-पत्र (' + answerEntries.length + ' प्रश्न)';
@@ -3514,13 +3603,28 @@ async function saveBulkQuestionDrafts() {
         const q = examReviewQuestionLookup[(d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] || '') + '::' + questionId] || examReviewQuestionLookup[questionId] || {};
         const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
         const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
-        const selectedIndex = Number(answer);
-        const selectedValue = Number.isInteger(selectedIndex) && selectedIndex >= 0 && selectedIndex < options.length ? options[selectedIndex] : null;
+        const normalizeOptionIndex = value => {
+          const raw = value && typeof value === 'object' ? (value.index ?? value.value ?? value.text ?? '') : value;
+          const text = String(raw ?? '').trim();
+          if (/^\d+$/.test(text)) {
+            const n = Number(text);
+            return Number.isInteger(n) && n >= 0 && n < options.length ? n : -1;
+          }
+          if (/^[A-D]$/i.test(text)) {
+            const n = text.toUpperCase().charCodeAt(0) - 65;
+            return n >= 0 && n < options.length ? n : -1;
+          }
+          return options.findIndex(option => String(option && typeof option === 'object'
+            ? (option.text ?? option.label ?? option.value ?? '') : option).trim().toLowerCase() === text.toLowerCase());
+        };
+        const selectedIndex = normalizeOptionIndex(answer);
+        const selectedValue = selectedIndex >= 0 ? options[selectedIndex] : null;
         const selectedText = selectedValue !== null
           ? (typeof selectedValue === 'object' ? (selectedValue.text || selectedValue.label || selectedValue.value || JSON.stringify(selectedValue)) : selectedValue)
           : (answer == null || answer === '' ? 'उत्तर नहीं दिया' : String(answer));
-        const correctIndex = Number(correct);
-        const correctValue = Number.isInteger(correctIndex) && correctIndex >= 0 && correctIndex < options.length ? options[correctIndex] : null;
+        const correctIndex = normalizeOptionIndex(correct);
+        const correctValue = correctIndex >= 0 ? options[correctIndex] : null;
+        const autoPoint = selectedIndex >= 0 && correctIndex >= 0 && selectedIndex === correctIndex ? 1 : 0;
         const correctText = correct == null ? 'प्रश्न बैंक में उपलब्ध नहीं' :
           (correctValue !== null ? (typeof correctValue === 'object' ? (correctValue.text || correctValue.label || correctValue.value || JSON.stringify(correctValue)) : correctValue) : String(correct));
         const item = document.createElement('div');
@@ -3535,6 +3639,47 @@ async function saveBulkQuestionDrafts() {
         correctAnswer.className = 'text-emerald-800';
         correctAnswer.textContent = 'सही उत्तर: ' + correctText;
         item.append(question, selected, correctAnswer);
+        const questionScore = d.questionScores && Object.prototype.hasOwnProperty.call(d.questionScores, questionId)
+          ? Number(d.questionScores[questionId]) : autoPoint;
+        const scoreActions = document.createElement('div');
+        scoreActions.className = 'flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100';
+        const scoreLabel = document.createElement('span');
+        scoreLabel.className = 'text-[11px] font-bold text-stone-600';
+        scoreLabel.textContent = 'इस प्रश्न के अंक: ' + (Number.isFinite(questionScore) ? questionScore : 0);
+        const setQuestionScore = value => {
+          const nextScore = Math.max(0, Math.min(10, Number(value) || 0));
+          const prior = d.questionScores && Object.prototype.hasOwnProperty.call(d.questionScores, questionId)
+            ? Number(d.questionScores[questionId]) : autoPoint;
+          d.questionScores = { ...(d.questionScores || {}), [questionId]: nextScore };
+          const totalLimit = Math.max(0, Number(d.total ?? d.totalQuestions ?? 100));
+          const currentTotal = Number(scoreInput?.value || 0);
+          const recalculated = Math.max(0, Math.min(totalLimit, currentTotal - (Number.isFinite(prior) ? prior : 0) + nextScore));
+          if (scoreInput) scoreInput.value = String(recalculated);
+          d.manualScore = recalculated;
+          scoreLabel.textContent = 'इस प्रश्न के अंक: ' + nextScore;
+          updateLiveReviewScore();
+        };
+        [['+1', 1], ['0', 0]].forEach(([labelText, value]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'min-h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-900';
+          button.textContent = labelText;
+          button.disabled = d.reviewLocked === true;
+          button.addEventListener('click', () => setQuestionScore(value));
+          scoreActions.appendChild(button);
+        });
+        const customScore = document.createElement('input');
+        customScore.type = 'number';
+        customScore.min = '0';
+        customScore.max = '10';
+        customScore.step = '0.25';
+        customScore.value = String(Number.isFinite(questionScore) ? questionScore : 0);
+        customScore.disabled = d.reviewLocked === true;
+        customScore.setAttribute('aria-label', 'प्रश्न ' + (index + 1) + ' के मैन्युअल अंक');
+        customScore.className = 'w-20 min-h-9 rounded-lg border border-stone-300 px-2 text-xs';
+        customScore.addEventListener('change', () => setQuestionScore(customScore.value));
+        scoreActions.append(scoreLabel, customScore);
+        item.appendChild(scoreActions);
         if (options.length) {
           const choices = document.createElement('ol');
           choices.className = 'list-[upper-alpha] pl-5 text-stone-500';
@@ -3567,7 +3712,7 @@ async function saveBulkQuestionDrafts() {
       const scoreLabel = document.createElement('label');
       scoreLabel.className = 'block text-xs font-bold text-stone-700';
       scoreLabel.textContent = 'सत्यापित अंक (0 से ' + Number(d.total ?? d.totalQuestions ?? 100) + ')';
-      const scoreInput = document.createElement('input');
+      scoreInput = document.createElement('input');
       scoreInput.id = 'currentReviewScore';
       scoreInput.type = 'number';
       scoreInput.min = '0';
@@ -3576,6 +3721,18 @@ async function saveBulkQuestionDrafts() {
       scoreInput.value = d.manualScore ?? d.score ?? d.autoScore ?? 0;
       scoreInput.className = 'mt-1 w-full p-3 rounded-lg border border-stone-300 text-sm';
       scoreLabel.appendChild(scoreInput);
+      liveScoreBar = document.createElement('div');
+      liveScoreBar.className = 'sticky bottom-2 z-20 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-forest shadow-lg';
+      liveScoreBar.setAttribute('aria-live', 'polite');
+      const updateLiveReviewScore = () => {
+        const total = Math.max(0, Number(d.total ?? d.totalQuestions ?? 100));
+        const score = Math.max(0, Number(scoreInput?.value || 0));
+        const percent = total > 0 ? (score / total * 100).toFixed(1) : '0.0';
+        if (liveScoreBar) liveScoreBar.textContent = 'कुल अंक: ' + score + ' / ' + total + ' · प्रतिशत: ' + percent + '%';
+      };
+      scoreInput.addEventListener('input', updateLiveReviewScore);
+      updateLiveReviewScore();
+      card.appendChild(liveScoreBar);
 
       const decisionLabel = document.createElement('label');
       decisionLabel.className = 'block text-xs font-bold text-stone-700';
@@ -3618,8 +3775,21 @@ async function saveBulkQuestionDrafts() {
       save.id = 'currentReviewSave';
       save.type = 'button';
       save.className = 'p-3 rounded-lg bg-amber-400 text-stone-950 text-xs font-bold';
-      save.textContent = '✓ जाँच सहेजें';
-      save.addEventListener('click', () => saveCurrentExamReview(true));
+      save.textContent = '💾 ड्राफ्ट सहेजें';
+      save.addEventListener('click', () => {
+        decision.value = 'hold';
+        saveCurrentExamReview(true);
+      });
+      const approve = document.createElement('button');
+      approve.id = 'currentReviewApprove';
+      approve.type = 'button';
+      approve.className = 'p-3 rounded-lg bg-emerald-800 text-white text-xs font-extrabold';
+      approve.textContent = '✓ अंतिम अनुमोदन एवं लॉक';
+      approve.addEventListener('click', () => {
+        if (!confirm('क्या जाँच अंतिम रूप से स्वीकृत करके विद्यार्थी का परिणाम प्रकाशित करना है? पहले कुल अंक जाँच लें।')) return;
+        decision.value = 'publish';
+        saveCurrentExamReview(true, true);
+      });
       const next = document.createElement('button');
       next.type = 'button';
       next.className = 'p-3 rounded-lg bg-forest text-white text-xs font-bold';
@@ -3664,9 +3834,40 @@ next.addEventListener('click', async () => {
   }
 });
 
-      controls.append(previous, save, next);
+      if (d.reviewLocked === true) {
+        scoreInput.disabled = true;
+        decision.disabled = true;
+        feedback.disabled = true;
+        save.disabled = true;
+        approve.disabled = true;
+        next.disabled = true;
+        const unlock = document.createElement('button');
+        unlock.type = 'button';
+        unlock.className = 'p-3 rounded-lg border border-red-300 bg-red-50 text-red-800 text-xs font-extrabold';
+        unlock.textContent = '🔓 Owner: लॉक हटाएँ';
+        unlock.addEventListener('click', () => {
+          if (!isPrimaryOwner()) return showToast('लॉक हटाने का अधिकार केवल Owner को है।');
+          if (!confirm('क्या इस अंतिम जाँच को फिर से संपादन के लिए खोलना है?')) return;
+          d.reviewLocked = false;
+          saveCurrentExamReview(true).then(saved => { if (saved) renderCurrentExamReview(); });
+        });
+        controls.append(previous, unlock);
+      } else {
+        controls.append(previous, save, approve, next);
+      }
       card.append(scoreLabel, decisionLabel, feedback, controls);
-      list.append(searchWrap, top, card);
+      const checkingWorkspace = document.createElement('div');
+      checkingWorkspace.className = 'checking-workspace';
+      const queuePanel = document.createElement('aside');
+      queuePanel.className = 'candidate-queue-panel';
+      queuePanel.setAttribute('aria-label', 'परीक्षार्थी चयन');
+      queuePanel.append(searchWrap, top);
+      const evaluationPanel = document.createElement('section');
+      evaluationPanel.className = 'candidate-eval-panel';
+      evaluationPanel.setAttribute('aria-label', 'उत्तर-पत्र मूल्यांकन');
+      evaluationPanel.appendChild(card);
+      checkingWorkspace.append(queuePanel, evaluationPanel);
+      list.appendChild(checkingWorkspace);
     }
 
     async function setExamSessionDecision(sessionId, status) {
@@ -3694,14 +3895,55 @@ next.addEventListener('click', async () => {
         } else if (status === 'denied') {
           update.deniedAt = firebase.firestore.FieldValue.serverTimestamp();
           update.deniedBy = auth.currentUser?.uid || null;
+        } else if (status === 'kicked') {
+          update.kickedAt = firebase.firestore.FieldValue.serverTimestamp();
+          update.reason = 'owner_force_kick';
         }
         await sessionRef.set(update, { merge: true });
-        showToast(status === 'active' ? 'पुनः प्रवेश की अनुमति भेज दी गई।' : 'पुनः प्रवेश अस्वीकार कर दिया गया।');
+        showToast(status === 'active' ? 'पुनः प्रवेश की अनुमति भेज दी गई।' :
+          status === 'kicked' ? 'विद्यार्थी का परीक्षा सत्र Owner द्वारा रोक दिया गया।' : 'पुनः प्रवेश अस्वीकार कर दिया गया।');
         await loadExamSessionQueue();
       } catch (error) {
         showToast('सत्र स्थिति नहीं बदली: ' + error.message + ' — examSessions rules जाँचें।');
       }
     }
+
+    async function loadLiveExamViolations() {
+      if (!isPrimaryOwner()) return showToast('लाइव उल्लंघन लॉग केवल Owner देख सकता है।');
+      const list = document.getElementById('liveViolationsList');
+      const status = document.getElementById('liveViolationsStatus');
+      if (!list) return;
+      list.replaceChildren();
+      if (status) status.textContent = 'हाल के उल्लंघन लोड हो रहे हैं…';
+      try {
+        const snap = await db.collection('live_violations').orderBy('occurredAtMs', 'desc').limit(50).get();
+        if (!snap.size) {
+          if (status) status.textContent = 'अभी कोई उल्लंघन लॉग नहीं है।';
+          return;
+        }
+        if (status) status.textContent = snap.size + ' हालिया रिकॉर्ड';
+        snap.forEach(doc => {
+          const row = doc.data() || {};
+          const card = document.createElement('article');
+          card.className = 'rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1';
+          const title = document.createElement('strong');
+          title.className = 'block text-xs text-forest';
+          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (row.rollNumber || 'रोल नंबर उपलब्ध नहीं');
+          const details = document.createElement('p');
+          details.className = 'text-[11px] text-stone-700 break-words';
+          details.textContent = (row.mode || 'exam') + ' · ' + (row.type || 'violation') + ' · ' +
+            (row.occurredAtMs ? new Date(row.occurredAtMs).toLocaleString('hi-IN') : 'समय उपलब्ध नहीं');
+          const description = document.createElement('p');
+          description.className = 'text-[11px] text-stone-500 break-words';
+          description.textContent = row.detail || '';
+          card.append(title, details, description);
+          list.appendChild(card);
+        });
+      } catch (error) {
+        if (status) status.textContent = 'लॉग लोड नहीं हुए: ' + error.message + ' · live_violations Firestore rules जाँचें।';
+      }
+    }
+    window.loadLiveExamViolations = loadLiveExamViolations;
 
     async function loadExamSessionQueue() {
       if (!isPrimaryOwner()) return showToast('लाइव सत्र केवल Owner देख सकता है।');
@@ -3741,6 +3983,17 @@ next.addEventListener('click', async () => {
             allow.textContent = '✓ पुनः प्रवेश दें';
             allow.addEventListener('click', () => setExamSessionDecision(row.id, 'active'));
             actions.appendChild(allow);
+          }
+          if (row.status === 'active') {
+            const kick = document.createElement('button');
+            kick.type = 'button';
+            kick.className = 'rounded-lg border border-red-400 bg-red-700 px-3 py-2 text-xs font-extrabold text-white';
+            kick.textContent = '⛔ परीक्षा रोकें / Force Kick';
+            kick.addEventListener('click', () => {
+              if (!confirm('क्या इस विद्यार्थी का सक्रिय परीक्षा सत्र तुरंत लॉक करना है?')) return;
+              setExamSessionDecision(row.id, 'kicked');
+            });
+            actions.appendChild(kick);
           }
           if (row.status !== 'denied') {
             const deny = document.createElement('button');
@@ -3914,10 +4167,17 @@ next.addEventListener('click', async () => {
             const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
             payload[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
           }
-        } else if (format === 'csv' || format === 'xlsx') payload = await readAll(selected);
-        else {
+        } else if (['csv', 'xlsx', 'pdf'].includes(format)) {
+          if (selected === 'examEnrolledStudents' && typeof getRegisteredMemberExportRows === 'function') {
+            payload = await getRegisteredMemberExportRows();
+          } else if (selected === 'publishedResults' && typeof getExamResultExportRows === 'function') {
+            payload = await getExamResultExportRows();
+          } else {
+            payload = await readAll(selected);
+          }
+        } else {
           payload = {};
-          for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig']) {
+          for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig','live_violations','assistantEditors','trustedEditors','userNotifications','notifications','admitCards']) {
             try { payload[name] = await readAll(name); } catch (error) { payload[name] = { exportError: error.message || String(error) }; }
           }
           payload.examAnswerKeys = {};
@@ -3941,7 +4201,7 @@ next.addEventListener('click', async () => {
         };
         const isFilteredFormat = ['csv','xlsx','pdf'].includes(format);
         let rows = Array.isArray(payload) ? payload : Object.entries(payload || {}).flatMap(([setName, items]) =>
-          (Array.isArray(items) ? items : []).map(item => ({ questionSet: item.questionSet || item.questionSetKey || setName, ...item }))
+          (Array.isArray(items) ? items : []).map(item => ({ ...item, _sourceCollection: setName }))
         );
         if (isFilteredFormat) {
           const year = document.getElementById('ownerExportYear')?.value || '';
@@ -3962,15 +4222,16 @@ next.addEventListener('click', async () => {
             return true;
           });
         }
-        rows = rows.map(row => ({
-          'Roll Number': row.rollNumber || row.roll_number || row.roll || row.admitCardRollNumber || '',
-          'Full Name': row.fullName || row.name || row.displayName || row.studentName || '',
-          "Father's Name": row.fatherName || row.fathersName || row.father_name || '',
-          'Mobile Number': row.phoneNumber || row.phone || row.mobileNumber || row.mobile || '',
-          'Email': row.email || row.emailAddress || '',
-          'Question Set': row.questionSet || row.questionSetKey || row.set || '',
-          ...row
-        }));
+        let exportReport = null;
+        if (format !== 'json') {
+          const formatter = window.BishnoiExportFormatter;
+          if (!formatter || typeof formatter.formatOwnerExportReport !== 'function') {
+            throw new Error('रिपोर्ट formatter लोड नहीं हुआ। पेज रिफ्रेश करके पुनः प्रयास करें।');
+          }
+          // Keep JSON as a complete backup; tabular downloads use purpose-built, human-readable columns.
+          exportReport = formatter.formatOwnerExportReport(selected, rows);
+          rows = exportReport.rows;
+        }
         if (format === 'csv') {
           const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
           const cell = value => {
@@ -3992,27 +4253,78 @@ next.addEventListener('click', async () => {
           XLSX.writeFile(workbook, 'bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
           if (status) status.textContent = 'Excel डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
         } else if (format === 'pdf') {
-          const jspdf = window.jspdf && window.jspdf.jsPDF;
-          if (!jspdf) throw new Error('PDF लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करके फिर प्रयास करें।');
-          const doc = new jspdf({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-          const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
-          const visibleColumns = columns.slice(0, 12);
-          const cellText = value => value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
-          doc.setFontSize(14);
-          doc.text('Bishnoism Owner Data - ' + selected, 36, 30);
-          doc.setFontSize(8);
-          doc.text('Generated: ' + new Date().toLocaleString('en-IN') + ' | Rows: ' + rows.length, 36, 44);
-          if (typeof doc.autoTable !== 'function') throw new Error('PDF table plugin लोड नहीं हुआ।');
-          doc.autoTable({
-            startY: 56,
-            head: [visibleColumns],
-            body: rows.length ? rows.map(row => visibleColumns.map(key => cellText(row[key]).slice(0, 700))) : [['कोई रिकॉर्ड नहीं मिला']],
-            styles: { fontSize: 6, cellPadding: 3, overflow: 'linebreak' },
-            headStyles: { fontSize: 7 },
-            margin: { left: 24, right: 24 }
-          });
+          const JsPDF = window.jspdf && window.jspdf.jsPDF;
+          if (!JsPDF) throw new Error('PDF लाइब्रेरी लोड नहीं हुई। पेज रिफ्रेश करके फिर प्रयास करें।');
+          if (!exportReport) throw new Error('PDF रिपोर्ट का डेटा तैयार नहीं हुआ।');
+          const orientation = exportReport.orientation === 'portrait' ? 'portrait' : 'landscape';
+          const doc = new JsPDF({ orientation, unit: 'pt', format: 'a4', compress: true });
+          const pdfWidth = doc.internal.pageSize.getWidth();
+          const pdfHeight = doc.internal.pageSize.getHeight();
+          const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+          })[char]);
+          const cellValue = (row, column) => {
+            const value = row && row[column];
+            return value == null || value === '' ? '—' : String(value);
+          };
+          const questionReport = ['mainExamQuestions', 'mockExam_1', 'mockExam_2', 'quiz'].includes(selected);
+          const pageSize = questionReport ? 8 : (selected === 'examAnswerKeys' ? 18 : 16);
+          const pageCount = Math.max(1, Math.ceil(exportReport.rows.length / pageSize));
+          const useHtmlRenderer = typeof window.html2canvas === 'function';
+          if (useHtmlRenderer) {
+            for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+              const pageRows = exportReport.rows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+              const pageWidthPx = orientation === 'portrait' ? 794 : 1122;
+              const pageHeightPx = orientation === 'portrait' ? 1122 : 794;
+              const wrapper = document.createElement('section');
+              wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + pageWidthPx + 'px;min-height:' + pageHeightPx + 'px;height:auto;box-sizing:border-box;padding:30px 34px 24px;background:#fff;color:#17211b;font-family:Arial,"Noto Sans Devanagari",sans-serif;display:flex;flex-direction:column;overflow:visible;';
+              const columns = exportReport.columns || Object.keys(pageRows[0] || {});
+              const heading = '<header style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #1b4332;padding-bottom:14px;margin-bottom:14px;">' +
+                '<div><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b34a1b;">BISHNOISM DIGITAL EXAM COUNCIL</div>' +
+                '<h1 style="font-size:21px;line-height:1.3;margin:7px 0;color:#1b4332;">' + escapeHtml(exportReport.title) + '</h1>' +
+                '<p style="font-size:11px;color:#64748b;margin:0;">' + escapeHtml(exportReport.subtitle || ('Generated ' + new Date().toLocaleString('en-IN'))) + '</p></div>' +
+                '<div style="white-space:nowrap;background:#1b4332;color:#fef08a;border-radius:5px;padding:7px 10px;font-size:10px;font-weight:700;">OFFICIAL REPORT</div></header>';
+              const headerCells = columns.map(column => '<th style="background:#edf2ed;color:#243b2c;text-align:left;font-weight:700;padding:8px 6px;border-bottom:2px solid #cbd5d1;font-size:10px;overflow-wrap:anywhere;">' + escapeHtml(column) + '</th>').join('');
+              const bodyRows = pageRows.length ? pageRows.map((row, rowIndex) => '<tr style="background:' + (rowIndex % 2 ? '#f7f9f7' : '#ffffff') + ';">' +
+                columns.map(column => '<td style="padding:7px 6px;border-bottom:1px solid #e2e8e2;font-size:10px;line-height:1.35;vertical-align:top;overflow-wrap:anywhere;word-break:break-word;">' + escapeHtml(cellValue(row, column)) + '</td>').join('') + '</tr>').join('') :
+                '<tr><td colspan="' + Math.max(1, columns.length) + '" style="padding:24px;text-align:center;color:#64748b;">No records found for the selected filters.</td></tr>';
+              wrapper.innerHTML = heading + '<table class="clean-export-table" style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + headerCells + '</tr></thead><tbody>' + bodyRows + '</tbody></table>' +
+                '<footer class="export-footer" style="margin-top:auto;padding-top:12px;border-top:1px solid #cbd5e1;display:flex;justify-content:space-between;font-size:9px;color:#64748b;"><span>Confidential — authorized administrative use only</span><span>Page ' + (pageIndex + 1) + ' / ' + pageCount + '</span></footer>';
+              document.body.appendChild(wrapper);
+              if (document.fonts && document.fonts.ready) await document.fonts.ready;
+              const canvas = await window.html2canvas(wrapper, {
+                scale: 1.35, backgroundColor: '#ffffff', useCORS: true, logging: false,
+                width: pageWidthPx, height: wrapper.scrollHeight, windowWidth: pageWidthPx
+              });
+              if (pageIndex > 0) doc.addPage('a4', orientation);
+              const renderedHeight = canvas.height * (pdfWidth / canvas.width);
+              const fitScale = Math.min(1, pdfHeight / renderedHeight);
+              const imageWidth = pdfWidth * fitScale;
+              const imageHeight = renderedHeight * fitScale;
+              doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG',
+                (pdfWidth - imageWidth) / 2, (pdfHeight - imageHeight) / 2,
+                imageWidth, imageHeight, undefined, 'FAST');
+              wrapper.remove();
+            }
+          } else {
+            if (typeof doc.autoTable !== 'function') throw new Error('PDF table plugin लोड नहीं हुआ।');
+            const columns = exportReport.columns || Object.keys(exportReport.rows[0] || {});
+            doc.setFontSize(14);
+            doc.text(String(exportReport.title || 'Bishnoism Report').slice(0, 100), 28, 28);
+            doc.setFontSize(8);
+            doc.text(String(exportReport.subtitle || ''), 28, 42);
+            doc.autoTable({
+              startY: 54,
+              head: [columns],
+              body: exportReport.rows.length ? exportReport.rows.map(row => columns.map(column => cellValue(row, column))) : [['No records found']],
+              styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+              headStyles: { fillColor: [27, 67, 50], textColor: [255, 255, 255], fontSize: 7 },
+              alternateRowStyles: { fillColor: [247, 249, 247] },
+              margin: { left: 24, right: 24 }
+            });
+          }
           doc.save('bishnoism-' + selected + '-' + new Date().toISOString().slice(0,10) + '.pdf');
-          if (status) status.textContent = 'PDF डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
+          if (status) status.textContent = 'साफ़ रिपोर्ट PDF डाउनलोड हुई: ' + rows.length + ' रिकॉर्ड।';
         } else {
           download('bishnoism-owner-backup-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2), 'application/json');
           if (status) status.textContent = 'JSON बैकअप डाउनलोड शुरू हुआ। अस्वीकृत collections के कारण exportError में शामिल हैं।';
@@ -4145,6 +4457,8 @@ return review ? {
   manualScore: review.manualScore,
   manualReviewStatus: review.status,
   manualFeedback: review.feedback || '',
+  questionScores: review.questionScores || row.questionScores || {},
+  reviewLocked: review.reviewLocked === true,
   manualReviewCompleted:
     review.manualScore !== undefined &&
     review.manualScore !== null &&
@@ -4278,11 +4592,31 @@ return review ? {
       }
     }
 
-    function printAdmitCard(d) {
+    async function printAdmitCard(d) {
       if (d.verificationStatus !== 'confirmed') return showToast('पहले पंजीकरण की पुष्टि करें, फिर प्रवेश-पत्र बनाएँ।');
       if (!d.rollNumber) return showToast('पहले रोल नंबर आवंटित करें।');
       const popup = window.open('', '_blank', 'width=900,height=700');
       if (!popup) return showToast('प्रवेश-पत्र के लिए popup अनुमति दें।');
+      let verificationUrl = '';
+      try {
+        const token = Array.from(crypto.getRandomValues(new Uint8Array(24)), byte => byte.toString(16).padStart(2, '0')).join('');
+        const examTitleForVerification = String((window.ownerAdmitCardSettings || {}).admitCardTitle || d.examName || d.examTitle || d.exam || 'मुख्य परीक्षा').slice(0, 120);
+        const expiresAt = firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
+        await db.collection('publicAdmitCardVerifications').doc(token).set({
+          rollNumber: String(d.rollNumber).trim(),
+          examTitle: examTitleForVerification,
+          status: 'valid',
+          issuedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          expiresAt
+        });
+        verificationUrl = window.location.origin + '/verify-admit-card.html?token=' + token;
+      } catch (verificationError) {
+        console.warn('Admit card QR verification record could not be created:', verificationError);
+        showToast('प्रवेश-पत्र बनेगा, लेकिन QR सत्यापन रिकॉर्ड नहीं बन पाया। Firestore rules जाँचें।');
+      }
+      const qrMarkup = verificationUrl
+        ? '<section style="display:flex;align-items:center;gap:12px;justify-content:center;margin:18px auto 0;padding:12px;border:1px dashed #b8c8ba;border-radius:12px;max-width:300px"><div id="admitQr" aria-label="QR सत्यापन कोड"></div><div style="font-size:11px;line-height:1.5"><strong>QR सत्यापन</strong><br>स्कैन करके रोल नंबर और प्रवेश-पत्र की वैधता जाँचें।<br><span style="color:#64748b">सत्यापन लिंक पर व्यक्तिगत जानकारी नहीं दिखाई जाएगी।</span></div></section><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\\/script><script>if(window.QRCode){new QRCode(document.getElementById("admitQr"),{text:' + JSON.stringify(verificationUrl) + ',width:112,height:112,colorDark:"#143622",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});}<\\/script>'
+        : '<p style="text-align:center;font-size:10px;color:#9f2d20;margin-top:16px">QR सत्यापन उपलब्ध नहीं — प्रवेश-पत्र की वैधता Owner Studio से जाँचें।</p>';
       const name = escapeStudioText(d.fullName || d.name || 'विद्यार्थी');
       const roll = escapeStudioText(d.rollNumber || 'आवंटित नहीं');
       const settings = window.ownerAdmitCardSettings || {};
@@ -4294,7 +4628,7 @@ return review ? {
       const instructions = escapeStudioText(settings.admitCardInstructions || 'प्रवेश-पत्र सुरक्षित रखें और निर्धारित समय पर परीक्षा में प्रवेश करें।');
       const id = escapeStudioText(d.registrationNumber || d.id || d.uid || '—');
       popup.document.open();
-      popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:22px;overflow:hidden;box-shadow:0 12px 36px #0001}.head{background:#173b29;color:#fff;padding:26px;text-align:center;border-bottom:5px solid #d9a62e}.head h1{margin:0;font-size:24px}.head p{margin:8px 0 0;font-size:12px;color:#ffe8a3}.body{padding:26px}.badge{display:inline-block;border:1px solid #d9a62e;border-radius:999px;padding:6px 14px;font-size:11px;font-weight:bold;background:#fff8dc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}.field{border:1px solid #e3e5df;border-radius:12px;padding:12px}.label{font-size:10px;color:#68766b;text-transform:uppercase}.value{font-size:14px;font-weight:bold;margin-top:6px;overflow-wrap:anywhere}.notice{background:#fff8e3;border:1px solid #e8d18a;padding:14px;border-radius:12px;margin-top:22px;font-size:12px;line-height:1.7}.sign{display:flex;justify-content:space-between;gap:20px;margin-top:38px;font-size:11px}.sign div{border-top:1px solid #8a958d;padding-top:8px;width:42%;text-align:center}@media(max-width:540px){.grid{grid-template-columns:1fr}.sign{flex-direction:column}.sign div{width:100%}}@media print{body{background:#fff;padding:0}.card{box-shadow:none;max-width:none}.print{display:none}}</style></head><body><article class="card"><header class="head"><div style="font-size:34px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>आधिकारिक परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><strong>परीक्षार्थी प्रवेश विवरण</strong><span class="badge">पंजीकरण सत्यापित</span></div><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+id+'</div></div><div class="field"><div class="label">ईमेल</div><div class="value">'+email+'</div></div><div class="field"><div class="label">मोबाइल</div><div class="value">'+phone+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>1. प्रवेश-पत्र और अपनी पंजीकरण जानकारी सुरक्षित रखें।<br>2. परीक्षा के आधिकारिक समय और निर्देशों का पालन करें।<br>3. यदि रोल नंबर, दिनांक या परीक्षा केंद्र गलत है तो परीक्षा से पहले व्यवस्थापक से संपर्क करें।<br>4. ऑनलाइन परीक्षा के लिए निर्धारित समय पर वेबसाइट पर लॉगिन करें।<br>'+instructions+'</div><div class="sign"><div>परीक्षार्थी के हस्ताक्षर</div><div>परीक्षा व्यवस्थापक</div></div><p style="text-align:center;color:#778176;font-size:10px;margin-top:26px">यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर तैयार किया गया है।</p></main></article><p class="print" style="text-align:center"><button onclick="window.print()" style="background:#173b29;color:white;border:0;border-radius:10px;padding:12px 24px;font-weight:bold;cursor:pointer">प्रवेश-पत्र प्रिंट / PDF में सेव करें</button></p></body></html>');
+      popup.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>प्रवेश-पत्र</title><style>body{font-family:Arial,sans-serif;background:#f4efe5;color:#173b29;padding:24px}.card{max-width:780px;margin:auto;background:#fff;border:3px solid #173b29;border-radius:22px;overflow:hidden;box-shadow:0 12px 36px #0001}.head{background:#173b29;color:#fff;padding:26px;text-align:center;border-bottom:5px solid #d9a62e}.head h1{margin:0;font-size:24px}.head p{margin:8px 0 0;font-size:12px;color:#ffe8a3}.body{padding:26px}.badge{display:inline-block;border:1px solid #d9a62e;border-radius:999px;padding:6px 14px;font-size:11px;font-weight:bold;background:#fff8dc}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}.field{border:1px solid #e3e5df;border-radius:12px;padding:12px}.label{font-size:10px;color:#68766b;text-transform:uppercase}.value{font-size:14px;font-weight:bold;margin-top:6px;overflow-wrap:anywhere}.notice{background:#fff8e3;border:1px solid #e8d18a;padding:14px;border-radius:12px;margin-top:22px;font-size:12px;line-height:1.7}.sign{display:flex;justify-content:space-between;gap:20px;margin-top:38px;font-size:11px}.sign div{border-top:1px solid #8a958d;padding-top:8px;width:42%;text-align:center}@media(max-width:540px){.grid{grid-template-columns:1fr}.sign{flex-direction:column}.sign div{width:100%}}@media print{body{background:#fff;padding:0}.card{box-shadow:none;max-width:none}.print{display:none}}</style></head><body><article class="card"><header class="head"><div style="font-size:34px">🌳</div><h1>बिश्नोई समाज डिजिटल मंच</h1><p>आधिकारिक परीक्षा प्रवेश-पत्र • ADMIT CARD</p></header><main class="body"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><strong>परीक्षार्थी प्रवेश विवरण</strong><span class="badge">पंजीकरण सत्यापित</span></div><div class="grid"><div class="field"><div class="label">विद्यार्थी का नाम</div><div class="value">'+name+'</div></div><div class="field"><div class="label">रोल नंबर</div><div class="value">'+roll+'</div></div><div class="field"><div class="label">परीक्षा</div><div class="value">'+exam+'</div></div><div class="field"><div class="label">परीक्षा दिनांक</div><div class="value">'+date+'</div></div><div class="field"><div class="label">परीक्षा केंद्र / माध्यम</div><div class="value">'+venue+'</div></div><div class="field"><div class="label">पंजीकरण ID</div><div class="value">'+id+'</div></div><div class="field"><div class="label">ईमेल</div><div class="value">'+email+'</div></div><div class="field"><div class="label">मोबाइल</div><div class="value">'+phone+'</div></div></div><div class="notice"><strong>महत्वपूर्ण निर्देश</strong><br>1. प्रवेश-पत्र और अपनी पंजीकरण जानकारी सुरक्षित रखें।<br>2. परीक्षा के आधिकारिक समय और निर्देशों का पालन करें।<br>3. यदि रोल नंबर, दिनांक या परीक्षा केंद्र गलत है तो परीक्षा से पहले व्यवस्थापक से संपर्क करें।<br>4. ऑनलाइन परीक्षा के लिए निर्धारित समय पर वेबसाइट पर लॉगिन करें।<br>'+instructions+'</div><div class="sign"><div>परीक्षार्थी के हस्ताक्षर</div><div>परीक्षा व्यवस्थापक</div></div><p style="text-align:center;color:#778176;font-size:10px;margin-top:26px">यह प्रवेश-पत्र वेबसाइट के पंजीकरण रिकॉर्ड के आधार पर तैयार किया गया है।</p></main></article><p class="print" style="text-align:center"><button onclick="window.print()" style="background:#173b29;color:white;border:0;border-radius:10px;padding:12px 24px;font-weight:bold;cursor:pointer">प्रवेश-पत्र प्रिंट / PDF में सेव करें</button></p>'+qrMarkup+'</body></html>');
       popup.document.close();
     }
 
@@ -4583,6 +4917,80 @@ return review ? {
     }
 
     
+async function writeEditorAudit(action, data = {}) {
+  try {
+    if (!isPrimaryOwner()) return;
+    const digits = String(data.phone || '').replace(/\\D/g, '');
+    const permissions = data.permissions && typeof data.permissions === 'object' ? data.permissions : {};
+    await db.collection('roleAuditLogs').add({
+      action: String(action || 'unknown'),
+      targetName: String(data.fullName || data.name || 'सहायक संपादक').slice(0, 100),
+      targetPhoneLast4: digits.length >= 4 ? digits.slice(-4) : '',
+      targetRole: 'editor',
+      permissions: {
+        media: permissions.media === true,
+        quizDrafts: permissions.quizDrafts === true,
+        examReview: permissions.examReview === true,
+        notifications: permissions.notifications === true
+      },
+      changedByName: String(auth.currentUser?.displayName || 'व्यवस्थापक').slice(0, 120),
+      changedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.warn('Editor permission audit event was not written:', error);
+  }
+}
+
+async function loadEditorAuditLogs() {
+  const host = document.getElementById('editorAuditList');
+  const status = document.getElementById('editorAuditStatus');
+  if (!host) return;
+  if (!isPrimaryOwner()) {
+    if (status) status.textContent = 'ऑडिट लॉग केवल Owner देख सकता है।';
+    return;
+  }
+  if (status) status.textContent = 'ऑडिट लॉग लोड हो रहे हैं…';
+  host.replaceChildren();
+  try {
+    const snap = await db.collection('roleAuditLogs').orderBy('changedAt', 'desc').limit(50).get();
+    if (snap.empty) {
+      if (status) status.textContent = 'अभी कोई संपादक अनुमति परिवर्तन दर्ज नहीं है।';
+      return;
+    }
+    snap.forEach(doc => {
+      const data = doc.data() || {};
+      const card = document.createElement('article');
+      card.className = 'rounded-xl border border-stone-200 bg-stone-50 p-3';
+      const actionLabels = {
+        invitation_created: 'नया संपादक आमंत्रण',
+        editor_removed: 'संपादक की भूमिका हटाई गई'
+      };
+      const title = document.createElement('div');
+      title.className = 'font-bold text-forest';
+      title.textContent = (actionLabels[data.action] || 'अनुमति परिवर्तन') + ' · ' + (data.targetName || 'सहायक संपादक');
+      const meta = document.createElement('p');
+      meta.className = 'mt-1 text-stone-600';
+      const date = data.changedAt?.toDate ? data.changedAt.toDate().toLocaleString('hi-IN') : 'समय उपलब्ध नहीं';
+      meta.textContent = 'मोबाइल के अंतिम 4 अंक: ' + (data.targetPhoneLast4 || '—') + ' · ' + date;
+      const permissions = data.permissions || {};
+      const access = document.createElement('p');
+      access.className = 'mt-1 text-stone-600';
+      access.textContent = 'अधिकार: ' + [
+        permissions.media && 'मीडिया',
+        permissions.quizDrafts && 'क्विज़ Draft',
+        permissions.examReview && 'परीक्षा जाँच',
+        permissions.notifications && 'सूचनाएँ'
+      ].filter(Boolean).join(', ') || 'कोई अतिरिक्त अधिकार नहीं';
+      card.append(title, meta, access);
+      host.appendChild(card);
+    });
+    if (status) status.textContent = 'पिछले ' + snap.size + ' ऑडिट रिकॉर्ड दिखाए गए।';
+  } catch (error) {
+    console.error('Editor audit log failed:', error);
+    if (status) status.textContent = 'ऑडिट लॉग लोड नहीं हुए: ' + error.message + ' · Firestore rules जाँचें।';
+  }
+}
+
 function setTrustedEditorStatus(message, isError = false) {
   const status = document.getElementById('trustedEditorStatus');
   if (status) {
@@ -4757,6 +5165,7 @@ async function addTrustedEditor() {
     };
 
     await ref.set(invitation);
+    await writeEditorAudit('invitation_created', { phone, fullName, permissions });
 
     let notificationSent = false;
     try {
@@ -4808,7 +5217,15 @@ async function removeTrustedEditor(uid) {
   if (!uid || !confirm('इस सहायक संपादक की भूमिका हटाएँ?')) return;
 
   try {
-    await db.collection('roles').doc(uid).delete();
+    const roleRef = db.collection('roles').doc(uid);
+    const roleSnapshot = await roleRef.get();
+    const roleData = roleSnapshot.exists ? (roleSnapshot.data() || {}) : {};
+    await roleRef.delete();
+    await writeEditorAudit('editor_removed', {
+      phone: roleData.phone || '',
+      fullName: roleData.fullName || roleData.displayName || 'सहायक संपादक',
+      permissions: roleData.permissions || {}
+    });
     setTrustedEditorStatus('संपादक की भूमिका हटा दी गई।');
   } catch (error) {
     console.error('Editor role removal failed:', error);
@@ -4836,14 +5253,14 @@ async function removeTrustedEditor(uid) {
 
       return records.map(({ uid, enrollment }) => {
         const profile = profiles.get(uid) || {};
+        const rollNumber = enrollment.rollNumber || enrollment.roll || profile.rollNumber || profile.roll || '';
         return {
-          'Roll Number': enrollment.rollNumber || enrollment.roll || profile.rollNumber || profile.roll || '',
-          'Full Name': enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '',
-          "Father's Name": enrollment.fatherName || enrollment.fathersName || profile.fatherName || profile.fathersName || '',
-          'Phone Number': normalizeExportPhone(enrollment.phone || enrollment.studentPhone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || ''),
-          'Email': enrollment.email || profile.email || '',
-          'Assigned Exam Set': enrollment.questionSet || enrollment.examSet || enrollment.assignedExamSet || profile.questionSet || 'set1',
-          'Status': enrollment.verificationStatus || enrollment.status || profile.verificationStatus || (enrollment.verified === true ? 'verified' : 'pending')
+          'Roll Number': rollNumber || 'Pending',
+          'Student Name': enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '—',
+          'Father / Guardian': enrollment.fatherName || enrollment.fathersName || profile.fatherName || profile.fathersName || '—',
+          'Mobile': normalizeExportPhone(enrollment.phone || enrollment.studentPhone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || '') || '—',
+          'Admission Status': enrollment.isApproved === true || enrollment.approved === true || Boolean(rollNumber)
+            ? 'Approved' : (enrollment.verificationStatus || enrollment.status || 'Pending review')
         };
       });
     }
@@ -4857,25 +5274,26 @@ async function removeTrustedEditor(uid) {
       ]);
       const profiles = new Map((usersSnap?.docs || []).map(doc => [doc.id, doc.data() || {}]));
       const enrollments = new Map((enrollmentSnap?.docs || []).map(doc => [doc.id, doc.data() || {}]));
-      const results = resultsSnap && !resultsSnap.empty
-        ? resultsSnap.docs.map(doc => ({ id: doc.id, result: doc.data() || {} }))
-        : (attemptsSnap?.docs || []).map(doc => ({ id: doc.id, result: doc.data() || {} }));
+      const records = resultsSnap && !resultsSnap.empty
+        ? resultsSnap.docs.map(doc => ({ result: doc.data() || {} }))
+        : (attemptsSnap?.docs || []).map(doc => ({ result: doc.data() || {} }));
 
-      return results.map(({ id, result }) => {
+      return records.map(({ result }) => {
         const uid = result.uid || result.studentUid || result.userId || '';
         const profile = profiles.get(uid) || {};
         const enrollment = enrollments.get(uid) || {};
         return {
-          'Roll Number': result.rollNumber || enrollment.rollNumber || enrollment.roll || profile.rollNumber || '',
-          'Full Name': result.fullName || result.name || enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '',
-          "Father's Name": result.fatherName || result.fathersName || enrollment.fatherName || enrollment.fathersName || profile.fatherName || '',
-          'Phone Number': normalizeExportPhone(result.studentPhone || result.phone || enrollment.phone || enrollment.mobile || profile.verifiedPhone || profile.phone || profile.mobile || ''),
-          'Email': result.email || enrollment.email || profile.email || '',
-          'Assigned Exam Set': result.questionSet || result.examSet || enrollment.questionSet || enrollment.examSet || 'set1',
-          'Exam Mode': result.mode || result.examName || 'quiz',
-          'Status': result.status || result.manualCheckStatus || 'submitted',
-          'Score': result.score ?? result.checkedScore ?? '',
-          'Total Marks': result.total ?? result.totalMarks ?? ''
+          'Rank': result.rank || result.meritRank || '—',
+          'Roll Number': result.rollNumber || enrollment.rollNumber || enrollment.roll || profile.rollNumber || 'Pending',
+          'Student Name': result.fullName || result.name || enrollment.fullName || enrollment.name || profile.fullName || profile.displayName || profile.name || '—',
+          'Total Questions': result.totalQuestions ?? result.questionCount ?? result.totalQuestionCount ?? '—',
+          'Correct': result.correctCount ?? result.correctAnswers ?? result.correct ?? '—',
+          'Incorrect': result.wrongCount ?? result.incorrectCount ?? result.wrongAnswers ?? result.incorrect ?? '—',
+          'Violations': result.violationCount ?? result.violationsCount ?? result.tabSwitchCount ?? result.liveViolationCount ?? 0,
+          'Marks': result.score ?? result.checkedScore ?? result.obtainedMarks ?? result.marks ?? '—',
+          'Total Marks': result.totalMarks ?? result.maxMarks ?? result.total ?? '—',
+          'Time Taken': result.timeTakenText || result.timeTaken || result.durationText || result.durationMinutes || '—',
+          'Result': result.resultStatus || result.status || result.manualCheckStatus || 'Pending'
         };
       });
     }
@@ -4883,33 +5301,71 @@ async function removeTrustedEditor(uid) {
     async function downloadPdfReport(rows, title, filename) {
       if (!rows.length) return showToast('डाउनलोड के लिए कोई रिकॉर्ड नहीं मिला।');
       if (!window.jspdf?.jsPDF) throw new Error('PDF library उपलब्ध नहीं है।');
+      const isRoster = /members|roster|enrollment/i.test(String(filename || '') + ' ' + String(title || ''));
+      const orientation = isRoster ? 'portrait' : 'landscape';
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'landscape' });
-      doc.text(title, 14, 14);
-      if (typeof doc.autoTable === 'function') {
-        const headers = Object.keys(rows[0]);
+      const doc = new jsPDF({ orientation, unit: 'pt', format: 'a4', compress: true });
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = doc.internal.pageSize.getHeight();
+      const headers = [...new Set(rows.flatMap(row => Object.keys(row || {})))];
+      const pageSize = isRoster ? 14 : 12;
+      const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+      const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+      if (typeof window.html2canvas === 'function') {
+        for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+          const pageRows = rows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+          const widthPx = orientation === 'portrait' ? 794 : 1122;
+          const heightPx = orientation === 'portrait' ? 1122 : 794;
+          const wrapper = document.createElement('section');
+          wrapper.className = 'export-pdf-container' + (orientation === 'landscape' ? ' landscape' : '');
+          wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + widthPx + 'px;min-height:' + heightPx + 'px;height:auto;box-sizing:border-box;padding:30px 34px 24px;background:#fff;color:#17211b;font-family:Arial,"Noto Sans Devanagari",sans-serif;display:flex;flex-direction:column;overflow:visible;';
+          const heading = '<header style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #1b4332;padding-bottom:14px;margin-bottom:14px;"><div><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b34a1b;">BISHNOISM DIGITAL EXAM COUNCIL</div><h1 style="font-size:21px;line-height:1.3;margin:7px 0;color:#1b4332;">' + escapeHtml(title) + '</h1><p style="font-size:11px;color:#64748b;margin:0;">Generated ' + escapeHtml(new Date().toLocaleString('en-IN')) + ' | Records: ' + rows.length + '</p></div><div style="white-space:nowrap;background:#1b4332;color:#fef08a;border-radius:5px;padding:7px 10px;font-size:10px;font-weight:700;">OFFICIAL REPORT</div></header>';
+          const th = headers.map(key => '<th style="background:#edf2ed;color:#243b2c;text-align:left;font-weight:700;padding:8px 6px;border-bottom:2px solid #cbd5d1;font-size:10px;overflow-wrap:anywhere;">' + escapeHtml(key) + '</th>').join('');
+          const body = pageRows.map((row, index) => '<tr style="background:' + (index % 2 ? '#f7f9f7' : '#fff') + ';">' +
+            headers.map(key => '<td style="padding:7px 6px;border-bottom:1px solid #e2e8e2;font-size:10px;line-height:1.35;vertical-align:top;overflow-wrap:anywhere;word-break:break-word;">' + escapeHtml(row[key] == null || row[key] === '' ? '—' : row[key]) + '</td>').join('') +
+            '</tr>').join('');
+          wrapper.innerHTML = heading + '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody></table><footer style="margin-top:auto;padding-top:12px;border-top:1px solid #cbd5e1;display:flex;justify-content:space-between;font-size:9px;color:#64748b;"><span>Confidential — authorized administrative use only</span><span>Page ' + (pageIndex + 1) + ' / ' + pageCount + '</span></footer>';
+          document.body.appendChild(wrapper);
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          const canvas = await window.html2canvas(wrapper, {
+            scale: 1.35, backgroundColor: '#fff', useCORS: true, logging: false,
+            width: widthPx, height: wrapper.scrollHeight, windowWidth: widthPx
+          });
+          if (pageIndex > 0) doc.addPage('a4', orientation);
+          const renderedHeight = canvas.height * (pdfWidth / canvas.width);
+          const fitScale = Math.min(1, pdfHeight / renderedHeight);
+          const imageWidth = pdfWidth * fitScale;
+          const imageHeight = renderedHeight * fitScale;
+          doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG',
+            (pdfWidth - imageWidth) / 2, (pdfHeight - imageHeight) / 2,
+            imageWidth, imageHeight, undefined, 'FAST');
+          wrapper.remove();
+        }
+      } else if (typeof doc.autoTable === 'function') {
+        doc.setFontSize(14);
+        doc.text(String(title).slice(0, 100), 28, 28);
         doc.autoTable({
-          startY: 20,
-          head: [headers],
+          startY: 42, head: [headers],
           body: rows.map(row => headers.map(key => String(row[key] ?? ''))),
-          styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
-          headStyles: { fontSize: 7 }
+          styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+          headStyles: { fillColor: [27, 67, 50], textColor: [255, 255, 255] },
+          alternateRowStyles: { fillColor: [247, 249, 247] },
+          margin: { left: 24, right: 24 }
         });
       } else {
-        doc.setFontSize(8);
-        rows.slice(0, 24).forEach((row, index) => {
-          const line = Object.values(row).map(value => String(value ?? '')).join(' | ').slice(0, 180);
-          doc.text(line, 12, 24 + index * 8);
-        });
+        throw new Error('PDF rendering libraries उपलब्ध नहीं हैं।');
       }
       doc.save(filename);
-      showToast('PDF रिपोर्ट डाउनलोड हो गई।');
+      showToast('साफ़, पेज नंबर वाली PDF रिपोर्ट डाउनलोड हो गई।');
     }
 
     async function exportQuizResultsPdf() {
       try {
-        const rows = await getExamResultExportRows();
-        await downloadPdfReport(rows, 'Bishnoism — Exam Results', 'Bishnoism_Exam_Results.pdf');
+        const rawRows = await getExamResultExportRows();
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('publishedResults', rawRows);
+        await downloadPdfReport(report.rows, report.title, 'Bishnoism_Exam_Results.pdf');
       } catch (error) {
         console.error('Results PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -4918,9 +5374,10 @@ async function removeTrustedEditor(uid) {
 
     async function exportQuizResultsExcel() {
       try {
-        const rows = await getExamResultExportRows();
-        if (!rows.length) return showToast('कोई परीक्षा परिणाम नहीं मिला।');
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const rawRows = await getExamResultExportRows();
+        if (!rawRows.length) return showToast('कोई परीक्षा परिणाम नहीं मिला।');
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('publishedResults', rawRows);
+        const ws = XLSX.utils.json_to_sheet(report.rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'ExamResults');
         XLSX.writeFile(wb, 'Bishnoism_Exam_Results.xlsx');
@@ -4933,8 +5390,9 @@ async function removeTrustedEditor(uid) {
 
     async function exportMembersPdf() {
       try {
-        const rows = await getRegisteredMemberExportRows();
-        await downloadPdfReport(rows, 'Bishnoism — Registered Members', 'Bishnoism_Registered_Members.pdf');
+        const rawRows = await getRegisteredMemberExportRows();
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('examEnrolledStudents', rawRows);
+        await downloadPdfReport(report.rows, report.title, 'Bishnoism_Registered_Members.pdf');
       } catch (error) {
         console.error('Members PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -4943,9 +5401,10 @@ async function removeTrustedEditor(uid) {
 
     async function exportMembersExcel() {
       try {
-        const rows = await getRegisteredMemberExportRows();
-        if (!rows.length) return showToast('कोई पंजीकृत सदस्य नहीं मिला।');
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const rawRows = await getRegisteredMemberExportRows();
+        if (!rawRows.length) return showToast('कोई पंजीकृत सदस्य नहीं मिला।');
+        const report = window.BishnoiExportFormatter.formatOwnerExportReport('examEnrolledStudents', rawRows);
+        const ws = XLSX.utils.json_to_sheet(report.rows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Members');
         XLSX.writeFile(wb, 'Bishnoism_Registered_Members.xlsx');

@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 
+  <link rel="stylesheet" href="slidebar.css">
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
@@ -370,12 +371,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <!-- 2. SAHITYA & 29 NIYAMS TAB -->
     <section id="tab-library" class="hidden space-y-6">
-      <div class="border-b border-stone-200 pb-3 flex items-center justify-between">
+      <div class="border-b border-stone-200 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 class="text-2xl font-yatra text-forest">विश्नोई साहित्य व ग्रंथ (PDFs)</h2>
           <p class="text-xs text-stone-600">सत्यापित धार्मिक साहित्य एवं शब्दवाणी</p>
         </div>
+        <label class="block w-full sm:max-w-sm">
+          <span class="sr-only">साहित्य खोजें</span>
+          <input id="literatureSearchInput" type="search" oninput="window.BishnoiApp.searchLiterature(this.value)" placeholder="साहित्य, भजन, PDF या नियम खोजें…" class="w-full rounded-xl border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
+        </label>
       </div>
+      <p id="literatureSearchStatus" class="text-xs text-stone-500" aria-live="polite"></p>
       <div id="pdfGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       <section class="space-y-3 border-t border-stone-200 pt-5" aria-labelledby="platformMediaHeading">
         <div>
@@ -605,6 +611,18 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="text-[11px] uppercase tracking-wider text-stone-300 mt-1">/ 108 मनके</span>
           </button>
         </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <label for="malaDailyGoalInput" class="text-sm font-bold text-forest">दैनिक जप लक्ष्य</label>
+            <span id="malaDailyGoalSummary" class="text-xs font-bold text-terracotta">0 / 108</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-white border border-amber-100"><div id="malaDailyGoalProgress" class="h-full rounded-full bg-forest" style="width:0%"></div></div>
+          <div class="flex items-center gap-2">
+            <input id="malaDailyGoalInput" type="number" min="1" max="10000" value="108" inputmode="numeric" class="w-24 rounded-lg border border-stone-300 bg-white p-2 text-sm" aria-label="दैनिक जप लक्ष्य">
+            <button type="button" onclick="window.BishnoiApp.setMalaDailyGoal(document.getElementById('malaDailyGoalInput').value)" class="rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">लक्ष्य सहेजें</button>
+          </div>
+          <p class="text-[11px] text-stone-600">गिनती इस डिवाइस पर ऑफ़लाइन सुरक्षित रहती है; लॉगिन होने पर सिंक का प्रयास किया जाता है।</p>
+        </div>
         <button onclick="window.BishnoiApp.resetMala()" class="text-xs text-stone-400 hover:text-stone-600 font-semibold underline">माला शून्य (Reset) करें</button>
       </div>
     </section>
@@ -714,6 +732,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <p id="profileEmailDisplay" class="mt-1 text-sm font-bold text-forest break-all">—</p>
           <p id="profileAccountStatus" class="mt-1 text-[11px] text-stone-500">अपनी जानकारी यहाँ अपडेट करें।</p>
         </div>
+
+        <section class="rounded-2xl border border-emerald-200 bg-white p-3 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-bold text-forest">📚 मेरी पसंदीदा सामग्री</h3>
+            <span class="text-[10px] text-stone-500">इस डिवाइस पर सेव</span>
+          </div>
+          <div id="savedLiteratureBookmarks" class="space-y-2" aria-live="polite">
+            <p class="text-[11px] text-stone-500">सहेजे गए बुकमार्क यहाँ दिखेंगे।</p>
+          </div>
+        </section>
 
         <!-- Jaap Statistics -->
         <div class="grid grid-cols-2 gap-2 text-center">
@@ -949,5 +977,6 @@ document.addEventListener('DOMContentLoaded', () => {
     button.setAttribute('aria-pressed', String(reveal));
   };
 </script>
+<script src="main-slidebar.js"></script>
 </body>
 </html>

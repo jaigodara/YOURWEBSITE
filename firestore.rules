@@ -811,6 +811,75 @@ service cloud.firestore {
       allow delete: if canManageMedia();
     }
 
+    // Student-owned proctoring events; only exam staff may monitor them.
+    match /live_violations/{violationId} {
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') in ['quiz', 'mock1', 'mock2', 'main']
+        && request.resource.data.get('type', '') in [
+          'tab_switch', 'fullscreen_exit'
+        ]
+        && request.resource.data.keys().hasOnly([
+          'uid', 'mode', 'name', 'rollNumber', 'studentPhone',
+          'type', 'detail', 'occurredAtMs', 'createdAt'
+        ])
+        && request.resource.data.get('name', '') is string
+        && request.resource.data.get('name', '').size() <= 120
+        && request.resource.data.get('rollNumber', '') is string
+        && request.resource.data.get('rollNumber', '').size() <= 40
+        && request.resource.data.get('studentPhone', '') is string
+        && request.resource.data.get('studentPhone', '').size() <= 20
+        && request.resource.data.get('detail', '') is string
+        && request.resource.data.get('detail', '').size() <= 240
+        && request.resource.data.get('occurredAtMs', 0) is int;
+      allow read: if examOwner();
+      allow update, delete: if owner();
+    }
+
+    // Immutable, owner-only editor-permission audit records. No Firebase UIDs are stored.
+    match /roleAuditLogs/{eventId} {
+      allow read: if examOwner();
+      allow create: if examOwner()
+        && request.resource.data.keys().hasOnly([
+          'action', 'targetName', 'targetPhoneLast4', 'targetRole',
+          'permissions', 'changedByName', 'changedAt'
+        ])
+        && request.resource.data.get('action', '') in ['invitation_created', 'editor_removed']
+        && request.resource.data.get('targetName', '') is string
+        && request.resource.data.get('targetName', '').size() <= 100
+        && request.resource.data.get('targetPhoneLast4', '') is string
+        && (request.resource.data.get('targetPhoneLast4', '') == ''
+          || request.resource.data.get('targetPhoneLast4', '').matches('^[0-9]{4}$'))
+        && request.resource.data.get('targetRole', '') == 'editor'
+        && request.resource.data.get('permissions', {}) is map
+        && request.resource.data.get('changedByName', '') is string
+        && request.resource.data.get('changedByName', '').size() <= 120
+        && request.resource.data.get('changedAt', null) is timestamp;
+      allow update, delete: if false;
+    }
+
+    // Public QR verification exposes only minimal admit-card fields; token IDs are unguessable.
+    match /publicAdmitCardVerifications/{token} {
+      allow get: if resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) is timestamp
+        && resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
+      allow list: if false;
+      allow create: if examOwner()
+        && token.matches('^[a-f0-9]{48}$')
+        && request.resource.data.keys().hasOnly([
+          'rollNumber', 'examTitle', 'status', 'issuedAt', 'expiresAt'
+        ])
+        && request.resource.data.get('rollNumber', '') is string
+        && request.resource.data.get('rollNumber', '').matches('^JAMBH-[0-9]{4}-[0-9]{4,}$')
+        && request.resource.data.get('examTitle', '') is string
+        && request.resource.data.get('examTitle', '').size() > 0
+        && request.resource.data.get('examTitle', '').size() <= 120
+        && request.resource.data.get('status', '') == 'valid'
+        && request.resource.data.get('issuedAt', null) is timestamp
+        && request.resource.data.get('expiresAt', null) is timestamp
+        && request.resource.data.get('expiresAt', timestamp.date(1970, 1, 1)) > request.time;
+      allow update, delete: if examOwner();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
