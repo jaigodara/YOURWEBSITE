@@ -5323,6 +5323,146 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
       ? (visible ? 'खोज परिणाम: ' + visible + ' / ' + total + ' सामग्री।' : 'इस शब्द से संबंधित सामग्री नहीं मिली।')
       : '';
   };
+  const LITERATURE_BOOKMARK_KEY = 'bishnoi_literature_bookmarks_v1';
+
+  function readLiteratureBookmarks() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LITERATURE_BOOKMARK_KEY) || '[]');
+      return Array.isArray(saved) ? saved.filter(item => item && typeof item.id === 'string') : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeLiteratureBookmarks(items) {
+    try {
+      localStorage.setItem(LITERATURE_BOOKMARK_KEY, JSON.stringify(items.slice(0, 200)));
+      return true;
+    } catch (error) {
+      console.warn('Literature bookmarks could not be saved locally.', error);
+      notify('बुकमार्क सहेजे नहीं जा सके। डिवाइस की स्टोरेज जगह जाँचें।', 'error');
+      return false;
+    }
+  }
+
+  function bookmarkHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  function renderLiteratureBookmarks() {
+    const host = byId('savedLiteratureBookmarks');
+    if (!host) return;
+    const items = readLiteratureBookmarks();
+    if (!items.length) {
+      host.innerHTML = '<p class="text-[11px] text-stone-500">अभी कोई बुकमार्क नहीं है। साहित्य अनुभाग में ☆ बुकमार्क दबाएँ।</p>';
+      return;
+    }
+    host.innerHTML = items.map(item => {
+      const link = /^https?:\/\//i.test(String(item.url || ''))
+        ? '<a class="text-emerald-800 underline font-bold" href="' + bookmarkHtml(item.url) + '" target="_blank" rel="noopener noreferrer">खोलें</a>'
+        : '<span class="text-stone-500">लिंक उपलब्ध नहीं</span>';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-2.5">' +
+        '<p class="font-bold text-forest">' + bookmarkHtml(item.title || 'साहित्य सामग्री') + '</p>' +
+        '<p class="mt-1 text-[10px] text-stone-600">' + bookmarkHtml(item.summary || '') + '</p>' +
+        '<div class="mt-2 flex items-center justify-between gap-3 text-[11px]">' + link +
+        '<button type="button" data-remove-literature-bookmark="' + bookmarkHtml(item.id) + '" class="font-bold text-red-700 underline">हटाएँ</button></div></article>';
+    }).join('');
+  }
+
+  function decorateLiteratureCards() {
+    const groups = [
+      { id: 'pdfGrid', type: 'PDF / ग्रंथ' },
+      { id: 'platformMediaFeed', type: 'मीडिया / भजन' },
+      { id: 'niyamGrid', type: 'नियम' }
+    ];
+    const saved = new Set(readLiteratureBookmarks().map(item => item.id));
+    groups.forEach(group => {
+      const host = byId(group.id);
+      if (!host) return;
+      Array.from(host.children).forEach(card => {
+        if (!card || card.tagName === 'P' || card.dataset.bookmarkDecorated === 'true') return;
+        const titleNode = card.querySelector('h2,h3,h4,[data-title]') || card.querySelector('a[href]');
+        const title = String(titleNode?.textContent || card.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 140);
+        if (!title) return;
+        const anchor = card.matches('a[href]') ? card : card.querySelector('a[href]');
+        const rawUrl = anchor?.href || '';
+        const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : '';
+        const id = (group.id + '|' + (url || title)).slice(0, 360);
+        card.dataset.bookmarkDecorated = 'true';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mt-2 inline-flex min-h-8 items-center rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-bold text-forest';
+        button.dataset.literatureBookmarkToggle = id;
+        button.dataset.bookmarkTitle = title;
+        button.dataset.bookmarkUrl = url;
+        button.dataset.bookmarkType = group.type;
+        button.dataset.bookmarkSummary = String(card.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 280);
+        const isSaved = saved.has(id);
+        button.setAttribute('aria-pressed', String(isSaved));
+        button.textContent = isSaved ? '★ सहेजा गया' : '☆ बुकमार्क';
+        card.appendChild(button);
+      });
+    });
+  }
+
+  function initLiteratureBookmarks() {
+    if (document.body.dataset.literatureBookmarksBound !== 'true') {
+      document.body.dataset.literatureBookmarksBound = 'true';
+      document.addEventListener('click', event => {
+        const toggle = event.target.closest('[data-literature-bookmark-toggle]');
+        if (toggle) {
+          event.preventDefault();
+          event.stopPropagation();
+          const id = toggle.dataset.literatureBookmarkToggle || '';
+          const items = readLiteratureBookmarks();
+          const existing = items.some(item => item.id === id);
+          const next = existing
+            ? items.filter(item => item.id !== id)
+            : items.concat([{
+                id,
+                title: toggle.dataset.bookmarkTitle || 'साहित्य सामग्री',
+                summary: toggle.dataset.bookmarkSummary || '',
+                url: toggle.dataset.bookmarkUrl || '',
+                type: toggle.dataset.bookmarkType || 'साहित्य',
+                savedAt: new Date().toISOString()
+              }]);
+          if (writeLiteratureBookmarks(next)) {
+            toggle.setAttribute('aria-pressed', String(!existing));
+            toggle.textContent = existing ? '☆ बुकमार्क' : '★ सहेजा गया';
+            renderLiteratureBookmarks();
+            notify(existing ? 'बुकमार्क हटाया गया।' : 'बुकमार्क इस डिवाइस पर सहेजा गया।', 'success');
+          }
+          return;
+        }
+        const remove = event.target.closest('[data-remove-literature-bookmark]');
+        if (remove) {
+          const id = remove.dataset.removeLiteratureBookmark || '';
+          writeLiteratureBookmarks(readLiteratureBookmarks().filter(item => item.id !== id));
+          renderLiteratureBookmarks();
+          decorateLiteratureCards();
+        }
+      });
+    }
+    decorateLiteratureCards();
+    renderLiteratureBookmarks();
+    ['pdfGrid', 'platformMediaFeed', 'niyamGrid'].forEach(id => {
+      const host = byId(id);
+      if (host && !host.dataset.bookmarkObserver) {
+        host.dataset.bookmarkObserver = 'true';
+        const observer = new MutationObserver(() => decorateLiteratureCards());
+        observer.observe(host, { childList: true, subtree: false });
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLiteratureBookmarks, { once: true });
+  } else {
+    initLiteratureBookmarks();
+  }
+
   app.tapMalaBead = window.tapHomeMalaBead;
   app.tapHomeMalaBead = window.tapHomeMalaBead;
   app.resetMala = function () {
