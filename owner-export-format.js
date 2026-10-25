@@ -92,7 +92,7 @@
     }
     if (type === 'examEnrolledStudents' || type === 'studentRollNumbers' || type === 'admitCards') {
       const phoneText = value => {
-        const digits = String(value || '').replace(/\\D/g, '');
+        const digits = String(value || '').replace(/\D/g, '');
         const normalized = digits.length === 12 && digits.startsWith('91') ? digits.slice(2)
           : digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits;
         return normalized.length === 10 ? normalized.slice(0, 2) + '••••••' + normalized.slice(-2) : '—';
@@ -121,7 +121,7 @@
     if (['mainExamSubmissions', 'mockExamSubmissions', 'quizAttempts', 'publishedResults', 'reviews'].includes(type)) {
       const ranked = rows.map(row => ({
         row,
-        score: Number(valueOf(row, ['finalMarks', 'checkedScore', 'score', 'marks', 'obtainedMarks', 'Marks']))
+        score: (() => { const rawScore = valueOf(row, ['finalMarks', 'checkedScore', 'score', 'marks', 'obtainedMarks', 'Marks']); return rawScore === '' ? NaN : Number(rawScore); })()
       })).sort((a, b) => (Number.isFinite(b.score) ? b.score : -Infinity) - (Number.isFinite(a.score) ? a.score : -Infinity));
       let priorScore = null;
       let priorRank = 0;
