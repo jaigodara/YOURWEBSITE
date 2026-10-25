@@ -76,54 +76,84 @@
     const date = new Date().toLocaleDateString('en-IN');
     if (type === 'examAnswerKeys') {
       return {
-        title: 'Bishnoism Digital Exam Council — Master Answer Key',
-        subtitle: 'Generated ' + date + ' | Total questions: ' + rows.length,
+        title: 'बिश्नोई डिजिटल परीक्षा परिषद — मास्टर उत्तर कुंजी',
+        subtitle: 'जारी तिथि: ' + date + ' | कुल प्रश्न: ' + rows.length,
         orientation: 'landscape',
-        columns: ['No.', 'Exam / Set', 'Question Ref.', 'Correct Option', 'Last Edited By', 'Last Edited'],
+        columns: ['क्र. सं.', 'प्रश्न सेट', 'प्रश्न संदर्भ', 'सही विकल्प', 'अंतिम संशोधनकर्ता', 'संशोधन दिनांक'],
         rows: rows.map((row, index) => ({
-          'No.': index + 1,
-          'Exam / Set': setText(row),
-          'Question Ref.': questionReference(row, index),
-          'Correct Option': optionText(valueOf(row, ['answerIndex', 'answerindex', 'correctAnswer', 'correctOptionIndex', 'ans', 'answer'])),
-          'Last Edited By': actorLabel(row),
-          'Last Edited': dateText(valueOf(row, ['updatedAt', 'updated_at', 'modifiedAt']))
+          'क्र. सं.': index + 1,
+          'प्रश्न सेट': setText(row),
+          'प्रश्न संदर्भ': questionReference(row, index),
+          'सही विकल्प': optionText(valueOf(row, ['answerIndex', 'answerindex', 'correctAnswerIndex', 'correctOptionIndex', 'ans', 'answer', 'correctAnswer'])),
+          'अंतिम संशोधनकर्ता': actorLabel(row) === '—' ? '—' : 'व्यवस्थापक / संपादक',
+          'संशोधन दिनांक': dateText(valueOf(row, ['updatedAt', 'updated_at', 'modifiedAt'])) || '—'
         }))
       };
     }
     if (type === 'examEnrolledStudents' || type === 'studentRollNumbers' || type === 'admitCards') {
-      const formatted = rows.map(row => ({
-        'Roll Number': roll(row),
-        'Student Name': valueOf(row, ['fullName', 'displayName', 'studentName', 'name']) || '—',
-        'Father / Guardian': valueOf(row, ['fatherName', 'fathersName', 'father_name', 'guardianName']) || '—',
-        'Mobile': valueOf(row, ['phoneNumber', 'phone', 'mobileNumber', 'mobile']) || '—',
-        'Admission Status': (row.isApproved === true || row.approved === true || Boolean(valueOf(row, ['rollNumber', 'roll_number', 'admitCardRollNumber']))) ? 'Approved' : 'Pending review'
-      }));
+      const phoneText = value => {
+        const digits = String(value || '').replace(/\\D/g, '');
+        const normalized = digits.length === 12 && digits.startsWith('91') ? digits.slice(2)
+          : digits.length === 11 && digits.startsWith('0') ? digits.slice(1) : digits;
+        return normalized.length === 10 ? normalized.slice(0, 2) + '••••••' + normalized.slice(-2) : '—';
+      };
+      const formatted = rows.map(row => {
+        const rawStatus = String(valueOf(row, ['Admission Status', 'verificationStatus', 'status']) || '').toLowerCase();
+        const approved = row.isApproved === true || row.approved === true ||
+          ['approved', 'confirmed', 'verified', 'स्वीकृत'].includes(rawStatus) ||
+          Boolean(valueOf(row, ['rollNumber', 'roll_number', 'admitCardRollNumber', 'Roll Number']));
+        return {
+          'आवंटित अनुक्रमांक': valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber', 'Roll Number']) || 'लंबित',
+          'विद्यार्थी का नाम': valueOf(row, ['fullName', 'displayName', 'studentName', 'name', 'Student Name']) || '—',
+          'पिता / अभिभावक': valueOf(row, ['fatherName', 'fathersName', 'father_name', 'guardianName', 'Father / Guardian']) || '—',
+          'मोबाइल': phoneText(valueOf(row, ['phoneNumber', 'phone', 'mobileNumber', 'mobile', 'Mobile'])) ,
+          'प्रवेश स्थिति': approved ? 'स्वीकृत' : 'समीक्षाधीन'
+        };
+      });
       return {
-        title: 'Student Enrollment & Roll Number Register',
-        subtitle: 'Session 2026 | Generated ' + date + ' | Total records: ' + rows.length,
-        orientation: 'landscape',
-        columns: ['Roll Number', 'Student Name', 'Father / Guardian', 'Mobile', 'Admission Status'],
+        title: 'विद्यार्थी नामांकन एवं रोल नंबर आवंटन रजिस्टर',
+        subtitle: 'जारी तिथि: ' + date + ' | कुल पंजीकृत विद्यार्थी: ' + rows.length,
+        orientation: 'portrait',
+        columns: ['आवंटित अनुक्रमांक', 'विद्यार्थी का नाम', 'पिता / अभिभावक', 'मोबाइल', 'प्रवेश स्थिति'],
         rows: formatted
       };
     }
     if (['mainExamSubmissions', 'mockExamSubmissions', 'quizAttempts', 'publishedResults', 'reviews'].includes(type)) {
-      const formatted = rows.map(row => ({
-        'Rank': valueOf(row, ['rank', 'meritRank']) || '—',
-        'Roll Number': roll(row),
-        'Student Name': valueOf(row, ['fullName', 'displayName', 'studentName', 'name']) || '—',
-        'Total Questions': valueOf(row, ['totalQuestions', 'questionCount', 'total']) || '—',
-        'Correct': valueOf(row, ['correctCount', 'correctAnswers', 'correct']) || 0,
-        'Incorrect': valueOf(row, ['wrongCount', 'incorrectCount', 'wrongAnswers', 'incorrect']) || 0,
-        'Violations': valueOf(row, ['violationCount', 'violationsCount', 'tabSwitchCount', 'liveViolationCount']) || 0,
-        'Marks': valueOf(row, ['finalMarks', 'totalMarks', 'score', 'marks', 'obtainedMarks']) || 0,
-        'Time Taken': valueOf(row, ['timeTakenText', 'timeTaken', 'durationText', 'durationMinutes']) || '—',
-        'Result': valueOf(row, ['resultStatus', 'result', 'status']) || 'Pending'
-      }));
+      const ranked = rows.map(row => ({
+        row,
+        score: Number(valueOf(row, ['finalMarks', 'checkedScore', 'score', 'marks', 'obtainedMarks']))
+      })).sort((a, b) => (Number.isFinite(b.score) ? b.score : -Infinity) - (Number.isFinite(a.score) ? a.score : -Infinity));
+      let priorScore = null;
+      let priorRank = 0;
+      const formatted = ranked.map(({ row, score }, index) => {
+        const explicitRank = valueOf(row, ['rank', 'meritRank']);
+        let rank = explicitRank || '—';
+        if (!explicitRank && Number.isFinite(score)) {
+          rank = score === priorScore ? priorRank : index + 1;
+          priorScore = score;
+          priorRank = Number(rank);
+        }
+        const violationValue = Array.isArray(row.violations) ? row.violations.length
+          : valueOf(row, ['violationCount', 'violationsCount', 'tabSwitchCount', 'tabSwitches', 'liveViolationCount']);
+        return {
+          'रैंक': rank === '—' ? '—' : '#' + rank,
+          'अनुक्रमांक': valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber']) || '—',
+          'परीक्षार्थी का नाम': valueOf(row, ['fullName', 'displayName', 'studentName', 'name']) || '—',
+          'कुल प्रश्न': valueOf(row, ['totalQuestions', 'questionCount', 'totalQuestion']) || '—',
+          'सही उत्तर': valueOf(row, ['correctCount', 'correctAnswers', 'correct']) || 0,
+          'गलत उत्तर': valueOf(row, ['wrongCount', 'incorrectCount', 'wrongAnswers', 'incorrect']) || 0,
+          'उल्लंघन': violationValue === '' || violationValue == null ? 0 : violationValue,
+          'प्राप्तांक': Number.isFinite(score) ? score : '—',
+          'अधिकतम अंक': valueOf(row, ['maxMarks', 'maximumMarks', 'totalMarks', 'total']) || '—',
+          'समय': valueOf(row, ['timeTakenText', 'timeTaken', 'durationText', 'durationMinutes']) || '—',
+          'परिणाम': valueOf(row, ['resultStatus', 'result', 'status', 'manualCheckStatus']) || 'समीक्षाधीन'
+        };
+      });
       return {
-        title: type === 'publishedResults' ? 'Published Exam Results & Merit Ledger' : 'Exam Submission & Evaluation Ledger',
-        subtitle: 'Generated ' + date + ' | Total candidates: ' + rows.length,
+        title: type === 'publishedResults' ? 'परीक्षा परिणाम एवं अंकतालिका लेजर' : 'परीक्षा उत्तर-पत्र एवं मूल्यांकन लेजर',
+        subtitle: 'जारी तिथि: ' + date + ' | कुल परीक्षार्थी: ' + rows.length,
         orientation: 'landscape',
-        columns: ['Rank', 'Roll Number', 'Student Name', 'Total Questions', 'Correct', 'Incorrect', 'Violations', 'Marks', 'Time Taken', 'Result'],
+        columns: ['रैंक', 'अनुक्रमांक', 'परीक्षार्थी का नाम', 'कुल प्रश्न', 'सही उत्तर', 'गलत उत्तर', 'उल्लंघन', 'प्राप्तांक', 'अधिकतम अंक', 'समय', 'परिणाम'],
         rows: formatted
       };
     }
