@@ -47,7 +47,8 @@ test('exam result report exposes score and violations without raw database ident
     correctCount: 96,
     wrongCount: 4,
     violationCount: 1,
-    totalMarks: 95,
+    score: 95,
+    totalMarks: 100,
     resultStatus: 'Pass',
     updatedBy: 'private-uid'
   }]);
