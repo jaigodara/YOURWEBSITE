@@ -1917,7 +1917,10 @@ const notificationsForThisAccount =
   const isPersonalNotification =
     isPrivateNotification || isUserSpecificFlatNotification;
 
-  return !(
+  const expiresAt = timestampMillis(item.expiresAt);
+  const expired = expiresAt > 0 && expiresAt <= Date.now();
+
+  return !expired && !(
     isPersonalNotification &&
     seen.includes(item._key)
   );
@@ -2835,6 +2838,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     const maintenance = state.maintenance || {};
     const visibleChecks = [
       ['dailyQuizVisible', 'दैनिक ज्ञान परीक्षा'],
+      ['dailyQuizResultsVisible', 'दैनिक क्विज़ परिणाम'],
       ['mockVisible', 'मॉक परीक्षा अनुभाग'],
       ['mock1Visible', 'मॉक परीक्षा 1'],
       ['mock2Visible', 'मॉक परीक्षा 2'],
@@ -3034,9 +3038,18 @@ window.renderExamVisibility = function renderExamVisibility() {
       const email = String(host.querySelector('[data-editor-email]')?.value || '').trim().toLowerCase();
       const permissions = {};
 
+      const allowedEditorPermissions = new Set([
+        'media', 'quizDrafts', 'examReview', 'notifications'
+      ]);
       host.querySelectorAll('[data-editor-permission]').forEach(el => {
-        permissions[el.dataset.editorPermission] = el.checked;
+        const key = String(el.dataset.editorPermission || '');
+        if (allowedEditorPermissions.has(key)) permissions[key] = el.checked;
       });
+
+      if (!name) {
+        if (status) status.textContent = 'Assistant Editor का नाम दर्ज करें।';
+        return;
+      }
 
       if (phone.length !== 10) {
         if (status) status.textContent = 'सही 10-digit phone number दर्ज करें।';
@@ -3054,6 +3067,8 @@ window.renderExamVisibility = function renderExamVisibility() {
       }
 
       const button = host.querySelector('[data-editor-invite]');
+      if (!button || button.dataset.saving === 'true') return;
+      button.dataset.saving = 'true';
       button.disabled = true;
 
       try {
@@ -3104,6 +3119,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         console.error('Editor invitation failed:', error);
         if (status) status.textContent = 'Invitation सेव नहीं हुआ। Firestore rules जाँचें।';
       } finally {
+        button.dataset.saving = 'false';
         button.disabled = false;
       }
     });
@@ -3171,8 +3187,12 @@ escapeHtml(statusLabel) + '</span></div>' +
       }
     });
 
-    host.querySelector('[data-owner-save-exam]')?.addEventListener('click', async () => {
+    host.querySelector('[data-owner-save-exam]')?.addEventListener('click', async event => {
       if (!requireOwner()) return;
+      const saveButton = event.currentTarget;
+      if (saveButton.dataset.saving === 'true') return;
+      saveButton.dataset.saving = 'true';
+      saveButton.disabled = true;
       const update = {};
       host.querySelectorAll('[data-exam-visibility]').forEach(el => { update[el.dataset.examVisibility] = el.checked; });
       host.querySelectorAll('[data-exam-schedule]').forEach(el => {
@@ -3197,13 +3217,32 @@ escapeHtml(statusLabel) + '</span></div>' +
         notify('परीक्षा सेटिंग सेव हो गईं।', 'success');
       } catch (error) {
         console.error('Exam settings save failed:', error);
-        notify('सेटिंग सेव नहीं हुईं। Firestore rules में Owner write permission जाँचें।', 'error');
+        notify(error?.message || 'सेटिंग सेव नहीं हुईं। Firestore rules में Owner write permission जाँचें।', 'error');
+      } finally {
+        saveButton.dataset.saving = 'false';
+        saveButton.disabled = false;
       }
     });
-    host.querySelector('[data-owner-save-maintenance]')?.addEventListener('click', async () => {
+    host.querySelector('[data-owner-save-maintenance]')?.addEventListener('click', async event => {
       if (!requireOwner()) return;
+      const saveButton = event.currentTarget;
+      if (saveButton.dataset.saving === 'true') return;
+      saveButton.dataset.saving = 'true';
+      saveButton.disabled = true;
+      const requestedMode = String(
+        host.querySelector('[data-maintenance-mode]')?.value || 'off'
+      );
+      const allowedMaintenanceModes = new Set([
+        'off', 'both', 'web_only', 'phone_only'
+      ]);
+      if (!allowedMaintenanceModes.has(requestedMode)) {
+        saveButton.dataset.saving = 'false';
+        saveButton.disabled = false;
+        notify('अमान्य maintenance mode चुना गया है।', 'error');
+        return;
+      }
       const update = {
-        globalMode: host.querySelector('[data-maintenance-mode]')?.value || 'off',
+        globalMode: requestedMode,
         message: String(host.querySelector('[data-maintenance-message]')?.value || '').trim().slice(0, 500),
         updatedAt: serverTimestamp(),
         updatedBy: state.user.uid
@@ -3216,6 +3255,9 @@ escapeHtml(statusLabel) + '</span></div>' +
       } catch (error) {
         console.error('Maintenance settings save failed:', error);
         notify('रखरखाव सेटिंग सेव नहीं हुईं। Firestore rules जाँचें।', 'error');
+      } finally {
+        saveButton.dataset.saving = 'false';
+        saveButton.disabled = false;
       }
     });
     host.querySelector('[data-owner-refresh]')?.addEventListener('click', () => {
@@ -3760,6 +3802,7 @@ if (status) {
               'Roll Number': r.rollNumber || '',
               'Full Name': r.name || '',
               "Father's Name": r.fatherName || r.fathersName || '',
+              'Date of Birth': r.dateOfBirth ?? r.dob ?? r.birthDate ?? '',
               'Phone Number': normalizeStudentPhone(r.studentPhone || r.phone || r.mobile || ''),
               'Email': r.email || '',
               'Assigned Exam Set': r.questionSet || '',
@@ -3809,6 +3852,7 @@ if (status) {
             'Roll Number': d.rollNumber || d.roll || d.admissionRollNumber || '',
             'Full Name': d.fullName || d.name || d.displayName || '',
             "Father's Name": d.fatherName || d.fathersName || '',
+            'Date of Birth': d.dateOfBirth ?? d.dob ?? d.birthDate ?? '',
             'Phone Number': normalizeStudentPhone(d.phone || d.phoneNumber || d.mobile || d.studentPhone || ''),
             'Email': d.email || '',
             'Assigned Exam Set': d.questionSet || d.examSet || d.assignedExamSet || state.examConfig?.mainQuestionSet || 'set1',
@@ -6415,7 +6459,7 @@ window.toggleAuthPassword = function (id, button) {
 
   const optionsRaw = item.options ?? item.Options ?? item.opts;
 
-  const options = Array.isArray(optionsRaw)
+  const options = (Array.isArray(optionsRaw)
     ? optionsRaw
     : [
         item.A ?? item.a ?? item.optionA,
@@ -6426,8 +6470,12 @@ window.toggleAuthPassword = function (id, button) {
         value =>
           value !== undefined &&
           value !== null &&
-          String(value).trim() !== ''
-      );
+          String(typeof value === 'object' ? (value.text || value.label || value.value || '') : value).trim() !== ''
+      ))
+    .map(option => typeof option === 'object'
+      ? String(option.text || option.label || option.value || '').trim()
+      : String(option).trim())
+    .filter(Boolean);
 
   const rawAnswer =
     item.correctAnswer ??
@@ -6492,9 +6540,16 @@ window.toggleAuthPassword = function (id, button) {
   const validNegativeMarks =
     Number.isFinite(negativeMarks) && negativeMarks >= 0;
 
+  const normalizedOptionTexts = options.map(option =>
+    String(option).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
+  );
+  const hasDuplicateOptions =
+    new Set(normalizedOptionTexts).size !== normalizedOptionTexts.length;
+
   const errors = [
     !question ? 'प्रश्न खाली है' : '',
     options.length < 2 ? 'कम से कम दो विकल्प चाहिए' : '',
+    hasDuplicateOptions ? 'विकल्पों में duplicate text है' : '',
     !validAnswer
       ? 'सही उत्तर A/B/C/D या विकल्प संख्या में दें'
       : '',
@@ -6628,6 +6683,10 @@ window.BishnoiApp.importExamQuestions = async function (
     throw new Error('Set 1 से Set 4 में से सेट चुनें।');
   }
 
+  if (!Array.isArray(rows) || rows.length > 2000) {
+    throw new Error('एक बार में अधिकतम 2000 प्रश्न अपलोड करें।');
+  }
+
   const preview = window.BishnoiApp.previewQuestionImport(
     rows,
     questionSet
@@ -6735,6 +6794,12 @@ window.BishnoiApp.importExamQuestions = async function (
 
   window.BishnoiApp.importExamQuestionFile = async function(file, target, questionSet = 'set1', options = {}) {
     if (!file) throw new Error('पहले JSON, CSV या Excel फ़ाइल चुनें।');
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      throw new Error('चुनी गई फ़ाइल खाली या पढ़ने योग्य नहीं है।');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('Question file अधिकतम 10 MB की हो सकती है।');
+    }
     const name = String(file.name || '').toLowerCase();
     let rows;
     if (name.endsWith('.json')) {
@@ -6775,6 +6840,9 @@ window.BishnoiApp.importExamQuestions = async function (
     Object.keys(safePatch).forEach(key => {
       if (key.endsWith('QuestionSet') && !VALID_QUESTION_SETS.has(String(safePatch[key]))) throw new Error(key + ' के लिए Set 1-4 चुनें।');
       if (key.endsWith('DurationMinutes') && (!Number.isFinite(Number(safePatch[key])) || Number(safePatch[key]) < 1 || Number(safePatch[key]) > 360)) throw new Error('परीक्षा अवधि 1 से 360 मिनट के बीच होनी चाहिए।');
+      if (key === 'maintenanceMode' && !['off', 'both', 'web_only', 'phone_only'].includes(String(safePatch[key]))) {
+        throw new Error('अमान्य maintenance mode चुना गया है।');
+      }
     });
     safePatch.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     safePatch.updatedBy = state.user.uid;
@@ -6788,7 +6856,10 @@ window.BishnoiApp.importExamQuestions = async function (
     const data = Array.isArray(rows) ? rows : [];
     const headers = [...new Set(data.flatMap(row => Object.keys(row || {})))];
     const escapeCell = value => {
-      const textValue = value == null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+      let textValue = value == null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+      if (typeof value !== 'number' && /^[\t\r ]*[=+@-]/.test(textValue)) {
+        textValue = "'" + textValue;
+      }
       return '"' + textValue.replace(/"/g, '""') + '"';
     };
     const csv = [headers.map(escapeCell).join(','), ...data.map(row => headers.map(key => escapeCell(row[key])).join(','))].join('\r\n');
@@ -6824,9 +6895,13 @@ window.BishnoiApp.importExamQuestions = async function (
       headers.map(key => {
         const value = row?.[key];
         if (value == null) return '';
-        return typeof value === 'object'
+        const cellValue = typeof value === 'object'
           ? JSON.stringify(value)
           : value;
+        if (typeof cellValue === 'string' && /^[\t\r ]*[=+@-]/.test(cellValue)) {
+          return "'" + cellValue;
+        }
+        return cellValue;
       })
     );
 
