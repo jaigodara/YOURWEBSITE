@@ -799,8 +799,14 @@ notify(
           await loadUserProfile(user);
           window.restoreActiveExamForUser();
           if (state.profile?.mala && typeof state.profile.mala === 'object') {
-            state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
-            state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
+            const remoteMala = state.profile.mala;
+            state.mala.count = Math.min(107, Math.max(0, Number(remoteMala.count) || 0));
+            state.mala.laps = Math.max(0, Number(remoteMala.laps) || 0);
+            if (remoteMala.dateKey === localDateKey()) {
+              state.mala.dailyCount = Math.max(Number(state.mala.dailyCount) || 0, Number(remoteMala.dailyCount) || 0);
+            }
+            state.mala.dailyGoal = Math.min(10000, Math.max(1, Number(remoteMala.dailyGoal) || Number(state.mala.dailyGoal) || 108));
+            state.mala.dailyDate = localDateKey();
             try { localStorage.setItem('bishnoi_mala_v2', JSON.stringify({ ...state.mala, date: localDateKey() })); } catch (_) {}
             window.renderMala();
           }
