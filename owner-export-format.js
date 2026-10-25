@@ -213,6 +213,35 @@
       };
     }
 
+    if (type === 'roleAuditLogs') {
+      const actionLabels = {
+        invitation_created: 'संपादक आमंत्रण बनाया',
+        editor_removed: 'संपादक भूमिका हटाई'
+      };
+      return {
+        title: 'सहायक संपादक अनुमति ऑडिट रिपोर्ट',
+        subtitle: 'जारी तिथि: ' + date + ' | कुल ऑडिट रिकॉर्ड: ' + rows.length,
+        orientation: 'landscape',
+        columns: ['क्र. सं.', 'कार्रवाई', 'संपादक का नाम', 'मोबाइल के अंतिम 4 अंक', 'अनुमतियाँ', 'परिवर्तनकर्ता', 'दिनांक / समय'],
+        rows: rows.map((row, index) => {
+          const p = row.permissions || {};
+          return {
+            'क्र. सं.': index + 1,
+            'कार्रवाई': actionLabels[valueOf(row, ['action'])] || 'अनुमति परिवर्तन',
+            'संपादक का नाम': valueOf(row, ['targetName']) || '—',
+            'मोबाइल के अंतिम 4 अंक': valueOf(row, ['targetPhoneLast4']) || '—',
+            'अनुमतियाँ': [
+              p.media && 'मीडिया',
+              p.quizDrafts && 'क्विज़ Draft',
+              p.examReview && 'परीक्षा जाँच',
+              p.notifications && 'सूचनाएँ'
+            ].filter(Boolean).join(', ') || 'कोई अतिरिक्त अधिकार नहीं',
+            'परिवर्तनकर्ता': valueOf(row, ['changedByName']) || 'व्यवस्थापक',
+            'दिनांक / समय': dateText(valueOf(row, ['changedAt'])) || '—'
+          };
+        })
+      };
+    }
     if (type === 'live_violations') {
       const formatted = rows.map(row => ({
         'Time': dateText(valueOf(row, ['occurredAtMs', 'timestamp', 'createdAt', 'occurredAt'])),
