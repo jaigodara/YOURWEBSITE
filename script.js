@@ -1687,6 +1687,55 @@ pdf.addImage(
           }
         });
         card.appendChild(acceptEditorButton);
+        const declineEditorButton = document.createElement('button');
+declineEditorButton.type = 'button';
+declineEditorButton.className =
+  'ml-2 inline-flex items-center justify-center rounded-lg border border-red-300 px-4 py-2 text-xs font-bold text-red-800';
+declineEditorButton.textContent = '✕ Decline invitation';
+
+declineEditorButton.addEventListener('click', async () => {
+  if (!state.user || !confirm('क्या आप यह Editor invitation अस्वीकार करना चाहते हैं?')) {
+    return;
+  }
+
+  declineEditorButton.disabled = true;
+
+  try {
+    const inviteRef = collection('pending_editors').doc(item.invitationId);
+    const inviteSnap = await inviteRef.get();
+
+    if (!inviteSnap.exists) {
+      throw new Error('Invitation नहीं मिला।');
+    }
+
+    const invite = inviteSnap.data() || {};
+
+    if (
+      invite.status !== 'pending' ||
+      invite.targetUid !== state.user.uid
+    ) {
+      throw new Error('यह invitation अब pending नहीं है या आपके खाते का नहीं है।');
+    }
+
+    await inviteRef.update({
+      status: 'declined',
+      declinedUid: state.user.uid,
+      declinedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    markNotificationsRead([item]);
+    notify('Invitation अस्वीकार कर दिया गया।', 'success');
+  } catch (error) {
+    console.error('Declining editor invitation failed:', error);
+    notify(
+      error.message || 'Invitation अस्वीकार नहीं हुआ। Firestore rules जाँचें।',
+      'error'
+    );
+    declineEditorButton.disabled = false;
+  }
+});
+
+card.appendChild(declineEditorButton);
       }
       if ((item.fileUrl || item.filePath) && item.fileType?.startsWith('image/')) {
         const image = document.createElement('img');
@@ -1822,8 +1871,19 @@ pdf.addImage(
       Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) ||
       notificationTime(b) - notificationTime(a)
     );
+    const accountCreatedAt = Date.parse(
+  state.user?.metadata?.creationTime || ''
+);
+
+const notificationsForThisAccount =
+  Number.isFinite(accountCreatedAt) && accountCreatedAt > 0
+    ? sortedItems.filter(item => {
+        const publishedAt = notificationTime(item);
+        return !publishedAt || publishedAt >= accountCreatedAt;
+      })
+    : sortedItems;
     const seenAdmitExamKeys = new Set();
-    const items = sortedItems.filter(item => {
+    const items = notificationsForThisAccount.filter(item => {
       const text = [item.type, item.title, item.message, item.body].filter(Boolean).join(' ');
       const isAdmitNotice = /admit-card|प्रवेश.?पत्र/i.test(text);
       if (!isAdmitNotice) return true;
@@ -1845,7 +1905,11 @@ pdf.addImage(
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
     if (!Array.isArray(seen)) seen = [];
     seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
-    const unseen = items.filter(item => !seen.includes(item._key));
+    const inboxItems = items.filter(item =>
+  !(item._key.startsWith('private:') && seen.includes(item._key))
+);
+
+const unseen = inboxItems.filter(item => !seen.includes(item._key));
     const badge = byId('notificationUnreadCount');
     if (badge) {
       badge.textContent = unseen.length > 99 ? '99+' : String(unseen.length);
@@ -1860,7 +1924,7 @@ pdf.addImage(
 
     renderNotificationCards(
       list,
-      items.slice(0, visibleLimit).map(item => ({
+      inboxItems.slice(0, visibleLimit).map(item => ({
         ...item,
         _isRead: seen.includes(item._key)
       }))
@@ -1888,9 +1952,9 @@ pdf.addImage(
     }
 
        if (moreButton) {
-      moreButton.hidden = items.length <= visibleLimit;
-      moreButton.textContent =
-        'और दिखाएँ (' + Math.max(0, items.length - visibleLimit) + ' बाकी)';
+     moreButton.hidden = inboxItems.length <= visibleLimit;
+moreButton.textContent =
+  'और दिखाएँ (' + Math.max(0, inboxItems.length - visibleLimit) + ' बाकी)';
     }
 
     let readAll = byId('markAllNotificationsRead');
@@ -3047,11 +3111,27 @@ window.renderExamVisibility = function renderExamVisibility() {
             p.examReview ? 'Exam Checking' : '',
             p.notifications ? 'Notifications' : ''
           ].filter(Boolean).join(' · ') || 'No permissions';
-          const claimed = row.status === 'claimed';
+         const claimed = row.status === 'claimed';
+const declined = row.status === 'declined';
+const revoked = row.status === 'revoked';
+
+const statusLabel = claimed
+  ? 'Accepted'
+  : declined
+    ? 'Declined'
+    : revoked
+      ? 'Revoked'
+      : row.status || 'Pending';
+
+const statusClasses = claimed
+  ? 'bg-emerald-200 text-emerald-950'
+  : declined || revoked
+    ? 'bg-red-100 text-red-900'
+    : 'bg-amber-200 text-amber-950';
           return '<article class="rounded-xl border p-3 ' + (claimed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50') + '">' +
             '<div class="flex flex-wrap items-start justify-between gap-2"><strong>' + escapeHtml(row.fullName || 'Assistant Editor') + '</strong>' +
-            '<span class="rounded-full px-2 py-1 text-xs font-bold ' + (claimed ? 'bg-emerald-200 text-emerald-950' : 'bg-amber-200 text-amber-950') + '">' +
-            (claimed ? 'Accepted' : escapeHtml(row.status || 'pending')) + '</span></div>' +
+            '<span class="rounded-full px-2 py-1 text-xs font-bold ' + statusClasses + '">' +
+escapeHtml(statusLabel) + '</span></div>' +
             '<p class="mt-1 text-xs text-stone-600">Phone: ' + escapeHtml(row.phone || '') + (row.email ? ' · ' + escapeHtml(row.email) : '') + '</p>' +
             '<p class="mt-1 text-xs text-stone-600">' + escapeHtml(labels) + '</p>' +
             (row.claimedUid ? '<p class="mt-1 text-xs text-emerald-800">Role accepted and linked to the signed-in Firebase account.</p>' : '<p class="mt-1 text-xs text-stone-500">Awaiting acceptance on verified phone login.</p>') +
@@ -3506,17 +3586,15 @@ const score = Number(rawScore);
             const total = Number(button.dataset.total);
             const uid = button.dataset.uid;
 if (
-  rawScore === '' ||
-  !Number.isFinite(score) ||
   !Number.isFinite(total) ||
   total <= 0 ||
+  !Number.isFinite(score) ||
   score < 0 ||
   score > total ||
-  !Number.isInteger(score * 2)
+  Math.abs(score * 2 - Math.round(score * 2)) > 0.000001
 ) {
   return notify(
-    'अंक खाली न छोड़ें। 0 से ' + total +
-    ' के बीच अंक दर्ज करें; अधिकतम 0.5 के अंतर से।',
+    'अंक 0 से ' + total + ' के बीच दर्ज करें। अंक 0.5 के अंतर से भरें।',
     'error'
   );
 }
@@ -3576,6 +3654,9 @@ mode,
 
 notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
 
+// Remove this evaluated sheet from the active checking queue.
+card.remove();
+              
 if (card) {
   card.remove();
 }
