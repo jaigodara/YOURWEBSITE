@@ -330,6 +330,55 @@ test("Firestore security rules regression suite", async (t) => {
         admitCardReleasedAt: serverTimestamp(),
       }));
     });
+
+    await t.test("admit-card QR verification is public get-only and exposes minimal fields", async () => {
+      await reset();
+      const token = "a".repeat(48);
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(setDoc(doc(ownerDb, "publicAdmitCardVerifications", token), {
+        rollNumber: "JAMBH-2026-0001",
+        examTitle: "मुख्य परीक्षा",
+        status: "valid",
+        issuedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 86_400_000),
+      }));
+      const publicDb = env.unauthenticatedContext().firestore();
+      const verification = await assertSucceeds(getDoc(doc(publicDb, "publicAdmitCardVerifications", token)));
+      assert.equal(verification.data().rollNumber, "JAMBH-2026-0001");
+      assert.equal(verification.data().examTitle, "मुख्य परीक्षा");
+      assert.deepEqual(Object.keys(verification.data()).sort(), ['examTitle', 'expiresAt', 'issuedAt', 'rollNumber', 'status'].sort());
+      await assertFails(getDocs(collection(publicDb, "publicAdmitCardVerifications")));
+      await assertFails(setDoc(doc(publicDb, "publicAdmitCardVerifications", "b".repeat(48)), {
+        rollNumber: "JAMBH-2026-0002",
+        examTitle: "मुख्य परीक्षा",
+        status: "valid",
+        issuedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 86_400_000),
+      }));
+      await assertFails(setDoc(doc(env.authenticatedContext(STUDENT).firestore(), "publicAdmitCardVerifications", "c".repeat(48)), {
+        rollNumber: "JAMBH-2026-0003",
+        examTitle: "मुख्य परीक्षा",
+        status: "valid",
+        issuedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 86_400_000),
+      }));
+    });
+
+    await t.test("expired admit-card QR verification cannot be read publicly", async () => {
+      await reset();
+      const token = "d".repeat(48);
+      await env.withSecurityRulesDisabled(async ctx => {
+        await setDoc(doc(ctx.firestore(), "publicAdmitCardVerifications", token), {
+          rollNumber: "JAMBH-2026-0001",
+          examTitle: "मुख्य परीक्षा",
+          status: "valid",
+          issuedAt: Timestamp.fromMillis(Date.now() - 172_800_000),
+          expiresAt: Timestamp.fromMillis(Date.now() - 86_400_000),
+        });
+      });
+      const publicDb = env.unauthenticatedContext().firestore();
+      await assertFails(getDoc(doc(publicDb, "publicAdmitCardVerifications", token)));
+    });
   } finally {
     await env.cleanup();
   }
