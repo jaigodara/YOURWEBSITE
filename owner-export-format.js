@@ -120,7 +120,26 @@
         rows: formatted
       };
     }
-    if (['mainExamSubmissions', 'mockExamSubmissions', 'quizAttempts', 'publishedResults', 'reviews'].includes(type)) {
+    if (type === 'reviews') {
+      return {
+        title: 'मैन्युअल उत्तर-पत्र जाँच एवं टिप्पणी रिपोर्ट',
+        subtitle: 'जारी तिथि: ' + date + ' | कुल जाँचे / समीक्षाधीन रिकॉर्ड: ' + rows.length,
+        orientation: 'landscape',
+        columns: ['क्र. सं.', 'अनुक्रमांक', 'विद्यार्थी का नाम', 'परीक्षा', 'प्राप्तांक', 'जाँच स्थिति', 'जाँचकर्ता', 'जाँच टिप्पणी / कारण', 'जाँच दिनांक'],
+        rows: rows.map((row, index) => ({
+          'क्र. सं.': index + 1,
+          'अनुक्रमांक': valueOf(row, ['rollNumber', 'roll_number', 'roll', 'Roll Number']) || '—',
+          'विद्यार्थी का नाम': valueOf(row, ['fullName', 'displayName', 'studentName', 'name', 'Student Name']) || '—',
+          'परीक्षा': setText(row),
+          'प्राप्तांक': valueOf(row, ['checkedScore', 'finalMarks', 'score', 'marks', 'obtainedMarks', 'Marks']) || '—',
+          'जाँच स्थिति': valueOf(row, ['manualCheckStatus', 'reviewStatus', 'status', 'resultStatus']) || 'समीक्षाधीन',
+          'जाँचकर्ता': actorLabel(row) === '—' ? '—' : 'व्यवस्थापक / संपादक',
+          'जाँच टिप्पणी / कारण': valueOf(row, ['checkingReason', 'reviewReason', 'feedback', 'remarks', 'reason', 'comment']) || '—',
+          'जाँच दिनांक': dateText(valueOf(row, ['reviewedAt', 'checkedAt', 'updatedAt', 'createdAt'])) || '—'
+        }))
+      };
+    }
+    if (['mainExamSubmissions', 'mockExamSubmissions', 'quizAttempts', 'publishedResults'].includes(type)) {
       const ranked = rows.map(row => ({
         row,
         score: (() => { const rawScore = valueOf(row, ['finalMarks', 'checkedScore', 'score', 'marks', 'obtainedMarks', 'Marks']); return rawScore === '' ? NaN : Number(rawScore); })()
