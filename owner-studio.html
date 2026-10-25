@@ -1628,10 +1628,16 @@ if (environmentEl) {
       if (!firebase.storage) throw new Error('Firebase Storage SDK लोड नहीं हुआ।');
       const isPdf = kind === 'pdf';
       const maxBytes = (isPdf ? 25 : 30) * 1024 * 1024;
-      const validPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-      const validAudio = /^audio\//i.test(file.type) || /\.(mp3|m4a|ogg|wav|aac|mp4)$/i.test(file.name);
+      const extension = String(file.name || '').split('.').pop().toLowerCase();
+      const validPdf = extension === 'pdf' &&
+        (!file.type || file.type.toLowerCase() === 'application/pdf');
+      const validAudio = ['mp3', 'm4a', 'ogg', 'wav', 'aac', 'mp4'].includes(extension) &&
+        (!file.type || /^audio\//i.test(file.type) ||
+          (extension === 'mp4' && file.type === 'video/mp4') ||
+          (extension === 'ogg' && file.type === 'application/ogg'));
+      if (!Number.isFinite(file.size) || file.size <= 0) throw new Error('खाली या अमान्य फ़ाइल अपलोड नहीं की जा सकती।');
       if (file.size > maxBytes) throw new Error(isPdf ? 'PDF 25 MB से छोटी होनी चाहिए।' : 'ऑडियो 30 MB से छोटी होनी चाहिए।');
-      if (isPdf ? !validPdf : !validAudio) throw new Error(isPdf ? 'कृपया सही PDF फ़ाइल चुनें।' : 'कृपया सही ऑडियो फ़ाइल चुनें।');
+      if (isPdf ? !validPdf : !validAudio) throw new Error(isPdf ? 'PDF extension और MIME type सही होना चाहिए।' : 'ऑडियो extension और MIME type सही होना चाहिए।');
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-90) || (isPdf ? 'document.pdf' : 'bhajan.mp3');
       const path = 'publicMedia/' + (isPdf ? 'pdfs' : 'audios') + '/' + Date.now() + '-' + safeName;
       const ref = firebase.storage().ref().child(path);
@@ -2008,8 +2014,16 @@ if (environmentEl) {
       const status = document.getElementById('questionExcelStatus');
       const extensionMatch = String(file.name || '').match(/\.([^.]+)$/);
       const extension = extensionMatch ? extensionMatch[1].toLowerCase() : '';
-      if (!['json', 'xlsx', 'xls', 'csv'].includes(extension)) {
-        if (status) status.textContent = 'केवल JSON, Excel (.xlsx/.xls) या CSV फ़ाइल चुनें।';
+      const allowedMimeByExtension = {
+        json: ['application/json', 'text/json', ''],
+        xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream', ''],
+        xls: ['application/vnd.ms-excel', 'application/octet-stream', ''],
+        csv: ['text/csv', 'application/csv', 'application/vnd.ms-excel', 'text/plain', '']
+      };
+      const fileMime = String(file.type || '').toLowerCase();
+      if (!['json', 'xlsx', 'xls', 'csv'].includes(extension) ||
+          !(allowedMimeByExtension[extension] || []).includes(fileMime)) {
+        if (status) status.textContent = 'केवल सही प्रकार की JSON, Excel (.xlsx/.xls) या CSV फ़ाइल चुनें।';
         showToast('केवल JSON, Excel या CSV फ़ाइल चुनें।');
         if (event.target) event.target.value = '';
         return;
@@ -4839,8 +4853,10 @@ return review ? {
 
           const isEvaluated =
   d.manualReviewCompleted === true ||
-  d.manualReviewStatus === 'published' ||
-  d.manualReviewStatus === 'verified';
+  ['evaluated', 'completed', 'published', 'verified', 'released'].includes(
+    String(d.manualReviewStatus || d.reviewStatus || d.status || '').toLowerCase()
+  ) ||
+  d.reviewLocked === true;
           if (selectedStatus === 'evaluated' && !isEvaluated) {
             return false;
           }
