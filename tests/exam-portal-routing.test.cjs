@@ -38,8 +38,8 @@ test("portal navigation opens the selected section even before login; exam start
 
 test("exam schedule changes only publish notifications after explicit owner opt-in", () => {
   assert.match(ownerHtml, /id="ownerPublishExamNotifications" type="checkbox"/);
-  assert.match(ownerHtml, /const publishNotifications = document\\.getElementById\\('ownerPublishExamNotifications'\\)\\?\\.checked === true/);
-  assert.match(ownerHtml, /if \\(publishNotifications\\) for \\(const \\[title, message\\] of notices\\)/);
-  assert.match(ownerHtml, /if \\(publishNotifications\\) for \\(const \\[mode, startAt, oldStartAt, title, body\\] of startEvents\\)/);
-  assert.match(ownerHtml, /publishControl\\.checked = false/);
+  assert.match(ownerHtml, /const publishNotifications = document\.getElementById\('ownerPublishExamNotifications'\)\?\.checked === true/);
+  assert.match(ownerHtml, /if \(publishNotifications\) for \(const \[title, message\] of notices\)/);
+  assert.match(ownerHtml, /if \(publishNotifications\) for \(const \[mode, startAt, oldStartAt, title, body\] of startEvents\)/);
+  assert.match(ownerHtml, /publishControl\.checked = false/);
 });
