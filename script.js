@@ -5739,6 +5739,17 @@ window.toggleProfileMobilePassword = function (id, button) {
 
   button.setAttribute('aria-pressed', String(showPassword));
 };
+
+// Keep the login form's existing inline handler wired to the same safe toggle.
+window.toggleAuthPassword = function (id, button) {
+  const field = document.getElementById(id);
+  if (!field || !button) return;
+
+  const showPassword = field.type === 'password';
+  field.type = showPassword ? 'text' : 'password';
+  button.textContent = showPassword ? 'पासवर्ड छिपाएँ' : 'पासवर्ड दिखाएँ';
+  button.setAttribute('aria-pressed', String(showPassword));
+};
   authApi.saveProfile = async function () {
     if (!state.user || !state.db) return notify('पहले लॉगिन करें।', 'error');
     const name = (byId('profEditName')?.value || '').trim();

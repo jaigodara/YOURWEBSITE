@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>प्रबंधक कक्ष (Owner Studio) | विश्नोई समाज डिजिटल मंच</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 
   <!-- Tailwind CSS is compiled at build time for production. -->
   <link rel="stylesheet" href="/tailwind.generated.css">
@@ -1383,20 +1384,7 @@ if (environmentEl) {
       if (paneId === 'pane_overview' && isPrimaryOwner()) window.setTimeout(() => loadOwnerDataDashboard(), 0);
     }
 
-     if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
-  }
-
-  // Retry the public feed after other page scripts have initialized.
-  window.addEventListener('load', function retryPublicMediaFeed() {
-    if (window.BishnoiMedia && typeof window.BishnoiMedia.loadMediaFeed === 'function') {
-      window.BishnoiMedia.loadMediaFeed();
-    }
-  }, { once: true });
-})();
-    async function refreshStudioAnalytics() {
+         async function refreshStudioAnalytics() {
       try {
         if (!isPrimaryOwner()) {
           const dSnap = await db.collection('draftQueue').get();
@@ -1944,13 +1932,16 @@ if (environmentEl) {
         if (event.target) event.target.value = '';
         return;
       }
-      if (!window.XLSX) {
-        showToast('Excel/CSV library लोड नहीं हुई।');
+      const isJson = extension === 'json';
+      // JSON is parsed with the native JSON parser and must keep working even
+      // when the optional SheetJS CDN is unavailable. Only spreadsheet/CSV
+      // imports depend on XLSX.
+      if (!isJson && !window.XLSX) {
+        if (status) status.textContent = 'Excel/CSV library लोड नहीं हुई। JSON फ़ाइल अभी भी आयात की जा सकती है।';
+        showToast('Excel/CSV library लोड नहीं हुई। JSON फ़ाइल चुनें या नेटवर्क ठीक करके पुनः प्रयास करें।');
         if (event.target) event.target.value = '';
         return;
       }
-
-      const isJson = extension === 'json';
       const reader = new FileReader();
       if (status) status.textContent = 'फ़ाइल पढ़ी जा रही है और हर पंक्ति की जाँच हो रही है…';
       const panel = document.getElementById('questionImportValidation');

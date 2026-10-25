@@ -16,7 +16,7 @@ test("Owner Studio provides real Excel, CSV, and JSON export actions", () => {
 
 test("opening the exam pane does not automatically reload student answer sheets", () => {
   const start = ownerStudio.indexOf("function switchStudioPane(paneId)");
-  const end = ownerStudio.indexOf("\n    async function refreshStudioAnalytics()", start);
+  const end = ownerStudio.indexOf("async function refreshStudioAnalytics()", start);
   assert.ok(start >= 0 && end > start, "studio pane navigation function should exist");
   const navigation = ownerStudio.slice(start, end);
   assert.match(navigation, /if \(paneId === 'pane_exam'\)[\s\S]*loadExamSessionQueue\(\)/);
