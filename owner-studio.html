@@ -3734,8 +3734,21 @@ async function saveBulkQuestionDrafts() {
       save.id = 'currentReviewSave';
       save.type = 'button';
       save.className = 'p-3 rounded-lg bg-amber-400 text-stone-950 text-xs font-bold';
-      save.textContent = '✓ जाँच सहेजें';
-      save.addEventListener('click', () => saveCurrentExamReview(true));
+      save.textContent = '💾 ड्राफ्ट सहेजें';
+      save.addEventListener('click', () => {
+        decision.value = 'hold';
+        saveCurrentExamReview(true);
+      });
+      const approve = document.createElement('button');
+      approve.id = 'currentReviewApprove';
+      approve.type = 'button';
+      approve.className = 'p-3 rounded-lg bg-emerald-800 text-white text-xs font-extrabold';
+      approve.textContent = '✓ अंतिम अनुमोदन एवं लॉक';
+      approve.addEventListener('click', () => {
+        if (!confirm('क्या जाँच अंतिम रूप से स्वीकृत करके विद्यार्थी का परिणाम प्रकाशित करना है? पहले कुल अंक जाँच लें।')) return;
+        decision.value = 'publish';
+        saveCurrentExamReview(true);
+      });
       const next = document.createElement('button');
       next.type = 'button';
       next.className = 'p-3 rounded-lg bg-forest text-white text-xs font-bold';
@@ -3780,7 +3793,7 @@ next.addEventListener('click', async () => {
   }
 });
 
-      controls.append(previous, save, next);
+      controls.append(previous, save, approve, next);
       card.append(scoreLabel, decisionLabel, feedback, controls);
       list.append(searchWrap, top, card);
     }
