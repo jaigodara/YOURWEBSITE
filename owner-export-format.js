@@ -139,7 +139,7 @@
           : valueOf(row, ['violationCount', 'violationsCount', 'tabSwitchCount', 'tabSwitches', 'liveViolationCount', 'Violations']);
         return {
           'रैंक': rank === '—' ? '—' : '#' + rank,
-          'अनुक्रमांक': valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber']) || '—',
+          'अनुक्रमांक': valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber', 'Roll Number']) || '—',
           'परीक्षार्थी का नाम': valueOf(row, ['fullName', 'displayName', 'studentName', 'name', 'Student Name']) || '—',
           'कुल प्रश्न': valueOf(row, ['totalQuestions', 'questionCount', 'totalQuestion', 'Total Questions']) || '—',
           'सही उत्तर': valueOf(row, ['correctCount', 'correctAnswers', 'correct', 'Correct']) || 0,
@@ -148,7 +148,14 @@
           'प्राप्तांक': Number.isFinite(score) ? score : '—',
           'अधिकतम अंक': valueOf(row, ['maxMarks', 'maximumMarks', 'totalMarks', 'total', 'Total Marks']) || '—',
           'समय': valueOf(row, ['timeTakenText', 'timeTaken', 'durationText', 'durationMinutes', 'Time Taken']) || '—',
-          'परिणाम': valueOf(row, ['resultStatus', 'result', 'status', 'manualCheckStatus', 'Result']) || 'समीक्षाधीन'
+          'परिणाम': (() => {
+            const status = String(valueOf(row, ['resultStatus', 'result', 'status', 'manualCheckStatus', 'Result']) || '').toLowerCase();
+            if (/pass|merit|qualified|publish/.test(status)) return 'उत्तीर्ण / प्रकाशित';
+            if (/fail|reject/.test(status)) return 'अनुत्तीर्ण / अस्वीकृत';
+            if (/submit/.test(status)) return 'जमा';
+            if (/pending|review/.test(status) || !status) return 'समीक्षाधीन';
+            return valueOf(row, ['resultStatus', 'result', 'status', 'manualCheckStatus', 'Result']);
+          })()
         };
       });
       return {
