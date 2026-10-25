@@ -1383,20 +1383,7 @@ if (environmentEl) {
       if (paneId === 'pane_overview' && isPrimaryOwner()) window.setTimeout(() => loadOwnerDataDashboard(), 0);
     }
 
-     if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
-  }
-
-  // Retry the public feed after other page scripts have initialized.
-  window.addEventListener('load', function retryPublicMediaFeed() {
-    if (window.BishnoiMedia && typeof window.BishnoiMedia.loadMediaFeed === 'function') {
-      window.BishnoiMedia.loadMediaFeed();
-    }
-  }, { once: true });
-})();
-    async function refreshStudioAnalytics() {
+         async function refreshStudioAnalytics() {
       try {
         if (!isPrimaryOwner()) {
           const dSnap = await db.collection('draftQueue').get();
