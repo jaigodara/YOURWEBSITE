@@ -68,4 +68,6 @@ test('Owner Studio loads the formatter and renders paginated branded PDF pages',
   assert.ok(ownerHtml.includes('OFFICIAL REPORT'));
   assert.ok(ownerHtml.includes('Page '));
   assert.ok(ownerHtml.includes("const formatter = window.BishnoiExportFormatter"));
+  assert.ok(!ownerHtml.includes('function uploadIndividualAdmitCardPdf'), 'manual admit-card PDF upload handler should be removed');
+  assert.ok(!ownerHtml.includes('id="individualAdmitCardPdf"'), 'manual admit-card file input should not return');
 });
