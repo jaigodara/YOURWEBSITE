@@ -5097,6 +5097,163 @@ async function removeTrustedEditor(uid) {
     }
     window.publishPortalNotification = publishPortalNotification;
 
+    // Owner Studio: publish validated YouTube, Google Drive PDF, and HTTPS audio links.
+    async function saveMediaLink() {
+      const status = document.getElementById('mediaLinkStatus');
+      const button = document.querySelector('#ownerMediaLinkPublisher button');
+
+      const setStatus = (message, isError = false) => {
+        if (status) {
+          status.textContent = message;
+          status.style.color = isError ? '#b42318' : '';
+        }
+      };
+
+      if (button?.disabled) return;
+
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          setStatus('पहले Owner Studio में लॉगिन करें।', true);
+          return;
+        }
+
+        if (!isPrimaryOwner() && !hasEditorPermission('media')) {
+          setStatus('आपके खाते को Media/PDF/Audio प्रकाशित करने की अनुमति नहीं है।', true);
+          return;
+        }
+
+        const type = document.getElementById('mediaLinkType')?.value || '';
+        const title = (document.getElementById('mediaLinkTitle')?.value || '').trim();
+        const rawUrl = (document.getElementById('mediaLinkUrl')?.value || '').trim();
+
+        if (title.length < 1 || title.length > 180) {
+          setStatus('शीर्षक 1 से 180 अक्षरों के बीच रखें।', true);
+          return;
+        }
+
+        let parsed;
+        try {
+          parsed = new URL(rawUrl);
+        } catch {
+          setStatus('कृपया सही HTTPS लिंक दर्ज करें।', true);
+          return;
+        }
+
+        if (parsed.protocol !== 'https:') {
+          setStatus('सुरक्षा के लिए केवल HTTPS लिंक स्वीकार हैं।', true);
+          return;
+        }
+
+        let videoId = '';
+        let driveId = '';
+        let previewUrl = '';
+        let category = 'literature';
+
+        if (type === 'youtube') {
+          const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+          if (!['youtube.com', 'm.youtube.com', 'youtu.be', 'youtube-nocookie.com'].includes(host)) {
+            setStatus('YouTube वीडियो या Shorts का सही लिंक दें।', true);
+            return;
+          }
+
+          if (host === 'youtu.be') {
+            videoId = parsed.pathname.split('/').filter(Boolean)[0] || '';
+          } else {
+            const parts = parsed.pathname.split('/').filter(Boolean);
+            videoId = parsed.searchParams.get('v') ||
+              (['shorts', 'embed', 'live'].includes(parts[0]) ? parts[1] : '') || '';
+          }
+
+          if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+            setStatus('YouTube वीडियो ID पहचान नहीं हुई। पूरा वीडियो लिंक दें।', true);
+            return;
+          }
+
+          previewUrl = 'https://www.youtube-nocookie.com/embed/' + videoId;
+          category = 'bhajan';
+        } else if (type === 'pdf') {
+          const host = parsed.hostname.toLowerCase();
+          if (!['drive.google.com', 'docs.google.com'].includes(host)) {
+            setStatus('PDF के लिए Google Drive या Google Docs का HTTPS लिंक दें।', true);
+            return;
+          }
+
+          driveId =
+            parsed.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
+            parsed.pathname.match(/\/document\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
+            parsed.pathname.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
+            parsed.pathname.match(/\/presentation\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
+            parsed.searchParams.get('id') || '';
+
+          if (!/^[A-Za-z0-9_-]{10,}$/.test(driveId)) {
+            setStatus('Google Drive फ़ाइल ID नहीं मिली। Share link जाँचें।', true);
+            return;
+          }
+
+          previewUrl = 'https://drive.google.com/file/d/' + driveId + '/preview';
+          category = 'literature';
+        } else if (type === 'audio') {
+          if (!/\.(mp3|m4a|aac|ogg|wav|oga|opus)(?:$|[?#])/i.test(parsed.pathname + parsed.search)) {
+            setStatus('ऑडियो लिंक में mp3, m4a, aac, ogg या wav फ़ाइल होनी चाहिए।', true);
+            return;
+          }
+
+          category = 'bhajan';
+        } else {
+          setStatus('सामग्री का प्रकार चुनें।', true);
+          return;
+        }
+
+        if (button) button.disabled = true;
+        setStatus('सामग्री प्रकाशित की जा रही है…');
+
+        const record = {
+          title,
+          type,
+          category,
+          url: parsed.href,
+          active: true,
+          createdBy: user.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (videoId) {
+          record.videoId = videoId;
+          record.previewUrl = previewUrl;
+        }
+        if (driveId) {
+          record.driveId = driveId;
+          record.previewUrl = previewUrl;
+        }
+
+        await db.collection('platform_media').add(record);
+
+        const titleInput = document.getElementById('mediaLinkTitle');
+        const urlInput = document.getElementById('mediaLinkUrl');
+        if (titleInput) titleInput.value = '';
+        if (urlInput) urlInput.value = '';
+
+        setStatus('सामग्री प्रकाशित हो गई। सार्वजनिक फ़ीड लोड होने पर दिखाई देगी।');
+        if (typeof showToast === 'function') showToast('सामग्री प्रकाशित कर दी गई।');
+      } catch (error) {
+        console.error('Media publishing failed:', error);
+        setStatus(
+          error?.code === 'permission-denied'
+            ? 'अनुमति नहीं मिली। Owner role और Media editor permission जाँचें।'
+            : 'प्रकाशन विफल: ' + (error?.message || 'अज्ञात त्रुटि'),
+          true
+        );
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    window.BishnoiMedia = Object.assign(window.BishnoiMedia || {}, {
+      saveMediaLink
+    });
+
     function handleStudioLogout() {
       auth.signOut().then(() => {
         window.location.href = "index.html";
