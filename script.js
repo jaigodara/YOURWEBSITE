@@ -3899,6 +3899,7 @@ const digits = String(value || '').replace(/\D/g, '');
     state.exam.visibilityHandler = () => {
       if (!state.exam.active || document.visibilityState !== 'hidden') return;
       state.exam.tabSwitches = (state.exam.tabSwitches || 0) + 1;
+      recordLiveExamViolation('tab_switch', 'Document became hidden; count=' + state.exam.tabSwitches);
       persistActiveExam();
       notify('परीक्षा टैब बदला गया: ' + state.exam.tabSwitches + '/' + CONFIG.maxTabSwitches, 'error');
       if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
@@ -4019,6 +4020,7 @@ const digits = String(value || '').replace(/\D/g, '');
 
   window.stopExamResources = function stopExamResources() {
     const exam = state.exam;
+    if (typeof exam.integrityCleanup === 'function') exam.integrityCleanup();
 
     if (exam.timer) clearInterval(exam.timer);
     if (exam.proctorTimer) clearInterval(exam.proctorTimer);
@@ -4226,6 +4228,103 @@ const digits = String(value || '').replace(/\D/g, '');
     if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function recordLiveExamViolation(type, detail = '') {
+    const exam = state.exam;
+    if (!state.user || !exam?.active || exam.submitted) return;
+    const identity = getStudentIdentity();
+    const record = {
+      uid: state.user.uid,
+      mode: String(exam.mode || ''),
+      name: identity.name || state.user.displayName || state.user.email || 'विद्यार्थी',
+      rollNumber: identity.rollNumber || '',
+      studentPhone: identity.phone || '',
+      type: String(type).slice(0, 60),
+      detail: String(detail || '').slice(0, 240),
+      occurredAtMs: Date.now(),
+      createdAt: serverTimestamp()
+    };
+    collection('live_violations').add(record).catch(error => {
+      console.warn('Live exam violation could not be written; check live_violations Firestore rules.', error);
+    });
+  }
+
+  function installExamIntegrityGuards() {
+    const exam = state.exam;
+    const workspace = byId('portalExamWorkspace');
+    if (!exam?.active || !workspace || exam.integrityCleanup) return;
+
+    let status = byId('examConnectionStatus');
+    if (!status) {
+      status = document.createElement('div');
+      status.id = 'examConnectionStatus';
+      status.className = 'hidden rounded-xl border px-3 py-2 text-xs font-bold';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      workspace.prepend(status);
+    }
+
+    const showConnection = online => {
+      status.classList.remove('hidden', 'border-red-300', 'bg-red-50', 'text-red-800', 'border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
+      if (online) {
+        status.classList.add('border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
+        status.textContent = '✓ इंटरनेट पुनः जुड़ गया है। आपके उत्तर स्थानीय बैकअप में सुरक्षित हैं; जमा करने के लिए कनेक्शन बनाए रखें।';
+      } else {
+        status.classList.add('border-red-300', 'bg-red-50', 'text-red-800');
+        status.textContent = '⚠ इंटरनेट बंद है। उत्तर बदलते रहें—वे इस डिवाइस के स्थानीय बैकअप में सुरक्षित हो रहे हैं।';
+      }
+    };
+
+    const preventClipboard = event => {
+      if (!state.exam?.active || state.exam.submitted || !event.target?.closest?.('#portalExamWorkspace')) return;
+      event.preventDefault();
+      if (event.type === 'contextmenu' || event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
+        notify('परीक्षा के दौरान कॉपी/कट/पेस्ट और राइट-क्लिक बंद हैं।', 'error');
+      }
+    };
+    const fullscreenChanged = () => {
+      if (!state.exam?.active || state.exam.submitted || document.fullscreenElement) return;
+      recordLiveExamViolation('fullscreen_exit', 'Fullscreen mode exited');
+      notify('फुल-स्क्रीन से बाहर निकलना प्रॉक्टरिंग उल्लंघन के रूप में दर्ज हुआ।', 'error');
+    };
+    const offline = () => {
+      if (!state.exam?.active || state.exam.submitted) return;
+      persistActiveExam();
+      showConnection(false);
+    };
+    const online = () => {
+      if (!state.exam?.active || state.exam.submitted) return;
+      persistActiveExam();
+      showConnection(true);
+      if (Date.now() >= state.exam.endAt) window.submitPortalExam(true);
+    };
+
+    workspace.style.userSelect = 'none';
+    workspace.style.webkitUserSelect = 'none';
+    ['copy', 'cut', 'paste', 'contextmenu', 'selectstart'].forEach(type => document.addEventListener(type, preventClipboard, true));
+    document.addEventListener('fullscreenchange', fullscreenChanged);
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', online);
+    if (!navigator.onLine) showConnection(false);
+
+    // Fullscreen is best-effort: browsers and embedded WebViews may reject it.
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {
+        notify('यह ब्राउज़र फुल-स्क्रीन लॉक की अनुमति नहीं देता; परीक्षा खुली रहेगी और टैब बदलाव की निगरानी जारी रहेगी।', 'error');
+      });
+    }
+
+    exam.integrityCleanup = () => {
+      ['copy', 'cut', 'paste', 'contextmenu', 'selectstart'].forEach(type => document.removeEventListener(type, preventClipboard, true));
+      document.removeEventListener('fullscreenchange', fullscreenChanged);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('online', online);
+      workspace.style.userSelect = '';
+      workspace.style.webkitUserSelect = '';
+      status.classList.add('hidden');
+      exam.integrityCleanup = null;
+    };
+  }
+
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
     if (state.profile?.gmailVerified !== true) {
@@ -4406,6 +4505,7 @@ const digits = String(value || '').replace(/\D/g, '');
 
       ensureExamWorkspace(mode);
       setVisible('portalExamWorkspace', true);
+      installExamIntegrityGuards();
       ['enrollmentSection', 'myResultsPanel', 'dailyQuizSection', 'mockHub', 'mainExamSection']
         .forEach(id => setVisible(id, false));
       setVisible('previousQuestionBtn', true);
