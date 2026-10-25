@@ -1924,7 +1924,9 @@ const notificationsForThisAccount =
     state.profile?.createdAt || state.profile?.registrationDate || state.profile?.registeredAt
   );
   const notificationTime = timestampMillis(item.createdAt);
-  const isBroadcast = !isPersonalNotification && item.uid === 'ALL';
+  const isBroadcast =
+    !isPersonalNotification &&
+    (item.uid === 'ALL' || item.uid == null || item.uid === '');
   const predatesRegistration = isBroadcast && registrationTime > 0 &&
     notificationTime > 0 && notificationTime < registrationTime;
 
