@@ -49,3 +49,13 @@ test('Owner controls Fisher-Yates question and option shuffling', () => {
   assert.match(script, /const shuffled = options\.map\(\(option, oldIndex\) => \(\{ option, oldIndex \}\)\)/);
   assert.match(script, /const newCorrectIndex = shuffled\.findIndex\(item => item\.oldIndex === oldCorrectIndex\)/);
 });
+
+test('Exam checking supports per-question score overrides, draft save, and final review lock', () => {
+  assert.match(owner, /const setQuestionScore = value =>/);
+  assert.match(owner, /\['\+1', 1\], \['0', 0\]/);
+  assert.match(owner, /questionScores: d\.questionScores \|\| \{\}/);
+  assert.match(owner, /reviewLocked: finalLock === true/);
+  assert.match(owner, /textContent = '💾 ड्राफ्ट सहेजें'/);
+  assert.match(owner, /textContent = '✓ अंतिम अनुमोदन एवं लॉक'/);
+  assert.match(owner, /Owner: लॉक हटाएँ/);
+});
