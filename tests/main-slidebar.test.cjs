@@ -33,7 +33,7 @@ test('Digital Jap Mala persists an offline daily goal and updates progress', () 
   assert.ok(html.includes('id="malaDailyGoalProgress"'));
   assert.match(script, /dailyCount/);
   assert.match(script, /dailyGoal/);
-  assert.match(script, /window\.setMalaDailyGoal = function/);
+  assert.match(script, /window\.BishnoiApp\.setMalaDailyGoal = window\.setMalaDailyGoal = function/);
   assert.match(script, /localStorage\.setItem\('bishnoi_mala_v2'/);
   assert.match(script, /navigator\.vibrate/);
 });
