@@ -16,9 +16,9 @@ test('answer key report uses purpose-specific columns and human-readable option 
     mobile: ''
   }]);
   assert.deepEqual(report.columns, ['क्र. सं.', 'प्रश्न सेट', 'प्रश्न संदर्भ', 'सही विकल्प', 'अंतिम संशोधनकर्ता', 'संशोधन दिनांक']);
-  assert.equal(report.rows[0]['Exam / Set'], 'मुख्य परीक्षा — Set 1');
-  assert.equal(report.rows[0]['Correct Option'], 'विकल्प B');
-  assert.equal(report.rows[0]['प्रश्न संदर्भ'], 'Q-001');
+  assert.equal(report.rows[0]['प्रश्न सेट'], 'मुख्य परीक्षा — Set 1');
+  assert.equal(report.rows[0]['सही विकल्प'], 'विकल्प B');
+  assert.equal(report.rows[0]['प्रश्न संदर्भ'], '#rdP0ZXzS');
   assert.equal(report.rows[0]['अंतिम संशोधनकर्ता'], 'व्यवस्थापक / संपादक');
   assert.equal(JSON.stringify(report).includes('private-firebase-uid'), false);
   assert.equal(JSON.stringify(report).includes('rdP0ZXzSP9fGzm'), false);
@@ -33,7 +33,7 @@ test('student roster report only includes enrollment fields and approval status'
   assert.deepEqual(report.columns, ['आवंटित अनुक्रमांक', 'विद्यार्थी का नाम', 'पिता / अभिभावक', 'मोबाइल', 'प्रवेश स्थिति']);
   assert.equal(report.rows[0]['आवंटित अनुक्रमांक'], 'JAMBH-2026-0001');
   assert.equal(report.rows[0]['प्रवेश स्थिति'], 'स्वीकृत');
-  assert.equal(report.rows[1]['आवंटित अनुक्रमांक'], 'Pending');
+  assert.equal(report.rows[1]['आवंटित अनुक्रमांक'], 'लंबित');
   assert.equal(report.rows[1]['प्रवेश स्थिति'], 'समीक्षाधीन');
   assert.equal(JSON.stringify(report).includes('private-uid'), false);
 });
