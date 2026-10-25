@@ -1770,12 +1770,15 @@ if (environmentEl) {
 
       bulkQuestionDrafts.forEach((question, index) => {
         const card = document.createElement('article');
-        card.className = 'rounded-2xl border border-stone-200 bg-white p-3 space-y-2';
+        card.className = question.existingDuplicate
+          ? 'rounded-2xl border-2 border-amber-400 bg-amber-50 p-3 space-y-2'
+          : 'rounded-2xl border border-stone-200 bg-white p-3 space-y-2';
         const heading = document.createElement('div');
         heading.className = 'flex items-center justify-between gap-2';
         const label = document.createElement('strong');
         label.className = 'text-xs text-forest';
-        label.textContent = 'प्रश्न ' + (index + 1) + (question.id ? ' · मौजूदा प्रश्न संपादन' : ' · Draft Preview');
+        label.textContent = 'प्रश्न ' + (index + 1) + (question.id ? ' · मौजूदा प्रश्न संपादन' : ' · Draft Preview') +
+          (question.existingDuplicate ? ' · ⚠ डेटाबेस में डुप्लिकेट' : '');
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-700';
@@ -2169,7 +2172,7 @@ async function saveBulkQuestionDrafts() {
     return showToast('पहले प्रश्नों का Preview तैयार करें।');
   }
 
-  const drafts = bulkQuestionDrafts;
+  let drafts = [...bulkQuestionDrafts];
 
   if (drafts.some(q =>
     !String(q.q || '').trim() ||
@@ -2198,6 +2201,42 @@ async function saveBulkQuestionDrafts() {
       'प्रश्न ' + item.duplicate + ' (पहला ' + item.first + ')'
     ).join(', ');
     showToast('Draft में डुप्लिकेट प्रश्न-पाठ मिला: ' + detail + '। दोहराए प्रश्न सुधारें या हटाएँ।');
+    return;
+  }
+
+  // Compare normalized question text against existing Firestore records in cursor pages.
+  try {
+    const normalizeQuestionText = value => String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+    const existingKeys = new Set();
+    let cursor = null;
+    do {
+      let query = db.collection(target)
+        .orderBy(firebase.firestore.FieldPath.documentId())
+        .limit(400);
+      if (cursor) query = query.startAfter(cursor);
+      const page = await query.get();
+      page.forEach(doc => {
+        const row = doc.data() || {};
+        const text = normalizeQuestionText(row.q || row.question || row.questionText || row.text);
+        if (text) existingKeys.add(text);
+      });
+      cursor = page.docs.length === 400 ? page.docs[page.docs.length - 1] : null;
+    } while (cursor);
+
+    drafts.forEach(question => {
+      question.existingDuplicate = existingKeys.has(normalizeQuestionText(question.q));
+    });
+    const existingDuplicateCount = drafts.filter(question => question.existingDuplicate).length;
+    if (existingDuplicateCount) {
+      renderBulkQuestionPreview();
+      const uploadAnyway = confirm(
+        existingDuplicateCount + ' प्रश्न डेटाबेस में पहले से मौजूद हैं। OK = डुप्लिकेट सहित अपलोड करें; Cancel = डुप्लिकेट छोड़कर बाकी अपलोड करें।'
+      );
+      if (!uploadAnyway) drafts = drafts.filter(question => !question.existingDuplicate);
+      if (!drafts.length) return showToast('सभी प्रश्न डुप्लिकेट थे; कोई नया प्रश्न सहेजा नहीं गया।');
+    }
+  } catch (duplicateCheckError) {
+    showToast('डेटाबेस में डुप्लिकेट जाँच नहीं हो सकी: ' + duplicateCheckError.message + '। कोई प्रश्न सहेजा नहीं गया।');
     return;
   }
 
