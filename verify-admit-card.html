@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>प्रवेश-पत्र सत्यापन | Bishnoism</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Yatra+One&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;padding:24px;background:#faf7ee;color:#143622;font-family:"Plus Jakarta Sans",system-ui,sans-serif;display:grid;place-items:center}
+    main{width:min(100%,520px);background:#fff;border:1px solid #dbe5dc;border-radius:24px;padding:28px;box-shadow:0 18px 50px #14362212;text-align:center}
+    .mark{font-size:36px}h1{font-family:"Yatra One",serif;font-size:26px;margin:8px 0;color:#143622}p{color:#64748b;font-size:14px;line-height:1.7}
+    #verifyStatus{margin:20px 0;padding:14px;border-radius:14px;font-weight:700;background:#f1f5f9;color:#334155}
+    #verifyStatus.valid{background:#dcfce7;color:#166534}#verifyStatus.invalid{background:#fee2e2;color:#991b1b}
+    dl{text-align:left;display:grid;grid-template-columns:1fr;gap:12px;margin:20px 0}dl div{padding:12px;border:1px solid #e2e8f0;border-radius:12px}dt{font-size:11px;color:#64748b}dd{margin:5px 0 0;font-weight:700;overflow-wrap:anywhere}
+    .privacy{border-top:1px solid #e2e8f0;padding-top:14px;font-size:12px}
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <main>
+    <div class="mark">🌳</div>
+    <h1>प्रवेश-पत्र सत्यापन</h1>
+    <p>Bishnoism Digital Exam Council</p>
+    <div id="verifyStatus" role="status" aria-live="polite">सत्यापन रिकॉर्ड जाँचा जा रहा है…</div>
+    <dl id="verifyDetails" hidden>
+      <div><dt>रोल नंबर</dt><dd id="verifyRoll">—</dd></div>
+      <div><dt>परीक्षा</dt><dd id="verifyExam">—</dd></div>
+      <div><dt>स्थिति</dt><dd id="verifyIssued">वैध</dd></div>
+    </dl>
+    <p class="privacy">यह पृष्ठ केवल रोल नंबर, परीक्षा और सत्यापन स्थिति दिखाता है। विद्यार्थी का नाम, मोबाइल नंबर या ईमेल सार्वजनिक नहीं किया जाता।</p>
+  </main>
+  <script>
+    (function () {
+      const status = document.getElementById('verifyStatus');
+      const details = document.getElementById('verifyDetails');
+      const setStatus = (message, valid) => {
+        status.textContent = message;
+        status.className = valid === true ? 'valid' : valid === false ? 'invalid' : '';
+      };
+      const token = new URLSearchParams(window.location.search).get('token') || '';
+      if (!/^[a-f0-9]{48}$/.test(token)) {
+        setStatus('अमान्य QR लिंक। प्रवेश-पत्र का नया QR स्कैन करें।', false);
+        return;
+      }
+      try {
+        if (!firebase.apps.length) firebase.initializeApp({
+          apiKey: 'AIzaSyDD58ybmm1bmmc5k5AwsxiaDiOXxlp7APA',
+          authDomain: 'bishnoi-platform.firebaseapp.com',
+          projectId: 'bishnoi-platform',
+          storageBucket: 'bishnoi-platform.firebasestorage.app',
+          messagingSenderId: '1001226124051',
+          appId: '1:1001226124051:web:ad4dc69e04e6701024f8e6',
+          measurementId: 'G-2RB41Z0JNK'
+        });
+        firebase.firestore().collection('publicAdmitCardVerifications').doc(token).get()
+          .then(snap => {
+            if (!snap.exists) {
+              setStatus('प्रवेश-पत्र सत्यापित नहीं हुआ या लिंक की अवधि समाप्त हो गई।', false);
+              return;
+            }
+            const record = snap.data() || {};
+            const expiresAt = record.expiresAt && typeof record.expiresAt.toDate === 'function'
+              ? record.expiresAt.toDate().getTime() : 0;
+            if (record.status !== 'valid' || !expiresAt || expiresAt <= Date.now()) {
+              setStatus('यह प्रवेश-पत्र अब वैध नहीं है। Owner Studio से पुष्टि करें।', false);
+              return;
+            }
+            document.getElementById('verifyRoll').textContent = String(record.rollNumber || '—');
+            document.getElementById('verifyExam').textContent = String(record.examTitle || '—');
+            document.getElementById('verifyIssued').textContent = 'वैध — समाप्ति: ' + new Date(expiresAt).toLocaleDateString('hi-IN');
+            details.hidden = false;
+            setStatus('✓ आधिकारिक रिकॉर्ड मिला — प्रवेश-पत्र वैध है।', true);
+          })
+          .catch(error => {
+            console.error('Admit card verification failed:', error);
+            setStatus('सत्यापन सेवा उपलब्ध नहीं है। इंटरनेट कनेक्शन या Firestore rules जाँचें।', false);
+          });
+      } catch (error) {
+        console.error('Verification initialization failed:', error);
+        setStatus('सत्यापन सेवा शुरू नहीं हो सकी।', false);
+      }
+    })();
+  </script>
+</body>
+</html>
