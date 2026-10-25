@@ -4340,6 +4340,7 @@ return review ? {
   manualReviewStatus: review.status,
   manualFeedback: review.feedback || '',
   questionScores: review.questionScores || row.questionScores || {},
+  reviewLocked: review.reviewLocked === true,
   manualReviewCompleted:
     review.manualScore !== undefined &&
     review.manualScore !== null &&
