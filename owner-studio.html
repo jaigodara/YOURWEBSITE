@@ -761,16 +761,9 @@ Ans: B"></textarea>
       <div id="ownerRegistrationReviewPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎟️ विद्यार्थी / प्रवेश-पत्र पुष्टि</h3>
         <p class="text-xs text-stone-500">वेबसाइट से आए विद्यार्थियों के लिए examEnrolledStudents चुनें। रोल नंबर अपने-आप बनता है; आपको केवल विद्यार्थी की जाँच करके पुष्टि करनी है। प्रवेश-पत्र पुष्टि के बाद उपलब्ध होगा।</p>
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
-          <select id="registrationCollection" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-            <option value="examEnrolledStudents" selected>examEnrolledStudents (वेबसाइट परीक्षा पंजीकरण)</option>
-            <option value="users">users (लॉगिन खाते)</option>
-            <option value="examRegistrations">examRegistrations</option>
-            <option value="studentRegistrations">studentRegistrations</option>
-            <option value="registrations">registrations</option>
-          </select>
-          <input id="registrationSearch" type="search" placeholder="नाम / रोल नंबर / मोबाइल खोजें" class="p-2.5 rounded-xl border border-stone-300 text-xs">
-          <button onclick="loadRegistrationReviews()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">रिकॉर्ड लाएँ</button>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+          <input id="registrationSearch" type="search" placeholder="नाम / रोल नंबर / मोबाइल खोजें" class="min-w-0 p-2.5 rounded-xl border border-stone-300 text-xs">
+          <button onclick="loadRegistrationReviews()" class="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold">नामांकित विद्यार्थी खोजें</button>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button id="repairLegacyRollsButton" type="button" onclick="assignMissingLegacyRolls()" class="px-3 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl text-xs font-extrabold">🔢 रोल नंबर नया बनाएँ (पुराने / खाली रोल)</button>
@@ -867,6 +860,14 @@ Ans: B"></textarea>
         <p class="text-[11px] text-stone-500">किसी एक विद्यार्थी को PDF प्रवेश-पत्र भेजने के लिए उसका पंजीकृत मोबाइल नंबर भरें, PDF चुनें और शीर्षक में “प्रवेश-पत्र” लिखें। सिस्टम मोबाइल नंबर से आंतरिक खाता पहचान खोजेगा; UID स्क्रीन पर नहीं दिखाया जाता। फ़ाइल 10 MB तक हो सकती है। नंबर खाली रखने पर सूचना सभी लॉगिन उपयोगकर्ताओं को जाएगी।</p>
         <button id="publishNotificationButton" type="button" onclick="publishPortalNotification()" class="px-4 py-2.5 rounded-xl bg-forest text-white font-bold text-xs">📣 लॉगिन उपयोगकर्ताओं को सूचना प्रकाशित करें</button>
         <p id="ownerNotificationStatus" class="text-xs text-stone-500" aria-live="polite"></p>
+        <div class="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-2" data-owner-only="true">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h4 class="text-xs font-extrabold text-forest">📋 Global Broadcast प्रबंधन</h4>
+            <button type="button" id="refreshOwnerBroadcasts" onclick="loadOwnerBroadcastNotifications()" class="min-h-9 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold">सूची ताज़ा करें</button>
+          </div>
+          <p class="text-[11px] text-stone-500">यहाँ से सभी उपयोगकर्ताओं की broadcast सूचनाएँ हटाई जा सकती हैं। हटाना सभी inbox feeds से लागू होगा।</p>
+          <div id="ownerBroadcastManagementList" class="space-y-2 text-xs" aria-live="polite">सूची देखने के लिए “सूची ताज़ा करें” दबाएँ।</div>
+        </div>
       </div>
 
       <!-- PER-SECTION SOFT MAINTENANCE CONTROLLER -->
@@ -3984,7 +3985,11 @@ async function changeCustomExamStatus(nextStatus) {
           const nextScore = Number(rawNext);
           const prior = d.questionScores && Object.prototype.hasOwnProperty.call(d.questionScores, questionId)
             ? Number(d.questionScores[questionId]) : Number(autoPoint || 0);
-          const maxForQuestion = Math.min(10, totalLimit);
+          const declaredQuestionMax = Number(q.marks ?? q.points ?? q.marksPerQuestion ?? autoPoint ?? 1);
+          const maxForQuestion = Math.max(0, Math.min(
+            Number.isFinite(declaredQuestionMax) && declaredQuestionMax >= 0 ? declaredQuestionMax : 1,
+            totalLimit
+          ));
           if (!rawNext || !Number.isFinite(nextScore) || nextScore < 0 || nextScore > maxForQuestion) {
             showToast('इस प्रश्न के अंक 0 से ' + maxForQuestion + ' के बीच होने चाहिए।');
             return false;
@@ -5060,7 +5065,7 @@ return review ? {
       if (!isPrimaryOwner()) return showToast('विद्यार्थी पंजीकरण रिकॉर्ड केवल Owner देख सकता है।');
       const list = document.getElementById('registrationReviewList');
       if (!list) return;
-      const collectionName = document.getElementById('registrationCollection')?.value || 'examEnrolledStudents';
+      const collectionName = 'examEnrolledStudents';
       const queryText = (document.getElementById('registrationSearch')?.value || '').trim().toLowerCase();
       list.innerHTML = '<div class="text-stone-400 text-xs">पंजीकरण रिकॉर्ड लोड हो रहे हैं...</div>';
       try {
@@ -5091,7 +5096,9 @@ return review ? {
           rollInput.maxLength = 40;
           rollInput.placeholder = 'रोल नंबर';
           rollInput.value = d.rollNumber || '';
-          if (collectionName === 'examEnrolledStudents') { rollInput.readOnly = true; rollInput.title = 'पुष्टि पर JAMBH-2026-XXXX रोल नंबर मिलेगा; मौजूदा सही रोल नहीं बदलेगा'; rollInput.classList.add('bg-stone-100'); }
+          rollInput.readOnly = true;
+          rollInput.title = 'रोल नंबर सिस्टम द्वारा आवंटित होता है; इसे यहाँ हाथ से नहीं बदला जा सकता।';
+          rollInput.classList.add('bg-stone-100');
           rollInput.className = 'p-2 rounded-lg border border-stone-300 text-xs w-28';
           const status = document.createElement('select');
           status.className = 'p-2 rounded-lg border border-stone-300 text-xs';
@@ -5954,6 +5961,70 @@ async function removeTrustedEditor(uid) {
       }
     }
     window.publishPortalNotification = publishPortalNotification;
+
+    async function loadOwnerBroadcastNotifications() {
+      if (!isPrimaryOwner()) return showToast('Global सूचनाएँ केवल Owner प्रबंधित कर सकता है।');
+      const host = document.getElementById('ownerBroadcastManagementList');
+      const button = document.getElementById('refreshOwnerBroadcasts');
+      if (!host) return;
+      if (button) { button.disabled = true; button.textContent = 'लोड हो रहा है…'; }
+      host.textContent = 'Broadcast सूचनाएँ लोड हो रही हैं…';
+      try {
+        const snap = await db.collection('notifications').limit(150).get();
+        const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt));
+        host.replaceChildren();
+        if (!rows.length) {
+          host.textContent = 'कोई broadcast सूचना नहीं मिली।';
+          return;
+        }
+        rows.forEach(item => {
+          const row = document.createElement('article');
+          row.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-3';
+          const info = document.createElement('div');
+          info.className = 'min-w-0 flex-1';
+          const title = document.createElement('div');
+          title.className = 'font-bold text-stone-800 break-words';
+          title.textContent = item.title || 'शीर्षक रहित सूचना';
+          const meta = document.createElement('div');
+          meta.className = 'mt-1 text-[11px] text-stone-500 break-words';
+          const expiry = timestampMillis(item.expiresAt);
+          meta.textContent = (item.lifetime === 'permanent' || !item.expiresAt ? 'स्थायी' : expiry && expiry <= Date.now() ? 'समय समाप्त' : 'अस्थायी') +
+            ' · ' + (item.active === false ? 'निष्क्रिय' : 'सक्रिय') + ' · ID: ' + item.id;
+          info.append(title, meta);
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'min-h-10 shrink-0 rounded-lg border border-red-300 bg-red-50 px-3 py-2 font-bold text-red-800';
+          remove.textContent = 'सभी से हटाएँ';
+          remove.addEventListener('click', async () => {
+            if (!isPrimaryOwner()) return showToast('सूचना हटाने का अधिकार केवल Owner को है।');
+            if (!confirm('यह broadcast सूचना सभी उपयोगकर्ताओं से हट जाएगी। क्या इसे स्थायी रूप से हटाना है?')) return;
+            remove.disabled = true;
+            remove.textContent = 'हटाई जा रही है…';
+            try {
+              await db.collection('notifications').doc(item.id).delete();
+              if (item.filePath && firebase.storage) {
+                try { await firebase.storage().ref().child(String(item.filePath)).delete(); } catch (storageError) { console.warn('Notification attachment cleanup skipped:', storageError); }
+              }
+              row.remove();
+              showToast('Broadcast सूचना सभी users से हटा दी गई।');
+              if (!host.children.length) host.textContent = 'कोई broadcast सूचना नहीं मिली।';
+            } catch (error) {
+              remove.disabled = false;
+              remove.textContent = 'सभी से हटाएँ';
+              showToast('सूचना नहीं हट सकी: ' + (error.message || error) + ' · Firestore rules जाँचें।');
+            }
+          });
+          row.append(info, remove);
+          host.appendChild(row);
+        });
+      } catch (error) {
+        host.textContent = 'सूचनाएँ लोड नहीं हुईं: ' + (error.message || error);
+      } finally {
+        if (button) { button.disabled = false; button.textContent = 'सूची ताज़ा करें'; }
+      }
+    }
+    window.loadOwnerBroadcastNotifications = loadOwnerBroadcastNotifications;
 
     // Owner Studio: publish validated YouTube, Google Drive PDF, and HTTPS audio links.
     async function saveMediaLink() {
