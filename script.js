@@ -5441,7 +5441,12 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
           const id = remove.dataset.removeLiteratureBookmark || '';
           writeLiteratureBookmarks(readLiteratureBookmarks().filter(item => item.id !== id));
           renderLiteratureBookmarks();
-          decorateLiteratureCards();
+          document.querySelectorAll('[data-literature-bookmark-toggle]').forEach(button => {
+            if (button.dataset.literatureBookmarkToggle === id) {
+              button.setAttribute('aria-pressed', 'false');
+              button.textContent = '☆ बुकमार्क';
+            }
+          });
         }
       });
     }
