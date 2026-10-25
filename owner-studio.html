@@ -4156,8 +4156,15 @@ next.addEventListener('click', async () => {
             const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
             payload[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
           }
-        } else if (format === 'csv' || format === 'xlsx') payload = await readAll(selected);
-        else {
+        } else if (['csv', 'xlsx', 'pdf'].includes(format)) {
+          if (selected === 'examEnrolledStudents' && typeof getRegisteredMemberExportRows === 'function') {
+            payload = await getRegisteredMemberExportRows();
+          } else if (selected === 'publishedResults' && typeof getExamResultExportRows === 'function') {
+            payload = await getExamResultExportRows();
+          } else {
+            payload = await readAll(selected);
+          }
+        } else {
           payload = {};
           for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig','live_violations','assistantEditors','trustedEditors','userNotifications','notifications','admitCards']) {
             try { payload[name] = await readAll(name); } catch (error) { payload[name] = { exportError: error.message || String(error) }; }
