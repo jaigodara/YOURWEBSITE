@@ -48,13 +48,16 @@
     const raw = String(valueOf(row, ['questionSet', 'questionSetKey', 'set', 'setName']) || '').trim();
     if (source && SET_NAMES[source]) {
       const sourceName = SET_NAMES[source];
-      const suffix = raw && !new RegExp(sourceName, 'i').test(raw) ? ' — ' + raw.replace(/^set[\s_-]*/i, 'Set ') : '';
+      if (!raw || raw === source || SET_NAMES[raw] || new RegExp(sourceName, 'i').test(raw)) return sourceName;
+      const suffix = /^set[\\s_-]*[1-4]$/i.test(raw)
+        ? ' — Set ' + raw.match(/[1-4]/)[0]
+        : ' — ' + raw.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim();
       return sourceName + suffix;
     }
     if (!raw) return source && SET_NAMES[source] ? SET_NAMES[source] : 'Unspecified';
-    if (/^set[\s_-]*([1-4])$/i.test(raw)) return 'Set ' + raw.match(/[1-4]/)[0];
+    if (/^set[\\s_-]*([1-4])$/i.test(raw)) return 'Set ' + raw.match(/[1-4]/)[0];
     if (SET_NAMES[raw]) return SET_NAMES[raw];
-    return raw.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return raw.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ').trim();
   };
   const cleanCell = value => {
     if (value == null) return '';
