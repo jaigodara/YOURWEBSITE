@@ -33,3 +33,11 @@ test('Owner Studio exposes a live violation monitoring table', () => {
   assert.match(owner, /onclick="loadLiveExamViolations\(\)"/);
   assert.match(owner, /window\.loadLiveExamViolations = loadLiveExamViolations/);
 });
+
+test('Main and mock results remain hidden until the Owner releases the result gate', () => {
+  assert.match(script, /const resultsReleased = state\.examConfig\?\.resultsPublished === true/);
+  assert.match(script, /allRows\.filter\(row => row\.mode === 'quiz' \|\| resultsReleased\)/);
+  assert.match(owner, /id="ownerResultsReleaseButton"[^>]*onclick="toggleExamResultsRelease\(\)"/);
+  assert.match(owner, /resultsPublished: releasing/);
+  assert.match(owner, /function toggleExamResultsRelease\(\)/);
+});
