@@ -3320,6 +3320,11 @@ escapeHtml(statusLabel) + '</span></div>' +
       }
 
       host.dataset.questionUploadInProgress = 'true';
+      if (!questionImportFile || !questionImportPreview || questionImportPreview.invalid > 0) {
+  host.dataset.questionUploadInProgress = 'false';
+  notify('Upload से पहले valid question file और preview आवश्यक हैं।', 'error');
+  return;
+}
 
       const { target, set } = getQuestionImportOptions();
       const button = host.querySelector('[data-question-upload]');
@@ -3380,7 +3385,18 @@ escapeHtml(statusLabel) + '</span></div>' +
           ['mock2', CONFIG.submissionCollections.mock2]
         ];
         const groups = await Promise.all(sources.map(async ([mode, sourceCollection]) => {
-          const snap = await collection(sourceCollection).limit(500).get();
+          let snap;
+
+try {
+  snap = await collection(sourceCollection).limit(500).get();
+} catch (error) {
+  console.error('Could not load answer sheets from ' + sourceCollection, error);
+
+  throw new Error(
+    'उत्तर-पत्र लोड नहीं हुए (' + sourceCollection +
+    '). Firestore permissions और collection name जाँचें।'
+  );
+}
           return snap.docs.map(doc => ({ ...doc.data(), id: doc.id, mode: doc.data()?.mode || mode, sourceCollection }));
         }));
        // Keep only answer sheets that still need checking.
@@ -3617,6 +3633,7 @@ const score = Number(rawScore);
             const total = Number(button.dataset.total);
             const uid = button.dataset.uid;
 if (
+  rawScore === '' ||
   !Number.isFinite(total) ||
   total <= 0 ||
   !Number.isFinite(score) ||
@@ -3625,7 +3642,9 @@ if (
   Math.abs(score * 2 - Math.round(score * 2)) > 0.000001
 ) {
   return notify(
-    'अंक 0 से ' + total + ' के बीच दर्ज करें। अंक 0.5 के अंतर से भरें।',
+    rawScore === ''
+      ? 'परिणाम प्रकाशित करने से पहले अंक भरें।'
+      : 'अंक 0 से ' + total + ' के बीच दर्ज करें। अंक 0.5 के अंतर से भरें।',
     'error'
   );
 }
@@ -3636,9 +3655,16 @@ if (
            );
            }
 
+           if (button.dataset.publishing === 'true') return;
+            
+          button.dataset.publishing = 'true';
+                     if (button.dataset.publishing === 'true') return;
+
+            button.dataset.publishing = 'true';
             button.disabled = true;
+
             try {
-              const sourceCollection = button.dataset.sourceCollection;
+  const sourceCollection = button.dataset.sourceCollection;
               const submissionId = button.dataset.submissionId;
               const mode = button.dataset.mode;
               const feedback = String(card.querySelector('[data-check-feedback]')?.value || '').trim().slice(0, 1000);
@@ -3698,10 +3724,20 @@ if (status) {
     ? remaining + ' उत्तर-पत्र जाँच के लिए बाकी हैं।'
     : 'सभी उपलब्ध उत्तर-पत्र जाँच लिए गए हैं।';
 }
-            } catch (error) {
-              console.error('Manual result publish failed:', error);
-              notify('परिणाम प्रकाशित नहीं हुआ। Firestore rules में submission और publishedResults write permissions जाँचें।', 'error');
-            } finally { button.disabled = false; }
+           
+} catch (error) {
+  console.error('Manual result publish failed:', error);
+
+  notify(
+    error?.message ||
+      'परिणाम प्रकाशित नहीं हुआ। Firestore permissions और submission data जाँचें।',
+    'error'
+  );
+} finally {
+  button.dataset.publishing = 'false';
+  button.disabled = false;
+}
+
           });
         });
       } catch (error) {
