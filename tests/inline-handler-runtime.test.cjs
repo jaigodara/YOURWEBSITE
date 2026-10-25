@@ -293,7 +293,7 @@ test("separate exam portal and owner-controlled availability toggles are wired",
   assert.match(index, /href="\.\/exam-portal\.html"/);
   assert.match(ownerHtml, /id="ownerShowExamPortal"/);
   assert.match(ownerHtml, /examPortalVisible:/);
-  assert.match(script, /\['examPortalCard', c\.examPortalVisible !== false\]/);
+  assert.match(script, /\['examPortalCard', c\.separateExamPortalVisible !== false && c\.examPortalVisible !== false\]/);
   assert.match(portal, /examConfig/);
   assert.match(portal, /dailyQuizVisible/);
   assert.match(portal, /mock1Visible/);
