@@ -167,11 +167,43 @@
     });
   }
 
+  function mediaFirebaseReady() {
+    return !!(window.firebase && window.firebase.apps && window.firebase.apps.length);
+  }
+
+  async function waitForMediaFirebase(maxAttempts = 20, intervalMs = 250) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (mediaFirebaseReady()) return true;
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    return mediaFirebaseReady();
+  }
+
+  function showMediaFeedError(container, message) {
+    const notice = node('div', { className: 'bishnoi-media-empty', role: 'status' });
+    notice.append(node('p', {}, message));
+    const retry = node('button', {
+      type: 'button',
+      className: 'bishnoi-media-open',
+      'aria-label': 'मीडिया सूची फिर से लोड करें'
+    }, 'फिर से प्रयास करें');
+    retry.addEventListener('click', () => loadMediaFeed());
+    notice.append(retry);
+    container.replaceChildren(notice);
+  }
+
   async function loadMediaFeed() {
     const container = document.getElementById('platformMediaFeed');
     if (!container) return;
+    container.setAttribute('aria-busy', 'true');
+    container.replaceChildren(node('p', { className: 'bishnoi-media-empty', role: 'status' }, 'साहित्य और मीडिया लोड हो रहे हैं…'));
     try {
-      if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+      // mediaEngine.js may execute before script.js initializes the Firebase app.
+      // Wait briefly for the existing initializer instead of leaving the feed blank.
+      if (!(await waitForMediaFirebase())) {
+        showMediaFeedError(container, 'मीडिया सेवा अभी तैयार नहीं है। कृपया दोबारा प्रयास करें।');
+        return;
+      }
       const snapshot = await firebase.firestore().collection('platform_media')
         .where('active', '==', true).limit(30).get();
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -183,7 +215,9 @@
       renderMediaFeed(container, mediaItemsCache);
     } catch (error) {
       console.warn('[Bishnoism media] Feed unavailable:', error);
-      container.replaceChildren(node('p', { className: 'bishnoi-media-empty' }, 'मीडिया सूची लोड नहीं हुई। कृपया कुछ देर बाद पुनः प्रयास करें।'));
+      showMediaFeedError(container, 'मीडिया सूची लोड नहीं हुई। इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।');
+    } finally {
+      container.removeAttribute('aria-busy');
     }
   }
 
