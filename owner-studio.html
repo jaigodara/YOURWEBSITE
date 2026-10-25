@@ -74,6 +74,7 @@
       #ownerDataExportPanel .grid { grid-template-columns: minmax(0, 1fr); }
     }
   </style>
+<link rel="stylesheet" href="./export-report.css">
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
@@ -4277,8 +4278,8 @@ next.addEventListener('click', async () => {
               const bodyRows = pageRows.length ? pageRows.map((row, rowIndex) => '<tr style="background:' + (rowIndex % 2 ? '#f7f9f7' : '#ffffff') + ';">' +
                 columns.map(column => '<td style="padding:7px 6px;border-bottom:1px solid #e2e8e2;font-size:10px;line-height:1.35;vertical-align:top;overflow-wrap:anywhere;word-break:break-word;">' + escapeHtml(cellValue(row, column)) + '</td>').join('') + '</tr>').join('') :
                 '<tr><td colspan="' + Math.max(1, columns.length) + '" style="padding:24px;text-align:center;color:#64748b;">No records found for the selected filters.</td></tr>';
-              wrapper.innerHTML = heading + '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + headerCells + '</tr></thead><tbody>' + bodyRows + '</tbody></table>' +
-                '<footer style="margin-top:auto;padding-top:12px;border-top:1px solid #cbd5e1;display:flex;justify-content:space-between;font-size:9px;color:#64748b;"><span>Confidential — authorized administrative use only</span><span>Page ' + (pageIndex + 1) + ' / ' + pageCount + '</span></footer>';
+              wrapper.innerHTML = heading + '<table class="clean-export-table" style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + headerCells + '</tr></thead><tbody>' + bodyRows + '</tbody></table>' +
+                '<footer class="export-footer" style="margin-top:auto;padding-top:12px;border-top:1px solid #cbd5e1;display:flex;justify-content:space-between;font-size:9px;color:#64748b;"><span>Confidential — authorized administrative use only</span><span>Page ' + (pageIndex + 1) + ' / ' + pageCount + '</span></footer>';
               document.body.appendChild(wrapper);
               if (document.fonts && document.fonts.ready) await document.fonts.ready;
               const canvas = await window.html2canvas(wrapper, {
@@ -5205,6 +5206,7 @@ async function removeTrustedEditor(uid) {
           const widthPx = orientation === 'portrait' ? 794 : 1122;
           const heightPx = orientation === 'portrait' ? 1122 : 794;
           const wrapper = document.createElement('section');
+          wrapper.className = 'export-pdf-container' + (orientation === 'landscape' ? ' landscape' : '');
           wrapper.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + widthPx + 'px;min-height:' + heightPx + 'px;height:auto;box-sizing:border-box;padding:30px 34px 24px;background:#fff;color:#17211b;font-family:Arial,"Noto Sans Devanagari",sans-serif;display:flex;flex-direction:column;overflow:visible;';
           const heading = '<header style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #1b4332;padding-bottom:14px;margin-bottom:14px;"><div><div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#b34a1b;">BISHNOISM DIGITAL EXAM COUNCIL</div><h1 style="font-size:21px;line-height:1.3;margin:7px 0;color:#1b4332;">' + escapeHtml(title) + '</h1><p style="font-size:11px;color:#64748b;margin:0;">Generated ' + escapeHtml(new Date().toLocaleString('en-IN')) + ' | Records: ' + rows.length + '</p></div><div style="white-space:nowrap;background:#1b4332;color:#fef08a;border-radius:5px;padding:7px 10px;font-size:10px;font-weight:700;">OFFICIAL REPORT</div></header>';
           const th = headers.map(key => '<th style="background:#edf2ed;color:#243b2c;text-align:left;font-weight:700;padding:8px 6px;border-bottom:2px solid #cbd5d1;font-size:10px;overflow-wrap:anywhere;">' + escapeHtml(key) + '</th>').join('');
