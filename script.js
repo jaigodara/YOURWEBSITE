@@ -391,6 +391,11 @@ try {
 
   portalSwitchTabImplementationImpl = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
+    // Profile is a modal in this static site, not a separate tab panel.
+    if (raw === 'profile') {
+      window.BishnoiApp?.openProfileOrAuth?.();
+      return true;
+    }
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
     if (!state.user && restrictedTabs.has(raw)) {
