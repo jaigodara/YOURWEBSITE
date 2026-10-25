@@ -150,6 +150,79 @@
       };
     }
 
+    if (type === 'live_violations') {
+      const formatted = rows.map(row => ({
+        'Time': dateText(valueOf(row, ['occurredAtMs', 'timestamp', 'createdAt', 'occurredAt'])),
+        'Roll Number': roll(row),
+        'Student Name': valueOf(row, ['fullName', 'displayName', 'studentName', 'name']) || '—',
+        'Exam': valueOf(row, ['examName', 'examType', 'mode', 'sessionName']) || '—',
+        'Violation': valueOf(row, ['violationType', 'type', 'event', 'reason', 'description']) || '—',
+        'Strike': valueOf(row, ['strike', 'violationCount', 'count']) || '—',
+        'Action': valueOf(row, ['action', 'status', 'result']) || 'Logged'
+      }));
+      return {
+        title: 'Live Exam Integrity — Violation Log',
+        subtitle: 'Generated ' + date + ' | Total logged violations: ' + rows.length,
+        orientation: 'landscape',
+        columns: ['Time', 'Roll Number', 'Student Name', 'Exam', 'Violation', 'Strike', 'Action'],
+        rows: formatted
+      };
+    }
+    if (type === 'users' || type === 'assistantEditors' || type === 'trustedEditors') {
+      const formatted = rows.map(row => ({
+        'Name': valueOf(row, ['fullName', 'displayName', 'name']) || '—',
+        'Mobile': valueOf(row, ['phoneNumber', 'phone', 'mobileNumber', 'mobile']) || '—',
+        'Email': valueOf(row, ['email']) || '—',
+        'Role': valueOf(row, ['role', 'accessLevel', 'type']) || (type === 'users' ? 'Member' : 'Editor'),
+        'Permissions': Array.isArray(row.permissions) ? row.permissions.join(', ') : [
+          row.canCheckAnswers === true ? 'Check answers' : '',
+          row.canPublishMedia === true ? 'Publish media' : '',
+          row.canManageNotifications === true ? 'Notifications' : ''
+        ].filter(Boolean).join(', ') || 'Assigned by Owner',
+        'Status': row.disabled === true || row.active === false ? 'Inactive' : (row.active === true || row.accepted === true ? 'Active' : 'Pending')
+      }));
+      return {
+        title: type === 'users' ? 'Member Directory' : 'Assistant Editor & Permissions Register',
+        subtitle: 'Generated ' + date + ' | Total records: ' + rows.length,
+        orientation: 'landscape',
+        columns: ['Name', 'Mobile', 'Email', 'Role', 'Permissions', 'Status'],
+        rows: formatted
+      };
+    }
+    if (type === 'userNotifications' || type === 'notifications') {
+      return {
+        title: 'Notification Delivery Register',
+        subtitle: 'Generated ' + date + ' | Total records: ' + rows.length,
+        orientation: 'landscape',
+        columns: ['No.', 'Title', 'Message', 'Audience', 'Status', 'Created'],
+        rows: rows.map((row, index) => ({
+          'No.': index + 1,
+          'Title': valueOf(row, ['title', 'heading', 'subject']) || '—',
+          'Message': valueOf(row, ['body', 'message', 'text']) || '—',
+          'Audience': valueOf(row, ['audience', 'target', 'recipientType']) || '—',
+          'Status': valueOf(row, ['status', 'deliveryStatus']) || (row.read === true ? 'Read' : 'Created'),
+          'Created': dateText(valueOf(row, ['createdAt', 'timestamp', 'sentAt', 'publishedAt']))
+        }))
+      };
+    }
+    if (type === 'examConfig') {
+      return {
+        title: 'Exam Configuration & Release Settings',
+        subtitle: 'Generated ' + date + ' | Total settings records: ' + rows.length,
+        orientation: 'landscape',
+        columns: ['Setting', 'Exam Title', 'Duration (min)', 'Total Marks', 'Passing Marks', 'Negative Marks', 'Results Published'],
+        rows: rows.map((row, index) => ({
+          'Setting': valueOf(row, ['_sourceCollection', 'settingName', 'id', 'key']) || 'Exam configuration ' + (index + 1),
+          'Exam Title': valueOf(row, ['customExamTitle', 'examTitle', 'title']) || '—',
+          'Duration (min)': valueOf(row, ['customExamDuration', 'durationMinutes']) || '—',
+          'Total Marks': valueOf(row, ['customExamTotalMarks', 'totalMarks']) || '—',
+          'Passing Marks': valueOf(row, ['customExamPassingMarks', 'passingMarks']) || '—',
+          'Negative Marks': valueOf(row, ['customExamNegativeMarks', 'negativeMarks']) || '—',
+          'Results Published': row.resultsPublished === true ? 'Yes' : 'No'
+        }))
+      };
+    }
+
     const excluded = new Set([
       'id', 'uid', 'userId', 'updatedBy', 'createdBy', 'approvedBy', 'reviewedBy',
       'questionSetKey', 'question_set_key', 'question_set', 'questionSet',
