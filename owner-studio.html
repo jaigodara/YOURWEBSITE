@@ -2696,79 +2696,8 @@ async function saveBulkQuestionDrafts() {
       }
     }
 
-    async function uploadIndividualAdmitCardPdf() {
-      if (!isPrimaryOwner()) return showToast('निजी प्रवेश-पत्र PDF भेजने का अधिकार केवल Owner को है।');
-      const uidInput = document.getElementById('individualAdmitCardUid');
-      const fileInput = document.getElementById('individualAdmitCardPdf');
-      const status = document.getElementById('individualAdmitCardUploadStatus');
-      const button = document.getElementById('uploadIndividualAdmitCardButton');
-      const rollNumber = (uidInput?.value || '').trim();
-      const file = fileInput?.files?.[0];
-      if (rollNumber.length < 3 || rollNumber.length > 64) {
-        if (status) status.textContent = 'सही विद्यार्थी रोल नंबर दर्ज करें।';
-        return;
-      }
-      if (!file || (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name))) {
-        if (status) status.textContent = 'कृपया PDF प्रवेश-पत्र चुनें।';
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        if (status) status.textContent = 'PDF 10 MB से छोटी होनी चाहिए।';
-        return;
-      }
-      if (!firebase.storage) {
-        if (status) status.textContent = 'Firebase Storage SDK लोड नहीं है।';
-        return;
-      }
-      if (button) { button.disabled = true; button.textContent = 'PDF अपलोड हो रही है…'; }
-      if (status) status.textContent = 'पहले PDF सुरक्षित Storage में अपलोड होगी, फिर निजी सूचना भेजी जाएगी…';
-      try {
-        const matches = await db.collection('examEnrolledStudents').where('rollNumber', '==', rollNumber).limit(2).get();
-        if (matches.empty) {
-          if (status) status.textContent = 'इस रोल नंबर से कोई नामांकित विद्यार्थी नहीं मिला। पहले नामांकन सूची में रोल नंबर जाँचें।';
-          return;
-        }
-        if (matches.size > 1) {
-          if (status) status.textContent = 'यह रोल नंबर एक से अधिक रिकॉर्ड में है। सुरक्षा के लिए PDF नहीं भेजी गई।';
-          return;
-        }
-        const studentDoc = matches.docs[0];
-        const studentData = studentDoc.data() || {};
-        const uid = studentData.uid || studentDoc.id;
-        if (!uid || uid.length < 5) {
-          if (status) status.textContent = 'इस नामांकन में खाता लिंक नहीं है। विद्यार्थी को नामांकन खाते से जोड़ें।';
-          return;
-        }
-        const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-90) || 'admit-card.pdf';
-        const path = 'notificationUploads/private/' + uid + '/' + auth.currentUser.uid + '/' + Date.now() + '-' + safeName;
-        const upload = await firebase.storage().ref().child(path).put(file, { contentType: 'application/pdf' });
-        await db.collection('userNotifications').doc(uid).collection('items')
-          .doc('admit-card-pdf-' + rollNumber.replace(/[^A-Za-z0-9_-]/g, '_')).set({
-          title: '🎟️ आपका प्रवेश-पत्र PDF जारी हो गया',
-          message: 'Owner ने आपके खाते के लिए प्रवेश-पत्र PDF भेजा है। नीचे “PDF खोलें / डाउनलोड करें” चुनें।',
-          type: 'admit-card',
-          filePath: upload.ref.fullPath || path,
-          fileName: file.name,
-          fileType: 'application/pdf',
-          recipientUid: uid,
-          audience: 'private',
-          active: true,
-          createdBy: auth.currentUser?.uid || null,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        if (status) status.textContent = 'PDF अपलोड और निजी सूचना भेज दी गई। यह केवल दिए गए UID वाले खाते में दिखेगी।';
-        if (uidInput) uidInput.value = '';
-        if (fileInput) fileInput.value = '';
-        showToast('विद्यार्थी को Admit Card PDF भेज दी गई।');
-      } catch (error) {
-        console.error('Individual admit-card upload failed:', error);
-        if (status) status.textContent = 'अपलोड/सूचना विफल: ' + error.message + ' · Firebase Storage तथा userNotifications Firestore rules जाँचें।';
-        showToast('Admit Card PDF नहीं भेजी जा सकी।');
-      } finally {
-        if (button) { button.disabled = false; button.textContent = '⬆️ निजी Notification में Admit Card PDF अपलोड करें'; }
-      }
-    }
-    window.uploadIndividualAdmitCardPdf = uploadIndividualAdmitCardPdf;
+    // Admit cards are generated in the student's browser from the approved enrollment record.
+    // Manual PDF uploads are intentionally not supported.
 
     function pushNotification(uid, data = {}, batch = null) {
       if (!isPrimaryOwner() && !hasEditorPermission('notifications')) throw new Error('सूचना प्रकाशित करने का अधिकार नहीं है।');
