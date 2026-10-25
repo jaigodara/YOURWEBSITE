@@ -858,7 +858,7 @@ service cloud.firestore {
           'action', 'targetName', 'targetPhoneLast4', 'targetRole',
           'permissions', 'changedByName', 'changedAt'
         ])
-        && request.resource.data.get('action', '') in ['invitation_created', 'editor_removed']
+        && request.resource.data.get('action', '') in ['invitation_created', 'editor_removed', 'invitation_revoked', 'invitation_reinvited']
         && request.resource.data.get('targetName', '') is string
         && request.resource.data.get('targetName', '').size() <= 100
         && request.resource.data.get('targetPhoneLast4', '') is string
