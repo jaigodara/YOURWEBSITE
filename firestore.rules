@@ -811,6 +811,31 @@ service cloud.firestore {
       allow delete: if canManageMedia();
     }
 
+    // Student-owned proctoring events; only exam staff may monitor them.
+    match /live_violations/{violationId} {
+      allow create: if signedIn()
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.get('mode', '') in ['quiz', 'mock1', 'mock2', 'main']
+        && request.resource.data.get('type', '') in [
+          'tab_switch', 'fullscreen_exit'
+        ]
+        && request.resource.data.keys().hasOnly([
+          'uid', 'mode', 'name', 'rollNumber', 'studentPhone',
+          'type', 'detail', 'occurredAtMs', 'createdAt'
+        ])
+        && request.resource.data.get('name', '') is string
+        && request.resource.data.get('name', '').size() <= 120
+        && request.resource.data.get('rollNumber', '') is string
+        && request.resource.data.get('rollNumber', '').size() <= 40
+        && request.resource.data.get('studentPhone', '') is string
+        && request.resource.data.get('studentPhone', '').size() <= 20
+        && request.resource.data.get('detail', '') is string
+        && request.resource.data.get('detail', '').size() <= 240
+        && request.resource.data.get('occurredAtMs', 0) is int;
+      allow read: if examOwner();
+      allow update, delete: if owner();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
