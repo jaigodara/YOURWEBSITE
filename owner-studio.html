@@ -50,6 +50,13 @@
     .studio-nav-item:hover { border-color: #a7b9aa; background: #f0f5f0; }
     .studio-nav-active { background: #143622 !important; color: #fff !important; border-color: #143622 !important; }
     #ownerStudioPageContent { min-width: 0; }
+    /* Keep Hindi matras clear and allow long administrative tables to scroll on phones. */
+    #ownerStudioPageContent :is(p, li, label, td, th, summary) { line-height: 1.55; }
+    #ownerStudioPageContent .admin-table-scroll {
+      display: block; width: 100%; max-width: 100%; overflow-x: auto;
+      overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch;
+    }
+    #ownerStudioPageContent .admin-table-scroll > table { min-width: 36rem; width: 100%; }
     #ownerStudioPageContent input:not([type="checkbox"]):not([type="radio"]),
     #ownerStudioPageContent select,
     #ownerStudioPageContent textarea { max-width: 100%; min-height: 44px; font-size: 16px; }
