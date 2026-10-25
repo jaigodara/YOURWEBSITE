@@ -14,6 +14,9 @@ const {
 const PROJECT_ID = "bishnoi-platform-rules-test";
 const STUDENT = "student-test-uid";
 const OWNER = "8YRBWWMKG2OUW6cmzZkGbFgOqyp2";
+const googleStudentContext = (uid) => env.authenticatedContext(uid, {
+  firebase: { identities: { "google.com": ["student-test@example.com"] } },
+});
 
 test("Firestore security rules regression suite", async (t) => {
   const env = await initializeTestEnvironment({
@@ -30,6 +33,12 @@ test("Firestore security rules regression suite", async (t) => {
         mock1StartAt: Timestamp.fromMillis(Date.now() - 60_000),
         mock2StartAt: Timestamp.fromMillis(Date.now() - 60_000),
         quizStartAt: Timestamp.fromMillis(Date.now() - 60_000),
+      });
+      await setDoc(doc(db, "users", STUDENT), {
+        uid: STUDENT, fullName: "परीक्षण विद्यार्थी", gmailVerified: true,
+      });
+      await setDoc(doc(db, "users", "new-student"), {
+        uid: "new-student", fullName: "नया विद्यार्थी", gmailVerified: true,
       });
       await setDoc(doc(db, "examEnrolledStudents", STUDENT), {
         uid: STUDENT, fullName: "परीक्षण विद्यार्थी",
@@ -70,7 +79,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
       await reset();
-      const db = env.authenticatedContext("new-student").firestore();
+      const db = googleStudentContext("new-student").firestore();
       await assertSucceeds(setDoc(doc(db, "examEnrolledStudents/new-student"), {
         uid: "new-student", fullName: "नया विद्यार्थी",
         verificationStatus: "pending", createdAt: serverTimestamp(),
@@ -88,7 +97,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("विद्यार्थी edit में owner का roll और approval नहीं बदल सकता", async () => {
       await reset();
-      const db = env.authenticatedContext(STUDENT).firestore();
+      const db = googleStudentContext(STUDENT).firestore();
       await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
         fullName: "बदला हुआ नाम", updatedAt: serverTimestamp(),
       }));
@@ -129,7 +138,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("परीक्षा शुरू होने के बाद deadline से पहले main submission स्वीकार होता है", async () => {
       await reset();
-      const db = env.authenticatedContext(STUDENT).firestore();
+      const db = googleStudentContext(STUDENT).firestore();
       await assertSucceeds(setDoc(doc(db, "mainExamSubmissions/attempt-early"), {
         uid: STUDENT, mode: "main", answers: { q1: "A" }, submittedAt: serverTimestamp(),
       }));
@@ -236,21 +245,27 @@ test("Firestore security rules regression suite", async (t) => {
       });
 
       const source = readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
-      assert.match(source, /collection\('userNotifications'\)\.where\('uid', 'in', \[uid, 'ALL'\]\)/);
+      assert.match(source, /collection\('userNotifications'\)\s*\.where\('uid', '==', uid\)/);
+      assert.match(source, /collection\('userNotifications'\)\s*\.where\('uid', '==', 'ALL'\)/);
       assert.match(source, /collection\('notificationReads'\)\.where\('uid', '==', uid\)/);
       const studentDb = env.authenticatedContext(STUDENT).firestore();
-      // These mirror script.js: where('uid', 'in', [uid, 'ALL']) and
-      // where('uid', '==', uid); Firestore rules are not query filters.
-      const flatNotificationsQuery = query(
+      // Mirror script.js's separate owner-scoped and broadcast listeners.
+      const ownNotificationsQuery = query(
         collection(studentDb, "userNotifications"),
-        where("uid", "in", [STUDENT, "ALL"]),
+        where("uid", "==", STUDENT),
+      );
+      const broadcastNotificationsQuery = query(
+        collection(studentDb, "userNotifications"),
+        where("uid", "==", "ALL"),
       );
       const flatReadMarkersQuery = query(
         collection(studentDb, "notificationReads"),
         where("uid", "==", STUDENT),
       );
-      const notices = await assertSucceeds(getDocs(flatNotificationsQuery));
-      assert.deepEqual(new Set(notices.docs.map((item) => item.data().uid)), new Set([STUDENT, "ALL"]));
+      const ownNotices = await assertSucceeds(getDocs(ownNotificationsQuery));
+      assert.ok(ownNotices.docs.every((item) => item.data().uid === STUDENT));
+      const broadcastNotices = await assertSucceeds(getDocs(broadcastNotificationsQuery));
+      assert.ok(broadcastNotices.docs.every((item) => item.data().uid === "ALL"));
 
       await assertSucceeds(setDoc(doc(studentDb, "notificationReads", STUDENT + "_flat-query"), {
         uid: STUDENT, notificationId: "flat-private", read: true, readAt: serverTimestamp(),
@@ -262,7 +277,7 @@ test("Firestore security rules regression suite", async (t) => {
       const signedOutDb = env.unauthenticatedContext().firestore();
       await assertFails(getDocs(query(
         collection(signedOutDb, "userNotifications"),
-        where("uid", "in", [STUDENT, "ALL"]),
+        where("uid", "==", "ALL"),
       )));
     });
 
