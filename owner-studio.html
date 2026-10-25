@@ -3910,9 +3910,13 @@ next.addEventListener('click', async () => {
         } else if (status === 'denied') {
           update.deniedAt = firebase.firestore.FieldValue.serverTimestamp();
           update.deniedBy = auth.currentUser?.uid || null;
+        } else if (status === 'kicked') {
+          update.kickedAt = firebase.firestore.FieldValue.serverTimestamp();
+          update.reason = 'owner_force_kick';
         }
         await sessionRef.set(update, { merge: true });
-        showToast(status === 'active' ? 'पुनः प्रवेश की अनुमति भेज दी गई।' : 'पुनः प्रवेश अस्वीकार कर दिया गया।');
+        showToast(status === 'active' ? 'पुनः प्रवेश की अनुमति भेज दी गई।' :
+          status === 'kicked' ? 'विद्यार्थी का परीक्षा सत्र Owner द्वारा रोक दिया गया।' : 'पुनः प्रवेश अस्वीकार कर दिया गया।');
         await loadExamSessionQueue();
       } catch (error) {
         showToast('सत्र स्थिति नहीं बदली: ' + error.message + ' — examSessions rules जाँचें।');
@@ -3994,6 +3998,17 @@ next.addEventListener('click', async () => {
             allow.textContent = '✓ पुनः प्रवेश दें';
             allow.addEventListener('click', () => setExamSessionDecision(row.id, 'active'));
             actions.appendChild(allow);
+          }
+          if (row.status === 'active') {
+            const kick = document.createElement('button');
+            kick.type = 'button';
+            kick.className = 'rounded-lg border border-red-400 bg-red-700 px-3 py-2 text-xs font-extrabold text-white';
+            kick.textContent = '⛔ परीक्षा रोकें / Force Kick';
+            kick.addEventListener('click', () => {
+              if (!confirm('क्या इस विद्यार्थी का सक्रिय परीक्षा सत्र तुरंत लॉक करना है?')) return;
+              setExamSessionDecision(row.id, 'kicked');
+            });
+            actions.appendChild(kick);
           }
           if (row.status !== 'denied') {
             const deny = document.createElement('button');
