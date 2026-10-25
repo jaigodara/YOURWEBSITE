@@ -130,3 +130,19 @@ test('PDF exports query only the selected collection and use the formatter for s
   assert.ok(ownerHtml.includes("formatOwnerExportReport('examEnrolledStudents', rawRows)"));
   assert.ok(ownerHtml.includes('href="./export-report.css"'));
 });
+
+test('manual review report includes checking reason without raw reviewer UID', () => {
+  const report = formatOwnerExportReport('reviews', [{
+    rollNumber: 'JAMBH-2026-0008',
+    fullName: 'Candidate',
+    checkingReason: 'उत्तर-पुस्तिका में अस्पष्ट उत्तर',
+    checkedScore: 72,
+    manualCheckStatus: 'evaluated',
+    reviewedBy: 'private-reviewer-uid',
+    reviewedAt: '2026-10-20T14:48:00.000Z'
+  }]);
+  assert.ok(report.columns.includes('जाँच टिप्पणी / कारण'));
+  assert.equal(report.rows[0]['जाँच टिप्पणी / कारण'], 'उत्तर-पुस्तिका में अस्पष्ट उत्तर');
+  assert.equal(report.rows[0]['प्राप्तांक'], 72);
+  assert.equal(JSON.stringify(report).includes('private-reviewer-uid'), false);
+});
