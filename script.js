@@ -238,7 +238,7 @@ try {
     maintenance: { globalMode: 'off', message: '', sections: {} },
     historyItems: [],
     myResults: [],
-    mala: { count: 0, laps: 0 },
+    mala: { count: 0, laps: 0, dailyCount: 0, dailyGoal: 108, dailyDate: '' },
     fontSize: 16,
     quizQuestions: [],
     initialized: false,
@@ -799,8 +799,14 @@ notify(
           await loadUserProfile(user);
           window.restoreActiveExamForUser();
           if (state.profile?.mala && typeof state.profile.mala === 'object') {
-            state.mala.count = Math.min(107, Math.max(0, Number(state.profile.mala.count) || 0));
-            state.mala.laps = Math.max(0, Number(state.profile.mala.laps) || 0);
+            const remoteMala = state.profile.mala;
+            state.mala.count = Math.min(107, Math.max(0, Number(remoteMala.count) || 0));
+            state.mala.laps = Math.max(0, Number(remoteMala.laps) || 0);
+            if (remoteMala.dateKey === localDateKey()) {
+              state.mala.dailyCount = Math.max(Number(state.mala.dailyCount) || 0, Number(remoteMala.dailyCount) || 0);
+            }
+            state.mala.dailyGoal = Math.min(10000, Math.max(1, Number(remoteMala.dailyGoal) || Number(state.mala.dailyGoal) || 108));
+            state.mala.dailyDate = localDateKey();
             try { localStorage.setItem('bishnoi_mala_v2', JSON.stringify({ ...state.mala, date: localDateKey() })); } catch (_) {}
             window.renderMala();
           }
@@ -2142,16 +2148,22 @@ pdf.addImage(
   window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
     if (!host) return;
-    const rows = Array.isArray(state.myResults) ? state.myResults : [];
+    const allRows = Array.isArray(state.myResults) ? state.myResults : [];
+    const resultsReleased = state.examConfig?.resultsPublished === true;
+    // Daily quiz keeps its own publication flow; main/mock results stay hidden
+    // until the Owner explicitly releases the global result gate.
+    const rows = allRows.filter(row => row.mode === 'quiz' || resultsReleased);
     const intro = byId('myResultsIntro');
     if (!rows.length) {
-      if (intro) intro.textContent = state.user
-        ? 'अभी आपके खाते के लिए कोई परिणाम प्रकाशित नहीं हुआ है। परिणाम परीक्षक द्वारा घोषित होने के बाद यहाँ दिखाई देंगे।'
-        : 'अपने परिणाम देखने के लिए लॉगिन करें। प्रकाशित परिणाम ही यहाँ दिखाए जाते हैं।';
-      host.innerHTML = '<div class="results-empty"><span class="results-empty-icon" aria-hidden="true">📘</span><p class="font-bold text-sm text-forest">अभी कोई घोषित परिणाम नहीं</p><p class="mt-1 text-xs leading-relaxed text-stone-500">जैसे ही परीक्षक आपका परिणाम प्रकाशित करेंगे, अंक और परिणाम का समय यहाँ दिखाई देगा।</p></div>';
+      if (intro) intro.textContent = !state.user
+        ? 'अपने परिणाम देखने के लिए लॉगिन करें। प्रकाशित परिणाम ही यहाँ दिखाए जाते हैं।'
+        : (allRows.length && !resultsReleased
+          ? 'मुख्य और मॉक परीक्षा के परिणाम अभी लॉक हैं। व्यवस्थापक द्वारा “परिणाम जारी करें” करने पर यहाँ दिखेंगे।'
+          : 'अभी आपके खाते के लिए कोई परिणाम प्रकाशित नहीं हुआ है। परिणाम परीक्षक द्वारा घोषित होने के बाद यहाँ दिखाई देंगे।');
+      host.innerHTML = '<div class="results-empty"><span class="results-empty-icon" aria-hidden="true">📘</span><p class="font-bold text-sm text-forest">' + (allRows.length && !resultsReleased ? 'परिणाम अभी लॉक हैं' : 'अभी कोई घोषित परिणाम नहीं') + '</p><p class="mt-1 text-xs leading-relaxed text-stone-500">' + (allRows.length && !resultsReleased ? 'मुख्य/मॉक परिणाम Owner के रिलीज़ करने तक छिपे रहेंगे।' : 'जैसे ही परीक्षक आपका परिणाम प्रकाशित करेंगे, अंक और परिणाम का समय यहाँ दिखाई देगा।') + '</p></div>';
       return;
     }
-    if (intro) intro.textContent = 'नीचे केवल आपके लिए प्रकाशित परिणाम हैं। लंबित या जाँचाधीन प्रयासों के अंक यहाँ नहीं दिखाए जाते।';
+    if (intro) intro.textContent = 'नीचे केवल आपके लिए जारी किए गए परिणाम हैं। लंबित या जाँचाधीन प्रयासों के अंक यहाँ नहीं दिखाए जाते।';
     const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा' };
     host.innerHTML = rows.map(row => {
       const scoreVisible = row.mode === 'quiz' || state.resultsIdentityVerified === true;
@@ -2314,26 +2326,38 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   // Jaap Mala: local counters are personal convenience; signed-in sync is best-effort.
   function initMalaState() {
+    const today = localDateKey();
     try {
       const saved = JSON.parse(localStorage.getItem('bishnoi_mala_v2') || '{}');
-      state.mala.count = Math.min(108, Math.max(0, Number(saved.count) || 0));
+      state.mala.count = Math.min(107, Math.max(0, Number(saved.count) || 0));
       state.mala.laps = Math.max(0, Number(saved.laps) || 0);
-    } catch (_) {}
-
+      state.mala.dailyCount = saved.date === today ? Math.max(0, Number(saved.dailyCount) || 0) : 0;
+      state.mala.dailyGoal = Math.min(10000, Math.max(1, Number(saved.dailyGoal) || 108));
+      state.mala.dailyDate = today;
+    } catch (_) {
+      state.mala.dailyCount = 0;
+      state.mala.dailyGoal = 108;
+      state.mala.dailyDate = today;
+    }
     window.renderMala();
   }
 
   function saveMala() {
+    const today = localDateKey();
+    if (state.mala.dailyDate !== today) {
+      state.mala.dailyCount = 0;
+      state.mala.dailyDate = today;
+    }
     localStorage.setItem('bishnoi_mala_v2', JSON.stringify({
       ...state.mala,
-      date: localDateKey()
+      date: today
     }));
 
     if (state.user && state.db) {
       collection('users').doc(state.user.uid).set({
         mala: {
           ...state.mala,
-          dateKey: localDateKey(),
+          dateKey: today,
           updatedAt: serverTimestamp()
         }
       }, { merge: true }).catch(() => {});
@@ -2347,21 +2371,53 @@ window.renderExamVisibility = function renderExamVisibility() {
     setText('currentBeadDisplay', state.mala.count);
     setText('malaTotalDisplay', state.mala.laps * 108 + state.mala.count);
     setText('malaLapsDisplay', state.mala.laps);
+    const today = localDateKey();
+    if (state.mala.dailyDate !== today) {
+      state.mala.dailyDate = today;
+      state.mala.dailyCount = 0;
+    }
+    const goal = Math.min(10000, Math.max(1, Number(state.mala.dailyGoal) || 108));
+    const dailyCount = Math.max(0, Number(state.mala.dailyCount) || 0);
+    setText('malaDailyGoalSummary', dailyCount + ' / ' + goal);
+    const dailyProgress = byId('malaDailyGoalProgress');
+    if (dailyProgress) dailyProgress.style.width = Math.min(100, dailyCount / goal * 100) + '%';
+    const goalInput = byId('malaDailyGoalInput');
+    if (goalInput && document.activeElement !== goalInput) goalInput.value = String(goal);
     const p = byId('malaProgressBar');
     if (p) p.style.width = `${state.mala.count / 108 * 100}%`;
     $$('.mala-bead').forEach((b, i) => b.classList.toggle('bead-done', i < state.mala.count));
   }
 
   window.tapHomeMalaBead = function () {
+    const today = localDateKey();
+    if (state.mala.dailyDate !== today) {
+      state.mala.dailyDate = today;
+      state.mala.dailyCount = 0;
+    }
     state.mala.count++;
+    state.mala.dailyCount = Math.max(0, Number(state.mala.dailyCount) || 0) + 1;
     if (state.mala.count >= 108) {
       state.mala.count = 0;
       state.mala.laps++;
       notify('एक माला पूरी हुई! साधना के लिए धन्यवाद।', 'success');
     }
-    if (navigator.vibrate && byId('hapticToggle')?.checked) navigator.vibrate(25);
+    if (navigator.vibrate && byId('hapticToggle')?.checked && typeof navigator.vibrate === 'function') navigator.vibrate(25);
     saveMala();
     window.renderMala();
+  };
+
+  window.BishnoiApp = window.BishnoiApp || {};
+  window.BishnoiApp.setMalaDailyGoal = window.setMalaDailyGoal = function (value) {
+    const goal = Number(value);
+    if (!Number.isInteger(goal) || goal < 1 || goal > 10000) {
+      notify('दैनिक लक्ष्य 1 से 10000 के बीच पूरा अंक होना चाहिए।', 'error');
+      return false;
+    }
+    state.mala.dailyGoal = goal;
+    saveMala();
+    window.renderMala();
+    notify('दैनिक जप लक्ष्य सहेज लिया गया।', 'success');
+    return true;
   };
 
   window.resetMala = function () {
@@ -3899,6 +3955,7 @@ const digits = String(value || '').replace(/\D/g, '');
     state.exam.visibilityHandler = () => {
       if (!state.exam.active || document.visibilityState !== 'hidden') return;
       state.exam.tabSwitches = (state.exam.tabSwitches || 0) + 1;
+      recordLiveExamViolation('tab_switch', 'Document became hidden; count=' + state.exam.tabSwitches);
       persistActiveExam();
       notify('परीक्षा टैब बदला गया: ' + state.exam.tabSwitches + '/' + CONFIG.maxTabSwitches, 'error');
       if (state.exam.tabSwitches >= CONFIG.maxTabSwitches) {
@@ -4019,6 +4076,7 @@ const digits = String(value || '').replace(/\D/g, '');
 
   window.stopExamResources = function stopExamResources() {
     const exam = state.exam;
+    if (typeof exam.integrityCleanup === 'function') exam.integrityCleanup();
 
     if (exam.timer) clearInterval(exam.timer);
     if (exam.proctorTimer) clearInterval(exam.proctorTimer);
@@ -4226,6 +4284,103 @@ const digits = String(value || '').replace(/\D/g, '');
     if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function recordLiveExamViolation(type, detail = '') {
+    const exam = state.exam;
+    if (!state.user || !exam?.active || exam.submitted) return;
+    const identity = getStudentIdentity();
+    const record = {
+      uid: state.user.uid,
+      mode: String(exam.mode || ''),
+      name: identity.name || state.user.displayName || state.user.email || 'विद्यार्थी',
+      rollNumber: identity.rollNumber || '',
+      studentPhone: identity.phone || '',
+      type: String(type).slice(0, 60),
+      detail: String(detail || '').slice(0, 240),
+      occurredAtMs: Date.now(),
+      createdAt: serverTimestamp()
+    };
+    collection('live_violations').add(record).catch(error => {
+      console.warn('Live exam violation could not be written; check live_violations Firestore rules.', error);
+    });
+  }
+
+  function installExamIntegrityGuards() {
+    const exam = state.exam;
+    const workspace = byId('portalExamWorkspace');
+    if (!exam?.active || !workspace || exam.integrityCleanup) return;
+
+    let status = byId('examConnectionStatus');
+    if (!status) {
+      status = document.createElement('div');
+      status.id = 'examConnectionStatus';
+      status.className = 'hidden rounded-xl border px-3 py-2 text-xs font-bold';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      workspace.prepend(status);
+    }
+
+    const showConnection = online => {
+      status.classList.remove('hidden', 'border-red-300', 'bg-red-50', 'text-red-800', 'border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
+      if (online) {
+        status.classList.add('border-emerald-300', 'bg-emerald-50', 'text-emerald-800');
+        status.textContent = '✓ इंटरनेट पुनः जुड़ गया है। आपके उत्तर स्थानीय बैकअप में सुरक्षित हैं; जमा करने के लिए कनेक्शन बनाए रखें।';
+      } else {
+        status.classList.add('border-red-300', 'bg-red-50', 'text-red-800');
+        status.textContent = '⚠ इंटरनेट बंद है। उत्तर बदलते रहें—वे इस डिवाइस के स्थानीय बैकअप में सुरक्षित हो रहे हैं।';
+      }
+    };
+
+    const preventClipboard = event => {
+      if (!state.exam?.active || state.exam.submitted || !event.target?.closest?.('#portalExamWorkspace')) return;
+      event.preventDefault();
+      if (event.type === 'contextmenu' || event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
+        notify('परीक्षा के दौरान कॉपी/कट/पेस्ट और राइट-क्लिक बंद हैं।', 'error');
+      }
+    };
+    const fullscreenChanged = () => {
+      if (!state.exam?.active || state.exam.submitted || document.fullscreenElement) return;
+      recordLiveExamViolation('fullscreen_exit', 'Fullscreen mode exited');
+      notify('फुल-स्क्रीन से बाहर निकलना प्रॉक्टरिंग उल्लंघन के रूप में दर्ज हुआ।', 'error');
+    };
+    const offline = () => {
+      if (!state.exam?.active || state.exam.submitted) return;
+      persistActiveExam();
+      showConnection(false);
+    };
+    const online = () => {
+      if (!state.exam?.active || state.exam.submitted) return;
+      persistActiveExam();
+      showConnection(true);
+      if (Date.now() >= state.exam.endAt) window.submitPortalExam(true);
+    };
+
+    workspace.style.userSelect = 'none';
+    workspace.style.webkitUserSelect = 'none';
+    ['copy', 'cut', 'paste', 'contextmenu', 'selectstart'].forEach(type => document.addEventListener(type, preventClipboard, true));
+    document.addEventListener('fullscreenchange', fullscreenChanged);
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', online);
+    if (!navigator.onLine) showConnection(false);
+
+    // Fullscreen is best-effort: browsers and embedded WebViews may reject it.
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {
+        notify('यह ब्राउज़र फुल-स्क्रीन लॉक की अनुमति नहीं देता; परीक्षा खुली रहेगी और टैब बदलाव की निगरानी जारी रहेगी।', 'error');
+      });
+    }
+
+    exam.integrityCleanup = () => {
+      ['copy', 'cut', 'paste', 'contextmenu', 'selectstart'].forEach(type => document.removeEventListener(type, preventClipboard, true));
+      document.removeEventListener('fullscreenchange', fullscreenChanged);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('online', online);
+      workspace.style.userSelect = '';
+      workspace.style.webkitUserSelect = '';
+      status.classList.add('hidden');
+      exam.integrityCleanup = null;
+    };
+  }
+
   window.startPortalExam = async function (mode = 'quiz') {
     if (!requireUser()) return;
     if (state.profile?.gmailVerified !== true) {
@@ -4359,11 +4514,60 @@ const digits = String(value || '').replace(/\D/g, '');
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Give each attempt its own randomized question order. Do not mutate the
-      // Firestore order, so different devices/attempts need not see the same series.
-      for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [questions[i], questions[j]] = [questions[j], questions[i]];
+      // Randomize question and option order only when the Owner enables it.
+      // Fisher-Yates is applied to attempt-local copies; Firestore question records are untouched.
+      if (config.randomizeSets !== false) {
+        for (let i = questions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+        questions.forEach(question => {
+          const optionsKey = ['options', 'opts', 'choices'].find(key => Array.isArray(question[key]));
+          if (!optionsKey || question[optionsKey].length < 2) return;
+          const options = question[optionsKey];
+          const correctKeys = ['correctAnswer', 'answerIndex', 'ans', 'correctOption'].filter(key =>
+            question[key] !== undefined && question[key] !== null && question[key] !== ''
+          );
+          // Main/mock answer keys live in a separate private collection. Do not
+          // shuffle their options until the engine can remap private keys safely.
+          if (!correctKeys.length) return;
+          const rawCorrect = question[correctKeys[0]];
+          const optionText = option => String(option && typeof option === 'object'
+            ? (option.text ?? option.label ?? option.value ?? '') : option).trim().toLowerCase();
+          let oldCorrectIndex = -1;
+          if (rawCorrect !== null) {
+            const text = String(rawCorrect).trim();
+            if (/^\d+$/.test(text)) {
+              const n = Number(text);
+              if (Number.isInteger(n) && n >= 0 && n < options.length) oldCorrectIndex = n;
+            } else if (/^[A-D]$/i.test(text)) {
+              const n = text.toUpperCase().charCodeAt(0) - 65;
+              if (n >= 0 && n < options.length) oldCorrectIndex = n;
+            } else {
+              oldCorrectIndex = options.findIndex(option => optionText(option) === text.toLowerCase());
+            }
+          }
+          const shuffled = options.map((option, oldIndex) => ({ option, oldIndex }));
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          question[optionsKey] = shuffled.map(item => item.option);
+          if (oldCorrectIndex >= 0) {
+            const newCorrectIndex = shuffled.findIndex(item => item.oldIndex === oldCorrectIndex);
+            const newCorrectText = optionText(question[optionsKey][newCorrectIndex]);
+            correctKeys.forEach(key => {
+              const oldValue = question[key];
+              if (typeof oldValue === 'string' && /^[A-D]$/i.test(oldValue.trim())) {
+                question[key] = String.fromCharCode(65 + newCorrectIndex);
+              } else if (typeof oldValue === 'string' && !/^\d+$/.test(oldValue.trim())) {
+                question[key] = newCorrectText;
+              } else {
+                question[key] = newCorrectIndex;
+              }
+            });
+          }
+        });
       }
 
       if (!questions.length) {
@@ -4406,6 +4610,7 @@ const digits = String(value || '').replace(/\D/g, '');
 
       ensureExamWorkspace(mode);
       setVisible('portalExamWorkspace', true);
+      installExamIntegrityGuards();
       ['enrollmentSection', 'myResultsPanel', 'dailyQuizSection', 'mockHub', 'mainExamSection']
         .forEach(id => setVisible(id, false));
       setVisible('previousQuestionBtn', true);
@@ -5088,12 +5293,182 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
   app.pledgeTree = window.pledgeTree;
   app.filterNiyams = function (query) {
     const term = String(query || '').trim().toLocaleLowerCase();
-    const container = byId('niyamsList') || byId('niyamList') || byId('niyamsContainer');
+    const container = byId('niyamsList') || byId('niyamList') || byId('niyamsContainer') || byId('niyamGrid');
     if (!container) return;
-    container.querySelectorAll('[data-niyam], article, li, .niyam-card').forEach(function (item) {
+    container.querySelectorAll('[data-niyam], article, li, .niyam-card, .niyam-card-item').forEach(function (item) {
       item.hidden = !!term && !item.textContent.toLocaleLowerCase().includes(term);
     });
   };
+
+  app.searchLiterature = function (query) {
+    const term = String(query || '').trim().toLocaleLowerCase();
+    const groups = [
+      { id: 'pdfGrid', label: 'PDF / ग्रंथ' },
+      { id: 'platformMediaFeed', label: 'मीडिया / भजन' },
+      { id: 'niyamGrid', label: 'नियम' }
+    ];
+    let visible = 0;
+    let total = 0;
+    groups.forEach(group => {
+      const container = byId(group.id);
+      if (!container) return;
+      Array.from(container.children).forEach(item => {
+        const matches = !term || String(item.textContent || '').toLocaleLowerCase().includes(term);
+        item.hidden = !matches;
+        if (matches) visible++;
+        total++;
+      });
+    });
+    const status = byId('literatureSearchStatus');
+    if (status) status.textContent = term
+      ? (visible ? 'खोज परिणाम: ' + visible + ' / ' + total + ' सामग्री।' : 'इस शब्द से संबंधित सामग्री नहीं मिली।')
+      : '';
+  };
+  const LITERATURE_BOOKMARK_KEY = 'bishnoi_literature_bookmarks_v1';
+
+  function readLiteratureBookmarks() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LITERATURE_BOOKMARK_KEY) || '[]');
+      return Array.isArray(saved) ? saved.filter(item => item && typeof item.id === 'string') : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeLiteratureBookmarks(items) {
+    try {
+      localStorage.setItem(LITERATURE_BOOKMARK_KEY, JSON.stringify(items.slice(0, 200)));
+      return true;
+    } catch (error) {
+      console.warn('Literature bookmarks could not be saved locally.', error);
+      notify('बुकमार्क सहेजे नहीं जा सके। डिवाइस की स्टोरेज जगह जाँचें।', 'error');
+      return false;
+    }
+  }
+
+  function bookmarkHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  function renderLiteratureBookmarks() {
+    const host = byId('savedLiteratureBookmarks');
+    if (!host) return;
+    const items = readLiteratureBookmarks();
+    if (!items.length) {
+      host.innerHTML = '<p class="text-[11px] text-stone-500">अभी कोई बुकमार्क नहीं है। साहित्य अनुभाग में ☆ बुकमार्क दबाएँ।</p>';
+      return;
+    }
+    host.innerHTML = items.map(item => {
+      const link = /^https?:\/\//i.test(String(item.url || ''))
+        ? '<a class="text-emerald-800 underline font-bold" href="' + bookmarkHtml(item.url) + '" target="_blank" rel="noopener noreferrer">खोलें</a>'
+        : '<span class="text-stone-500">लिंक उपलब्ध नहीं</span>';
+      return '<article class="rounded-xl border border-stone-200 bg-stone-50 p-2.5">' +
+        '<p class="font-bold text-forest">' + bookmarkHtml(item.title || 'साहित्य सामग्री') + '</p>' +
+        '<p class="mt-1 text-[10px] text-stone-600">' + bookmarkHtml(item.summary || '') + '</p>' +
+        '<div class="mt-2 flex items-center justify-between gap-3 text-[11px]">' + link +
+        '<button type="button" data-remove-literature-bookmark="' + bookmarkHtml(item.id) + '" class="font-bold text-red-700 underline">हटाएँ</button></div></article>';
+    }).join('');
+  }
+
+  function decorateLiteratureCards() {
+    const groups = [
+      { id: 'pdfGrid', type: 'PDF / ग्रंथ' },
+      { id: 'platformMediaFeed', type: 'मीडिया / भजन' },
+      { id: 'niyamGrid', type: 'नियम' }
+    ];
+    const saved = new Set(readLiteratureBookmarks().map(item => item.id));
+    groups.forEach(group => {
+      const host = byId(group.id);
+      if (!host) return;
+      Array.from(host.children).forEach(card => {
+        if (!card || card.tagName === 'P' || card.dataset.bookmarkDecorated === 'true') return;
+        const titleNode = card.querySelector('h2,h3,h4,[data-title]') || card.querySelector('a[href]');
+        const title = String(titleNode?.textContent || card.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 140);
+        if (!title) return;
+        const anchor = card.matches('a[href]') ? card : card.querySelector('a[href]');
+        const rawUrl = anchor?.href || '';
+        const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : '';
+        const id = (group.id + '|' + (url || title)).slice(0, 360);
+        card.dataset.bookmarkDecorated = 'true';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mt-2 inline-flex min-h-8 items-center rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-bold text-forest';
+        button.dataset.literatureBookmarkToggle = id;
+        button.dataset.bookmarkTitle = title;
+        button.dataset.bookmarkUrl = url;
+        button.dataset.bookmarkType = group.type;
+        button.dataset.bookmarkSummary = String(card.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 280);
+        const isSaved = saved.has(id);
+        button.setAttribute('aria-pressed', String(isSaved));
+        button.textContent = isSaved ? '★ सहेजा गया' : '☆ बुकमार्क';
+        card.appendChild(button);
+      });
+    });
+  }
+
+  function initLiteratureBookmarks() {
+    if (document.body.dataset.literatureBookmarksBound !== 'true') {
+      document.body.dataset.literatureBookmarksBound = 'true';
+      document.addEventListener('click', event => {
+        const toggle = event.target.closest('[data-literature-bookmark-toggle]');
+        if (toggle) {
+          event.preventDefault();
+          event.stopPropagation();
+          const id = toggle.dataset.literatureBookmarkToggle || '';
+          const items = readLiteratureBookmarks();
+          const existing = items.some(item => item.id === id);
+          const next = existing
+            ? items.filter(item => item.id !== id)
+            : items.concat([{
+                id,
+                title: toggle.dataset.bookmarkTitle || 'साहित्य सामग्री',
+                summary: toggle.dataset.bookmarkSummary || '',
+                url: toggle.dataset.bookmarkUrl || '',
+                type: toggle.dataset.bookmarkType || 'साहित्य',
+                savedAt: new Date().toISOString()
+              }]);
+          if (writeLiteratureBookmarks(next)) {
+            toggle.setAttribute('aria-pressed', String(!existing));
+            toggle.textContent = existing ? '☆ बुकमार्क' : '★ सहेजा गया';
+            renderLiteratureBookmarks();
+            notify(existing ? 'बुकमार्क हटाया गया।' : 'बुकमार्क इस डिवाइस पर सहेजा गया।', 'success');
+          }
+          return;
+        }
+        const remove = event.target.closest('[data-remove-literature-bookmark]');
+        if (remove) {
+          const id = remove.dataset.removeLiteratureBookmark || '';
+          writeLiteratureBookmarks(readLiteratureBookmarks().filter(item => item.id !== id));
+          renderLiteratureBookmarks();
+          document.querySelectorAll('[data-literature-bookmark-toggle]').forEach(button => {
+            if (button.dataset.literatureBookmarkToggle === id) {
+              button.setAttribute('aria-pressed', 'false');
+              button.textContent = '☆ बुकमार्क';
+            }
+          });
+        }
+      });
+    }
+    decorateLiteratureCards();
+    renderLiteratureBookmarks();
+    ['pdfGrid', 'platformMediaFeed', 'niyamGrid'].forEach(id => {
+      const host = byId(id);
+      if (host && !host.dataset.bookmarkObserver) {
+        host.dataset.bookmarkObserver = 'true';
+        const observer = new MutationObserver(() => decorateLiteratureCards());
+        observer.observe(host, { childList: true, subtree: false });
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLiteratureBookmarks, { once: true });
+  } else {
+    initLiteratureBookmarks();
+  }
+
   app.tapMalaBead = window.tapHomeMalaBead;
   app.tapHomeMalaBead = window.tapHomeMalaBead;
   app.resetMala = function () {

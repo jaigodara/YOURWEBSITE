@@ -1,4 +1,4 @@
-/* Shared printable PDF/report styles for Owner Studio exports. */
+/* Shared A4 printable report styles for Owner Studio and browser print views. */
 .export-pdf-container {
   box-sizing: border-box;
   width: 100%;
@@ -42,6 +42,14 @@
 }
 .clean-export-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
 .clean-export-table tr:nth-child(even) { background: #f8fafc; }
+  background: #edf2ed;
+  color: #243b2c;
+  text-align: left;
+  font-weight: 700;
+  padding: 9px 8px;
+  border-bottom: 2px solid #cbd5d1;
+}
+.clean-export-table td { padding: 8px; border-bottom: 1px solid #e2e8e2; overflow-wrap: anywhere; }
 .clean-export-table tr { break-inside: avoid; page-break-inside: avoid; }
 .export-footer {
   margin-top: 24px;
