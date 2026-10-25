@@ -73,3 +73,8 @@ test('Owner live session queue offers confirmed force-kick for active attempts',
   assert.match(owner, /setExamSessionDecision\(row\.id, 'kicked'\)/);
   assert.match(owner, /reason = 'owner_force_kick'/);
 });
+
+test('Option shuffling is skipped when a private answer key is not available in the question record', () => {
+  assert.match(script, /if \(!correctKeys\.length\) return/);
+  assert.match(script, /Main\/mock answer keys live in a separate private collection/);
+});
