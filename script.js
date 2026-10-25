@@ -1644,6 +1644,14 @@ pdf.addImage(
     return timestampMillis(item?.createdAt) || Number(item?.createdAtMs) || 0;
   }
 
+  // Apply expiry consistently to public, personal and legacy/flat notification feeds.
+  // Permanent notices have no expiresAt (or explicitly use lifetime: "permanent").
+  function notificationIsExpired(item, now = Date.now()) {
+    if (!item || item.lifetime === 'permanent' || !item.expiresAt) return false;
+    const expiry = timestampMillis(item.expiresAt) || Number(item.expiresAtMs) || 0;
+    return expiry > 0 && expiry <= now;
+  }
+
   function renderNotificationCards(host, items) {
     if (!host) return;
     host.replaceChildren();
@@ -1869,12 +1877,14 @@ card.appendChild(declineEditorButton);
 
     setVisible('notificationBellButton', true);
     const globalItems = (state.notifications || [])
-      .filter(item => item.active === true && (item.audience === 'all' || !item.audience))
+      .filter(item => item.active === true && (item.audience === 'all' || !item.audience) && !notificationIsExpired(item))
       .map(item => ({ ...item, _key: 'global:' + item.id }));
     const personalItems = (state.personalNotifications || [])
-      .filter(item => item.active !== false)
+      .filter(item => item.active !== false && !notificationIsExpired(item))
       .map(item => ({ ...item, _key: 'private:' + item.id }));
-    const flatItems = (state.flatNotifications || []).filter(item => item.uid === 'ALL' || item.uid === state.user.uid).map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
+    const flatItems = (state.flatNotifications || [])
+      .filter(item => (item.uid === 'ALL' || item.uid === state.user.uid) && !notificationIsExpired(item))
+      .map(item => ({ ...item, message: item.body || item.message || '', _key: 'flat:' + item.id, _flat: true }));
     // Sort first so duplicate legacy/flat notices keep the newest, highest-priority copy.
     const sortedItems = [...personalItems, ...flatItems, ...globalItems].sort((a, b) =>
       Number(!!(b.pinnedByOwner || b.important)) - Number(!!(a.pinnedByOwner || a.important)) ||
