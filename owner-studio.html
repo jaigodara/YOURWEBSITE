@@ -4124,8 +4124,9 @@ next.addEventListener('click', async () => {
 
   const isChecked = student =>
   student.manualReviewCompleted === true ||
-  student.manualReviewStatus === 'published' ||
-  student.manualReviewStatus === 'verified';
+  ['evaluated', 'completed', 'published', 'verified', 'held', 'cancelled'].includes(
+    String(student.manualReviewStatus || student.reviewStatus || '').toLowerCase()
+  );
 
   let nextIndex = -1;
 
@@ -4524,8 +4525,11 @@ next.addEventListener('click', async () => {
         };
         const isFilteredFormat = ['csv','xlsx','pdf'].includes(format);
         let rows = Array.isArray(payload) ? payload : Object.entries(payload || {}).flatMap(([setName, items]) =>
-          (Array.isArray(items) ? items : []).map(item => ({ ...item, questionSet: item.questionSet || item.questionSetKey || setName }))
-          (Array.isArray(items) ? items : []).map(item => ({ ...item, _sourceCollection: setName }))
+          (Array.isArray(items) ? items : []).map(item => ({
+            ...item,
+            questionSet: item.questionSet || item.questionSetKey || setName,
+            _sourceCollection: setName
+          }))
         );
         if (isFilteredFormat) {
           const year = document.getElementById('ownerExportYear')?.value || '';
@@ -4853,10 +4857,9 @@ return review ? {
 
           const isEvaluated =
   d.manualReviewCompleted === true ||
-  ['evaluated', 'completed', 'published', 'verified', 'released'].includes(
-    String(d.manualReviewStatus || d.reviewStatus || d.status || '').toLowerCase()
-  ) ||
-  d.reviewLocked === true;
+  ['evaluated', 'completed', 'published', 'verified', 'released', 'held', 'cancelled'].includes(
+    String(d.manualReviewStatus || d.reviewStatus || '').toLowerCase()
+  );
           if (selectedStatus === 'evaluated' && !isEvaluated) {
             return false;
           }
