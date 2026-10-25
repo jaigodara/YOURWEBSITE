@@ -295,7 +295,10 @@ test("separate exam portal and owner-controlled availability toggles are wired",
   assert.match(ownerHtml, /examPortalVisible:/);
   assert.match(script, /\['examPortalCard', c\.separateExamPortalVisible !== false && c\.examPortalVisible !== false\]/);
   assert.match(portal, /examConfig/);
-  assert.match(portal, /dailyQuizVisible/);
+  assert.match(script, /\['mainDailyQuizCta', c\.dailyQuizVisible !== false\]/);
+  assert.match(portal, /Daily Quiz is available only in the main website's Pariksha tab/);
+  assert.doesNotMatch(portal, /dailyQuizVisible/,
+    "Daily Quiz belongs to the main website, not the separate exam portal");
   assert.match(portal, /mock1Visible/);
   assert.match(portal, /mainExamVisible/);
   // SMS OTP and phone/password login are intentionally disabled; supported login is Google or email/password.
