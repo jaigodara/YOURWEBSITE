@@ -2406,7 +2406,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     window.renderMala();
   };
 
-  app.setMalaDailyGoal = window.setMalaDailyGoal = function (value) {
+  window.BishnoiApp = window.BishnoiApp || {};
+  window.BishnoiApp.setMalaDailyGoal = window.setMalaDailyGoal = function (value) {
     const goal = Number(value);
     if (!Number.isInteger(goal) || goal < 1 || goal > 10000) {
       notify('दैनिक लक्ष्य 1 से 10000 के बीच पूरा अंक होना चाहिए।', 'error');
