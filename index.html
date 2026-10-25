@@ -606,6 +606,18 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="text-[11px] uppercase tracking-wider text-stone-300 mt-1">/ 108 मनके</span>
           </button>
         </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <label for="malaDailyGoalInput" class="text-sm font-bold text-forest">दैनिक जप लक्ष्य</label>
+            <span id="malaDailyGoalSummary" class="text-xs font-bold text-terracotta">0 / 108</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-white border border-amber-100"><div id="malaDailyGoalProgress" class="h-full rounded-full bg-forest" style="width:0%"></div></div>
+          <div class="flex items-center gap-2">
+            <input id="malaDailyGoalInput" type="number" min="1" max="10000" value="108" inputmode="numeric" class="w-24 rounded-lg border border-stone-300 bg-white p-2 text-sm" aria-label="दैनिक जप लक्ष्य">
+            <button type="button" onclick="window.BishnoiApp.setMalaDailyGoal(document.getElementById('malaDailyGoalInput').value)" class="rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">लक्ष्य सहेजें</button>
+          </div>
+          <p class="text-[11px] text-stone-600">गिनती इस डिवाइस पर ऑफ़लाइन सुरक्षित रहती है; लॉगिन होने पर सिंक का प्रयास किया जाता है।</p>
+        </div>
         <button onclick="window.BishnoiApp.resetMala()" class="text-xs text-stone-400 hover:text-stone-600 font-semibold underline">माला शून्य (Reset) करें</button>
       </div>
     </section>
