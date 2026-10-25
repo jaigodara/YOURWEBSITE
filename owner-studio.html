@@ -3914,8 +3914,11 @@ next.addEventListener('click', async () => {
             const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
             payload[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
           }
-        } else if (format === 'csv' || format === 'xlsx') payload = await readAll(selected);
-        else {
+        } else if (['csv', 'xlsx', 'pdf'].includes(format)) {
+          payload = selected === 'examEnrolledStudents' && typeof getRegisteredMemberExportRows === 'function'
+            ? await getRegisteredMemberExportRows()
+            : await readAll(selected);
+        } else {
           payload = {};
           for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig']) {
             try { payload[name] = await readAll(name); } catch (error) { payload[name] = { exportError: error.message || String(error) }; }
@@ -3962,15 +3965,20 @@ next.addEventListener('click', async () => {
             return true;
           });
         }
-        rows = rows.map(row => ({
-          'Roll Number': row.rollNumber || row.roll_number || row.roll || row.admitCardRollNumber || '',
-          'Full Name': row.fullName || row.name || row.displayName || row.studentName || '',
-          "Father's Name": row.fatherName || row.fathersName || row.father_name || '',
-          'Mobile Number': row.phoneNumber || row.phone || row.mobileNumber || row.mobile || '',
-          'Email': row.email || row.emailAddress || '',
-          'Question Set': row.questionSet || row.questionSetKey || row.set || '',
-          ...row
-        }));
+        const exportReports = window.BishnoismExportReports;
+        if (exportReports && ['examAnswerKeys', 'examEnrolledStudents', 'publishedResults', 'mainExamSubmissions', 'mockExamSubmissions', 'quizAttempts'].includes(selected)) {
+          rows = exportReports.formatRows(selected, rows);
+        } else {
+          rows = rows.map(row => {
+            const cleaned = {};
+            for (const [key, value] of Object.entries(row || {})) {
+              if (['updatedBy', 'modifiedBy', 'createdBy', 'uid', 'studentUid', 'userId'].includes(key)) continue;
+              if (key === 'questionSetKey') continue;
+              cleaned[key] = value && typeof value === 'object' ? JSON.stringify(value) : value;
+            }
+            return cleaned;
+          });
+        }
         if (format === 'csv') {
           const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
           const cell = value => {
@@ -4880,28 +4888,47 @@ async function removeTrustedEditor(uid) {
       });
     }
 
-    async function downloadPdfReport(rows, title, filename) {
+    async function downloadPdfReport(rows, title, filename, reportType = '') {
       if (!rows.length) return showToast('डाउनलोड के लिए कोई रिकॉर्ड नहीं मिला।');
       if (!window.jspdf?.jsPDF) throw new Error('PDF library उपलब्ध नहीं है।');
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'landscape' });
-      doc.text(title, 14, 14);
-      if (typeof doc.autoTable === 'function') {
-        const headers = Object.keys(rows[0]);
-        doc.autoTable({
-          startY: 20,
-          head: [headers],
-          body: rows.map(row => headers.map(key => String(row[key] ?? ''))),
-          styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
-          headStyles: { fontSize: 7 }
-        });
-      } else {
-        doc.setFontSize(8);
-        rows.slice(0, 24).forEach((row, index) => {
-          const line = Object.values(row).map(value => String(value ?? '')).join(' | ').slice(0, 180);
-          doc.text(line, 12, 24 + index * 8);
-        });
-      }
+      const orientation = reportType === 'examEnrolledStudents' ? 'portrait' : 'landscape';
+      const doc = new jsPDF({ orientation, unit: 'pt', format: 'a4', compress: true });
+      const reportApi = window.BishnoismExportReports;
+      const reportTitle = reportApi?.reportTitle(reportType) || title;
+      const headers = Object.keys(rows[0]);
+      const stamp = new Date().toLocaleString('hi-IN');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text(String(reportTitle).slice(0, 100), 30, 28, { maxWidth: doc.internal.pageSize.getWidth() - 60 });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('जारी तिथि: ' + stamp + '  |  कुल रिकॉर्ड: ' + rows.length, 30, 43);
+      if (typeof doc.autoTable !== 'function') throw new Error('PDF table plugin लोड नहीं हुआ।');
+      doc.autoTable({
+        startY: 55,
+        head: [headers],
+        body: rows.map(row => headers.map(key => {
+          const value = row[key];
+          return value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+        })),
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: orientation === 'portrait' ? 7 : 6.5, cellPadding: 4, overflow: 'linebreak', valign: 'middle', lineColor: [220, 226, 220], lineWidth: 0.35 },
+        headStyles: { fillColor: [20, 54, 34], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+        alternateRowStyles: { fillColor: [248, 250, 248] },
+        margin: { top: 55, left: 24, right: 24, bottom: 30 },
+        rowPageBreak: 'avoid',
+        showHead: 'everyPage',
+        didDrawPage: () => {
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const pageHeight = doc.internal.pageSize.getHeight();
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text('Bishnoism • अधिकृत Owner Studio रिपोर्ट', 24, pageHeight - 12);
+          doc.text('पृष्ठ ' + doc.internal.getCurrentPageInfo().pageNumber, pageWidth - 70, pageHeight - 12);
+        }
+      });
       doc.save(filename);
       showToast('PDF रिपोर्ट डाउनलोड हो गई।');
     }
@@ -4909,7 +4936,8 @@ async function removeTrustedEditor(uid) {
     async function exportQuizResultsPdf() {
       try {
         const rows = await getExamResultExportRows();
-        await downloadPdfReport(rows, 'Bishnoism — Exam Results', 'Bishnoism_Exam_Results.pdf');
+        const cleanRows = window.BishnoismExportReports?.formatRows('publishedResults', rows) || rows;
+        await downloadPdfReport(cleanRows, 'Bishnoism — Exam Results', 'Bishnoism_Exam_Results.pdf', 'publishedResults');
       } catch (error) {
         console.error('Results PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -4934,7 +4962,8 @@ async function removeTrustedEditor(uid) {
     async function exportMembersPdf() {
       try {
         const rows = await getRegisteredMemberExportRows();
-        await downloadPdfReport(rows, 'Bishnoism — Registered Members', 'Bishnoism_Registered_Members.pdf');
+        const cleanRows = window.BishnoismExportReports?.formatRows('examEnrolledStudents', rows) || rows;
+        await downloadPdfReport(cleanRows, 'Bishnoism — Registered Members', 'Bishnoism_Registered_Members.pdf', 'examEnrolledStudents');
       } catch (error) {
         console.error('Members PDF export failed:', error);
         showToast('PDF एक्सपोर्ट त्रुटि: ' + error.message);
@@ -5229,5 +5258,6 @@ async function removeTrustedEditor(uid) {
       });
     }
   </script>
+<script src="./exportReports.js"></script>
 </body>
 </html>
