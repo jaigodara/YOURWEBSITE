@@ -5292,11 +5292,36 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
   app.pledgeTree = window.pledgeTree;
   app.filterNiyams = function (query) {
     const term = String(query || '').trim().toLocaleLowerCase();
-    const container = byId('niyamsList') || byId('niyamList') || byId('niyamsContainer');
+    const container = byId('niyamsList') || byId('niyamList') || byId('niyamsContainer') || byId('niyamGrid');
     if (!container) return;
-    container.querySelectorAll('[data-niyam], article, li, .niyam-card').forEach(function (item) {
+    container.querySelectorAll('[data-niyam], article, li, .niyam-card, .niyam-card-item').forEach(function (item) {
       item.hidden = !!term && !item.textContent.toLocaleLowerCase().includes(term);
     });
+  };
+
+  app.searchLiterature = function (query) {
+    const term = String(query || '').trim().toLocaleLowerCase();
+    const groups = [
+      { id: 'pdfGrid', label: 'PDF / ग्रंथ' },
+      { id: 'platformMediaFeed', label: 'मीडिया / भजन' },
+      { id: 'niyamGrid', label: 'नियम' }
+    ];
+    let visible = 0;
+    let total = 0;
+    groups.forEach(group => {
+      const container = byId(group.id);
+      if (!container) return;
+      Array.from(container.children).forEach(item => {
+        const matches = !term || String(item.textContent || '').toLocaleLowerCase().includes(term);
+        item.hidden = !matches;
+        if (matches) visible++;
+        total++;
+      });
+    });
+    const status = byId('literatureSearchStatus');
+    if (status) status.textContent = term
+      ? (visible ? 'खोज परिणाम: ' + visible + ' / ' + total + ' सामग्री।' : 'इस शब्द से संबंधित सामग्री नहीं मिली।')
+      : '';
   };
   app.tapMalaBead = window.tapHomeMalaBead;
   app.tapHomeMalaBead = window.tapHomeMalaBead;
