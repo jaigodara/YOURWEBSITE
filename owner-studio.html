@@ -3326,6 +3326,7 @@ async function saveBulkQuestionDrafts() {
           name: d.name || d.fullName || null,
           rollNumber: d.rollNumber || null,
           manualScore: value,
+          questionScores: d.questionScores || {},
           total,
           feedback: feedback.value.trim(),
           status,
@@ -3356,6 +3357,7 @@ async function saveBulkQuestionDrafts() {
         
 
         d.manualScore = value;
+        d.questionScores = d.questionScores || {};
         d.finalScore = published ? value : null;
         d.resultPublished = published;
         d.manualFeedback = feedback.value.trim();
@@ -4296,6 +4298,7 @@ return review ? {
   manualScore: review.manualScore,
   manualReviewStatus: review.status,
   manualFeedback: review.feedback || '',
+  questionScores: review.questionScores || row.questionScores || {},
   manualReviewCompleted:
     review.manualScore !== undefined &&
     review.manualScore !== null &&
