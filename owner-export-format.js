@@ -64,6 +64,11 @@
   const actorLabel = row => valueOf(row, ['updatedBy', 'createdBy', 'reviewedBy', 'approvedBy'])
     ? 'Authorized admin/editor' : '—';
   const roll = row => valueOf(row, ['rollNumber', 'roll_number', 'roll', 'admitCardRollNumber']) || 'Pending';
+  const questionReference = (row, index) => {
+    const publicRef = valueOf(row, ['questionNumber', 'displayId', 'publicId', 'questionCode', 'slug']);
+    if (publicRef && String(publicRef).length <= 32 && !/^[a-z0-9_-]{18,}$/i.test(String(publicRef))) return String(publicRef);
+    return 'Q-' + String(index + 1).padStart(3, '0');
+  };
 
   function formatOwnerExportReport(dataType, rawRows) {
     const rows = Array.isArray(rawRows) ? rawRows : [];
@@ -78,7 +83,7 @@
         rows: rows.map((row, index) => ({
           'No.': index + 1,
           'Exam / Set': setText(row),
-          'Question Ref.': 'Q-' + String(index + 1).padStart(3, '0'),
+          'Question Ref.': questionReference(row, index),
           'Correct Option': optionText(valueOf(row, ['answerIndex', 'answerindex', 'correctAnswer', 'correctOptionIndex', 'ans', 'answer'])),
           'Last Edited By': actorLabel(row),
           'Last Edited': dateText(valueOf(row, ['updatedAt', 'updated_at', 'modifiedAt']))
@@ -228,7 +233,11 @@
       'questionSetKey', 'question_set_key', 'question_set', 'questionSet',
       'createdAt', 'updatedAt', 'timestamp', 'metadata'
     ]);
-    const candidates = [...new Set(rows.flatMap(row => Object.keys(row || {})))].filter(key => !excluded.has(key));
+    const candidates = [...new Set(rows.flatMap(row => Object.keys(row || {})))].filter(key =>
+      !excluded.has(key) &&
+      !/(^|_)(uid|user.?id|document.?id|session.?id|record.?id|token|updated.?by|created.?by|approved.?by|reviewed.?by)(_|$)/i.test(key) &&
+      !/^(uid|userId|studentUid|sessionId|documentId|recordId|updatedBy|createdBy|approvedBy|reviewedBy)$/i.test(key)
+    );
     const columns = candidates.filter(key => rows.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined))
       .slice(0, 10);
     const labels = columns.map(key => key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
