@@ -77,3 +77,12 @@ test('Admit-card release uses one roll-number input and no legacy file upload co
     'the obsolete upload action must not remain');
   assert.match(ownerHtml, /id="releaseIndividualAdmitCardButton"[^>]*onclick="releaseAdmitCardForRollNumber\(\)"/);
 });
+
+test('Question uploader compares against existing Firestore records and offers duplicate handling', () => {
+  assert.match(ownerHtml, /orderBy\(firebase\.firestore\.FieldPath\.documentId\(\)\)/);
+  assert.match(ownerHtml, /question\.existingDuplicate/);
+  assert.match(ownerHtml, /OK = डुप्लिकेट सहित अपलोड करें/);
+  assert.match(ownerHtml, /डुप्लिकेट छोड़कर बाकी अपलोड करें/);
+  assert.match(ownerHtml, /const questionsPerBatch = Math\.max\(1, Math\.floor\(400 \/ writesPerQuestion\)\)/);
+  assert.match(ownerHtml, /await batch\.commit\(\);[\s\S]*committedCount \+= chunk\.length/);
+});
