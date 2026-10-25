@@ -1905,9 +1905,23 @@ const notificationsForThisAccount =
     try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch (_) { seen = []; }
     if (!Array.isArray(seen)) seen = [];
     seen = [...new Set([...seen, ...(state.notificationReadKeys || [])])];
-    const inboxItems = items.filter(item =>
-  !(item._key.startsWith('private:') && seen.includes(item._key))
-);
+    const inboxItems = items.filter(item => {
+  const isPrivateNotification =
+    item._key.startsWith('private:');
+
+  const isUserSpecificFlatNotification =
+    item._flat === true &&
+    item.uid !== 'ALL' &&
+    item.uid === state.user.uid;
+
+  const isPersonalNotification =
+    isPrivateNotification || isUserSpecificFlatNotification;
+
+  return !(
+    isPersonalNotification &&
+    seen.includes(item._key)
+  );
+});
 
 const unseen = inboxItems.filter(item => !seen.includes(item._key));
     const badge = byId('notificationUnreadCount');
@@ -3128,13 +3142,27 @@ const statusClasses = claimed
   : declined || revoked
     ? 'bg-red-100 text-red-900'
     : 'bg-amber-200 text-amber-950';
-          return '<article class="rounded-xl border p-3 ' + (claimed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50') + '">' +
+          return '<article class="rounded-xl border p-3 ' + (
+  claimed
+    ? 'border-emerald-200 bg-emerald-50'
+    : declined || revoked
+      ? 'border-red-200 bg-red-50'
+      : 'border-amber-200 bg-amber-50'
+) + '">' +
             '<div class="flex flex-wrap items-start justify-between gap-2"><strong>' + escapeHtml(row.fullName || 'Assistant Editor') + '</strong>' +
             '<span class="rounded-full px-2 py-1 text-xs font-bold ' + statusClasses + '">' +
 escapeHtml(statusLabel) + '</span></div>' +
             '<p class="mt-1 text-xs text-stone-600">Phone: ' + escapeHtml(row.phone || '') + (row.email ? ' · ' + escapeHtml(row.email) : '') + '</p>' +
             '<p class="mt-1 text-xs text-stone-600">' + escapeHtml(labels) + '</p>' +
-            (row.claimedUid ? '<p class="mt-1 text-xs text-emerald-800">Role accepted and linked to the signed-in Firebase account.</p>' : '<p class="mt-1 text-xs text-stone-500">Awaiting acceptance on verified phone login.</p>') +
+            (
+  claimed
+    ? '<p class="mt-1 text-xs text-emerald-800">Invitation accepted and linked to the verified account.</p>'
+    : declined
+      ? '<p class="mt-1 text-xs text-red-800">Invitation declined by the invited user.</p>'
+      : revoked
+        ? '<p class="mt-1 text-xs text-red-800">Invitation revoked by the owner.</p>'
+        : '<p class="mt-1 text-xs text-stone-500">Awaiting acceptance on verified phone login.</p>'
+) +
           '</article>';
         }).join('') : '<p class="text-sm text-stone-500">अभी कोई editor invitation नहीं है।</p>';
       } catch (error) {
@@ -3327,7 +3355,9 @@ escapeHtml(statusLabel) + '</span></div>' +
 
     host.querySelector('[data-question-template]')?.addEventListener('click', () => {
       const csv = 'question,A,B,C,D,correctAnswer,marks,negativeMarks,explanation,id\r\n"उदाहरण प्रश्न","विकल्प A","विकल्प B","विकल्प C","विकल्प D","A",1,0,"व्याख्या","q_example"\r\n';
-      const blob = new Blob(['\\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF', csv], {
+  type: 'text/csv;charset=utf-8;'
+});
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -3557,7 +3587,8 @@ const questionHtml = snapshots.map((q, qi) => {
             '<div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-extrabold text-emerald-950">' + escapeHtml(row.name || 'विद्यार्थी') +
             '</h3><p class="mt-1 text-xs text-stone-600">' + escapeHtml(modeLabel) + ' · ' + escapeHtml(String(row.questionSet || 'set1').toUpperCase()) +
             ' · रोल: ' + escapeHtml(row.rollNumber || '—') + '</p><p class="text-xs text-stone-600">फोन: ' + escapeHtml(row.studentPhone || '—') +
-            ' · हल किए: ' + Number(row.attempted || 0) + '/' + total + '</p></div><span data-check-status class="rounded-full px-3 py-1 text-xs font-bold ' +
+            ' · हल किए: ' + Number(row.attempted || 0) + '/' +
+Number(row.totalQuestions || snapshots.length || 0) + '</p></div><span data-check-status class="rounded-full px-3 py-1 text-xs font-bold ' +
             (isPublished ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900') + '">' + (isPublished ? 'परिणाम प्रकाशित' : 'जाँच बाकी') +
             '</span></div><details class="mt-3"><summary class="cursor-pointer font-bold text-emerald-900">उत्तर-पत्र देखें (' + snapshots.length + ' प्रश्न)</summary><div class="mt-3 space-y-2">' +
             (questionHtml || '<p class="text-sm text-stone-500">इस उत्तर-पत्र में प्रश्नों का snapshot उपलब्ध नहीं है।</p>') + '</div></details>' +
@@ -3655,9 +3686,7 @@ mode,
 notify('जाँच सेव हुई और परिणाम प्रकाशित हो गया।', 'success');
 
 // Remove this evaluated sheet from the active checking queue.
-card.remove();
-              
-if (card) {
+if (card?.isConnected) {
   card.remove();
 }
 
