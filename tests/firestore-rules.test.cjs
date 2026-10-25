@@ -364,6 +364,35 @@ test("Firestore security rules regression suite", async (t) => {
       }));
     });
 
+    await t.test("editor permission audit logs are immutable and owner-only", async () => {
+      await reset();
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const auditRef = doc(ownerDb, "roleAuditLogs", "audit-event-1");
+      await assertSucceeds(setDoc(auditRef, {
+        action: "invitation_created",
+        targetName: "Test Editor",
+        targetPhoneLast4: "1234",
+        targetRole: "editor",
+        permissions: { media: true, quizDrafts: false, examReview: true, notifications: false },
+        changedByName: "व्यवस्थापक",
+        changedAt: serverTimestamp(),
+      }));
+      await assertSucceeds(getDoc(auditRef));
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(getDoc(doc(studentDb, "roleAuditLogs", "audit-event-1")));
+      await assertFails(updateDoc(auditRef, { targetName: "Tampered" }));
+      await assertFails(deleteDoc(auditRef));
+      await assertFails(setDoc(doc(studentDb, "roleAuditLogs", "student-audit"), {
+        action: "invitation_created",
+        targetName: "Fake Editor",
+        targetPhoneLast4: "1234",
+        targetRole: "editor",
+        permissions: {},
+        changedByName: "Student",
+        changedAt: serverTimestamp(),
+      }));
+    });
+
     await t.test("expired admit-card QR verification cannot be read publicly", async () => {
       await reset();
       const token = "d".repeat(48);
