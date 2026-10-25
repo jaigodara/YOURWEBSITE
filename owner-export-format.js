@@ -67,6 +67,8 @@
   const questionReference = (row, index) => {
     const publicRef = valueOf(row, ['questionNumber', 'displayId', 'publicId', 'questionCode', 'slug']);
     if (publicRef && String(publicRef).length <= 32 && !/^[a-z0-9_-]{18,}$/i.test(String(publicRef))) return String(publicRef);
+    const id = valueOf(row, ['id', 'questionId', 'questionID', 'docId']);
+    if (id) return '#' + String(id).replace(/^#/, '').slice(0, 8);
     return 'Q-' + String(index + 1).padStart(3, '0');
   };
 
