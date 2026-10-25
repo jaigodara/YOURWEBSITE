@@ -1296,7 +1296,7 @@ if (environmentEl) {
       checking: { pane: 'pane_exam', permission: 'examReview', panels: ['ownerExamSessionMonitorPanel', 'manualExamReviewSection'] },
       admit: { pane: 'pane_exam', permission: null, panels: ['ownerRegistrationReviewPanel', 'ownerAdmitCardSettingsPanel'] },
       notifications: { pane: 'pane_system', permission: 'notifications', panels: ['ownerNotificationCard'] },
-      settings: { pane: 'pane_system', permission: null, panels: ['ownerExamVisibilitySettingsPanel', 'ownerMaintenanceSettingsPanel', 'ownerTrustedEditorsPanel'] },
+     settings: { pane: 'pane_system', permission: null, panels: ['ownerExamVisibilitySettingsPanel', 'ownerMaintenanceSettingsPanel', 'ownerTrustedEditorsPanel', 'ownerProctoringPanel'] },
       exports: { pane: 'pane_system', permission: null, panels: ['ownerDataExportPanel', 'ownerExportPanel'] }
     };
 
@@ -1310,7 +1310,7 @@ if (environmentEl) {
     function moveOwnerStudioPanels() {
       const systemPane = document.getElementById('pane_system');
       if (!systemPane) return;
-      ['ownerDataExportPanel', 'ownerExamVisibilitySettingsPanel'].forEach(id => {
+     ['ownerDataExportPanel', 'ownerExamVisibilitySettingsPanel', 'ownerProctoringPanel'].forEach(id => {
         const panel = document.getElementById(id);
         if (panel && !systemPane.contains(panel)) systemPane.appendChild(panel);
       });
@@ -1360,7 +1360,7 @@ if (environmentEl) {
         search.dataset.searchBound = 'true';
         search.addEventListener('input', () => {
           const query = search.value.trim().toLocaleLowerCase();
-          document.querySelectorAll('[data-studio-page]').forEach(button => {
+         sidebar.querySelectorAll('[data-studio-page]').forEach(button => {
             button.hidden = !button.textContent.toLocaleLowerCase().includes(query);
           });
         });
@@ -1383,9 +1383,19 @@ if (environmentEl) {
       if (paneId === 'pane_overview' && isPrimaryOwner()) window.setTimeout(() => loadOwnerDataDashboard(), 0);
     }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindOwnerStudioNavigation, { once: true });
-    else bindOwnerStudioNavigation();
+     if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
 
+  // Retry the public feed after other page scripts have initialized.
+  window.addEventListener('load', function retryPublicMediaFeed() {
+    if (window.BishnoiMedia && typeof window.BishnoiMedia.loadMediaFeed === 'function') {
+      window.BishnoiMedia.loadMediaFeed();
+    }
+  }, { once: true });
+})();
     async function refreshStudioAnalytics() {
       try {
         if (!isPrimaryOwner()) {
