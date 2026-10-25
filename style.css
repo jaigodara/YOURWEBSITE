@@ -877,6 +877,26 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
 .profile-accordion-link { display: block; width: calc(100% - 24px); min-height: 48px; margin: 8px 12px; padding: 12px; border-radius: 10px; background: #143622; color: white; text-align: center; font-weight: 800; }
 
 
+/* Readable Devanagari text and horizontally scrollable admin data tables. */
+.hindi-readable,
+.hindi-readable :is(p, li, label, td, th, summary) {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.admin-table-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-table-scroll > table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+}
+
 /* Owner Studio sticky header and mobile-safe student roll labels. */
 .top-admin-header { position: sticky; top: 0; z-index: 1000; }
 .student-roll-badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; min-width: max-content; flex: 0 0 auto; white-space: nowrap; word-break: keep-all; overflow-wrap: normal; }
