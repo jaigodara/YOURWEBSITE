@@ -119,13 +119,17 @@ test('custom exam configuration validates and exposes the saved grading fields i
   assert.ok(ownerHtml.includes('customPassingMarks > customTotalMarks'));
 });
 
-test('PDF exports query only the selected collection and use the formatter for standalone reports', () => {
+test('enrollment exports use a fixed collection and standalone reports retain the formatter', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const ownerHtml = fs.readFileSync(path.join(__dirname, '..', 'owner-studio.html'), 'utf8');
-  assert.ok(ownerHtml.includes("['csv', 'xlsx', 'pdf'].includes(format)"));
-  assert.ok(ownerHtml.includes("payload = await getRegisteredMemberExportRows()"));
-  assert.ok(ownerHtml.includes("payload = await getExamResultExportRows()"));
+  // The user-facing collection selector was intentionally removed; generic exports
+  // must read only the enrollment collection and must not accept a collection name from the DOM.
+  assert.ok(ownerHtml.includes("const selected = 'examEnrolledStudents'"));
+  assert.ok(ownerHtml.includes("const payload = await readAll('examEnrolledStudents')"));
+  assert.ok(ownerHtml.includes("const isFilteredFormat = ['csv','xlsx','pdf'].includes(format)"));
+  assert.ok(!ownerHtml.includes('id="ownerExportCollection"'));
+  // Dedicated result reports still use the shared formatter.
   assert.ok(ownerHtml.includes("formatOwnerExportReport('publishedResults', rawRows)"));
   assert.ok(ownerHtml.includes("formatOwnerExportReport('examEnrolledStudents', rawRows)"));
   assert.ok(ownerHtml.includes('href="./export-report.css"'));
