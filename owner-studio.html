@@ -1372,9 +1372,12 @@ if (environmentEl) {
               btn_pane_exam: 'examReview',
               btn_pane_system: 'notifications'
             };
+            
             Object.entries(panePermissions).forEach(([buttonId, permission]) => {
               const button = document.getElementById(buttonId);
-              if (button) button.classList.toggle('hidden', permissions[permission] !== true);
+              if (button) {
+                button.classList.toggle('hidden', permissions[permission] !== true);
+              }
             });
 
             // Show only the main navigation destinations this editor was granted.
@@ -1385,6 +1388,7 @@ if (environmentEl) {
               notifications: 'notifications',
               exports: 'reports'
             };
+            
             document.querySelectorAll('#ownerStudioSidebar [data-studio-page]').forEach(button => {
               const page = button.dataset.studioPage;
               const permitted = page === 'dashboard' ||
@@ -1396,31 +1400,44 @@ if (environmentEl) {
 
             // Admit-card administration, settings and editor management remain Owner-only.
             document.querySelectorAll('[data-owner-only="true"]').forEach(el => el.classList.add('hidden'));
+
             const systemPane = document.getElementById('pane_system');
             if (systemPane) {
               Array.from(systemPane.children).forEach(el => {
-                if (el.id !== 'ownerNotificationCard' || permissions.notifications !== true) {
-                  el.classList.add('hidden');
-                }
+                const shouldHide = el.id !== 'ownerNotificationCard' || permissions.notifications !== true;
+                el.classList.toggle('hidden', shouldHide);
               });
             }
 
             if (permissions.quizDrafts === true) {
               const targetSelect = document.getElementById('bulkQuestionTarget');
               if (targetSelect) {
-                Array.from(targetSelect.options).forEach(option => { if (option.value !== 'quiz') option.hidden = true; });
+                Array.from(targetSelect.options).forEach(option => {
+                  option.hidden = option.value !== 'quiz';
+                  option.classList.toggle('hidden', option.value !== 'quiz');
+                });
                 targetSelect.value = 'quiz';
               }
             }
 
             // Open the first feature the editor can actually use instead of an empty Owner dashboard.
-            const firstAllowedPage = [
+            const allowedPages = [
               ['checking', 'examReview'],
               ['questions', 'quizDrafts'],
               ['media', 'media'],
               ['notifications', 'notifications'],
               ['exports', 'reports']
-            ].find(([, permission]) => permissions[permission] === true)?.[0] || 'dashboard';
+            ];
+            
+            let firstAllowedPage = 'dashboard';
+            for (let i = 0; i < allowedPages.length; i++) {
+              const pair = allowedPages[i];
+              if (permissions[pair[1]] === true) {
+                firstAllowedPage = pair[0];
+                break;
+              }
+            }
+
             window.setTimeout(() => openStudioPage(firstAllowedPage), 0);
           }
           studioInitializedUid = user.uid;
