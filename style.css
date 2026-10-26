@@ -913,35 +913,56 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
 }
 @media (max-width: 640px) { .checking-workspace { grid-template-columns: minmax(0, 1fr) !important; } .checking-workspace > * { min-width: 0; } .student-roll-badge { max-width: 100%; overflow-x: auto; } }
 
-/* --- Professional Mobile Modal Styling (Fully Expanded & Non-Collapsing) --- */
+
+/* --- Professional Mobile Modal Styling (Android WebView Safe) --- */
+
+/* Login and modal backdrop */
 .login-modal-container,
 .modal-overlay,
 #loginModal,
 .modal-wrapper {
   position: fixed !important;
   inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
   background: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 16px !important;
+  padding: max(16px, env(safe-area-inset-top, 0px))
+           16px
+           max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
   z-index: 99999 !important;
   box-sizing: border-box !important;
   animation: fadeIn 0.25s ease-out;
 }
 
+/* Modal content */
 .login-modal-box,
 .modal-box,
 .modal-card {
+  position: relative;
+  flex: 0 1 420px;
   width: 100% !important;
+  min-width: 0 !important;
   max-width: 420px !important;
   height: auto !important;
-  max-height: 85vh !important;
+  max-height: calc(
+    100dvh
+    - max(16px, env(safe-area-inset-top, 0px))
+    - max(16px, env(safe-area-inset-bottom, 0px))
+  ) !important;
+  overflow-x: hidden !important;
   overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: #ffffff !important;
   border-radius: 20px !important;
   padding: 24px !important;
@@ -949,10 +970,26 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
   box-sizing: border-box !important;
 }
 
+/* Smaller padding on narrow mobile screens */
+@media (max-width: 420px) {
+  .login-modal-box,
+  .modal-box,
+  .modal-card {
+    padding: 18px !important;
+    border-radius: 16px !important;
+  }
+}
+
 /* --- Smooth Animations & Spinners --- */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-in {
@@ -979,7 +1016,9 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
 /* Smooth Interactive Press Effect for Buttons */
 button,
 .btn {
-  transition: transform 0.15s ease, background-color 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.15s ease,
+              background-color 0.2s ease,
+              opacity 0.2s ease;
 }
 
 button:active,
