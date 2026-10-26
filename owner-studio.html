@@ -1500,120 +1500,240 @@ if (environmentEl) {
       if (event.key === 'Escape' && document.body.classList.contains('owner-sidebar-open')) toggleOwnerSidebar(false);
     });
 
-    const OWNER_STUDIO_ROUTES = {
-      dashboard: { pane: 'pane_overview', permission: null, panels: ['ownerDailyWinnersPanel'] },
-      media: { pane: 'pane_media', permission: 'media', panels: [] },
-      questions: { pane: 'pane_quiz', permission: 'quizDrafts', panels: ['ownerQuestionBankPanel'] },
-      checking: { pane: 'pane_exam', permission: 'examReview', panels: ['ownerExamSessionMonitorPanel', 'manualExamReviewSection'] },
-      admit: { pane: 'pane_exam', permission: null, panels: ['ownerRegistrationReviewPanel', 'ownerAdmitCardSettingsPanel'] },
-      notifications: { pane: 'pane_system', permission: 'notifications', panels: ['ownerNotificationCard'] },
-     settings: { pane: 'pane_system', permission: null, panels: ['ownerExamVisibilitySettingsPanel', 'ownerMaintenanceSettingsPanel', 'ownerTrustedEditorsPanel', 'ownerProctoringPanel'] },
-      exports: { pane: 'pane_system', permission: 'reports', panels: ['ownerDataExportPanel', 'ownerExportPanel'] }
-    };
+    
+const OWNER_STUDIO_ROUTES = {
+  dashboard: {
+    pane: 'pane_overview',
+    permission: null,
+    panels: ['ownerDailyWinnersPanel']
+  },
+  media: {
+    pane: 'pane_media',
+    permission: 'media',
+    panels: []
+  },
+  questions: {
+    pane: 'pane_quiz',
+    permission: 'quizDrafts',
+    panels: ['ownerQuestionBankPanel']
+  },
+  checking: {
+    pane: 'pane_exam',
+    permission: 'examReview',
+    panels: [
+      'ownerExamSessionMonitorPanel',
+      'manualExamReviewSection'
+    ]
+  },
+  admit: {
+    pane: 'pane_exam',
+    permission: null,
+    panels: [
+      'ownerRegistrationReviewPanel',
+      'ownerAdmitCardSettingsPanel'
+    ]
+  },
+  notifications: {
+    pane: 'pane_system',
+    permission: 'notifications',
+    panels: ['ownerNotificationCard']
+  },
+  settings: {
+    pane: 'pane_system',
+    permission: null,
+    panels: [
+      'ownerExamVisibilitySettingsPanel',
+      'ownerMaintenanceSettingsPanel',
+      'ownerTrustedEditorsPanel',
+      'ownerProctoringPanel'
+    ]
+  },
+  exports: {
+    pane: 'pane_system',
+    permission: 'reports',
+    panels: [
+      'ownerDataExportPanel',
+      'ownerExportPanel'
+    ]
+  }
+};
 
-    const OWNER_STUDIO_ROUTE_PANELS = [
-      'ownerDailyWinnersPanel', 'ownerQuestionBankPanel', 'ownerExamSessionMonitorPanel',
-      'manualExamReviewSection', 'ownerProctoringPanel', 'ownerExamVisibilitySettingsPanel',
-      'ownerRegistrationReviewPanel', 'ownerAdmitCardSettingsPanel', 'ownerNotificationCard',
-      'ownerMaintenanceSettingsPanel', 'ownerTrustedEditorsPanel', 'ownerDataExportPanel', 'ownerExportPanel'
-    ];
+const OWNER_STUDIO_ROUTE_PANELS = [
+  'ownerDailyWinnersPanel',
+  'ownerQuestionBankPanel',
+  'ownerExamSessionMonitorPanel',
+  'manualExamReviewSection',
+  'ownerProctoringPanel',
+  'ownerExamVisibilitySettingsPanel',
+  'ownerRegistrationReviewPanel',
+  'ownerAdmitCardSettingsPanel',
+  'ownerNotificationCard',
+  'ownerMaintenanceSettingsPanel',
+  'ownerTrustedEditorsPanel',
+  'ownerDataExportPanel',
+  'ownerExportPanel'
+];
 
-    function moveOwnerStudioPanels() {
-      const systemPane = document.getElementById('pane_system');
-      if (!systemPane) return;
-     ['ownerDataExportPanel', 'ownerExamVisibilitySettingsPanel', 'ownerProctoringPanel'].forEach(id => {
-        const panel = document.getElementById(id);
-        if (panel && !systemPane.contains(panel)) systemPane.appendChild(panel);
-      });
+function moveOwnerStudioPanels() {
+  const systemPane = document.getElementById('pane_system');
+  if (!systemPane) return;
+
+  [
+    'ownerDataExportPanel',
+    'ownerExamVisibilitySettingsPanel',
+    'ownerProctoringPanel'
+  ].forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel && !systemPane.contains(panel)) {
+      systemPane.appendChild(panel);
     }
+  });
+}
 
-    function openStudioPage(page) {
-      const route = OWNER_STUDIO_ROUTES[page];
-      if (!route) { showToast('यह अनुभाग उपलब्ध नहीं है।'); return; }
-      const owner = isPrimaryOwner();
-      if (!owner && page !== 'dashboard' && (!route.permission || !hasEditorPermission(route.permission))) {
-        showToast('इस अनुभाग के लिए आपके खाते को अनुमति नहीं है।');
-        return;
-      }
-      moveOwnerStudioPanels();
-      switchStudioPane(route.pane);
-      OWNER_STUDIO_ROUTE_PANELS.forEach(id => {
-        const panel = document.getElementById(id);
-        if (panel) {
-          panel.dataset.studioRouteHidden = 'true';
-          panel.classList.add('hidden');
-        }
-      });
-      route.panels.forEach(id => {
-        const panel = document.getElementById(id);
-        if (panel) {
-          delete panel.dataset.studioRouteHidden;
-          panel.classList.remove('hidden');
-        }
-      });
-      document.querySelectorAll('[data-studio-page]').forEach(button => {
-        const active = button.dataset.studioPage === page;
-        button.classList.toggle('studio-nav-active', active);
-        button.setAttribute('aria-current', active ? 'page' : 'false');
-      });
-      const target = route.panels.map(id => document.getElementById(id)).find(panel => panel && !panel.dataset.studioRouteHidden);
-      (target || document.getElementById(route.pane))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+function openStudioPage(page) {
+  const route = OWNER_STUDIO_ROUTES[page];
+  if (!route) {
+    showToast('यह अनुभाग उपलब्ध नहीं है।');
+    return;
+  }
 
-    function bindOwnerStudioNavigation() {
-      moveOwnerStudioPanels();
-      const sidebar = document.getElementById('ownerStudioSidebar');
-      if (sidebar && sidebar.dataset.navigationBound !== 'true') {
-        sidebar.dataset.navigationBound = 'true';
-        sidebar.addEventListener('click', event => {
-          const button = event.target.closest('[data-studio-page]');
-          if (!button || !sidebar.contains(button)) return;
-          event.preventDefault();
-          openStudioPage(button.dataset.studioPage);
-          toggleOwnerSidebar(false);
-        });
-      }
-      const search = document.getElementById('studioMenuSearch');
-      if (search && search.dataset.searchBound !== 'true') {
-        search.dataset.searchBound = 'true';
-        search.addEventListener('input', () => {
-          const query = search.value.trim().toLocaleLowerCase();
-         sidebar.querySelectorAll('[data-studio-page]').forEach(button => {
-            const permissionDenied = button.dataset.editorAllowed === 'false';
-            const searchMismatch = !button.textContent.toLocaleLowerCase().includes(query);
-            button.hidden = permissionDenied || searchMismatch;
-            button.style.display = button.hidden ? 'none' : '';
-            button.setAttribute('aria-hidden', String(button.hidden));
-          });
-        });
-      }
+  const owner = isPrimaryOwner();
+
+  if (
+    !owner &&
+    page !== 'dashboard' &&
+    (!route.permission || !hasEditorPermission(route.permission))
+  ) {
+    showToast('इस अनुभाग के लिए अनुमति नहीं है।');
+    return;
+  }
+
+  moveOwnerStudioPanels();
+  switchStudioPane(route.pane);
+
+  OWNER_STUDIO_ROUTE_PANELS.forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel) {
+      panel.dataset.studioRouteHidden = 'true';
+      panel.classList.add('hidden');
     }
+  });
+
+  route.panels.forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel) {
+      delete panel.dataset.studioRouteHidden;
+      panel.classList.remove('hidden');
+    }
+  });
+
+  document.querySelectorAll('[data-studio-page]').forEach(button => {
+    const active = button.dataset.studioPage === page;
+    button.classList.toggle('studio-nav-active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+
+  const target = route.panels
+    .map(id => document.getElementById(id))
+    .find(panel => panel && !panel.dataset.studioRouteHidden);
+
+  (target || document.getElementById(route.pane))
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function bindOwnerStudioNavigation() {
+  moveOwnerStudioPanels();
+
+  const sidebar = document.getElementById('ownerStudioSidebar');
+
+  if (sidebar && sidebar.dataset.navigationBound !== 'true') {
+    sidebar.dataset.navigationBound = 'true';
+
+    sidebar.addEventListener('click', event => {
+      const button = event.target.closest('[data-studio-page]');
+      if (!button || !sidebar.contains(button) || button.hidden) return;
+
+      event.preventDefault();
+      openStudioPage(button.dataset.studioPage);
+      toggleOwnerSidebar(false);
+    });
+  }
+
+  const search = document.getElementById('studioMenuSearch');
+
+  if (search && search.dataset.searchBound !== 'true') {
+    search.dataset.searchBound = 'true';
+
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLocaleLowerCase();
+
+      sidebar?.querySelectorAll('[data-studio-page]').forEach(button => {
+        const denied = button.dataset.editorAllowed === 'false';
+        const mismatch = !button.textContent
+          .toLocaleLowerCase()
+          .includes(query);
+
+        button.hidden = denied || mismatch;
+        button.style.display = button.hidden ? 'none' : '';
+        button.setAttribute('aria-hidden', String(button.hidden));
+      });
+    });
+  }
+}
+
+bindOwnerStudioNavigation();
+
 
     // Bind the sidebar once the route map and navigation functions exist.
     bindOwnerStudioNavigation();
 
-    function switchStudioPane(paneId) {
-      const isOwner = isPrimaryOwner();
-      const panePermissions = {
-        pane_media: ['media'],
-        pane_quiz: ['quizDrafts'],
-        pane_exam: ['examReview'],
-        pane_system: ['notifications', 'reports']
-      };
-      const requiredPermissions = panePermissions[paneId] || [];
-      const permitted = isOwner || requiredPermissions.some(permission => hasEditorPermission(permission));
-      if (!permitted && paneId !== 'pane_overview') {
-        showToast('इस Owner Studio अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।'); return;
-      }
-      ['pane_overview', 'pane_media', 'pane_quiz', 'pane_exam', 'pane_system'].forEach(id => {
-        document.getElementById(id)?.classList.add('hidden');
-        document.getElementById('btn_' + id)?.classList.remove('admin-subtab-active');
-      });
-      document.getElementById(paneId)?.classList.remove('hidden');
-      document.getElementById('btn_' + paneId)?.classList.add('admin-subtab-active');
-      if (paneId === 'pane_exam') window.setTimeout(() => loadExamSessionQueue(), 0);
-      if (paneId === 'pane_overview' && isPrimaryOwner()) window.setTimeout(() => loadOwnerDataDashboard(), 0);
-    }
+   
+function switchStudioPane(paneId) {
+  const isOwner = isPrimaryOwner();
+
+  const panePermissions = {
+    pane_media: ['media'],
+    pane_quiz: ['quizDrafts'],
+    pane_exam: ['examReview'],
+    pane_system: ['notifications', 'reports']
+  };
+
+  const requiredPermissions = panePermissions[paneId] || [];
+
+  const permitted = isOwner ||
+    requiredPermissions.some(permission =>
+      hasEditorPermission(permission)
+    );
+
+  if (!permitted && paneId !== 'pane_overview') {
+    showToast('इस अनुभाग की अनुमति आपके खाते को नहीं दी गई है।');
+    return;
+  }
+
+  [
+    'pane_overview',
+    'pane_media',
+    'pane_quiz',
+    'pane_exam',
+    'pane_system'
+  ].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+    document.getElementById('btn_' + id)
+      ?.classList.remove('admin-subtab-active');
+  });
+
+  document.getElementById(paneId)?.classList.remove('hidden');
+  document.getElementById('btn_' + paneId)
+    ?.classList.add('admin-subtab-active');
+
+  if (paneId === 'pane_exam') {
+    window.setTimeout(() => loadExamSessionQueue(), 0);
+  }
+
+  if (paneId === 'pane_overview' && isPrimaryOwner()) {
+    window.setTimeout(() => loadOwnerDataDashboard(), 0);
+  }
+}
 
          async function refreshStudioAnalytics() {
       try {
