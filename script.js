@@ -2140,9 +2140,16 @@ moreButton.textContent =
         ownFlatDocs = snapshot.docs;
         publishFlatNotifications();
       }, onFlatQueryError('Own flat notification listener'));
-    const broadcastFlatUnsubscribe = state.db.collection('userNotifications')
-      .where('uid', '==', 'ALL')
-      .onSnapshot(snapshot => {
+    let broadcastQuery = state.db.collection('userNotifications').where('uid', '==', 'ALL');
+    const registrationMillis = timestampMillis(
+      state.profile?.registrationDate || state.profile?.createdAt || state.profile?.registeredAt
+    );
+    if (registrationMillis > 0 && firebase.firestore.Timestamp?.fromMillis) {
+      broadcastQuery = broadcastQuery.where(
+        'createdAt', '>=', firebase.firestore.Timestamp.fromMillis(registrationMillis)
+      );
+    }
+    const broadcastFlatUnsubscribe = broadcastQuery.onSnapshot(snapshot => {
         broadcastFlatDocs = snapshot.docs;
         publishFlatNotifications();
       }, onFlatQueryError('Broadcast notification listener'));

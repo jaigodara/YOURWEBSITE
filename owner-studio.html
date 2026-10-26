@@ -123,6 +123,9 @@
   <!-- STUDIO TOP NAVIGATION BAR -->
   <header class="top-admin-header bg-forest text-amber-200 px-4 py-3.5 shadow-md flex items-center justify-between sticky top-0 z-[1000]">
     <div class="flex items-center gap-3">
+      <button type="button" class="owner-mobile-menu-toggle" aria-label="मेनू खोलें" aria-controls="ownerStudioSidebar" aria-expanded="false" onclick="toggleOwnerSidebar(true)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
       <div class="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 font-bold flex items-center justify-center text-xl shadow">
         🛡️
       </div>
@@ -141,6 +144,7 @@
       </button>
     </div>
   </header>
+  <div id="ownerSidebarBackdrop" class="owner-sidebar-backdrop" aria-hidden="true" onclick="toggleOwnerSidebar(false)"></div>
 <!-- OWNER STUDIO STATUS BAR: insert immediately after the existing header -->
 <section id="studioStatusBar"
   class="mx-auto mt-4 flex w-full max-w-7xl flex-col gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
@@ -290,23 +294,10 @@
       <section id="ownerDataExportPanel" data-editor-permission="reports" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">⬇️ सुरक्षित डेटा डाउनलोड</h3>
         <p class="text-sm text-stone-600">Excel और CSV रिपोर्ट देखने के लिए हैं; JSON पूरा बैकअप है। निजी विद्यार्थी जानकारी वाली फ़ाइल सुरक्षित रखें।</p>
-        <label class="block text-sm font-bold text-stone-700">1. कौन-सा डेटा डाउनलोड करना है?
-          <select id="ownerExportCollection" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base">
-            <option value="examEnrolledStudents">विद्यार्थी नामांकन और रोल नंबर</option><option value="users">उपयोगकर्ता प्रोफाइल</option>
-            <option value="mainExamSubmissions">मुख्य परीक्षा उत्तर-पत्र</option><option value="mockExamSubmissions">मॉक परीक्षा उत्तर-पत्र</option>
-            <option value="quizAttempts">दैनिक क्विज़ प्रयास</option><option value="publishedResults">प्रकाशित परिणाम</option>
-            <option value="reviews">निजी मैन्युअल जाँच</option><option value="mainExamQuestions">मुख्य परीक्षा प्रश्न</option>
-            <option value="mockExam_1">मॉक परीक्षा सेट 1 प्रश्न</option><option value="mockExam_2">मॉक परीक्षा सेट 2 प्रश्न</option>
-            <option value="quiz">दैनिक क्विज़ प्रश्न</option><option value="examConfig">परीक्षा सेटिंग्स</option>
-            <option value="examAnswerKeys">उत्तर कुंजी (सभी सेट)</option><option value="roleAuditLogs">सहायक संपादक अनुमति ऑडिट</option>
-            <option value="live_violations">लाइव परीक्षा उल्लंघन लॉग</option>
-            <option value="assistantEditors">सहायक संपादक और अनुमतियाँ</option>
-            <option value="trustedEditors">विश्वसनीय संपादक सूची</option>
-            <option value="userNotifications">विद्यार्थी सूचनाएँ</option>
-            <option value="notifications">सूचना केंद्र</option>
-            <option value="admitCards">प्रवेश-पत्र रजिस्टर</option>
-          </select>
-        </label>
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+          <p class="font-bold">विद्यार्थी नामांकन एवं रोल नंबर</p>
+          <p class="mt-1 text-xs">यह निर्यात केवल नामांकित विद्यार्थियों के रिकॉर्ड पढ़ता है। अन्य Firestore collections चुनने का विकल्प उपलब्ध नहीं है।</p>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <label class="block text-sm font-bold text-stone-700">वर्ष<select id="ownerExportYear" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="">सभी वर्ष</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option><option value="2032">2032</option><option value="2033">2033</option><option value="2034">2034</option><option value="2035">2035</option></select></label>
           <label class="block text-sm font-bold text-stone-700">महीना<select id="ownerExportMonth" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="">सभी महीने</option><option value="01">जनवरी</option><option value="02">फ़रवरी</option><option value="03">मार्च</option><option value="04">अप्रैल</option><option value="05">मई</option><option value="06">जून</option><option value="07">जुलाई</option><option value="08">अगस्त</option><option value="09">सितंबर</option><option value="10">अक्टूबर</option><option value="11">नवंबर</option><option value="12">दिसंबर</option></select></label>
@@ -1095,6 +1086,33 @@ Ans: B"></textarea>
     .candidate-eval-panel>article{min-width:0}
     @media(max-width:900px){.checking-workspace{grid-template-columns:minmax(0,1fr)}.candidate-queue-panel{position:static;max-height:none;overflow:visible}}
 
+    .owner-mobile-menu-toggle {
+      display: none; align-items: center; justify-content: center; flex: 0 0 auto;
+      width: 44px; height: 44px; border: 1px solid rgba(255,255,255,.28);
+      border-radius: 12px; color: #fff; background: rgba(255,255,255,.08); touch-action: manipulation;
+    }
+    .owner-sidebar-backdrop { display: none; }
+    @media (max-width:767px) {
+      .owner-mobile-menu-toggle { display: inline-flex; }
+      #ownerStudioSidebar {
+        position: fixed !important; inset: 0 auto 0 0; z-index: 1300 !important;
+        width: min(86vw,320px); max-width: calc(100vw - 42px);
+        height: 100vh; height: 100dvh; max-height: 100dvh;
+        margin: 0 !important; padding: 16px 12px calc(16px + env(safe-area-inset-bottom,0px)) !important;
+        overflow-y: auto; overscroll-behavior: contain; border-radius: 0 !important;
+        background: #1e293b !important; color: #fff; box-shadow: 8px 0 28px rgba(0,0,0,.28);
+        transform: translateX(-105%); transition: transform .26s cubic-bezier(.4,0,.2,1); visibility: hidden;
+      }
+      body.owner-sidebar-open #ownerStudioSidebar { transform: translateX(0); visibility: visible; }
+      #ownerStudioSidebar > p { color: #cbd5e1 !important; }
+      #ownerStudioSidebar nav { grid-template-columns: minmax(0,1fr) !important; }
+      #ownerStudioSidebar .studio-nav-item { color: #e2e8f0; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); font-size: .85rem; }
+      #ownerStudioSidebar .studio-nav-item.studio-nav-active { background: #286342 !important; color: #fff !important; }
+      .owner-sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,.56); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .26s ease; }
+      body.owner-sidebar-open .owner-sidebar-backdrop { opacity: 1; pointer-events: auto; }
+      body.owner-sidebar-open { overflow: hidden; }
+    }
+    @media (prefers-reduced-motion: reduce) { #ownerStudioSidebar, .owner-sidebar-backdrop { transition: none !important; } }
     @media (max-width:640px) {
       #ownerQuestionBankPanel,
       #manualExamReviewSection,
@@ -1403,6 +1421,28 @@ if (environmentEl) {
       });
     });
 
+    function toggleOwnerSidebar(forceOpen) {
+      const sidebar = document.getElementById('ownerStudioSidebar');
+      const toggle = document.querySelector('.owner-mobile-menu-toggle');
+      const isOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : !document.body.classList.contains('owner-sidebar-open');
+      document.body.classList.toggle('owner-sidebar-open', isOpen);
+      if (toggle) toggle.setAttribute('aria-expanded', String(isOpen));
+      if (sidebar) {
+        sidebar.setAttribute('aria-hidden', String(!isOpen && window.matchMedia('(max-width: 767px)').matches));
+        if (isOpen && window.matchMedia('(max-width: 767px)').matches) {
+          sidebar.querySelector('[data-studio-page]:not([hidden])')?.focus({ preventScroll: true });
+        } else if (!isOpen) {
+          toggle?.focus({ preventScroll: true });
+        }
+      }
+    }
+    window.toggleOwnerSidebar = toggleOwnerSidebar;
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && document.body.classList.contains('owner-sidebar-open')) toggleOwnerSidebar(false);
+    });
+
     const OWNER_STUDIO_ROUTES = {
       dashboard: { pane: 'pane_overview', permission: null, panels: ['ownerDailyWinnersPanel'] },
       media: { pane: 'pane_media', permission: 'media', panels: [] },
@@ -1467,6 +1507,7 @@ if (environmentEl) {
           if (!button || !sidebar.contains(button)) return;
           event.preventDefault();
           openStudioPage(button.dataset.studioPage);
+          toggleOwnerSidebar(false);
         });
       }
       const search = document.getElementById('studioMenuSearch');
@@ -3673,6 +3714,27 @@ async function changeCustomExamStatus(nextStatus) {
         scoreInput.focus();
         return false;
       }
+      const questionSet = d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] ||
+        (examReviewCollection === 'mainExamSubmissions' ? 'mainExamQuestions' : examReviewCollection === 'mockExamSubmissions' ? (d.mode === 'mock2' ? 'mockExam_2' : 'mockExam_1') : 'quiz');
+      const questionScores = d.questionScores && typeof d.questionScores === 'object' ? d.questionScores : {};
+      let scoreSum = 0;
+      for (const [questionId, rawMark] of Object.entries(questionScores)) {
+        const mark = Number(rawMark);
+        const question = examReviewQuestionLookup[questionSet + '::' + questionId] || examReviewQuestionLookup[questionId];
+        const rawMaximum = Number(question?.marks ?? question?.points ?? question?.marksPerQuestion ?? 1);
+        const maximum = Number.isFinite(rawMaximum) && rawMaximum >= 0 ? Math.min(rawMaximum, total) : Math.min(1, total);
+        if (!Number.isFinite(mark) || mark < 0 || mark > maximum) {
+          showToast('प्रश्न ' + questionId + ' के अंक 0 से ' + maximum + ' के बीच होने चाहिए।');
+          scoreInput.focus();
+          return false;
+        }
+        scoreSum += mark;
+      }
+      if (scoreSum > total || value > total) {
+        showToast('प्रश्नों के कुल अंक या अंतिम अंक परीक्षा के कुल अंक ' + total + ' से अधिक नहीं हो सकते।');
+        scoreInput.focus();
+        return false;
+      }
       let status = decision.value;
       const autoScoreValue = d.score ?? d.correct ?? d.autoScore;
       const autoScore = Number(autoScoreValue);
@@ -3689,7 +3751,7 @@ async function changeCustomExamStatus(nextStatus) {
       }
       const published = status === 'published';
       const saveButton = document.getElementById('currentReviewSave');
-      if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'सहेजा जा रहा है…'; }
+      if (saveButton) { saveButton.disabled = true; saveButton.setAttribute('aria-busy', 'true'); saveButton.textContent = 'सहेजा जा रहा है…'; }
       try {
         // Never write marks/review metadata back into the student-readable submission.
         // Keep the private review and the student-visible published result separate.
@@ -3755,7 +3817,7 @@ async function changeCustomExamStatus(nextStatus) {
         showToast('जाँच सहेज नहीं सकी: ' + e.message + ' · reviews/publishedResults Firestore rules जाँचें।');
         return false;
       } finally {
-        if (saveButton) { saveButton.disabled = false; saveButton.textContent = '✓ जाँच सहेजें'; }
+        if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); saveButton.textContent = '✓ जाँच सहेजें'; }
       }
     }
 
@@ -4493,7 +4555,7 @@ next.addEventListener('click', async () => {
     async function exportOwnerData(format) {
       if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('डेटा डाउनलोड के लिए Reports permission आवश्यक है।');
       const status = document.getElementById('ownerExportStatus');
-      const selected = document.getElementById('ownerExportCollection')?.value || 'examEnrolledStudents';
+      const selected = 'examEnrolledStudents';
       const button = document.querySelector('#ownerDataExportPanel button[data-export-format="' + format + '"]');
       const originalButtonText = button?.textContent || '';
       if (button) { button.disabled = true; button.textContent = 'डेटा तैयार हो रहा है…'; }
@@ -4525,35 +4587,8 @@ next.addEventListener('click', async () => {
         setTimeout(() => URL.revokeObjectURL(url), 1500);
       };
       try {
-        let payload;
-        if (selected === 'examAnswerKeys' && (format === 'csv' || format === 'xlsx' || format === 'pdf')) {
-          payload = {};
-          for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
-            const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
-            payload[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
-          }
-        } else if (['csv', 'xlsx', 'pdf'].includes(format)) {
-          if (selected === 'examEnrolledStudents' && typeof getRegisteredMemberExportRows === 'function') {
-            payload = await getRegisteredMemberExportRows();
-          } else if (selected === 'publishedResults' && typeof getExamResultExportRows === 'function') {
-            payload = await getExamResultExportRows();
-          } else {
-            payload = await readAll(selected);
-          }
-        } else {
-          payload = {};
-          for (const name of ['examEnrolledStudents','users','mainExamSubmissions','mockExamSubmissions','quizAttempts','publishedResults','reviews','mainExamQuestions','mockExam_1','mockExam_2','quiz','examConfig','live_violations','assistantEditors','trustedEditors','userNotifications','notifications','admitCards']) {
-            try { payload[name] = await readAll(name); } catch (error) { payload[name] = { exportError: error.message || String(error) }; }
-          }
-          payload.examAnswerKeys = {};
-          for (const setName of ['mainExamQuestions','mockExam_1','mockExam_2','quiz']) {
-            try {
-              const snap = await db.collection('examAnswerKeys').doc(setName).collection('items').get();
-              payload.examAnswerKeys[setName] = snap.docs.map(doc => ({ id: doc.id, ...plain(doc.data() || {}) }));
-            } catch (error) { payload.examAnswerKeys[setName] = { exportError: error.message || String(error) }; }
-          }
-          payload.exportMetadata = { exportedAt: new Date().toISOString(), exportedBy: auth.currentUser?.uid || null, note: 'Private backup; may contain student personal data and unpublished review details.' };
-        }
+        // Fixed data source: do not allow DOM input to select a Firestore collection.
+        const payload = await readAll('examEnrolledStudents');
         const dateValue = row => {
           const keys = ['submittedAt','createdAt','updatedAt','publishedAt','enrolledAt','registrationDate','timestamp','date','submitted_at','created_at'];
           for (const key of keys) {
@@ -4696,7 +4731,7 @@ next.addEventListener('click', async () => {
           if (status) status.textContent = 'साफ़ रिपोर्ट PDF डाउनलोड हुई: ' + rows.length + ' रिकॉर्ड।';
         } else {
           download('bishnoism-owner-backup-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2), 'application/json');
-          if (status) status.textContent = 'JSON बैकअप डाउनलोड शुरू हुआ। अस्वीकृत collections के कारण exportError में शामिल हैं।';
+          if (status) status.textContent = 'नामांकन JSON डाउनलोड शुरू हुआ: ' + rows.length + ' रिकॉर्ड।';
         }
         showToast('डेटा डाउनलोड तैयार है। फाइल सुरक्षित रखें।');
       } catch (error) {
@@ -4898,8 +4933,8 @@ return review ? {
 
           const isEvaluated =
   d.manualReviewCompleted === true ||
-  ['evaluated', 'completed', 'published', 'verified', 'released', 'held', 'cancelled'].includes(
-    String(d.manualReviewStatus || d.reviewStatus || '').toLowerCase()
+  ['evaluated', 'completed', 'published', 'approved', 'verified', 'released', 'held', 'cancelled'].includes(
+    String(d.manualReviewStatus || d.reviewStatus || d.status || '').toLowerCase()
   );
           if (selectedStatus === 'evaluated' && !isEvaluated) {
             return false;
