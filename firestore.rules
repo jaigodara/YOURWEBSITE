@@ -113,14 +113,16 @@ service cloud.firestore {
         && get(p).data.get('uid', '') == uid;
     }
 
-    function validPendingInvite(inviteId, uid) {
-      let p = /databases/$(database)/documents/pending_editors/$(inviteId);
-      return validInviteId(inviteId)
-        && exists(p)
-        && get(p).data.get('targetUid', '') == uid
-        && get(p).data.get('phoneE164', '') == '+91' + get(p).data.get('phone', '')
-        && matchingMobileIndex(get(p).data.get('phone', ''), uid);
-    }
+function validPendingInvite(inviteId, uid) {
+  let p = /databases/$(database)/documents/pending_editors/$(inviteId);
+
+  return validInviteId(inviteId)
+    && exists(p)
+    && get(p).data.get('status', '') == 'pending'
+    && get(p).data.get('targetUid', '') == uid
+    && get(p).data.get('phoneE164', '') == '+91' + get(p).data.get('phone', '')
+    && matchingMobileIndex(get(p).data.get('phone', ''), uid);
+}
 
     match /roles/{uid} {
       allow read: if examOwner() || (signedIn() && request.auth.uid == uid);
