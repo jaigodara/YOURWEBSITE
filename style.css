@@ -1025,3 +1025,37 @@ button:active,
 .btn:active {
   transform: scale(0.97);
 }
+
+/* Login dialog: actual HTML ID is authModal */
+#authModal {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  z-index: 100000 !important;
+}
+
+#authModal.flex {
+  display: flex !important;
+}
+
+#authModal > div {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 420px !important;
+  max-height: calc(100vh - 32px) !important;
+  max-height: calc(100dvh - 32px) !important;
+  height: auto !important;
+  flex: 0 1 420px !important;
+  margin: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
