@@ -1390,6 +1390,7 @@ if (environmentEl) {
               const permitted = page === 'dashboard' ||
                 (routePermissions[page] && permissions[routePermissions[page]] === true);
               button.hidden = !permitted;
+              button.classList.toggle('hidden', !permitted);
               button.setAttribute('aria-hidden', String(!permitted));
             });
 
