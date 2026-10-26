@@ -92,11 +92,6 @@ service cloud.firestore {
         && !get(p).data.get('rollNumber', '').matches('^BIS-.*$');
     }
 
-    /*
-     * Assistant Editor invitations
-     * The invite and role writes are expected to be part of one atomic
-     * transaction. getAfter() checks the final state of that transaction.
-     */
     function validPhone(phone) {
       return phone is string && phone.matches('^[6-9][0-9]{9}$');
     }
@@ -113,27 +108,21 @@ service cloud.firestore {
         && get(p).data.get('uid', '') == uid;
     }
 
-function validPendingInvite(inviteId, uid) {
-  let p = /databases/$(database)/documents/pending_editors/$(inviteId);
-
-  return validInviteId(inviteId)
-    && exists(p)
-    && get(p).data.get('status', '') == 'pending'
-    && get(p).data.get('targetUid', '') == uid
-    && get(p).data.get('phoneE164', '') == '+91' + get(p).data.get('phone', '')
-    && matchingMobileIndex(get(p).data.get('phone', ''), uid);
-}
+    function validPendingInvite(inviteId, uid) {
+      let p = /databases/$(database)/documents/pending_editors/$(inviteId);
+      return validInviteId(inviteId)
+        && exists(p)
+        && get(p).data.get('status', '') == 'pending'
+        && get(p).data.get('targetUid', '') == uid
+        && get(p).data.get('phoneE164', '') == '+91' + get(p).data.get('phone', '')
+        && matchingMobileIndex(get(p).data.get('phone', ''), uid);
+    }
 
     match /roles/{uid} {
       allow read: if examOwner() || (signedIn() && request.auth.uid == uid);
-
-      // Existing super-owner can create a role directly.
       allow create: if superOwner()
         && request.resource.data.get('role', '') in ['owner', 'editor'];
 
-      // A student may claim only their own pending invitation.
-      // getAfter() verifies the invitation's final claimed state in this
-      // atomic transaction, avoiding the old pending-vs-claimed conflict.
       allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.get('role', '') == 'editor'
