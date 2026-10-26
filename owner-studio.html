@@ -1024,6 +1024,8 @@ Ans: B"></textarea>
     .studio-nav-item{min-height:44px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:11px;background:#fafaf9;color:#374151;text-align:left;font-size:12px;font-weight:800}
     .studio-nav-item:hover{background:#f0fdf4;border-color:#bbf7d0}
     .studio-nav-active{background:#143622;color:#fff;border-color:#143622}
+    #ownerStudioSidebar [data-studio-page][hidden],
+    #ownerStudioSidebar [data-studio-page][aria-hidden="true"] { display: none !important; }
     [data-studio-route-hidden="true"]{display:none!important}
     #ownerQuickShortcutGrid{display:none!important}
     .studio-nav-item{min-height:48px;touch-action:manipulation}
@@ -1245,7 +1247,8 @@ async function claimPendingEditorInvitation(user) {
       invitation.permissions.media === true ? 'Media/PDF/Audio' : '',
       invitation.permissions.quizDrafts === true ? 'Daily Quiz Drafts' : '',
       invitation.permissions.examReview === true ? 'Exam Checking & Results' : '',
-      invitation.permissions.notifications === true ? 'Notifications' : ''
+      invitation.permissions.notifications === true ? 'Notifications' : '',
+      invitation.permissions.reports === true ? 'Reports & Exports' : ''
     ].filter(Boolean);
 
     if (!window.confirm(
@@ -1265,7 +1268,8 @@ async function claimPendingEditorInvitation(user) {
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
         examReview: invitation.permissions.examReview === true,
-        notifications: invitation.permissions.notifications === true
+        notifications: invitation.permissions.notifications === true,
+        reports: invitation.permissions.reports === true
       },
       invitationId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1393,8 +1397,10 @@ if (environmentEl) {
               const page = button.dataset.studioPage;
               const permitted = page === 'dashboard' ||
                 (routePermissions[page] && permissions[routePermissions[page]] === true);
+              button.dataset.editorAllowed = String(permitted);
               button.hidden = !permitted;
               button.classList.toggle('hidden', !permitted);
+              button.style.display = permitted ? '' : 'none';
               button.setAttribute('aria-hidden', String(!permitted));
             });
 
@@ -1502,7 +1508,7 @@ if (environmentEl) {
       admit: { pane: 'pane_exam', permission: null, panels: ['ownerRegistrationReviewPanel', 'ownerAdmitCardSettingsPanel'] },
       notifications: { pane: 'pane_system', permission: 'notifications', panels: ['ownerNotificationCard'] },
      settings: { pane: 'pane_system', permission: null, panels: ['ownerExamVisibilitySettingsPanel', 'ownerMaintenanceSettingsPanel', 'ownerTrustedEditorsPanel', 'ownerProctoringPanel'] },
-      exports: { pane: 'pane_system', permission: null, panels: ['ownerDataExportPanel', 'ownerExportPanel'] }
+      exports: { pane: 'pane_system', permission: 'reports', panels: ['ownerDataExportPanel', 'ownerExportPanel'] }
     };
 
     const OWNER_STUDIO_ROUTE_PANELS = [
@@ -1533,11 +1539,17 @@ if (environmentEl) {
       switchStudioPane(route.pane);
       OWNER_STUDIO_ROUTE_PANELS.forEach(id => {
         const panel = document.getElementById(id);
-        if (panel) panel.dataset.studioRouteHidden = 'true';
+        if (panel) {
+          panel.dataset.studioRouteHidden = 'true';
+          panel.classList.add('hidden');
+        }
       });
       route.panels.forEach(id => {
         const panel = document.getElementById(id);
-        if (panel) delete panel.dataset.studioRouteHidden;
+        if (panel) {
+          delete panel.dataset.studioRouteHidden;
+          panel.classList.remove('hidden');
+        }
       });
       document.querySelectorAll('[data-studio-page]').forEach(button => {
         const active = button.dataset.studioPage === page;
@@ -1567,7 +1579,11 @@ if (environmentEl) {
         search.addEventListener('input', () => {
           const query = search.value.trim().toLocaleLowerCase();
          sidebar.querySelectorAll('[data-studio-page]').forEach(button => {
-            button.hidden = !button.textContent.toLocaleLowerCase().includes(query);
+            const permissionDenied = button.dataset.editorAllowed === 'false';
+            const searchMismatch = !button.textContent.toLocaleLowerCase().includes(query);
+            button.hidden = permissionDenied || searchMismatch;
+            button.style.display = button.hidden ? 'none' : '';
+            button.setAttribute('aria-hidden', String(button.hidden));
           });
         });
       }
@@ -1578,8 +1594,15 @@ if (environmentEl) {
 
     function switchStudioPane(paneId) {
       const isOwner = isPrimaryOwner();
-      const panePermission = { pane_media: 'media', pane_quiz: 'quizDrafts', pane_exam: 'examReview', pane_system: 'notifications' }[paneId];
-      if (!isOwner && paneId !== 'pane_overview' && (!panePermission || !hasEditorPermission(panePermission))) {
+      const panePermissions = {
+        pane_media: ['media'],
+        pane_quiz: ['quizDrafts'],
+        pane_exam: ['examReview'],
+        pane_system: ['notifications', 'reports']
+      };
+      const requiredPermissions = panePermissions[paneId] || [];
+      const permitted = isOwner || requiredPermissions.some(permission => hasEditorPermission(permission));
+      if (!permitted && paneId !== 'pane_overview') {
         showToast('इस Owner Studio अनुभाग की अनुमति आपके editor खाते को नहीं दी गई है।'); return;
       }
       ['pane_overview', 'pane_media', 'pane_quiz', 'pane_exam', 'pane_system'].forEach(id => {
