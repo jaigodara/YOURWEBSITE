@@ -913,3 +913,67 @@ input:focus, select:focus, textarea:focus { scroll-margin-block: 1rem 180px; }
   letter-spacing: normal;
 }
 @media (max-width: 640px) { .checking-workspace { grid-template-columns: minmax(0, 1fr) !important; } .checking-workspace > * { min-width: 0; } .student-roll-badge { max-width: 100%; overflow-x: auto; } }
+/* --- Professional Mobile Modal Styling --- */
+.login-modal-container,
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 9999;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.login-modal-box {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+/* --- Smooth Animations & Spinners --- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Spinner Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Smooth Interactive Press Effect for Buttons */
+button,
+.btn {
+  transition: transform 0.15s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+button:active,
+.btn:active {
+  transform: scale(0.97);
+}
