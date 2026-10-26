@@ -138,10 +138,28 @@ service cloud.firestore {
         && getAfter(
           /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
         ).data.get('claimedUid', '') == uid
-        && request.resource.data.get('permissions', {})
+                && request.resource.data.get('permissions', {}) is map
+        && request.resource.data.get('permissions', {}).keys().hasOnly([
+          'media', 'quizDrafts', 'examReview', 'notifications'
+        ])
+        && request.resource.data.get('permissions', {}).get('media', false)
           == get(
             /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
-          ).data.get('permissions', {})
+          ).data.get('permissions', {}).get('media', false)
+        && request.resource.data.get('permissions', {}).get('quizDrafts', false)
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('permissions', {}).get('quizDrafts', false)
+        && request.resource.data.get('permissions', {}).get('examReview', false)
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('permissions', {}).get('examReview', false)
+        && request.resource.data.get('permissions', {}).get('notifications', false)
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('permissions', {}).get('notifications', false)
+        && request.resource.data.get('email', '') is string
+        && request.resource.data.get('email', '').size() <= 254;
         && request.resource.data.get('fullName', '')
           == get(
             /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
