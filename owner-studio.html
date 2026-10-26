@@ -1365,6 +1365,7 @@ if (environmentEl) {
 }
           const hasOwnerRole = role === 'owner' || user.uid === SUPER_OWNER_UID || user.uid === RECOVERED_OWNER_UID;
           if (!hasOwnerRole) {
+            const permissions = currentAdminUser.permissions || {};
             const panePermissions = {
               btn_pane_media: 'media',
               btn_pane_quiz: 'quizDrafts',
@@ -1372,22 +1373,54 @@ if (environmentEl) {
               btn_pane_system: 'notifications'
             };
             Object.entries(panePermissions).forEach(([buttonId, permission]) => {
-              if (currentAdminUser.permissions[permission] !== true) {
-                document.getElementById(buttonId)?.classList.add('hidden');
-              }
+              const button = document.getElementById(buttonId);
+              if (button) button.classList.toggle('hidden', permissions[permission] !== true);
             });
+
+            // Show only the main navigation destinations this editor was granted.
+            const routePermissions = {
+              media: 'media',
+              questions: 'quizDrafts',
+              checking: 'examReview',
+              notifications: 'notifications',
+              exports: 'reports'
+            };
+            document.querySelectorAll('#ownerStudioSidebar [data-studio-page]').forEach(button => {
+              const page = button.dataset.studioPage;
+              const permitted = page === 'dashboard' ||
+                (routePermissions[page] && permissions[routePermissions[page]] === true);
+              button.hidden = !permitted;
+              button.setAttribute('aria-hidden', String(!permitted));
+            });
+
+            // Admit-card administration, settings and editor management remain Owner-only.
             document.querySelectorAll('[data-owner-only="true"]').forEach(el => el.classList.add('hidden'));
             const systemPane = document.getElementById('pane_system');
-            if (systemPane && currentAdminUser.permissions.notifications === true) {
-              Array.from(systemPane.children).forEach(el => { if (el.id !== 'ownerNotificationCard') el.classList.add('hidden'); });
+            if (systemPane) {
+              Array.from(systemPane.children).forEach(el => {
+                if (el.id !== 'ownerNotificationCard' || permissions.notifications !== true) {
+                  el.classList.add('hidden');
+                }
+              });
             }
-            if (currentAdminUser.permissions.quizDrafts === true) {
+
+            if (permissions.quizDrafts === true) {
               const targetSelect = document.getElementById('bulkQuestionTarget');
               if (targetSelect) {
                 Array.from(targetSelect.options).forEach(option => { if (option.value !== 'quiz') option.hidden = true; });
                 targetSelect.value = 'quiz';
               }
             }
+
+            // Open the first feature the editor can actually use instead of an empty Owner dashboard.
+            const firstAllowedPage = [
+              ['checking', 'examReview'],
+              ['questions', 'quizDrafts'],
+              ['media', 'media'],
+              ['notifications', 'notifications'],
+              ['exports', 'reports']
+            ].find(([, permission]) => permissions[permission] === true)?.[0] || 'dashboard';
+            window.setTimeout(() => openStudioPage(firstAllowedPage), 0);
           }
           studioInitializedUid = user.uid;
           window.clearTimeout(verificationTimer);
