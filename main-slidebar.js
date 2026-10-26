@@ -15,8 +15,12 @@
       trigger.setAttribute('aria-expanded', 'false');
       trigger.textContent = '☰';
       trigger.addEventListener('click', () => window.toggleMainSlidebar(true));
-      const bell = document.getElementById('notificationBellButton');
-      headerActions.insertBefore(trigger, bell || headerActions.firstChild);
+     const bell = document.getElementById('notificationBellButton');
+const insertBeforeNode = bell && bell.parentNode === headerActions
+  ? bell
+  : headerActions.firstChild;
+
+headerActions.insertBefore(trigger, insertBeforeNode);
     }
 
     const backdrop = document.createElement('div');
