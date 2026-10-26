@@ -56,195 +56,167 @@ service cloud.firestore {
     }
 
     function examEnabled(mode) {
-      let configPath = /databases/$(database)/documents/examConfig/current;
-      return exists(configPath)
-        && get(configPath).data.get('examPortalVisible', true) != false
+      let p = /databases/$(database)/documents/examConfig/current;
+      return exists(p)
+        && get(p).data.get('examPortalVisible', true) != false
         && (
-          (mode == 'quiz'
-            && get(configPath).data.get('dailyQuizVisible', true) != false)
-          || (mode == 'mock1'
-            && get(configPath).data.get('mockVisible', true) != false
-            && get(configPath).data.get('mock1Visible', true) != false)
-          || (mode == 'mock2'
-            && get(configPath).data.get('mockVisible', true) != false
-            && get(configPath).data.get('mock2Visible', true) != false)
-          || (mode == 'main'
-            && get(configPath).data.get('mainExamVisible', true) != false)
+          (mode == 'quiz' && get(p).data.get('dailyQuizVisible', true) != false)
+          || (mode == 'mock1' && get(p).data.get('mockVisible', true) != false && get(p).data.get('mock1Visible', true) != false)
+          || (mode == 'mock2' && get(p).data.get('mockVisible', true) != false && get(p).data.get('mock2Visible', true) != false)
+          || (mode == 'main' && get(p).data.get('mainExamVisible', true) != false)
         );
     }
 
-    function examPortalEnabled() {
-      let configPath = /databases/$(database)/documents/examConfig/current;
-      return !exists(configPath)
-        || get(configPath).data.get('examPortalVisible', true) == true;
-    }
-
-    function dailyQuizEnabled() {
-      let configPath = /databases/$(database)/documents/examConfig/current;
-      return !exists(configPath)
-        || get(configPath).data.get('dailyQuizVisible', true) == true;
-    }
-
     function examStarted(fieldName) {
-      let configPath = /databases/$(database)/documents/examConfig/current;
-      return exists(configPath) && (
-        (
-          get(configPath).data.get(fieldName, null) is timestamp
-          && request.time >= get(configPath).data.get(fieldName, timestamp.date(1970, 1, 1))
-        )
-        || (
-          (
-            fieldName == 'quizStartAt'
-              && get(configPath).data.get('quizStartAtMs', null) is int
-            || fieldName == 'mock1StartAt'
-              && get(configPath).data.get('mock1StartAtMs', null) is int
-            || fieldName == 'mock2StartAt'
-              && get(configPath).data.get('mock2StartAtMs', null) is int
-            || fieldName == 'mainStartAt'
-              && get(configPath).data.get('mainStartAtMs', null) is int
-          )
-          && (
-            request.time.seconds() * 1000
-            + request.time.nanos() / 1000000
-          ) >= (
-            fieldName == 'quizStartAt' ? get(configPath).data.get('quizStartAtMs', 0) :
-            fieldName == 'mock1StartAt' ? get(configPath).data.get('mock1StartAtMs', 0) :
-            fieldName == 'mock2StartAt' ? get(configPath).data.get('mock2StartAtMs', 0) :
-            get(configPath).data.get('mainStartAtMs', 0)
-          )
-        )
-      );
+      let p = /databases/$(database)/documents/examConfig/current;
+      return exists(p)
+        && get(p).data.get(fieldName, null) is timestamp
+        && request.time >= get(p).data.get(fieldName, timestamp.date(1970, 1, 1));
     }
 
     function gmailVerifiedStudent() {
-      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let p = /databases/$(database)/documents/users/$(request.auth.uid);
       return signedIn()
-        && exists(profilePath)
-        && get(profilePath).data.get('gmailVerified', false) == true;
+        && exists(p)
+        && get(p).data.get('gmailVerified', false) == true
+        && request.auth.token.firebase.identities['google.com'] != null;
     }
 
     function confirmedExamStudent() {
-      let enrollmentPath = /databases/$(database)/documents/examEnrolledStudents/$(request.auth.uid);
+      let p = /databases/$(database)/documents/examEnrolledStudents/$(request.auth.uid);
       return gmailVerifiedStudent()
-        && exists(enrollmentPath)
-        && get(enrollmentPath).data.get('verificationStatus', '') == 'confirmed'
-        && get(enrollmentPath).data.get('rollNumber', '') != ''
-        && !get(enrollmentPath).data.get('rollNumber', '').matches('^BIS-.*$');
+        && exists(p)
+        && get(p).data.get('verificationStatus', '') == 'confirmed'
+        && get(p).data.get('rollNumber', '') is string
+        && get(p).data.get('rollNumber', '') != ''
+        && !get(p).data.get('rollNumber', '').matches('^BIS-.*$');
     }
 
-    function sessionDeadlineReached(mode) {
-      let sessionPath = /databases/$(database)/documents/examSessions/$(request.auth.uid + '_' + mode);
-      return exists(sessionPath)
-        && get(sessionPath).data.get('endAt', null) != null
-        && request.time >= get(sessionPath).data.endAt;
+    /*
+     * Assistant Editor invitations
+     * The invite and role writes are expected to be part of one atomic
+     * transaction. getAfter() checks the final state of that transaction.
+     */
+    function validPhone(phone) {
+      return phone is string && phone.matches('^[6-9][0-9]{9}$');
     }
 
-    function validScheduledSessionEnd(mode, endAt) {
-      let configPath = /databases/$(database)/documents/examConfig/current;
-      return exists(configPath) && examEnabled(mode) && (
-        (mode == 'quiz' && endAt == get(configPath).data.get('quizEndAt', null))
-        || (mode == 'mock1' && endAt == get(configPath).data.get('mock1EndAt', null))
-        || (mode == 'mock2' && endAt == get(configPath).data.get('mock2EndAt', null))
-        || (mode == 'main' && endAt == get(configPath).data.get('mainEndAt', null))
-      );
+    function validInviteId(inviteId) {
+      return inviteId is string
+        && inviteId.matches('^phone_\\+91[6-9][0-9]{9}$');
+    }
+
+    function matchingMobileIndex(phone, uid) {
+      let p = /databases/$(database)/documents/mobileIndex/$(phone);
+      return validPhone(phone)
+        && exists(p)
+        && get(p).data.get('uid', '') == uid;
+    }
+
+    function validPendingInvite(inviteId, uid) {
+      let p = /databases/$(database)/documents/pending_editors/$(inviteId);
+      return validInviteId(inviteId)
+        && exists(p)
+        && get(p).data.get('targetUid', '') == uid
+        && get(p).data.get('phoneE164', '') == '+91' + get(p).data.get('phone', '')
+        && matchingMobileIndex(get(p).data.get('phone', ''), uid);
     }
 
     match /roles/{uid} {
-      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow read: if examOwner() || (signedIn() && request.auth.uid == uid);
 
-      allow create: if superOwner() || (
-        signedIn()
+      // Existing super-owner can create a role directly.
+      allow create: if superOwner()
+        && request.resource.data.get('role', '') in ['owner', 'editor'];
+
+      // A student may claim only their own pending invitation.
+      // getAfter() verifies the invitation's final claimed state in this
+      // atomic transaction, avoiding the old pending-vs-claimed conflict.
+      allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.get('role', '') == 'editor'
         && request.resource.data.keys().hasOnly([
           'role', 'fullName', 'phone', 'email', 'permissions',
           'invitationId', 'createdAt'
         ])
-        && request.resource.data.get('invitationId', '') is string
-        && request.resource.data.get('invitationId', '').matches('^phone_\\+91[6-9][0-9]{9}$')
-        && exists(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', '')))
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('status', '') == 'pending'
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('targetUid', '') == request.auth.uid
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phoneE164', '') == '+91' + get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
-        && exists(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')))
-        && get(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', ''))).data.get('uid', '') == request.auth.uid
-        && request.resource.data.get('permissions', {}) == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('permissions', {})
-        && request.resource.data.get('fullName', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('fullName', '')
-        && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
-        && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
-      ) || (
-        examOwner()
-        && request.resource.data.get('role', '') == 'editor'
-        && request.resource.data.keys().hasOnly([
-          'role', 'fullName', 'phone', 'email', 'permissions',
-          'invitationId', 'createdAt'
-        ])
-        && request.resource.data.get('invitationId', '') is string
-        && request.resource.data.get('invitationId', '').matches('^phone_\\+91[6-9][0-9]{9}$')
-        && exists(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', '')))
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('status', '') == 'claimed'
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('targetUid', '') == uid
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('claimedUid', '') == uid
-        && get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phoneE164', '') == '+91' + get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
-        && exists(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')))
-        && get(/databases/$(database)/documents/mobileIndex/$(get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', ''))).data.get('uid', '') == uid
-        && request.resource.data.get('permissions', {}) == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('permissions', {})
-        && request.resource.data.get('fullName', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('fullName', '')
-        && request.resource.data.get('phone', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('phone', '')
-        && request.resource.data.get('email', '') == get(/databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))).data.get('email', '')
-      );
+        && validInviteId(request.resource.data.get('invitationId', ''))
+        && validPendingInvite(request.resource.data.get('invitationId', ''), uid)
+        && getAfter(
+          /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+        ).data.get('status', '') == 'claimed'
+        && getAfter(
+          /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+        ).data.get('claimedUid', '') == uid
+        && request.resource.data.get('permissions', {})
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('permissions', {})
+        && request.resource.data.get('fullName', '')
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('fullName', '')
+        && request.resource.data.get('phone', '')
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('phone', '')
+        && request.resource.data.get('email', '')
+          == get(
+            /databases/$(database)/documents/pending_editors/$(request.resource.data.get('invitationId', ''))
+          ).data.get('email', '');
 
       allow update, delete: if examOwner();
     }
 
     match /pending_editors/{inviteId} {
-      allow read: if examOwner() || (
-        signedIn()
-        && resource.data.get('targetUid', '') == request.auth.uid
-        && exists(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', '')))
-        && get(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', ''))).data.get('uid', '') == request.auth.uid
-      );
+      allow read: if examOwner()
+        || (
+          signedIn()
+          && resource.data.get('targetUid', '') == request.auth.uid
+          && matchingMobileIndex(resource.data.get('phone', ''), request.auth.uid)
+        );
 
       allow create: if examOwner()
+        && validInviteId(inviteId)
         && request.resource.data.get('status', '') == 'pending'
-        && request.resource.data.get('phoneE164', '') is string
-        && request.resource.data.get('phoneE164', '').matches('^\\+91[6-9][0-9]{9}$')
-        && request.resource.data.get('phone', '') is string
-        && request.resource.data.get('phone', '').matches('^[6-9][0-9]{9}$')
-        && inviteId == 'phone_' + request.resource.data.get('phoneE164', '')
+        && validPhone(request.resource.data.get('phone', ''))
         && request.resource.data.get('phoneE164', '') == '+91' + request.resource.data.get('phone', '')
+        && inviteId == 'phone_' + request.resource.data.get('phoneE164', '')
         && request.resource.data.get('targetUid', '') is string
-        && exists(/databases/$(database)/documents/mobileIndex/$(request.resource.data.get('phone', '')))
-        && get(/databases/$(database)/documents/mobileIndex/$(request.resource.data.get('phone', ''))).data.get('uid', '') == request.resource.data.get('targetUid', '')
+        && matchingMobileIndex(
+          request.resource.data.get('phone', ''),
+          request.resource.data.get('targetUid', '')
+        )
         && request.resource.data.get('fullName', '') is string
         && request.resource.data.get('email', '') is string
         && request.resource.data.get('permissions', {}) is map;
 
-      
-      allow update: if examOwner() || (
-        signedIn()
-        && resource.data.get('targetUid', '') == request.auth.uid
-        && exists(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', '')))
-        && get(/databases/$(database)/documents/mobileIndex/$(resource.data.get('phone', ''))).data.get('uid', '') == request.auth.uid
-        && resource.data.get('status', '') == 'pending'
-        && (
-          (
-            request.resource.data.get('status', '') == 'claimed'
-            && request.resource.data.get('claimedUid', '') == request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'status', 'claimedUid', 'claimedAt'
-            ])
+      allow update: if examOwner()
+        || (
+          signedIn()
+          && resource.data.get('targetUid', '') == request.auth.uid
+          && matchingMobileIndex(resource.data.get('phone', ''), request.auth.uid)
+          && resource.data.get('status', '') == 'pending'
+          && (
+            (
+              request.resource.data.get('status', '') == 'claimed'
+              && request.resource.data.get('claimedUid', '') == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'status', 'claimedUid', 'claimedAt'
+              ])
+              && request.resource.data.get('phone', '') == resource.data.get('phone', '')
+              && request.resource.data.get('phoneE164', '') == resource.data.get('phoneE164', '')
+              && request.resource.data.get('permissions', {}) == resource.data.get('permissions', {})
+            )
+            ||
+            (
+              request.resource.data.get('status', '') == 'declined'
+              && request.resource.data.get('declinedUid', '') == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'status', 'declinedUid', 'declinedAt'
+              ])
+            )
           )
-          ||
-          (
-            request.resource.data.get('status', '') == 'declined'
-            && request.resource.data.get('declinedUid', '') == request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'status', 'declinedUid', 'declinedAt'
-            ])
-          )
-        )
-      );
+        );
 
       allow delete: if examOwner();
     }
@@ -268,10 +240,7 @@ service cloud.firestore {
         )
         && (
           !request.resource.data.keys().hasAny(['mobile'])
-          || (
-            request.resource.data.get('mobile', '') is string
-            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
-          )
+          || validPhone(request.resource.data.get('mobile', ''))
         );
 
       allow update: if owner() || (
@@ -288,22 +257,16 @@ service cloud.firestore {
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
           || (
-            request.resource.data.get('mobile', '') is string
-            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
-            && getAfter(/databases/$(database)/documents/mobileIndex/$(request.resource.data.get('mobile', ''))).data.uid == request.auth.uid
+            validPhone(request.resource.data.get('mobile', ''))
+            && getAfter(
+              /databases/$(database)/documents/mobileIndex/$(request.resource.data.get('mobile', ''))
+            ).data.get('uid', '') == uid
             && (
               !resource.data.keys().hasAny(['mobile'])
-              || !existsAfter(/databases/$(database)/documents/mobileIndex/$(resource.data.get('mobile', '')))
+              || !existsAfter(
+                /databases/$(database)/documents/mobileIndex/$(resource.data.get('mobile', ''))
+              )
             )
-          )
-        )
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
-          || !resource.data.keys().hasAny(['gmailVerified'])
-          || (
-            resource.data.get('gmailVerified', false) == false
-            && request.resource.data.get('gmailVerified', false) == true
-            && request.auth.token.firebase.identities['google.com'] != null
           )
         )
         && (
@@ -312,31 +275,12 @@ service cloud.firestore {
           || request.auth.token.firebase.identities['google.com'] != null
         )
         && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['mobile'])
-          || (
-            request.resource.data.get('mobile', '') is string
-            && request.resource.data.get('mobile', '').matches('^[6-9][0-9]{9}$')
-          )
-        )
-        && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'phone', 'phoneVerified', 'phoneAuthVerifiedAt'
           ])
+          || request.resource.data.get('phoneVerified', false) != true
           || (
-            request.resource.data.get('phoneVerified', false) != true
-            && request.resource.data.get('phoneAuthVerifiedAt', null) == null
-          )
-          || (
-            request.resource.data.get('phoneVerified', false) == true
-            && resource.data.get('phoneVerified', false) == true
-            && request.resource.data.get('phone', '') == resource.data.get('phone', '')
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-              'phoneVerified', 'phoneAuthVerifiedAt'
-            ])
-          )
-          || (
-            request.resource.data.get('phoneVerified', false) == true
-            && request.auth.token.keys().hasAny(['phone_number'])
+            request.auth.token.keys().hasAny(['phone_number'])
             && request.auth.token.phone_number == request.resource.data.get('phone', '')
             && request.resource.data.get('phoneAuthVerifiedAt', null) is timestamp
           )
@@ -347,23 +291,20 @@ service cloud.firestore {
     }
 
     match /mobileIndex/{mobile} {
-      allow read: if owner() || (
-        signedIn()
-        && exists(/databases/$(database)/documents/mobileIndex/$(mobile))
-        && get(/databases/$(database)/documents/mobileIndex/$(mobile)).data.get('uid', '') == request.auth.uid
-      );
+      allow read: if owner()
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
 
       allow create: if signedIn()
-        && mobile.matches('^[6-9][0-9]{9}$')
+        && validPhone(mobile)
         && !exists(/databases/$(database)/documents/mobileIndex/$(mobile))
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.get('uid', '') == request.auth.uid;
 
-      allow delete: if signedIn()
-        && mobile.matches('^[6-9][0-9]{9}$')
-        && resource.data.get('uid', '') == request.auth.uid;
-
       allow update: if false;
+
+      allow delete: if signedIn()
+        && validPhone(mobile)
+        && resource.data.get('uid', '') == request.auth.uid;
     }
 
     match /settings/{id} {
@@ -371,7 +312,6 @@ service cloud.firestore {
       allow write: if id == 'rollCounter' ? examOwner() : owner();
     }
 
-    // Added for Owner Studio's separate custom-exam registry.
     match /customExams/{examId} {
       allow read, create, update, delete: if examOwner();
     }
@@ -412,7 +352,6 @@ service cloud.firestore {
           && examEnabled('main')
           && examStarted('mainStartAt')
         );
-
       allow create, update, delete: if examOwner();
     }
 
@@ -423,7 +362,6 @@ service cloud.firestore {
           && examEnabled('mock1')
           && examStarted('mock1StartAt')
         );
-
       allow create, update, delete: if examOwner();
     }
 
@@ -434,7 +372,6 @@ service cloud.firestore {
           && examEnabled('mock2')
           && examStarted('mock2StartAt')
         );
-
       allow create, update, delete: if examOwner();
     }
 
@@ -449,8 +386,6 @@ service cloud.firestore {
     }
 
     match /examEnrolledStudents/{uid} {
-      // Enrollment records contain student PII. Only owners, exam-review editors,
-      // and the individual student may read them.
       allow read: if canReviewExam() || (signedIn() && request.auth.uid == uid);
 
       allow create: if examOwner() || (
@@ -458,7 +393,7 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.get('uid', '') == uid
         && request.resource.data.get('verificationStatus', '') == 'pending'
-        && !('rollNumber' in request.resource.data)
+        && !request.resource.data.keys().hasAny(['rollNumber'])
       );
 
       allow update: if examOwner() || (
@@ -521,19 +456,11 @@ service cloud.firestore {
 
     match /mockExamSubmissions/{attemptId} {
       allow create: if confirmedExamStudent()
+        && request.resource.data.get('uid', '') == request.auth.uid
         && (
-          (
-            request.resource.data.get('mode', '') == 'mock1'
-            && examEnabled('mock1')
-            && examStarted('mock1StartAt')
-          )
-          || (
-            request.resource.data.get('mode', '') == 'mock2'
-            && examEnabled('mock2')
-            && examStarted('mock2StartAt')
-          )
-        )
-        && request.resource.data.get('uid', '') == request.auth.uid;
+          (request.resource.data.get('mode', '') == 'mock1' && examEnabled('mock1') && examStarted('mock1StartAt'))
+          || (request.resource.data.get('mode', '') == 'mock2' && examEnabled('mock2') && examStarted('mock2StartAt'))
+        );
 
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
@@ -576,10 +503,7 @@ service cloud.firestore {
 
       allow read: if examOwner()
         || isOwnSession()
-        || (
-          signedIn()
-          && resource.data.get('uid', '') == request.auth.uid
-        );
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
 
       allow create: if signedIn()
         && isOwnSession()
@@ -590,9 +514,12 @@ service cloud.firestore {
           request.resource.data.get('status', '') == 'late_request'
           || (
             request.resource.data.get('status', '') == 'active'
-            && validScheduledSessionEnd(
-              request.resource.data.get('mode', ''),
-              request.resource.data.get('endAt', null)
+            && exists(/databases/$(database)/documents/examConfig/current)
+            && (
+              (request.resource.data.get('mode', '') == 'quiz' && request.resource.data.get('endAt', null) == get(/databases/$(database)/documents/examConfig/current).data.get('quizEndAt', null))
+              || (request.resource.data.get('mode', '') == 'mock1' && request.resource.data.get('endAt', null) == get(/databases/$(database)/documents/examConfig/current).data.get('mock1EndAt', null))
+              || (request.resource.data.get('mode', '') == 'mock2' && request.resource.data.get('endAt', null) == get(/databases/$(database)/documents/examConfig/current).data.get('mock2EndAt', null))
+              || (request.resource.data.get('mode', '') == 'main' && request.resource.data.get('endAt', null) == get(/databases/$(database)/documents/examConfig/current).data.get('mainEndAt', null))
             )
           )
         );
@@ -640,14 +567,11 @@ service cloud.firestore {
             || resource.data.get('uid', '') == request.auth.uid
           )
         );
-
       allow create, update, delete: if examOwner();
     }
 
     match /userAccessLogs/{id} {
-      allow create: if signedIn()
-        && request.resource.data.get('uid', '') == request.auth.uid;
-
+      allow create: if signedIn() && request.resource.data.get('uid', '') == request.auth.uid;
       allow read, update, delete: if owner();
     }
 
@@ -690,8 +614,7 @@ service cloud.firestore {
     }
 
     match /notificationReads/{markerId} {
-      allow read: if signedIn()
-        && resource.data.get('uid', '') == request.auth.uid;
+      allow read: if signedIn() && resource.data.get('uid', '') == request.auth.uid;
 
       allow create, update: if signedIn()
         && request.resource.data.keys().hasOnly([
@@ -724,16 +647,13 @@ service cloud.firestore {
 
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'read', 'readAt', 'isRead'
-        ]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'isRead']);
 
       allow delete: if examOwner();
     }
 
     match /userNotificationReads/{uid}/items/{notificationId} {
-      allow read, create, update, delete: if signedIn()
-        && request.auth.uid == uid;
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
     }
 
     match /posts/{id} {
@@ -747,10 +667,7 @@ service cloud.firestore {
       allow update: if owner();
 
       allow delete: if owner()
-        || (
-          signedIn()
-          && resource.data.get('uid', '') == request.auth.uid
-        );
+        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
     }
 
     match /audios/{id} {
@@ -770,11 +687,9 @@ service cloud.firestore {
 
     match /treePledges/{uid} {
       allow read: if true;
-
       allow create, update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.get('uid', '') == request.auth.uid;
-
       allow delete: if owner();
     }
 
@@ -831,9 +746,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') in ['quiz', 'mock1', 'mock2', 'main']
-        && request.resource.data.get('type', '') in [
-          'tab_switch', 'fullscreen_exit'
-        ]
+        && request.resource.data.get('type', '') in ['tab_switch', 'fullscreen_exit']
         && request.resource.data.keys().hasOnly([
           'uid', 'mode', 'name', 'rollNumber', 'studentPhone',
           'type', 'detail', 'occurredAtMs', 'createdAt'
@@ -860,7 +773,10 @@ service cloud.firestore {
           'action', 'targetName', 'targetPhoneLast4', 'targetRole',
           'permissions', 'changedByName', 'changedAt'
         ])
-        && request.resource.data.get('action', '') in ['invitation_created', 'editor_removed', 'invitation_revoked', 'invitation_reinvited']
+        && request.resource.data.get('action', '') in [
+          'invitation_created', 'editor_removed',
+          'invitation_revoked', 'invitation_reinvited'
+        ]
         && request.resource.data.get('targetName', '') is string
         && request.resource.data.get('targetName', '').size() <= 100
         && request.resource.data.get('targetPhoneLast4', '') is string
