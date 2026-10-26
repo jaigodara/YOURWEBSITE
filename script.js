@@ -7188,3 +7188,20 @@ window.BishnoiApp.importExamQuestions = async function (
   console.error('मुख्य पेज आरंभ नहीं हो सका:', error);
   showEarlyHindiToast();
 }
+// Reusable loading state for save and submit buttons.
+function setLoadingState(buttonElement, isLoading, originalText = "सहेजें") {
+  if (!buttonElement) return;
+
+  if (isLoading) {
+    buttonElement.disabled = true;
+    buttonElement.style.opacity = "0.7";
+    buttonElement.innerHTML =
+      '<span class="loading-spinner" aria-hidden="true"></span> प्रक्रिया जारी है...';
+    buttonElement.setAttribute("aria-busy", "true");
+  } else {
+    buttonElement.disabled = false;
+    buttonElement.style.opacity = "1";
+    buttonElement.innerHTML = originalText;
+    buttonElement.removeAttribute("aria-busy");
+  }
+}
