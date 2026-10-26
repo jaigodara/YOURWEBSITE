@@ -449,7 +449,9 @@ service cloud.firestore {
     }
 
     match /examEnrolledStudents/{uid} {
-      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      // Enrollment records contain student PII. Only owners, exam-review editors,
+      // and the individual student may read them.
+      allow read: if canReviewExam() || (signedIn() && request.auth.uid == uid);
 
       allow create: if examOwner() || (
         gmailVerifiedStudent()
