@@ -1,0 +1,90 @@
+<!-- Bishnoism mobile-kit templates.
+     These are reusable fragments, not a replacement for existing production markup.
+     Keep the existing bnav-* IDs, auth/session code, chat handlers and exam portal.
+     Add these fragments only after mapping their buttons to the site's real handlers. -->
+
+<!-- Header + five-tab mobile navigation -->
+<header class="bx-header" aria-label="मुख्य शीर्षक">
+  <div class="bx-logo" aria-hidden="true">🌳</div>
+  <div class="bx-title">विश्नोई समाज<small>२९ नियम</small></div>
+  <button class="bx-icon" type="button" data-bx-open="bx-search" aria-label="खोजें">🔍</button>
+  <button class="bx-icon" type="button" id="bellBtn" aria-label="सूचनाएँ">🔔<span class="dot" id="bellCount" hidden>0</span></button>
+  <button class="bx-avatar" type="button" data-bx-open="bx-profile" id="avatarBtn" aria-label="प्रोफ़ाइल">D</button>
+  <div class="bx-search" id="bx-search" role="search">
+    <input id="searchInput" type="search" placeholder="नियम, साहित्य, प्रश्न खोजें…" aria-label="खोजें">
+    <button class="bx-icon" type="button" data-bx-close="bx-search" aria-label="बंद करें">✕</button>
+  </div>
+</header>
+<div class="bx-strip" id="bx-daily-strip">🌿 <span id="dailyQuote">जीव दया पालणी, रूंख लीलो नी घावै</span><button type="button" data-bx-dismiss="bx-daily-strip" aria-label="संदेश बंद करें">✕</button></div>
+<nav class="bx-nav" aria-label="मुख्य नेविगेशन">
+  <a class="on" href="#home"><i>🏡</i>मुखपृष्ठ</a>
+  <a href="#literature"><i>📚</i>साहित्य</a>
+  <a href="#exams"><i>🏆</i>परीक्षा</a>
+  <a href="#community"><i>💬</i>संवाद</a>
+  <button type="button" data-bx-open="bx-profile"><i>👤</i>खाता</button>
+</nav>
+
+<!-- Chat layout. Existing Firebase message loading and send handler must render/use these IDs. -->
+<section id="community" aria-label="समुदाय संवाद">
+  <div class="bx-chips" role="group" aria-label="चर्चा विषय">
+    <button class="bx-chip on" type="button">सभी</button>
+    <button class="bx-chip" type="button">सामान्य चर्चा</button>
+    <button class="bx-chip" type="button">जीव रक्षा सूचना</button>
+    <button class="bx-chip" type="button">इतिहास व नियम</button>
+  </div>
+  <div class="bx-pin" id="pinned" hidden></div>
+  <div class="bx-msgs" id="chatList" aria-live="polite"></div>
+  <form class="bx-composer" id="bx-chat-form">
+    <textarea id="chatInput" rows="1" maxlength="300" placeholder="अपना पावन विचार लिखें…" aria-label="संदेश लिखें" required></textarea>
+    <span class="bx-count" id="bx-chat-count" aria-live="polite">0/300</span>
+    <button class="bx-btn" id="chatSend" type="submit" aria-label="भेजें">➤</button>
+  </form>
+</section>
+
+<!-- Profile bottom sheet. Replace display placeholders from the existing signed-in user. -->
+<div class="bx-sheet" id="bx-profile" role="dialog" aria-label="सदस्य प्रोफ़ाइल">
+  <div class="bx-sheet-body">
+    <div class="bx-me">
+      <div class="bx-avatar" id="meInitial" aria-hidden="true">?</div>
+      <div style="flex:1;min-width:0"><div id="meName" style="font-weight:800;font-size:18px">सदस्य</div><span class="bx-role" id="meRole">सदस्य</span></div>
+      <button class="bx-icon" type="button" style="color:#fff" data-bx-close="bx-profile" aria-label="बंद करें">✕</button>
+    </div>
+    <div class="bx-pin" id="bx-notice" hidden style="margin-top:12px"></div>
+    <div class="bx-exam" data-bx-section="exams">
+      <b>मेरी परीक्षाएँ</b>
+      <div style="font-size:14px;opacity:.9;margin-top:4px" id="examStatus">परीक्षा स्थिति उपलब्ध होने पर यहाँ दिखेगी।</div>
+      <div class="row">
+        <button class="bx-btn amber" type="button" data-bx-item="portalButton" id="bx-exam-portal">परीक्षा पोर्टल</button>
+        <button class="bx-btn ghost" type="button" data-bx-item="enrollment" id="bx-exam-enrollment">पंजीकरण</button>
+        <button class="bx-btn ghost" type="button" data-bx-item="admitCard" id="bx-exam-admit">प्रवेश-पत्र</button>
+        <button class="bx-btn ghost" type="button" data-bx-item="results" id="bx-exam-results">मेरे परिणाम</button>
+      </div>
+    </div>
+    <div class="bx-quick">
+      <button type="button" id="bx-japa"><i>📿</i>मेरा जप</button>
+      <button type="button" id="bx-bookmarks"><i>🔖</i>बुकमार्क</button>
+      <button type="button" id="bx-notifications"><i>🔔</i>सूचनाएँ</button>
+    </div>
+    <details class="bx-acc" data-bx-section="personal"><summary>👤 व्यक्तिगत जानकारी</summary>
+      <div class="in"><label for="pName">पूरा नाम<input id="pName" autocomplete="name"></label><label for="pPlace">गाँव / ज़िला<input id="pPlace" autocomplete="address-level2"></label><button class="bx-btn" type="button" id="bx-save-profile">प्रोफ़ाइल सहेजें</button></div>
+    </details>
+    <details class="bx-acc" data-bx-section="security"><summary>🔐 खाता सुरक्षा</summary>
+      <div class="in"><p>मोबाइल और पासवर्ड बदलने के लिए मौजूदा Firebase authentication flow का उपयोग करें।</p><button class="bx-btn" type="button" id="bx-open-security">खाता सुरक्षा खोलें</button></div>
+    </details>
+    <details class="bx-acc" data-bx-section="favourites"><summary>📚 मेरी पसंदीदा सामग्री</summary><div class="in" id="favList">बुकमार्क लोड होने पर यहाँ दिखेंगे।</div></details>
+    <details class="bx-acc" data-bx-section="actions"><summary>⚙️ खाता विकल्प</summary>
+      <div class="in"><button class="bx-btn ghost" type="button" id="bx-open-owner-studio">🛡️ ओनर स्टूडियो खोलें</button><button class="bx-btn" type="button" id="bx-logout" style="background:var(--bx-red)">लॉगआउट</button></div>
+    </details>
+  </div>
+</div>
+
+<!-- Owner mobile layout fragment. Render real stats from existing Owner Studio data; do not hard-code sample counts. -->
+<section class="bx-owner" id="bx-owner-mobile">
+  <div class="bx-owner-top"><h1>ओनर स्टूडियो</h1><a class="bx-btn amber" href="/" style="text-decoration:none">मुख्य साइट</a></div>
+  <div class="bx-todo"><b>आज करने योग्य</b><div id="todoText">लंबित जाँच और ड्राफ्ट की स्थिति लोड हो रही है…</div></div>
+  <div class="bx-stats" id="bx-owner-stats" aria-live="polite"></div>
+  <details class="bx-acc" open><summary>👤 सदस्य प्रोफ़ाइल में क्या दिखे</summary><div class="in" id="profileControls"></div></details>
+  <nav class="bx-nav" aria-label="ओनर स्टूडियो नेविगेशन">
+    <a class="on" href="#dash"><i>📊</i>डैशबोर्ड</a><a href="#qbank"><i>📝</i>प्रश्न</a><a href="#check"><i>✅</i>जाँच</a><a href="#cards"><i>🎟️</i>प्रवेश-पत्र</a><button type="button" data-bx-open="bx-more"><i>⋯</i>और</button>
+  </nav>
+</section>
