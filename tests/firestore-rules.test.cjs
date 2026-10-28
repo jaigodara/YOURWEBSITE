@@ -183,6 +183,37 @@ test("Firestore security rules regression suite", async (t) => {
       await assertFails(getDoc(doc(studentDb, "mainExamQuestions/q1")));
     });
 
+    await t.test("मुख्य/मॉक परिणाम Owner release से पहले निजी रहते हैं", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, "publishedResults/main-result"), {
+          uid: STUDENT, mode: "main", status: "evaluated", score: 8, total: 10,
+        });
+      });
+      const studentDb = googleStudentContext(STUDENT).firestore();
+      await assertFails(getDoc(doc(studentDb, "publishedResults/main-result")));
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), "examConfig/current"), { resultsPublished: true });
+      });
+      await assertSucceeds(getDoc(doc(studentDb, "publishedResults/main-result")));
+    });
+
+    await t.test("प्रवेश-पत्र रिलीज़ से पहले निजी रहता है और per-card release के बाद खुलता है", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), "admitCards/student-card"), {
+          uid: STUDENT, admitCardExamType: "main", admitCardReleased: false,
+        });
+      });
+      const studentDb = googleStudentContext(STUDENT).firestore();
+      await assertFails(getDoc(doc(studentDb, "admitCards/student-card")));
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), "admitCards/student-card"), { admitCardReleased: true });
+      });
+      await assertSucceeds(getDoc(doc(studentDb, "admitCards/student-card")));
+    });
+
     await t.test("विद्यार्थी अपना मोबाइल और गाँव/स्थान प्रोफ़ाइल में सहेज सकता है, पर verified status नहीं बदल सकता", async () => {
       await reset();
       await env.withSecurityRulesDisabled(async (ctx) => {

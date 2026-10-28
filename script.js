@@ -550,7 +550,8 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
       invitation.permissions.media === true ? 'Media/PDF/Audio' : '',
       invitation.permissions.quizDrafts === true ? 'Daily Quiz Drafts' : '',
       invitation.permissions.examReview === true ? 'Exam Checking & Results' : '',
-      invitation.permissions.notifications === true ? 'Notifications' : ''
+      invitation.permissions.notifications === true ? 'Notifications' : '',
+      invitation.permissions.reports === true ? 'Reports & Exports' : ''
     ].filter(Boolean);
     const accepted = skipPrompt || window.confirm(
       'Bishnoism Owner Studio invitation\n\n' +
@@ -572,7 +573,8 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
         examReview: invitation.permissions.examReview === true,
-        notifications: invitation.permissions.notifications === true
+        notifications: invitation.permissions.notifications === true,
+        reports: invitation.permissions.reports === true
       },
       invitationId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -699,10 +701,13 @@ notify(
       profileMobile.readOnly = true;
       profileMobile.setAttribute('aria-readonly', 'true');
     }
+    const canOpenOwnerStudio = state.isOwner || state.roles.includes('admin') || state.roles.includes('editor');
     setVisible('tab-admin', state.isOwner || state.roles.includes('admin'));
-    setVisible('ownerStudio', state.isOwner || state.roles.includes('admin'));
-    setVisible('ownerStudioPortalBtn', state.isOwner || state.roles.includes('admin'));
-    setVisible('profileOwnerStudioLink', state.isOwner || state.roles.includes('admin'));
+    // Accepted assistant editors need a visible entry point to the exact tools
+    // granted in roles/{uid}. Owner Studio applies the permission gates itself.
+    setVisible('ownerStudio', canOpenOwnerStudio);
+    setVisible('ownerStudioPortalBtn', canOpenOwnerStudio);
+    setVisible('profileOwnerStudioLink', canOpenOwnerStudio);
 
     const loginBtn = byId('authButton') || byId('profileButton');
     if (loginBtn) loginBtn.textContent = state.profile.displayName || 'Profile';
@@ -2357,6 +2362,53 @@ window.toggleExamResultsRelease = async function toggleExamResultsRelease() {
 window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
 
+  // Profile presentation is controlled by the same Firestore config as exam visibility.
+  const profileModal = byId('userProfileModal');
+  if (profileModal) {
+    const profileBody = profileModal.querySelector(':scope > div > .p-5');
+    if (profileBody) {
+      let ownerMessage = byId('profileOwnerNotice');
+      if (!ownerMessage) {
+        ownerMessage = document.createElement('div');
+        ownerMessage.id = 'profileOwnerNotice';
+        ownerMessage.className = 'rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-forest';
+        const accountCard = byId('profileEmailDisplay')?.closest('div');
+        if (accountCard) accountCard.insertAdjacentElement('beforebegin', ownerMessage);
+        else profileBody.prepend(ownerMessage);
+      }
+      const message = String(c.profileOwnerMessage || '').trim().slice(0, 300);
+      ownerMessage.textContent = message;
+      ownerMessage.hidden = !message;
+
+      let examInfo = byId('profileExamInfoSection');
+      if (!examInfo) {
+        examInfo = document.createElement('section');
+        examInfo.id = 'profileExamInfoSection';
+        examInfo.className = 'rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-1';
+        examInfo.innerHTML = '<h4 class="font-bold text-forest">🎓 मेरी परीक्षा जानकारी</h4><p class="text-xs text-stone-600">परीक्षा पोर्टल, प्रवेश-पत्र और परिणाम की उपलब्धता वेबसाइट की वर्तमान सेटिंग पर निर्भर है।</p><div class="flex flex-wrap gap-2"><a href="#tab-quiz" onclick="window.switchTab(&quot;quiz&quot;)" class="inline-flex items-center rounded-lg bg-forest px-3 py-2 text-white font-bold">परीक्षा पोर्टल</a></div>';
+        const favorites = byId('savedLiteratureBookmarks')?.closest('section');
+        if (favorites) favorites.insertAdjacentElement('beforebegin', examInfo);
+        else profileBody.prepend(examInfo);
+      }
+      examInfo.hidden = c.profileExamInfoVisible === false;
+      const favoritesSection = byId('savedLiteratureBookmarks')?.closest('section');
+      if (favoritesSection) favoritesSection.hidden = c.profileFavoritesVisible === false;
+      ['profEditName', 'profEditLocation'].forEach(id => {
+        const field = byId(id);
+        if (field) field.parentElement.hidden = c.profilePersonalInfoVisible === false;
+      });
+      const saveProfileButton = profileBody.querySelector('button[onclick*="BishnoiAuth.saveProfile"]');
+      if (saveProfileButton) saveProfileButton.hidden = c.profilePersonalInfoVisible === false;
+      profileBody.querySelectorAll('h4').forEach(heading => {
+        const title = (heading.textContent || '').toLowerCase();
+        if (title.includes('मोबाइल नंबर प्रबंधन') || title.includes('पासवर्ड बदलें')) {
+          const securitySection = heading.closest('div.border-t') || heading.parentElement;
+          if (securitySection) securitySection.hidden = c.profileSecurityVisible === false;
+        }
+      });
+    }
+  }
+
   // Keep the legacy Owner Studio controls connected to the live Firestore config.
   const visibilityInputs = [
     ['ownerShowDailyQuiz', 'dailyQuizVisible'],
@@ -2889,14 +2941,17 @@ window.renderExamVisibility = function renderExamVisibility() {
       const when = post.createdAt && typeof post.createdAt.toDate === 'function'
         ? post.createdAt.toDate().toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' })
         : '';
+      const isMine = !!state.user && post.uid === state.user.uid;
+      const isPinned = post.pinnedByOwner === true;
       return `
-        <article class="rounded-xl bg-white border border-stone-200 p-3.5 shadow-sm space-y-2" data-post-id="${escapeHtml(post.id || '')}">
+        <article class="bx-chat-message ${isMine ? 'bx-chat-message-mine' : 'bx-chat-message-other'} rounded-xl border p-3.5 shadow-sm space-y-2 ${isPinned ? 'bx-chat-message-pinned' : ''}" data-post-id="${escapeHtml(post.id || '')}">
           <div class="flex items-center justify-between gap-2">
             <span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 rounded-full px-2 py-1">${escapeHtml(topic)}</span>
             <span class="text-[10px] text-stone-400">${escapeHtml(when)}</span>
           </div>
+          ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
           <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
-          <div class="text-[10px] text-stone-500">— ${escapeHtml(author)}</div>
+          <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)}</div>
         </article>
       `;
     }).join('');

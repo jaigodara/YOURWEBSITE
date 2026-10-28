@@ -403,8 +403,20 @@ service cloud.firestore {
     }
 
     match /publishedResults/{resultId} {
-      allow read: if examOwner()
-        || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      // Main/mock results remain private until the Owner releases them. Daily quiz
+      // results retain the existing per-document published status behavior.
+      allow read: if examOwner() || (
+        signedIn()
+        && resource.data.get('uid', '') == request.auth.uid
+        && (
+          (resource.data.get('mode', '') == 'quiz'
+            && resource.data.get('status', '') == 'published')
+          || (
+            exists(/databases/$(database)/documents/examConfig/current)
+            && get(/databases/$(database)/documents/examConfig/current).data.get('resultsPublished', false) == true
+          )
+        )
+      );
 
       allow create: if canReviewExam() || (
         signedIn()
@@ -537,14 +549,23 @@ service cloud.firestore {
     }
 
     match /admitCards/{cardId} {
-      allow read: if examOwner()
-        || (
-          signedIn()
-          && (
-            resource.data.get('studentUid', '') == request.auth.uid
-            || resource.data.get('uid', '') == request.auth.uid
+      // Students can only read their own card after the per-card release flag,
+      // or the global release for legacy cards without an exam-specific type.
+      allow read: if examOwner() || (
+        signedIn()
+        && (
+          resource.data.get('studentUid', '') == request.auth.uid
+          || resource.data.get('uid', '') == request.auth.uid
+        )
+        && (
+          resource.data.get('admitCardReleased', false) == true
+          || (
+            resource.data.get('admitCardExamType', '') == ''
+            && exists(/databases/$(database)/documents/examConfig/current)
+            && get(/databases/$(database)/documents/examConfig/current).data.get('admitCardReleased', false) == true
           )
-        );
+        )
+      );
       allow create, update, delete: if examOwner();
     }
 
