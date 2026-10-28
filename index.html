@@ -110,6 +110,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   <link rel="stylesheet" href="slidebar.css">
+  <style id="bx-production-mobile-ux">
+    /* Mobile-only refinements: preserve the existing Bishnoism green/amber/cream design. */
+    @media (max-width: 640px) {
+      body { overflow-x: clip; }
+      body > header.sticky { top: 0; }
+      body > header.sticky > div { gap: .5rem; padding: .55rem .65rem; }
+      body > header.sticky a { gap: .45rem; }
+      body > header.sticky a > div:first-child { width: 2.1rem; height: 2.1rem; font-size: 1.15rem; }
+      body > header.sticky a .font-yatra { font-size: 1rem; }
+      body > header.sticky a span.text-\\[10px\\] { font-size: 9px; }
+      #globalSearchInput { font-size: 16px; }
+      #notificationBellButton { width: 44px; height: 44px; padding: .5rem; border-radius: 999px; }
+      #authLoginButton { min-height: 44px; padding: .65rem .75rem; }
+      #bnav-home,#bnav-library,#bnav-quiz,#bnav-community,#bnav-profile { min-height: 54px; }
+      .bnav-mobile { padding-bottom: max(.375rem, env(safe-area-inset-bottom)); }
+      #tab-community > .bg-white:first-child { align-items: stretch; }
+      #chatTopicFilter { width: 100%; min-height: 44px; font-size: 16px; }
+      #communityFeed { max-height: min(54vh, 32rem); overscroll-behavior: contain; }
+      #postEditor { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 25; }
+      #postEditor textarea { min-height: 48px; font-size: 16px; }
+      #postEditor button { min-width: 64px; min-height: 48px; }
+      #postAuthPrompt button { min-height: 44px; }
+      #userProfileModal { align-items: flex-end; padding: 0; }
+      #userProfileModal > div { width: 100%; max-width: none; max-height: 92dvh; overflow-y: auto; border-radius: 1.25rem 1.25rem 0 0; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+      #userProfileModal > div > .p-5 { padding: 1rem; }
+      #userProfileModal input:not([type=checkbox]):not([type=radio]), #userProfileModal select, #userProfileModal textarea { width: 100%; min-height: 48px; font-size: 16px; }
+      #userProfileModal button { min-height: 44px; }
+      #userProfileModal section { scroll-margin-top: 1rem; }
+    }
+  </style>
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
