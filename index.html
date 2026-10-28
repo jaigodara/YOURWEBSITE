@@ -1131,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const profile = document.getElementById('userProfileModal');
     if (profile) profile.querySelectorAll('a,button').forEach(el => {
       const label = (el.textContent || '').replace(/\s+/g,' ').trim();
-      if (/^परीक्षा पोर्टल$/.test(label)) el.remove();
+      if (/परीक्षा पोर्टल/.test(label)) el.remove();
     });
   };
   clean();
