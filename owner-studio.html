@@ -4570,8 +4570,11 @@ next.addEventListener('click', async () => {
       host.replaceChildren();
       try {
         const snap = await db.collection('examSessions').orderBy('updatedAt', 'desc').limit(100).get();
+        const now = Date.now();
         const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(row => ['active', 'kicked', 'denied', 'late_request'].includes(row.status));
+          .filter(row => ['active', 'kicked', 'denied', 'late_request'].includes(row.status))
+          // Expired active records are completed attempts, not live monitoring work.
+          .filter(row => !(row.status === 'active' && Number(row.endAtMs) > 0 && Number(row.endAtMs) <= now));
         if (!rows.length) {
           const empty = document.createElement('p');
           empty.className = 'rounded-xl bg-stone-50 p-3 text-xs text-stone-500';
