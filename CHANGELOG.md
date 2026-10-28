@@ -1,3 +1,12 @@
+## 2026-10-28 — Profile password recovery and mobile layout
+
+- `index.html`: added show/hide controls for the profile's new and confirmation passwords, and a clear route to Google-verified password recovery when the current app password is forgotten.
+- `script.js`: Google-verified password recovery now supports Google-only accounts by linking a Bishnoism mobile/password credential when a valid registered mobile exists; existing password accounts still update their password. Profile password setup also supports adding the password credential without requiring a nonexistent current password. Mobile changes use recent Google reauthentication when that provider is already linked.
+- `style.css`: improved mobile modal height, scrolling, safe-area padding, and header wrapping without replacing the existing theme.
+- `owner-studio.html`: explicitly exports the exam-settings save handler used by the inline button; expired active exam sessions are excluded from the live-monitor queue once their trusted end time has passed.
+- Security note: enforcing a hard three-mobile-changes-per-month limit requires a trusted backend/Firestore rules design; a browser-only counter would be bypassable, so this patch does not claim that limit is enforced.
+- Validation: GitHub Actions is the source of truth for syntax, build, lint, and tests. Verify Google provider linking and account changes with test accounts before production rollout.
+
 # CHANGELOG
 
 ## 2026-10-15 — Enrollment safety patch

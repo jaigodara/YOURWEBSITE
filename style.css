@@ -1059,3 +1059,45 @@ button:active,
   overflow-y: auto !important;
   box-sizing: border-box !important;
 }
+
+
+/* Account, modal and header usability overrides — appended to preserve existing theme. */
+#authModal,
+#userProfileModal {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+#authModal > div,
+#userProfileModal > div {
+  width: min(100%, 28rem);
+  max-height: min(90dvh, 52rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#userProfileModal input,
+#authModal input {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 640px) {
+  header > div:first-child { min-width: 0; }
+  header > div:first-child > a { min-width: 0; }
+  header > div:first-child > a span { overflow-wrap: anywhere; }
+  header > div:last-child { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+  #authActionsContainer { max-width: 45vw; }
+  #authLoginButton { white-space: normal; }
+  #authModal,
+  #userProfileModal { align-items: flex-end; padding: 0.5rem; }
+  #authModal > div,
+  #userProfileModal > div {
+    width: 100%;
+    max-width: 34rem;
+    max-height: calc(94dvh - env(safe-area-inset-bottom, 0px));
+    margin: 0 auto;
+    border-radius: 1.25rem 1.25rem 0.75rem 0.75rem;
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  #userProfileModal > div > div.p-5 { padding: 1rem; }
+  #userProfileModal button,
+  #authModal button { min-height: 44px; }
+}

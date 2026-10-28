@@ -809,6 +809,8 @@ document.addEventListener('DOMContentLoaded', () => {
             minlength="8" autocomplete="new-password"
             class="w-full p-2.5 rounded-xl border border-stone-300"
             placeholder="कम-से-कम 8 अक्षर">
+          <button type="button" onclick="window.toggleProfileMobilePassword('profileMobileNewPassword', this)"
+            class="mt-1 text-sm font-semibold text-forest underline" aria-controls="profileMobileNewPassword" aria-pressed="false">पासवर्ड दिखाएँ</button>
 
           <button type="button"
             onclick="window.BishnoiAuth.changeProfileMobile()"
@@ -838,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <h4 class="font-bold text-forest text-sm">🔐 पासवर्ड बदलें</h4>
 
           <p class="text-[11px] text-stone-500">
-            केवल ईमेल/पासवर्ड वाले खातों के लिए। Google-only खाते का पासवर्ड Google खाते में बदलें।
+            नया पासवर्ड और पुष्टि भरें। यदि वर्तमान पासवर्ड याद नहीं है, तो नीचे “वर्तमान पासवर्ड भूल गए?” चुनकर Google से पहचान सत्यापित करें। Google-only खाते में मोबाइल नंबर जुड़ा हो तो नया Bishnoism पासवर्ड बनाया जा सकता है।
           </p>
 
           <div>
@@ -860,6 +862,8 @@ document.addEventListener('DOMContentLoaded', () => {
               autocomplete="new-password"
               class="w-full p-2.5 rounded-xl border border-stone-300"
               placeholder="कम-से-कम 8 अक्षर">
+            <button type="button" onclick="window.toggleProfileMobilePassword('profileNewPassword', this)"
+              class="mt-1 text-sm font-semibold text-forest underline" aria-controls="profileNewPassword" aria-pressed="false">पासवर्ड दिखाएँ</button>
           </div>
 
           <div>
@@ -868,8 +872,14 @@ document.addEventListener('DOMContentLoaded', () => {
               autocomplete="new-password"
               class="w-full p-2.5 rounded-xl border border-stone-300"
               placeholder="नया पासवर्ड दोबारा लिखें">
+            <button type="button" onclick="window.toggleProfileMobilePassword('profileConfirmPassword', this)"
+              class="mt-1 text-sm font-semibold text-forest underline" aria-controls="profileConfirmPassword" aria-pressed="false">पासवर्ड दिखाएँ</button>
           </div>
 
+          <button type="button" onclick="window.BishnoiAuth.startForgotPassword()"
+            class="w-full py-2.5 border border-amber-300 text-forest font-semibold rounded-xl">
+            वर्तमान पासवर्ड भूल गए? Google से सत्यापित करें
+          </button>
           <button type="button" onclick="window.BishnoiAuth.changeProfilePassword()"
             class="w-full py-2.5 bg-amber-50 text-forest font-bold rounded-xl border border-amber-300">
             🔑 पासवर्ड अपडेट करें
