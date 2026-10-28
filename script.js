@@ -6156,10 +6156,51 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
         : authErrorMessage(error), 'error');
     }
   };
+  // Android WebView native Google ID-token bridge; browsers keep the popup flow.
+  let nativeGoogleRequestSequence = 0;
+  const nativeGoogleRequests = new Map();
+  window.__bishnoismGoogleAuthResult = function (requestId, idToken, errorMessage) {
+    const finish = nativeGoogleRequests.get(String(requestId));
+    if (!finish) return;
+    nativeGoogleRequests.delete(String(requestId));
+    if (errorMessage || !idToken) {
+      finish.reject(Object.assign(new Error(errorMessage || 'Native Google sign-in did not return an ID token.'), {
+        code: 'auth/native-google-sign-in-failed'
+      }));
+      return;
+    }
+    finish.resolve(String(idToken));
+  };
+  function requestNativeGoogleIdToken() {
+    return new Promise((resolve, reject) => {
+      const bridge = window.BishnoismAndroidAuth;
+      if (!bridge || typeof bridge.requestGoogleIdToken !== 'function') {
+        reject(Object.assign(new Error('Native Google sign-in bridge is unavailable.'), { code: 'auth/native-bridge-unavailable' }));
+        return;
+      }
+      const requestId = String(++nativeGoogleRequestSequence);
+      nativeGoogleRequests.set(requestId, { resolve, reject });
+      try {
+        bridge.requestGoogleIdToken(requestId);
+      } catch (error) {
+        nativeGoogleRequests.delete(requestId);
+        reject(error);
+      }
+    });
+  }
+  async function signInWithGoogleCredential() {
+    if (window.BishnoismAndroidAuth && typeof window.BishnoismAndroidAuth.requestGoogleIdToken === 'function') {
+      const idToken = await requestNativeGoogleIdToken();
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+      return state.auth.signInWithCredential(credential);
+    }
+    return state.auth.signInWithPopup(googleProvider());
+  }
+
   authApi.signInWithGoogle = async function () {
     if (!state.auth || !window.firebase?.auth) return setAuthMessage('Google लॉगिन अभी उपलब्ध नहीं है।', 'error');
     try {
-      const result = await state.auth.signInWithPopup(googleProvider());
+      const result = await signInWithGoogleCredential();
       const user = result?.user;
       if (!user) return setAuthMessage('Google लॉगिन पूरा नहीं हुआ। दोबारा प्रयास करें।', 'error');
       const email = googleEmailForUser(user, result) || user.email || '';
@@ -6204,7 +6245,7 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
   };
   authApi.verifyGoogleForPasswordReset = async function () {
     try {
-      const result = await state.auth.signInWithPopup(googleProvider());
+      const result = await signInWithGoogleCredential();
       const user = result?.user;
       if (!user) return setAuthMessage('Google सत्यापन पूरा नहीं हुआ।', 'error');
       if (result.additionalUserInfo?.isNewUser) {
@@ -6253,7 +6294,7 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
       if (error.code === 'auth/requires-recent-login' && !forgotRetryUsed) {
         forgotRetryUsed = true;
         try {
-          const result = await state.auth.signInWithPopup(googleProvider());
+          const result = await signInWithGoogleCredential();
           if (!result?.user || result.user.uid !== forgotPasswordUser.uid) {
             return setAuthMessage('कृपया पहले वाले पंजीकृत Google खाते से ही सत्यापन करें।', 'error');
           }
