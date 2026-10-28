@@ -1093,11 +1093,14 @@ document.addEventListener('DOMContentLoaded', () => {
       login.dataset.bxAvatarObserver='1';
       const compact=()=>{
         const name=(login.textContent||'').trim();
+        if(login.classList.contains('bx-auth-avatar') && name===login.dataset.bxAvatarGlyph) return;
         if(!name||name==='लॉगिन करें'||name.toLowerCase()==='login') {
-          login.classList.remove('bx-auth-avatar'); login.removeAttribute('aria-label'); return;
+          login.classList.remove('bx-auth-avatar'); login.removeAttribute('aria-label'); delete login.dataset.bxAvatarGlyph; return;
         }
-        login.dataset.fullName=name; login.setAttribute('aria-label','प्रोफ़ाइल: '+name); login.classList.add('bx-auth-avatar');
-        login.textContent=(name.match(/[\p{L}\p{N}]/u)||['👤'])[0].slice(0,1).toUpperCase();
+        const avatar=(name.match(/[\p{L}\p{N}]/u)||['👤'])[0];
+        login.dataset.fullName=name; login.dataset.bxAvatarGlyph=avatar;
+        login.setAttribute('aria-label','प्रोफ़ाइल: '+name); login.classList.add('bx-auth-avatar');
+        login.textContent=avatar;
       };
       new MutationObserver(compact).observe(login,{childList:true,characterData:true,subtree:true});
       compact();
