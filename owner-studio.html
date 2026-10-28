@@ -6478,6 +6478,25 @@ async function removeTrustedEditor(uid) {
   </script>
 <script src="./exportReports.js"></script>
 <style id="owner-studio-mobile-ux">
+
+/* Review desk fixes: prevent the candidate rail from crushing names and keep
+   scoring actions usable without covering the answer sheet. */
+#examSessionQueue { min-width: 0; }
+#examSessionQueue article { display: block; min-width: 0; width: 100%; }
+#examSessionQueue article :is(a,button,span,p,strong,div) { min-width: 0; }
+#examSessionQueue .break-all { overflow-wrap: anywhere; word-break: normal; }
+.student-roll-badge { white-space: nowrap; min-width: max-content; flex-shrink: 0; }
+.exam-review-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .5rem; }
+.exam-review-actions > * { min-width: 0; width: 100%; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .exam-review-actions { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .exam-review-actions button { min-height: 48px; padding: .75rem .5rem; }
+}
+@media (max-width: 420px) {
+  .exam-review-actions { position: sticky; bottom: max(.25rem,env(safe-area-inset-bottom)); padding: .5rem; }
+  .exam-review-actions button { font-size: .78rem; line-height: 1.35; }
+}
+
 /* Owner Studio: mobile-first controls, readable cards and safe-area spacing. */
 @media(max-width:700px){
 body{overflow-x:hidden}
