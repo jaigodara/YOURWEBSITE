@@ -1347,7 +1347,9 @@ async function claimPendingEditorInvitation(user) {
           // Display the authenticated account without changing existing access checks.
 const adminEmailEl = document.getElementById('studioAdminEmail');
 if (adminEmailEl) {
-  adminEmailEl.textContent = 'Administrator: Owner session verified';
+  adminEmailEl.textContent = isPrimaryOwner()
+    ? 'Administrator: Owner session verified'
+    : 'Assistant Editor: access verified';
 }
 
 // Identify the production hostname explicitly; other hosts are treated as staging.
