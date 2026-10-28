@@ -1013,5 +1013,46 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 </script>
 <script src="main-slidebar.js?v=20261028-3"></script>
+
+  <script id="bx-mobile-chat-topic-chips">
+  (() => {
+    function installTopicChips() {
+      const select = document.getElementById('chatTopicFilter');
+      if (!select || document.getElementById('bx-mobile-chat-topic-chips')) return;
+      const wrap = document.createElement('div');
+      wrap.id = 'bx-mobile-chat-topic-chips';
+      wrap.className = 'bx-chat-topic-chips';
+      wrap.setAttribute('role', 'group');
+      wrap.setAttribute('aria-label', 'संवाद विषय चुनें');
+      Array.from(select.options).forEach(option => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = option.textContent.trim();
+        button.dataset.topic = option.value;
+        button.className = 'bx-chat-topic-chip';
+        button.setAttribute('aria-pressed', String(option.value === select.value));
+        button.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          wrap.querySelectorAll('button').forEach(chip => chip.setAttribute('aria-pressed', String(chip === button)));
+        });
+        wrap.appendChild(button);
+      });
+      select.insertAdjacentElement('afterend', wrap);
+      select.addEventListener('change', () => {
+        wrap.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.topic === select.value)));
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installTopicChips, { once: true });
+    else installTopicChips();
+  })();
+  </script>
+  <style id="bx-chat-topic-chip-styles">
+    .bx-chat-topic-chips { display:flex; gap:.5rem; overflow-x:auto; padding:.35rem 0 .65rem; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+    .bx-chat-topic-chip { flex:0 0 auto; min-height:44px; padding:.65rem .9rem; border:1px solid #d6d3d1; border-radius:999px; background:#fffdf7; color:#143622; font-size:.8rem; font-weight:700; }
+    .bx-chat-topic-chip[aria-pressed="true"] { background:#143622; color:#fff; border-color:#f5b400; box-shadow:0 0 0 1px #f5b400 inset; }
+    @media(min-width:641px) { .bx-chat-topic-chips { display:none; } }
+    @media(max-width:640px) { #chatTopicFilter { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; } }
+  </style>
 </body>
 </html>
