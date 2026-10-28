@@ -2385,7 +2385,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         examInfo = document.createElement('section');
         examInfo.id = 'profileExamInfoSection';
         examInfo.className = 'rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-1';
-        examInfo.innerHTML = '<h4 class="font-bold text-forest">🎓 मेरी परीक्षा जानकारी</h4><p class="text-xs text-stone-600">परीक्षा पोर्टल, प्रवेश-पत्र और परिणाम की उपलब्धता वेबसाइट की वर्तमान सेटिंग पर निर्भर है।</p><div class="flex flex-wrap gap-2"><a href="#tab-quiz" onclick="window.switchTab('quiz')" class="inline-flex items-center rounded-lg bg-forest px-3 py-2 text-white font-bold">परीक्षा पोर्टल</a></div>';
+        examInfo.innerHTML = '<h4 class="font-bold text-forest">🎓 मेरी परीक्षा जानकारी</h4><p class="text-xs text-stone-600">परीक्षा पोर्टल, प्रवेश-पत्र और परिणाम की उपलब्धता वेबसाइट की वर्तमान सेटिंग पर निर्भर है।</p><div class="flex flex-wrap gap-2"><a href="#tab-quiz" onclick="window.switchTab(&quot;quiz&quot;)" class="inline-flex items-center rounded-lg bg-forest px-3 py-2 text-white font-bold">परीक्षा पोर्टल</a></div>';
         const favorites = byId('savedLiteratureBookmarks')?.closest('section');
         if (favorites) favorites.insertAdjacentElement('beforebegin', examInfo);
         else profileBody.prepend(examInfo);
