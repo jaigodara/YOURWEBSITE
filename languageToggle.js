@@ -40,6 +40,7 @@
     });
     try { localStorage.setItem(STORAGE_KEY, lang); } catch (_) {}
     window.BishnoismLanguage = { current: lang, set: applyLanguage };
+    document.dispatchEvent(new CustomEvent('bishnoism:languagechange', { detail: { language: lang } }));
   }
 
   function organizeProfileAccordion() {
