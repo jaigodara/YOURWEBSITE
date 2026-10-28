@@ -8,6 +8,7 @@ const html = readFileSync(path.join(root, 'index.html'), 'utf8');
 const js = readFileSync(path.join(root, 'main-slidebar.js'), 'utf8');
 const css = readFileSync(path.join(root, 'slidebar.css'), 'utf8');
 const script = readFileSync(path.join(root, 'script.js'), 'utf8');
+const ownerHtml = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
 
 test('Main slidebar is wired without replacing the five core bottom tabs', () => {
   for (const id of ['bnav-home', 'bnav-library', 'bnav-quiz', 'bnav-community', 'bnav-profile']) {
@@ -20,7 +21,7 @@ test('Main slidebar is wired without replacing the five core bottom tabs', () =>
 });
 
 test('Slidebar actions point to existing site controls and support keyboard close', () => {
-  for (const action of ['mala', 'amavasya', 'language', 'literature', 'map', 'notifications']) {
+  for (const action of ['mala', 'amavasya', 'language', 'owner-studio', 'literature', 'map', 'notifications']) {
     assert.ok(js.includes('data-drawer-action="' + action + '"'), 'missing drawer action: ' + action);
   }
   assert.match(js, /event\.key === 'Escape'/);
@@ -53,4 +54,14 @@ test('Literature bookmarks persist locally and render in the profile panel', () 
   assert.match(script, /data-literature-bookmark-toggle/);
   assert.match(script, /data-remove-literature-bookmark/);
   assert.match(script, /function renderLiteratureBookmarks/);
+});
+
+test('Owner Studio shortcut is visible and exam settings save to the live config document', () => {
+  assert.match(js, /id="drawerOwnerStudioLink"[^>]*data-drawer-action="owner-studio"/);
+  assert.match(js, /<strong>Owner Studio<\/strong><small>Dharmveer Godara/);
+  assert.doesNotMatch(js, /id="drawerOwnerStudioLink"[^>]*\shidden(?:\s|>)/);
+  assert.match(ownerHtml, /window\.saveExamVisibilitySettings = saveExamVisibilitySettings/);
+  assert.match(ownerHtml, /await configRef\.set\(config, \{ merge: true \}\)/);
+  assert.match(ownerHtml, /randomizeSets: !!document\.getElementById\('ownerRandomizeSets'\)\?\.checked/);
+  assert.match(ownerHtml, /ownerExamVisibilitySaveStatus/);
 });

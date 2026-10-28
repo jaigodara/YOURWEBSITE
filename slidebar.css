@@ -17,4 +17,8 @@
 .drawer-action-card strong{color:#1c3828;font-size:13px;font-weight:800}
 .drawer-action-card small{color:#6b746b;font-size:11px;line-height:1.4}
 body.slidebar-open{overflow:hidden}
+.drawer-action-card:focus-visible{outline:3px solid #d6a43a;outline-offset:2px}
+.drawer-action-card:active{transform:scale(.99)}
+.drawer-action-card[data-drawer-action="owner-studio"]{border-color:#d6a43a;background:#fffaf0}
+.drawer-action-card[data-drawer-action="owner-studio"] .drawer-icon{background:#f7e9b5;color:#143622}
 @media(prefers-reduced-motion:reduce){.main-slidebar,.slidebar-backdrop{transition:none}}

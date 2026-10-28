@@ -3738,7 +3738,21 @@ async function changeCustomExamStatus(nextStatus) {
 }
 
     async function saveExamVisibilitySettings() {
-      if (!isPrimaryOwner()) return showToast('परीक्षा शेड्यूल बदलने का अधिकार केवल Owner को है।');
+      const saveButton = document.getElementById('ownerSaveExamVisibilitySettings');
+      const saveStatus = document.getElementById('ownerExamVisibilitySaveStatus');
+      const setSaveStatus = (message, isError = false) => {
+        if (saveStatus) {
+          saveStatus.textContent = message;
+          saveStatus.classList.toggle('text-red-700', isError);
+          saveStatus.classList.toggle('text-emerald-700', !isError);
+        }
+      };
+      if (!isPrimaryOwner()) {
+        const message = 'परीक्षा सेटिंग केवल Owner खाते से सेव की जा सकती हैं।';
+        setSaveStatus('❌ ' + message, true);
+        showToast(message);
+        return;
+      }
       const duration = Number(document.getElementById('ownerExamDuration')?.value || 120);
       const customTitle = String(document.getElementById('ownerCustomExamTitle')?.value || '').trim();
       const customDuration = Number(document.getElementById('ownerCustomExamDuration')?.value || 60);
@@ -3749,10 +3763,12 @@ async function changeCustomExamStatus(nextStatus) {
           !Number.isFinite(customTotalMarks) || customTotalMarks < 1 || customTotalMarks > 10000 ||
           !Number.isFinite(customPassingMarks) || customPassingMarks < 0 || customPassingMarks > customTotalMarks ||
           !Number.isFinite(customNegativeMarks) || customNegativeMarks < 0 || customNegativeMarks > 10) {
+        setSaveStatus('❌ कस्टम परीक्षा के समय और अंक जाँचें। उत्तीर्ण अंक कुल अंकों से अधिक नहीं हो सकते।', true);
         showToast('कस्टम परीक्षा के समय, कुल/उत्तीर्ण अंक और ऋणात्मक अंक जाँचें।');
         return;
       }
       if (!Number.isFinite(duration) || duration < 1 || duration > 360) {
+        setSaveStatus('❌ परीक्षा अवधि 1 से 360 मिनट के बीच रखें।', true);
         showToast('परीक्षा अवधि 1 से 360 मिनट के बीच रखें।');
         return;
       }
@@ -3815,6 +3831,11 @@ async function changeCustomExamStatus(nextStatus) {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.currentUser?.uid || null
       };
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.setAttribute('aria-busy', 'true');
+      }
+      setSaveStatus('सेटिंग्स Firestore में सेव हो रही हैं…');
       try {
         const configRef = db.collection('examConfig').doc('current');
         const previousSnap = await configRef.get();
@@ -3873,11 +3894,19 @@ async function changeCustomExamStatus(nextStatus) {
           : 0;
         const publishControl = document.getElementById('ownerPublishExamNotifications');
         if (publishControl) publishControl.checked = false;
+        setSaveStatus('✅ परीक्षा सेटिंग्स Firestore के examConfig/current में सेव हो गईं। पेज रीफ़्रेश करके पुष्टि करें।');
         showToast('परीक्षा की सेटिंग्स सहेज दी गईं। ' + (publishNotifications
           ? sentCount + ' सूचना/सूचनाएँ भेजने का प्रयास किया गया।'
           : 'केवल परीक्षण/सेटिंग्स अपडेट हुआ; विद्यार्थियों को कोई सूचना नहीं भेजी गई।'));
       } catch (e) {
-        showToast('सेटिंग्स सहेज नहीं सकीं: ' + e.message);
+        console.error('Owner exam settings save failed:', e);
+        setSaveStatus('❌ सेटिंग्स सेव नहीं हुईं: ' + (e?.message || 'अज्ञात त्रुटि') + ' · Owner role और Firestore rules जाँचें।', true);
+        showToast('सेटिंग्स सहेज नहीं सकीं: ' + (e?.message || 'अज्ञात त्रुटि'));
+      } finally {
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.removeAttribute('aria-busy');
+        }
       }
     }
     // The save button uses an inline onclick; explicitly expose the handler even
