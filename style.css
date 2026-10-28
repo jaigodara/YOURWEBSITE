@@ -1144,3 +1144,41 @@ button,a,[role="button"],input,select,textarea{touch-action:manipulation}
  #userProfileModal .p-5{padding:1rem!important}
  #userProfileModal section,#userProfileModal .rounded-2xl{min-width:0;overflow-wrap:anywhere}
 }
+
+/* Daily quiz and published results: high-contrast, modern responsive result cards. */
+#myResultsPanel,.results-panel{color:#203126;border:1px solid #d8e5d9!important;border-radius:22px!important;background:linear-gradient(145deg,#fff 0%,#fbfcf8 100%)!important;box-shadow:0 12px 32px rgba(20,54,34,.07)!important}
+#myResultsIntro{color:#526256!important;font-size:14px;line-height:1.65}
+#myResultsList{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px;align-items:stretch}
+.results-card{display:flex;flex-direction:column;min-width:0;height:100%;padding:18px;border:1px solid #dce7dd;border-radius:20px;background:linear-gradient(160deg,#fff 0%,#fbfdf9 100%);box-shadow:0 6px 20px rgba(20,54,34,.055);transition:transform .18s ease,box-shadow .18s ease}
+.results-card:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(20,54,34,.09)}
+.results-card-top{align-items:flex-start;padding-bottom:13px;border-bottom:1px solid #edf1eb}
+.results-eyebrow{color:#68796b;font-size:10px;letter-spacing:.09em}
+.results-exam-name{color:#143622;font-size:17px;font-weight:800;line-height:1.45}
+.results-published{white-space:normal;max-width:45%;line-height:1.35;text-align:center;color:#185c35;background:#eaf7ed;border-color:#c6e6ce;font-size:11px}
+.results-score-row{padding:14px 0 2px;gap:12px}
+.results-score-value{color:#143622;font-size:clamp(32px,4vw,42px);font-variant-numeric:tabular-nums}
+.results-score-total{color:#536357;font-size:13px}
+.results-score-side{color:#536357;font-size:12px}
+.results-score-side strong{color:#a8431b;font-size:25px}
+.results-progress{height:9px;margin-top:14px;background:#e8eee7}
+.results-progress span{background:linear-gradient(90deg,#1d5638,#77ad70)}
+.results-score-locked{color:#34443a;background:#f4f7f1;border:1px solid #e1e9df;line-height:1.6}
+.results-feedback{color:#34443a;background:#f1f7ef;border:1px solid #e0ebdd;font-size:13px;line-height:1.65}
+.results-feedback p{color:#34443a}
+.results-feedback strong{color:#143622}
+.results-meta{margin-top:auto;padding-top:13px;color:#58675c;font-size:12px;line-height:1.6}
+.results-meta strong{color:#263b2b}
+.results-empty{min-height:190px;align-content:center;gap:4px;padding:28px 18px;background:#fbfdf9;border-color:#cdddcf}
+.results-empty p{max-width:38rem;color:#56665a;line-height:1.65}
+@media(max-width:640px){
+ #myResultsPanel,.results-panel{padding:14px!important;border-radius:18px!important}
+ #myResultsList{grid-template-columns:minmax(0,1fr);gap:10px}
+ .results-card{padding:14px;border-radius:16px}
+ .results-card-top{gap:8px}
+ .results-exam-name{font-size:16px}
+ .results-published{max-width:48%;font-size:10px}
+ .results-score-row{margin-top:10px;padding-top:12px}
+ .results-feedback{font-size:12px}
+ .results-meta{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+}
+@media(prefers-reduced-motion:reduce){.results-card{transition:none}.results-card:hover{transform:none}}

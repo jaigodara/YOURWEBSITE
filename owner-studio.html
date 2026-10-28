@@ -92,7 +92,63 @@
       #examSessionQueue .break-all { overflow-wrap: anywhere; word-break: normal; }
       #ownerDataExportPanel .grid { grid-template-columns: minmax(0, 1fr); }
     }
-  </style>
+  
+    /* Owner Studio refresh: calmer dashboard surfaces, clearer hierarchy, responsive on phone and laptop. */
+    body{background:#f5f3ec!important;color:#1b2b21}
+    .top-admin-header{background:linear-gradient(112deg,#102f20 0%,#1d4931 68%,#274a36 100%)!important;border-bottom:1px solid rgba(212,175,55,.35);box-shadow:0 8px 26px rgba(16,47,32,.15)!important}
+    #studioStatusBar{border-color:#d9e4d8!important;background:linear-gradient(135deg,#fff 0%,#f5faf4 100%)!important;box-shadow:0 8px 28px rgba(20,54,34,.06)!important}
+    #studioEnvironment{white-space:normal;text-align:center;line-height:1.35}
+    #ownerStudioSidebar{border-color:#d8e3d8!important;background:rgba(255,255,255,.97)!important;box-shadow:0 8px 24px rgba(20,54,34,.06)!important}
+    .studio-nav-item{min-height:46px;border-radius:12px;background:#f8faf7;color:#26392c;border-color:#e0e8df;font-size:12px}
+    .studio-nav-item:hover{background:#edf5ed;border-color:#b7cdb9}
+    .studio-nav-active{background:#143622!important;color:#fff!important;border-color:#143622!important;box-shadow:0 4px 12px rgba(20,54,34,.14)}
+    #ownerStudioPageContent>section,#ownerStudioPageContent>div,#pane_exam>section,#pane_exam>div{scroll-margin-top:90px}
+    #ownerStudioPageContent .rounded-3xl{border-radius:20px}
+    #ownerStudioPageContent .shadow-sm{box-shadow:0 5px 18px rgba(20,54,34,.045)}
+    #ownerStudioPageContent input:not([type=checkbox]):not([type=radio]),#ownerStudioPageContent select,#ownerStudioPageContent textarea{border-color:#cbd5cc;color:#17251c;background-color:#fff}
+    #ownerStudioPageContent input:focus,#ownerStudioPageContent select:focus,#ownerStudioPageContent textarea:focus,#studioMenuSearch:focus{outline:3px solid rgba(45,106,79,.2);outline-offset:1px;border-color:#2d6a4f}
+    #ownerStudioPageContent button{line-height:1.45}
+    @media(min-width:768px){
+      #studioStatusBar{margin-top:20px!important;margin-bottom:4px}
+      main.max-w-7xl{padding-top:22px;padding-bottom:36px}
+      main.max-w-7xl>.grid{grid-template-columns:228px minmax(0,1fr);gap:22px}
+      #ownerStudioSidebar{position:sticky!important;top:92px;max-height:calc(100vh - 112px);overflow-y:auto}
+      #ownerStudioPageContent{display:flex;flex-direction:column;gap:20px}
+      #ownerStudioPageContent>section,#ownerStudioPageContent>div{box-shadow:0 8px 24px rgba(20,54,34,.045)}
+      #ownerStudioPageContent .grid{min-width:0}
+    }
+    @media(max-width:767px){
+      .top-admin-header{padding:10px 12px!important;gap:8px;align-items:center!important}
+      .top-admin-header h1{font-size:14px!important;line-height:1.35;max-width:56vw}
+      .top-admin-header p{font-size:9px!important;line-height:1.4}
+      .top-admin-header>div:last-child{gap:5px!important}
+      .top-admin-header>div:last-child>a{font-size:10px!important;padding:8px!important;line-height:1.25}
+      .top-admin-header>div:last-child>button{font-size:10px!important;padding:8px!important;min-height:40px}
+      #studioStatusBar{margin:12px 10px 0!important;width:auto!important;padding:12px!important;border-radius:16px!important;gap:10px}
+      #studioStatusBar>div:last-child{width:100%}
+      #studioMenuSearch{width:100%!important}
+      main.max-w-7xl{padding:12px 10px 24px!important}
+      main.max-w-7xl>.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+      #ownerStudioSidebar{position:fixed!important;top:0!important;left:0!important;bottom:0!important;z-index:1300!important;width:min(86vw,330px)!important;max-height:100dvh!important;overflow-y:auto!important;border-radius:0 20px 20px 0!important;padding:16px!important}
+      #ownerStudioPageContent{gap:12px}
+      #ownerStudioPageContent>section,#ownerStudioPageContent>div,#pane_exam>section,#pane_exam>div{padding:14px!important;border-radius:16px!important}
+      #ownerStudioPageContent h2,#ownerStudioPageContent h3{overflow-wrap:anywhere}
+      #ownerStudioPageContent .grid{min-width:0}
+      #ownerStudioPageContent button{white-space:normal;overflow-wrap:anywhere}
+      .checking-workspace{gap:10px}
+      .candidate-queue-panel{order:0}
+      .candidate-eval-panel{order:1}
+    }
+    @media(max-width:420px){
+      .top-admin-header .owner-mobile-menu-toggle{width:40px;height:40px}
+      .top-admin-header>div:first-child{gap:8px!important}
+      .top-admin-header>div:first-child>div:nth-child(2){display:none}
+      .top-admin-header h1{max-width:48vw;font-size:13px!important}
+      #studioStatusBar{padding:10px!important}
+      #ownerStudioPageContent>section,#ownerStudioPageContent>div{padding:12px!important}
+    }
+
+</style>
 <link rel="stylesheet" href="./export-report.css">
 </head>
 
