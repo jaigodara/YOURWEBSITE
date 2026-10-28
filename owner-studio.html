@@ -6481,6 +6481,36 @@ async function removeTrustedEditor(uid) {
 
 /* Review desk fixes: prevent the candidate rail from crushing names and keep
    scoring actions usable without covering the answer sheet. */
+/* Keep the candidate list as a full-width vertical list; long Hindi names and
+   roll numbers must never force the grid column down to character-width. */
+#manualExamReviewSection,
+#manualExamReviewSection > *,
+#examSubmissionsList,
+#examSubmissionsList > *,
+#examSubmissionsList article { box-sizing: border-box; min-width: 0; max-width: 100%; }
+#examSubmissionsList { width: 100%; }
+#examSubmissionsList article { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; width: 100%; }
+#examSubmissionsList article > :is(div,span,p,strong,a,button) { min-width: 0; max-width: 100%; }
+#examSubmissionsList .student-roll-badge,
+#examSubmissionsList [class*="roll-badge"] { display: inline-flex; align-items: center; width: max-content; max-width: 100%; white-space: nowrap; flex: 0 1 auto; }
+#examSubmissionsList :is(h3,h4,p,span,strong) { overflow-wrap: anywhere; word-break: normal; }
+#examSessionQueue { min-width: 0; width: 100%; }
+#examSessionQueue article { display: block; min-width: 0; width: 100%; }
+#examSessionQueue article :is(a,button,span,p,strong,div) { min-width: 0; }
+#examSessionQueue .break-all { overflow-wrap: anywhere; word-break: normal; }
+.student-roll-badge { white-space: nowrap; min-width: max-content; flex-shrink: 0; }
+.exam-review-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .5rem; }
+.exam-review-actions > * { min-width: 0; width: 100%; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  #examSubmissionsList { overflow-x: hidden; }
+  #examSubmissionsList article { align-items: flex-start; }
+  .exam-review-actions { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .exam-review-actions button { min-height: 48px; padding: .75rem .5rem; }
+}
+@media (max-width: 420px) {
+  .exam-review-actions { position: sticky; bottom: max(.25rem,env(safe-area-inset-bottom)); padding: .5rem; }
+  .exam-review-actions button { font-size: .78rem; line-height: 1.35; }
+}
 #examSessionQueue { min-width: 0; }
 #examSessionQueue article { display: block; min-width: 0; width: 100%; }
 #examSessionQueue article :is(a,button,span,p,strong,div) { min-width: 0; }
