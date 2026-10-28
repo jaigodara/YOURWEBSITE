@@ -248,11 +248,10 @@ service cloud.firestore {
             )
           )
         )
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
-          || request.resource.data.get('gmailVerified', false) != true
-          || request.auth.token.firebase.identities['google.com'] != null
-        )
+        // Students cannot set, clear, or otherwise change their own
+        // gmailVerified flag. Verification must be established by trusted code
+        // or an owner; a Google sign-in token alone is not permission to edit it.
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'phone', 'phoneVerified', 'phoneAuthVerifiedAt'
