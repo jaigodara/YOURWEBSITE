@@ -6529,8 +6529,15 @@ async function removeTrustedEditor(uid) {
 
 /* Owner Studio: mobile-first controls, readable cards and safe-area spacing. */
 @media(max-width:700px){
-body{overflow-x:hidden}
+body{overflow-x:hidden;padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
 main,.container,.max-w-7xl,.max-w-6xl,.max-w-5xl{max-width:100%}
+#ownerStudioSidebar{position:relative!important;top:auto!important;z-index:20}
+#ownerStudioSidebar nav{display:flex!important;flex-wrap:nowrap!important;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:4px 2px 10px}
+#ownerStudioSidebar nav .studio-nav-item{flex:0 0 auto;width:auto;min-width:112px;min-height:48px;justify-content:center;text-align:center;white-space:normal}
+#ownerStudioPageContent{padding-bottom:calc(82px + env(safe-area-inset-bottom,0px))}
+#ownerStudioPageContent .grid.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+#ownerStudioPageContent button{min-height:44px}
+#ownerStudioPageContent h1,#ownerStudioPageContent h2,#ownerStudioPageContent h3{overflow-wrap:anywhere}
 input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea{min-height:44px;max-width:100%;font-size:16px!important}
 button,a[role=button]{touch-action:manipulation}
 .grid{min-width:0}.grid>*,.flex>*{min-width:0}
