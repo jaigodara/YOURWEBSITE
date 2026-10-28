@@ -550,7 +550,8 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
       invitation.permissions.media === true ? 'Media/PDF/Audio' : '',
       invitation.permissions.quizDrafts === true ? 'Daily Quiz Drafts' : '',
       invitation.permissions.examReview === true ? 'Exam Checking & Results' : '',
-      invitation.permissions.notifications === true ? 'Notifications' : ''
+      invitation.permissions.notifications === true ? 'Notifications' : '',
+      invitation.permissions.reports === true ? 'Reports & Exports' : ''
     ].filter(Boolean);
     const accepted = skipPrompt || window.confirm(
       'Bishnoism Owner Studio invitation\n\n' +
@@ -572,7 +573,8 @@ async function claimPendingEditorInvitation(user, requestedInvitationId = '', sk
         media: invitation.permissions.media === true,
         quizDrafts: invitation.permissions.quizDrafts === true,
         examReview: invitation.permissions.examReview === true,
-        notifications: invitation.permissions.notifications === true
+        notifications: invitation.permissions.notifications === true,
+        reports: invitation.permissions.reports === true
       },
       invitationId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -699,10 +701,13 @@ notify(
       profileMobile.readOnly = true;
       profileMobile.setAttribute('aria-readonly', 'true');
     }
+    const canOpenOwnerStudio = state.isOwner || state.roles.includes('admin') || state.roles.includes('editor');
     setVisible('tab-admin', state.isOwner || state.roles.includes('admin'));
-    setVisible('ownerStudio', state.isOwner || state.roles.includes('admin'));
-    setVisible('ownerStudioPortalBtn', state.isOwner || state.roles.includes('admin'));
-    setVisible('profileOwnerStudioLink', state.isOwner || state.roles.includes('admin'));
+    // Accepted assistant editors need a visible entry point to the exact tools
+    // granted in roles/{uid}. Owner Studio applies the permission gates itself.
+    setVisible('ownerStudio', canOpenOwnerStudio);
+    setVisible('ownerStudioPortalBtn', canOpenOwnerStudio);
+    setVisible('profileOwnerStudioLink', canOpenOwnerStudio);
 
     const loginBtn = byId('authButton') || byId('profileButton');
     if (loginBtn) loginBtn.textContent = state.profile.displayName || 'Profile';
