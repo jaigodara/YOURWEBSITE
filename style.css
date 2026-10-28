@@ -1101,3 +1101,33 @@ button:active,
   #userProfileModal button,
   #authModal button { min-height: 44px; }
 }
+
+/* Daily quiz and leaderboard: consistent spacing, clearer hierarchy, responsive cards. */
+#mainDailyQuizCta{position:relative;isolation:isolate;padding:clamp(16px,2.4vw,26px)!important;border-radius:22px!important;box-shadow:0 10px 28px rgba(20,54,34,.08)!important;scroll-margin-top:84px}
+#mainDailyQuizCta>div{align-items:center;gap:14px}
+#mainDailyQuizCta>div>div:first-child{width:56px;height:56px;flex-basis:56px;border-radius:16px}
+#mainDailyQuizCta p:first-child{font-size:11px;letter-spacing:.09em;line-height:1.5}
+#mainDailyQuizCta h3{font-size:clamp(21px,2.4vw,27px);line-height:1.35}
+#mainDailyQuizCta p.mt-1{line-height:1.75}
+#mainDailyQuizCta #startQuizBtn{min-height:52px;border-radius:15px;letter-spacing:.01em;box-shadow:0 5px 12px rgba(20,54,34,.12)}
+#dailyQuizSection>.grid.grid-cols-3{align-items:stretch;gap:12px;padding-top:4px}
+#dailyQuizSection>.grid.grid-cols-3>div{min-width:0;min-height:128px;justify-content:center;gap:4px;padding:14px 10px!important;border-radius:20px!important;box-shadow:0 4px 12px rgba(31,41,55,.055)!important;transform:none!important}
+#dailyQuizSection>.grid.grid-cols-3>div:nth-child(2){border-width:2px;box-shadow:0 7px 18px rgba(217,166,46,.13)!important}
+#dailyQuizSection>.grid.grid-cols-3 h4{max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+#mainStartQuizBtn{min-height:48px;border-radius:14px;white-space:normal;line-height:1.45}
+#quizCountdown{line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:640px){
+#mainDailyQuizCta{padding:16px!important;border-radius:18px!important}
+#mainDailyQuizCta>div{gap:11px}
+#mainDailyQuizCta>div>div:first-child{width:44px;height:44px;flex-basis:44px;border-radius:13px;font-size:21px}
+#mainDailyQuizCta p:first-child{font-size:9px;letter-spacing:.06em}
+#mainDailyQuizCta h3{font-size:21px}
+#mainDailyQuizCta p.mt-1{font-size:13px}
+#mainDailyQuizCta #startQuizBtn{min-height:48px;padding:12px 14px;font-size:14px}
+#dailyQuizSection>.grid.grid-cols-3{gap:7px}
+#dailyQuizSection>.grid.grid-cols-3>div{min-height:108px;padding:10px 6px!important;border-radius:15px!important}
+#dailyQuizSection>.grid.grid-cols-3>div>span:first-child{font-size:24px;line-height:1.2}
+#dailyQuizSection>.grid.grid-cols-3>div h4{font-size:11px}
+#dailyQuizSection>.grid.grid-cols-3>div>span{overflow-wrap:anywhere}
+#mainStartQuizBtn{width:100%;padding:12px 14px;font-size:13px}
+}

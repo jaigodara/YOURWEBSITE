@@ -18,6 +18,8 @@ test('Main slidebar is wired without replacing the five core bottom tabs', () =>
   assert.match(html, /<script src="main-slidebar\.js(?:\?[^"]*)?"><\/script>/);
   assert.match(js, /id = 'mainSlidebarTrigger'/);
   assert.match(js, /window\.toggleMainSlidebar = function \(open\)/);
+  assert.doesNotMatch(html, /id="ownerStudioPortalBtn"/);
+  assert.doesNotMatch(html, /data-language-toggle/);
 });
 
 test('Slidebar actions point to existing site controls and support keyboard close', () => {
@@ -27,6 +29,9 @@ test('Slidebar actions point to existing site controls and support keyboard clos
   assert.match(js, /event\.key === 'Escape'/);
   assert.match(js, /aria-hidden/);
   assert.match(css, /prefers-reduced-motion/);
+  assert.match(js, /window\.BishnoismLanguage\?\.set/);
+  assert.match(readFileSync(path.join(root, 'style.css'), 'utf8'), /#mainDailyQuizCta/);
+  assert.match(ownerHtml, /owner-studio-mobile-ux/);
 });
 
 test('Digital Jap Mala persists an offline daily goal and updates progress', () => {

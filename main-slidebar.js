@@ -80,7 +80,9 @@ headerActions.insertBefore(trigger, insertBeforeNode);
         window.switchTab?.('home');
         document.getElementById('amavasyaCountdownBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else if (action === 'language') {
-        document.querySelector('[data-language-toggle]')?.click();
+        const currentLanguage = document.documentElement.lang === 'en' ? 'en' : 'hi';
+        if (window.BishnoismLanguage?.set) window.BishnoismLanguage.set(currentLanguage === 'hi' ? 'en' : 'hi');
+        else document.querySelector('[data-language-toggle]')?.click();
       } else if (action === 'owner-studio') {
         window.location.href = './owner-studio.html';
       } else if (action === 'literature') {

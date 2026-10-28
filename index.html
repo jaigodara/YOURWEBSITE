@@ -187,11 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
-        <button type="button" data-language-toggle class="min-h-10 rounded-xl border border-stone-300 bg-white px-2.5 text-[11px] font-extrabold text-forest" aria-label="Switch interface language">हिं / ENG</button>
-        <a href="owner-studio.html" id="ownerStudioPortalBtn" class="hidden px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-950 font-extrabold text-xs rounded-xl shadow transition flex items-center gap-1">
-          <span data-lang-key="owner-studio">🛡️ ओनर स्टूडियो</span>
-        </a>
-        <button id="notificationBellButton" type="button" onclick="window.toggleNotificationPanel()" class="hidden relative rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-forest transition" aria-label="सूचनाएँ खोलें" title="सूचनाएँ">
+         <button id="notificationBellButton" type="button" onclick="window.toggleNotificationPanel()" class="hidden relative rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-forest transition" aria-label="सूचनाएँ खोलें" title="सूचनाएँ">
           <span id="notificationBellGlyph" class="inline-block text-lg">🔔</span>
           <span id="notificationUnreadCount" class="hidden absolute -right-1 -top-1 min-w-4 h-4 rounded-full bg-red-600 px-1 text-[9px] font-extrabold leading-4 text-white">0</span>
         </button>
@@ -961,7 +957,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- APPLICATION SCRIPT -->
 <script src="script.js?v=20261020-2"></script>
 <script src="/mediaEngine.js"></script>
-<script src="/languageToggle.js?v=20261028-2"></script>
+<script src="/languageToggle.js?v=20261028-3"></script>
 <script>
   (() => {
     const banner = document.getElementById('offlineIndicator');
@@ -987,6 +983,6 @@ document.addEventListener('DOMContentLoaded', () => {
     button.setAttribute('aria-pressed', String(reveal));
   };
 </script>
-<script src="main-slidebar.js?v=20261028-2"></script>
+<script src="main-slidebar.js?v=20261028-3"></script>
 </body>
 </html>
