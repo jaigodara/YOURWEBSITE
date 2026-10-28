@@ -5052,7 +5052,59 @@ window.clearExamReviewFilters = clearExamReviewFilters;
       }
       printWindow.document.open();
       printWindow.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bishnoism — परीक्षा जाँच रिपोर्ट</title><style>' +
-        'body{font:14px/1.55 Arial,"Noto Sans Devanagari",sans-serif;color:#143622;margin:20px}h1{font-size:24px}h2{font-size:18px;border-bottom:2px solid #D6A43A;padding-bottom:6px}h3{font-size:15px}.student{break-after:page;page-break-after:always}.student:last-child{break-after:auto;page-break-after:auto}.question{border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin:8px 0;break-inside:avoid}.question p{margin:4px 0}.reason{background:#fff7df;border-left:4px solid #D6A43A;padding:8px}.toolbar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd}button{padding:10px 16px;background:#143622;color:#fff;border:0;border-radius:8px}@media print{body{margin:10mm}.toolbar{display:none}@page{size:A4;margin:12mm}}</style></head><body><div class="toolbar"><button onclick="window.print()">प्रिंट करें / Save as PDF</button> <span>प्रिंट विंडो में Destination: Save as PDF चुनें।</span></div><h1>बिश्नोइज़्म — विद्यार्थी उत्तर-पत्र एवं मैन्युअल जाँच रिपोर्ट</h1><p>परीक्षा: ' + escapeHtml(examReviewCollection) + ' · कुल रिकॉर्ड: ' + examReviewQueue.length + ' · रिपोर्ट तिथि: ' + escapeHtml(new Date().toLocaleString('hi-IN')) + '</p>' + sections + '<script src="/mediaEngine.js"><\/script>\n<script src="/languageToggle.js"><\/script>\n</body></html>');
+        'body{font:14px/1.55 Arial,"Noto Sans Devanagari",sans-serif;color:#143622;margin:20px}h1{font-size:24px}h2{font-size:18px;border-bottom:2px solid #D6A43A;padding-bottom:6px}h3{font-size:15px}.student{break-after:page;page-break-after:always}.student:last-child{break-after:auto;page-break-after:auto}.question{border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin:8px 0;break-inside:avoid}.question p{margin:4px 0}.reason{background:#fff7df;border-left:4px solid #D6A43A;padding:8px}.toolbar{position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #ddd}button{padding:10px 16px;background:#143622;color:#fff;border:0;border-radius:8px}@media print{body{margin:10mm}.toolbar{display:none}@page{size:A4;margin:12mm}}</style></head><body><div class="toolbar"><button onclick="window.print()">प्रिंट करें / Save as PDF</button> <span>प्रिंट विंडो में Destination: Save as PDF चुनें।</span></div><h1>बिश्नोइज़्म — विद्यार्थी उत्तर-पत्र एवं मैन्युअल जाँच रिपोर्ट</h1><p>परीक्षा: ' + escapeHtml(examReviewCollection) + ' · कुल रिकॉर्ड: ' + examReviewQueue.length + ' · रिपोर्ट तिथि: ' + escapeHtml(new Date().toLocaleString('hi-IN')) + '</p>' + sections + '<script src="/mediaEngine.js"><\/script>\n<script src="/languageToggle.js"><\/script>\n
+<script id="bx-owner-mobile-bottom-nav">
+(() => {
+  const install = () => {
+    const source = document.querySelector('#ownerStudioSidebar nav');
+    if (!source || document.getElementById('bxOwnerMobileNav')) return;
+    const all = Array.from(source.querySelectorAll('[data-studio-page]'));
+    const primary = [
+      ['dashboard','📊','डैशबोर्ड'], ['questions','📝','प्रश्न'],
+      ['checking','✅','जाँच'], ['admit','🎟️','प्रवेश-पत्र']
+    ];
+    const bar = document.createElement('nav');
+    bar.id = 'bxOwnerMobileNav'; bar.setAttribute('aria-label','मोबाइल प्रबंधन मेनू');
+    const more = document.createElement('button'); more.type='button'; more.className='bx-owner-mobile-tab';
+    more.innerHTML='<span aria-hidden="true">☰</span><span>और</span>';
+    more.setAttribute('aria-expanded','false');
+    const menu=document.createElement('div'); menu.id='bxOwnerMobileMore'; menu.hidden=true;
+    menu.setAttribute('aria-label','अन्य प्रबंधन अनुभाग');
+    all.filter(b=>!primary.some(p=>p[0]===b.dataset.studioPage)).forEach(original=>{
+      const item=document.createElement('button'); item.type='button'; item.className='bx-owner-mobile-more-item';
+      item.textContent=original.textContent.trim(); item.addEventListener('click',()=>{ original.click(); menu.hidden=true; more.setAttribute('aria-expanded','false'); }); menu.appendChild(item);
+    });
+    primary.forEach(([page,icon,label])=>{
+      const original=all.find(b=>b.dataset.studioPage===page); if(!original) return;
+      const button=document.createElement('button'); button.type='button'; button.className='bx-owner-mobile-tab';
+      button.dataset.page=page; button.innerHTML='<span aria-hidden="true">'+icon+'</span><span>'+label+'</span>';
+      button.addEventListener('click',()=>original.click()); bar.appendChild(button);
+    });
+    more.addEventListener('click',()=>{menu.hidden=!menu.hidden;more.setAttribute('aria-expanded',String(!menu.hidden));});
+    bar.appendChild(more); document.body.append(bar,menu);
+    const update=()=>{
+      const active=source.querySelector('.studio-nav-active,[aria-current="page"]');
+      bar.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('is-active',!!active&&active.dataset.studioPage===b.dataset.page));
+    };
+    source.addEventListener('click',()=>setTimeout(update,0)); update();
+    document.addEventListener('click',e=>{if(!bar.contains(e.target)&&!menu.contains(e.target)){menu.hidden=true;more.setAttribute('aria-expanded','false');}});
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
+})();
+</script>
+<style id="bx-owner-mobile-bottom-nav-styles">
+#bxOwnerMobileNav,#bxOwnerMobileMore{display:none}
+@media(max-width:700px){
+ #ownerStudioSidebar nav{display:none!important}
+ #bxOwnerMobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;padding:7px 5px calc(7px + env(safe-area-inset-bottom));background:rgba(255,253,247,.97);border-top:1px solid #d6d3c7;box-shadow:0 -5px 22px rgba(20,54,34,.13);backdrop-filter:blur(14px)}
+ .bx-owner-mobile-tab{min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:12px;background:transparent;color:#385243;font-size:11px;font-weight:800;touch-action:manipulation}
+ .bx-owner-mobile-tab span:first-child{font-size:17px;line-height:1.1}
+ .bx-owner-mobile-tab.is-active{background:#e7eee5;color:#143622;box-shadow:inset 0 -2px #f5b400}
+ #bxOwnerMobileMore:not([hidden]){position:fixed;right:8px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:9991;display:grid;gap:6px;width:min(260px,calc(100vw - 16px));max-height:60dvh;overflow:auto;padding:10px;border:1px solid #d8dfd4;border-radius:16px;background:#fffdf7;box-shadow:0 12px 36px #14362230}
+ .bx-owner-mobile-more-item{min-height:46px;padding:10px;text-align:left;border:1px solid #e5e7eb;border-radius:10px;background:white;color:#143622;font-weight:700;font-size:13px}
+}
+</style>
+</body></html>');
       printWindow.document.close();
       printWindow.focus();
       setTimeout(() => { try { printWindow.print(); } catch (e) {} }, 350);
