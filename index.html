@@ -1054,5 +1054,75 @@ document.addEventListener('DOMContentLoaded', () => {
     @media(min-width:641px) { .bx-chat-topic-chips { display:none; } }
     @media(max-width:640px) { #chatTopicFilter { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; } }
   </style>
+
+<script id="bx-mobile-header-and-profile-ux">
+(() => {
+  const setup = () => {
+    const header = document.querySelector('body > header.sticky');
+    if (header && !document.getElementById('bxMobileSearchToggle')) {
+      const actions = document.getElementById('authActionsContainer')?.parentElement;
+      const searchWrap = document.getElementById('globalSearchInput')?.parentElement;
+      if (actions && searchWrap) {
+        const searchBtn = document.createElement('button');
+        searchBtn.id='bxMobileSearchToggle'; searchBtn.type='button'; searchBtn.textContent='⌕';
+        searchBtn.className='bx-mobile-header-icon'; searchBtn.setAttribute('aria-label','खोज खोलें'); searchBtn.setAttribute('aria-expanded','false');
+        actions.insertBefore(searchBtn, actions.firstChild);
+        const mobileSearch = document.createElement('div');
+        mobileSearch.id='bxMobileSearchPanel'; mobileSearch.hidden=true; mobileSearch.className='bx-mobile-search-panel';
+        mobileSearch.appendChild(searchWrap);
+        header.insertAdjacentElement('afterend',mobileSearch);
+        searchBtn.addEventListener('click',()=>{
+          mobileSearch.hidden=!mobileSearch.hidden;
+          searchBtn.setAttribute('aria-expanded',String(!mobileSearch.hidden));
+          if(!mobileSearch.hidden){ searchWrap.classList.remove('hidden'); searchWrap.classList.add('block'); document.getElementById('globalSearchInput')?.focus(); }
+          else { searchWrap.classList.add('hidden'); searchWrap.classList.remove('block'); }
+        });
+      }
+    }
+    if (header && !document.getElementById('bxSacredNotice')) {
+      const notice=document.createElement('aside');
+      notice.id='bxSacredNotice'; notice.className='bx-sacred-notice';
+      notice.innerHTML='<span>🌿 पावन संदेश: जीव दया, प्रकृति संरक्षण और २९ नियमों का पालन करें।</span><button type="button" aria-label="संदेश बंद करें">✕</button>';
+      const close=notice.querySelector('button'); close.addEventListener('click',()=>{notice.hidden=true;try{sessionStorage.setItem('bxSacredNoticeDismissed','1')}catch(_){ }});
+      try{if(sessionStorage.getItem('bxSacredNoticeDismissed')==='1')notice.hidden=true}catch(_){ }
+      const searchPanel=document.getElementById('bxMobileSearchPanel');
+      (searchPanel||header).insertAdjacentElement('afterend',notice);
+    }
+    const login=document.getElementById('authLoginButton');
+    if(login&&!login.dataset.bxAvatarObserver){
+      login.dataset.bxAvatarObserver='1';
+      const compact=()=>{
+        const name=(login.textContent||'').trim();
+        if(!name||name==='लॉगिन करें'||name.toLowerCase()==='login') {
+          login.classList.remove('bx-auth-avatar'); login.removeAttribute('aria-label'); return;
+        }
+        login.dataset.fullName=name; login.setAttribute('aria-label','प्रोफ़ाइल: '+name); login.classList.add('bx-auth-avatar');
+        login.textContent=(name.match(/[\p{L}\p{N}]/u)||['👤'])[0].slice(0,1).toUpperCase();
+      };
+      new MutationObserver(compact).observe(login,{childList:true,characterData:true,subtree:true});
+      compact();
+    }
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();
+})();
+</script>
+<style id="bx-mobile-header-and-profile-styles">
+.bx-mobile-header-icon{display:none}
+.bx-sacred-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 14px;background:#f8f0d9;color:#143622;border-bottom:1px solid #e8d39b;font-size:11px;font-weight:700}
+.bx-sacred-notice button{flex:0 0 36px;min-height:36px;border:1px solid #d6c48d;border-radius:999px;background:#fffaf0;color:#143622}
+.bx-sacred-notice[hidden],.bx-mobile-search-panel[hidden]{display:none!important}
+.bx-mobile-search-panel{padding:8px 12px;background:#fffdf7;border-bottom:1px solid #e7e5e4}
+.bx-auth-avatar{width:44px!important;height:44px!important;min-width:44px!important;padding:0!important;border-radius:999px!important;display:inline-flex!important;align-items:center;justify-content:center;font-size:17px!important;overflow:hidden;white-space:nowrap}
+@media(max-width:640px){
+ body>header.sticky>div{gap:7px;padding:.5rem .6rem}
+ body>header.sticky a .font-yatra{font-size:clamp(.85rem,3.7vw,1rem)}
+ body>header.sticky a span.text-\[10px\]{font-size:8px}
+ .bx-mobile-header-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border:1px solid #e7d5a3;border-radius:999px;background:#fff8e7;color:#143622;font-size:25px;line-height:1}
+ #authLoginButton{max-width:44px;min-height:44px}
+ #globalSearchInput{width:100%;min-height:46px;font-size:16px}
+ #bxSacredNotice{font-size:10px;padding:5px 10px}
+}
+@media(min-width:641px){#bxSacredNotice{font-size:12px}}
+</style>
 </body>
 </html>
