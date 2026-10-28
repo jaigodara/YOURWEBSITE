@@ -1131,3 +1131,16 @@ button:active,
 #dailyQuizSection>.grid.grid-cols-3>div>span{overflow-wrap:anywhere}
 #mainStartQuizBtn{width:100%;padding:12px 14px;font-size:13px}
 }
+
+/* Mobile-first layout polish: prevent horizontal overflow and improve tap/read comfort. */
+html,body{max-width:100%;overflow-x:clip}
+button,a,[role="button"],input,select,textarea{touch-action:manipulation}
+@media(max-width:640px){
+ body{font-size:16px}
+ main,main>section,main>div{min-width:0}
+ input,select,textarea{font-size:16px;max-width:100%}
+ button,a[role="button"]{min-height:42px}
+ .bx-sacred-notice{display:none!important}
+ #userProfileModal .p-5{padding:1rem!important}
+ #userProfileModal section,#userProfileModal .rounded-2xl{min-width:0;overflow-wrap:anywhere}
+}

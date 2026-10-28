@@ -1069,15 +1069,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     }
-    if (header && !document.getElementById('bxSacredNotice')) {
-      const notice=document.createElement('aside');
-      notice.id='bxSacredNotice'; notice.className='bx-sacred-notice';
-      notice.innerHTML='<span>🌿 पावन संदेश: जीव दया, प्रकृति संरक्षण और २९ नियमों का पालन करें।</span><button type="button" aria-label="संदेश बंद करें">✕</button>';
-      const close=notice.querySelector('button'); close.addEventListener('click',()=>{notice.hidden=true;try{sessionStorage.setItem('bxSacredNoticeDismissed','1')}catch(_){ }});
-      try{if(sessionStorage.getItem('bxSacredNoticeDismissed')==='1')notice.hidden=true}catch(_){ }
-      const searchPanel=document.getElementById('bxMobileSearchPanel');
-      (searchPanel||header).insertAdjacentElement('afterend',notice);
-    }
     const login=document.getElementById('authLoginButton');
     if(login&&!login.dataset.bxAvatarObserver){
       login.dataset.bxAvatarObserver='1';

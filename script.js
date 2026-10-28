@@ -2362,52 +2362,9 @@ window.toggleExamResultsRelease = async function toggleExamResultsRelease() {
 window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
 
-  // Profile presentation is controlled by the same Firestore config as exam visibility.
-  const profileModal = byId('userProfileModal');
-  if (profileModal) {
-    const profileBody = profileModal.querySelector(':scope > div > .p-5');
-    if (profileBody) {
-      let ownerMessage = byId('profileOwnerNotice');
-      if (!ownerMessage) {
-        ownerMessage = document.createElement('div');
-        ownerMessage.id = 'profileOwnerNotice';
-        ownerMessage.className = 'rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-forest';
-        const accountCard = byId('profileEmailDisplay')?.closest('div');
-        if (accountCard) accountCard.insertAdjacentElement('beforebegin', ownerMessage);
-        else profileBody.prepend(ownerMessage);
-      }
-      const message = String(c.profileOwnerMessage || '').trim().slice(0, 300);
-      ownerMessage.textContent = message;
-      ownerMessage.hidden = !message;
-
-      let examInfo = byId('profileExamInfoSection');
-      if (!examInfo) {
-        examInfo = document.createElement('section');
-        examInfo.id = 'profileExamInfoSection';
-        examInfo.className = 'rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-1';
-        examInfo.innerHTML = '<h4 class="font-bold text-forest">🎓 मेरी परीक्षा जानकारी</h4><p class="text-xs text-stone-600">परीक्षा पोर्टल, प्रवेश-पत्र और परिणाम की उपलब्धता वेबसाइट की वर्तमान सेटिंग पर निर्भर है।</p><div class="flex flex-wrap gap-2"><a href="#tab-quiz" onclick="window.switchTab(&quot;quiz&quot;)" class="inline-flex items-center rounded-lg bg-forest px-3 py-2 text-white font-bold">परीक्षा पोर्टल</a></div>';
-        const favorites = byId('savedLiteratureBookmarks')?.closest('section');
-        if (favorites) favorites.insertAdjacentElement('beforebegin', examInfo);
-        else profileBody.prepend(examInfo);
-      }
-      examInfo.hidden = c.profileExamInfoVisible === false;
-      const favoritesSection = byId('savedLiteratureBookmarks')?.closest('section');
-      if (favoritesSection) favoritesSection.hidden = c.profileFavoritesVisible === false;
-      ['profEditName', 'profEditLocation'].forEach(id => {
-        const field = byId(id);
-        if (field) field.parentElement.hidden = c.profilePersonalInfoVisible === false;
-      });
-      const saveProfileButton = profileBody.querySelector('button[onclick*="BishnoiAuth.saveProfile"]');
-      if (saveProfileButton) saveProfileButton.hidden = c.profilePersonalInfoVisible === false;
-      profileBody.querySelectorAll('h4').forEach(heading => {
-        const title = (heading.textContent || '').toLowerCase();
-        if (title.includes('मोबाइल नंबर प्रबंधन') || title.includes('पासवर्ड बदलें')) {
-          const securitySection = heading.closest('div.border-t') || heading.parentElement;
-          if (securitySection) securitySection.hidden = c.profileSecurityVisible === false;
-        }
-      });
-    }
-  }
+  // Keep the profile focused on account settings; no Owner message or exam shortcut is injected here.
+  document.getElementById('profileOwnerNotice')?.remove();
+  document.getElementById('profileExamInfoSection')?.remove();
 
   // Keep the legacy Owner Studio controls connected to the live Firestore config.
   const visibilityInputs = [

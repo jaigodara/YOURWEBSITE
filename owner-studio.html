@@ -653,17 +653,6 @@ Ans: B"></textarea>
       <div id="ownerExamVisibilitySettingsPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎛️ परीक्षा अनुभाग नियंत्रण</h3>
         <p class="text-xs text-stone-500">ये विकल्प मुख्य वेबसाइट के examConfig/current दस्तावेज़ में सहेजे जाते हैं। किसी सेक्शन को छिपाने से उसका डेटा मिटता नहीं है।</p>
-        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-          <h4 class="font-bold text-forest">👤 सदस्य प्रोफ़ाइल नियंत्रण</h4>
-          <p class="text-xs text-stone-600">ये विकल्प प्रोफ़ाइल में दिखाई देने वाले हिस्सों को नियंत्रित करते हैं।</p>
-          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowExamInfo" type="checkbox" class="accent-forest"> प्रोफ़ाइल में परीक्षा जानकारी दिखाएँ</label>
-          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowFavorites" type="checkbox" class="accent-forest"> पसंदीदा सामग्री दिखाएँ</label>
-          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowPersonalInfo" type="checkbox" class="accent-forest"> व्यक्तिगत जानकारी संपादन दिखाएँ</label>
-          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowSecurity" type="checkbox" class="accent-forest"> मोबाइल / पासवर्ड सुरक्षा अनुभाग दिखाएँ</label>
-          <label class="block text-xs font-bold text-stone-700">प्रोफ़ाइल के ऊपर Owner संदेश
-            <textarea id="ownerProfileMessage" maxlength="300" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3" placeholder="सदस्यों के लिए छोटा संदेश (अधिकतम 300 अक्षर)"></textarea>
-          </label>
-        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuiz" type="checkbox" class="accent-forest"> दैनिक क्विज़ दिखाएँ</label>
           <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuizResults" type="checkbox" class="accent-forest"> दैनिक क्विज़ परिणाम दिखाएँ</label>
@@ -1098,6 +1087,18 @@ Ans: B"></textarea>
     .candidate-eval-panel{min-width:0}
     .candidate-eval-panel>article{min-width:0}
     @media(max-width:900px){.checking-workspace{grid-template-columns:minmax(0,1fr)}.candidate-queue-panel{position:static;max-height:none;overflow:visible}}
+    /* Accessible answer-checking workspace: readable on laptop and touch-friendly on phones. */
+    .checking-workspace{color:#17251c}
+    .candidate-queue-panel,.candidate-eval-panel,.candidate-eval-panel>article{color:#17251c;background:#fffdf8;border-color:#d8e3da}
+    .candidate-eval-panel{font-size:14px;line-height:1.55}
+    .candidate-eval-panel label,.candidate-eval-panel p,.candidate-eval-panel span,.candidate-eval-panel li,.candidate-eval-panel h1,.candidate-eval-panel h2,.candidate-eval-panel h3,.candidate-eval-panel h4{color:#17251c}
+    .candidate-eval-panel input:not([type=checkbox]):not([type=radio]),.candidate-eval-panel select,.candidate-eval-panel textarea{color:#17251c!important;background:#fff!important;border:1px solid #aab8ae!important}
+    .candidate-eval-panel input::placeholder,.candidate-eval-panel textarea::placeholder{color:#65736a!important;opacity:1}
+    .candidate-eval-panel button{min-height:40px}
+    .candidate-queue-panel button{min-height:44px;text-align:left;white-space:normal;overflow-wrap:anywhere}
+    @media(max-width:900px){.checking-workspace{grid-template-columns:minmax(0,1fr);gap:12px}.candidate-queue-panel{position:static;max-height:none;overflow:visible}.candidate-eval-panel{font-size:15px}.candidate-eval-panel input,.candidate-eval-panel select,.candidate-eval-panel textarea{max-width:100%;min-width:0}}
+    @media(max-width:480px){.candidate-eval-panel>article{padding:12px!important;border-radius:14px!important}.candidate-eval-panel button{min-height:44px}}
+
 
     .owner-mobile-menu-toggle {
       display: none; align-items: center; justify-content: center; flex: 0 0 auto;
