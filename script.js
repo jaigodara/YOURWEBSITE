@@ -5914,6 +5914,7 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
   const authApi = window.BishnoiAuth;
   let authMode = 'login';
   let forgotPasswordUser = null;
+  let forgotPasswordMobile = '';
   let registrationRetry = null;
   let forgotRetryUsed = false;
 
@@ -6212,9 +6213,12 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
       }
       const snap = await state.db.collection('users').doc(user.uid).get();
       const profile = snap.exists ? snap.data() || {} : {};
-      const hasPassword = (user.providerData || []).some(item => item?.providerId === 'password');
-      if (!profile.mobile || profile.gmailVerified !== true || !hasPassword) {
+      if (!profile.mobile || profile.gmailVerified !== true) {
         return setAuthMessage('इस Google खाते से कोई पंजीकरण नहीं मिला', 'error');
+      }
+      forgotPasswordMobile = normalizeMobile(profile.mobile);
+      if (!validMobile(forgotPasswordMobile)) {
+        return setAuthMessage('इस खाते में मान्य मोबाइल नंबर नहीं मिला। पहले प्रोफ़ाइल में मोबाइल नंबर जोड़ें।', 'error');
       }
       forgotPasswordUser = user;
       forgotRetryUsed = false;
@@ -6234,8 +6238,15 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
     if (password !== confirm) return setAuthMessage('दोनों नए पासवर्ड एक जैसे नहीं हैं।', 'error');
     if (!forgotPasswordUser) return setAuthMessage('पहले Google से सत्यापन करें।', 'error');
     try {
-      await forgotPasswordUser.updatePassword(password);
+      const hasPassword = (forgotPasswordUser.providerData || []).some(item => item?.providerId === 'password');
+      if (hasPassword) {
+        await forgotPasswordUser.updatePassword(password);
+      } else {
+        const credential = firebase.auth.EmailAuthProvider.credential(hiddenEmail(forgotPasswordMobile), password);
+        await forgotPasswordUser.linkWithCredential(credential);
+      }
       forgotPasswordUser = null;
+      forgotPasswordMobile = '';
       authApi.closeAuthModal();
       setAuthMessage('पासवर्ड सफलतापूर्वक बदल दिया गया।', 'success');
     } catch (error) {
@@ -6247,8 +6258,15 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
             return setAuthMessage('कृपया पहले वाले पंजीकृत Google खाते से ही सत्यापन करें।', 'error');
           }
           forgotPasswordUser = result.user;
-          await forgotPasswordUser.updatePassword(password);
+          const hasPassword = (forgotPasswordUser.providerData || []).some(item => item?.providerId === 'password');
+          if (hasPassword) {
+            await forgotPasswordUser.updatePassword(password);
+          } else {
+            const credential = firebase.auth.EmailAuthProvider.credential(hiddenEmail(forgotPasswordMobile), password);
+            await forgotPasswordUser.linkWithCredential(credential);
+          }
           forgotPasswordUser = null;
+          forgotPasswordMobile = '';
           authApi.closeAuthModal();
           return setAuthMessage('पासवर्ड सफलतापूर्वक बदल दिया गया।', 'success');
         } catch (retryError) {
@@ -6318,30 +6336,22 @@ authApi.changeProfilePassword = async function () {
     item => item && item.providerId === 'password'
   );
 
-  if (!passwordProvider) {
-    return setStatus('इस खाते में पासवर्ड लॉगिन सक्रिय नहीं है। Google खाते का पासवर्ड Google में बदलें।');
-  }
-
-  if (!currentPassword) {
-    return setStatus('वर्तमान पासवर्ड दर्ज करें।');
-  }
-
   try {
     const profile = state.profile || {};
     const mobile = normalizeMobile(profile.mobile || '');
     const loginEmail = user.email || (validMobile(mobile) ? hiddenEmail(mobile) : '');
 
-    if (!loginEmail) {
-      return setStatus('लॉगिन पहचान नहीं मिली। दोबारा लॉगिन करके प्रयास करें।');
+    if (!passwordProvider) {
+      if (!validMobile(mobile)) return setStatus('नया पासवर्ड बनाने से पहले प्रोफ़ाइल में मोबाइल नंबर जोड़ें।');
+      const credential = firebase.auth.EmailAuthProvider.credential(hiddenEmail(mobile), newPassword);
+      await user.linkWithCredential(credential);
+    } else {
+      if (!currentPassword) return setStatus('वर्तमान पासवर्ड दर्ज करें या “वर्तमान पासवर्ड भूल गए?” चुनकर Google से सत्यापित करें।');
+      if (!loginEmail) return setStatus('लॉगिन पहचान नहीं मिली। दोबारा लॉगिन करके प्रयास करें।');
+      const credential = firebase.auth.EmailAuthProvider.credential(loginEmail, currentPassword);
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
     }
-
-    const credential = firebase.auth.EmailAuthProvider.credential(
-      loginEmail,
-      currentPassword
-    );
-
-    await user.reauthenticateWithCredential(credential);
-    await user.updatePassword(newPassword);
 
     ['profileCurrentPassword', 'profileNewPassword', 'profileConfirmPassword']
       .forEach(id => {
@@ -6418,11 +6428,14 @@ authApi.changeProfileMobile = async function () {
 
   try {
     if (hasPasswordProvider) {
-      const credential = firebase.auth.EmailAuthProvider.credential(
-        oldEmail,
-        currentPassword
-      );
-      await user.reauthenticateWithCredential(credential);
+      const googleLinked = (user.providerData || []).some(item => item?.providerId === 'google.com');
+      if (googleLinked) {
+        await user.reauthenticateWithPopup(googleProvider());
+      } else {
+        if (!currentPassword) return setStatus('वर्तमान पासवर्ड दर्ज करें। यदि याद नहीं है, तो पहले Google सत्यापन/पासवर्ड रीसेट करें।');
+        const credential = firebase.auth.EmailAuthProvider.credential(oldEmail, currentPassword);
+        await user.reauthenticateWithCredential(credential);
+      }
     }
 
     const newIndexRef = state.db.collection('mobileIndex').doc(newMobile);
