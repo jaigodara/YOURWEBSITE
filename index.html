@@ -173,16 +173,6 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- SACRED DAILY MESSAGE BANNER -->
-  <div class="bg-forest text-amber-200 text-xs py-2 px-3 sm:px-6 border-b border-amber-950/20 flex items-center justify-between gap-2">
-    <div class="flex items-center gap-2 overflow-hidden truncate">
-      <span class="font-yatra text-amber-400 text-sm hidden sm:inline">पावन संदेश:</span>
-      <span id="dailyBannerText" class="truncate font-medium text-amber-100">"जीव दया पालणी, रूंख लीलो नी घावै" — प्रकृति एवं सभी मूक जीवों के प्रति करुणा रखें।</span>
-    </div>
-    <button onclick="window.BishnoiApp.shareBannerWhatsApp()" class="shrink-0 bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 shadow-sm transition">
-      <span>साझा करें</span> 📲
-    </button>
-  </div>
-
   <div id="globalMaintenanceOverlay" class="hidden fixed inset-0 z-[10000] bg-[#FAF6EE] p-6 flex items-center justify-center text-center" role="alert">
     <div class="max-w-md rounded-3xl border border-amber-300 bg-white p-8 shadow-xl space-y-4">
       <div class="text-5xl">🛠️</div><h1 class="font-yatra text-2xl text-forest">वेबसाइट रखरखाव में है</h1>
@@ -1133,5 +1123,33 @@ document.addEventListener('DOMContentLoaded', () => {
   .bx-chat-message-pinned{border:2px solid #eab308;background:#fff8df}
   @media(max-width:640px){.bx-chat-message{max-width:94%;padding:.75rem!important}.bx-chat-message p{font-size:14px;line-height:1.5}}
 </style>
+
+<script id="bx-remove-retired-banner-and-profile-exam-shortcut">
+(() => {
+  const clean = () => {
+    document.querySelectorAll('#profileExamInfoSection, #profileOwnerMessage').forEach(el => el.remove());
+    const profile = document.getElementById('userProfileModal');
+    if (profile) profile.querySelectorAll('a,button').forEach(el => {
+      const label = (el.textContent || '').replace(/\s+/g,' ').trim();
+      if (/^परीक्षा पोर्टल$/.test(label)) el.remove();
+    });
+  };
+  clean();
+  const observer = new MutationObserver(clean);
+  observer.observe(document.body, {childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded', clean, {once:true});
+})();
+</script>
+<style id="bx-mobile-touch-polish">
+@media (max-width:640px) {
+  body { overflow-x:hidden; }
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size:16px; }
+  button, [role=button], a.button { touch-action:manipulation; }
+  .bnav-mobile { padding-bottom:max(.4rem,env(safe-area-inset-bottom)); }
+  #userProfileModal { align-items:flex-end; padding:0; }
+  #userProfileModal > div { width:100%; max-width:none; max-height:92dvh; overflow-y:auto; border-radius:1.25rem 1.25rem 0 0; }
+}
+</style>
+
 </body>
 </html>
