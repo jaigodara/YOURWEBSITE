@@ -46,7 +46,8 @@ headerActions.insertBefore(trigger, insertBeforeNode);
         </section>
         <section class="drawer-group">
           <p class="drawer-group-label">भाषा एवं प्रदर्शन</p>
-          <button type="button" class="drawer-action-card" data-drawer-action="language"><span class="drawer-icon">🌐</span><span class="details"><strong>हिन्दी / English</strong><small>मुख्य भाषा टॉगल</small></span><span aria-hidden="true">↔</span></button>
+          <button type="button" class="drawer-action-card" data-drawer-action="language"><span class="drawer-icon">🌐</span><span class="details"><strong>ENG / हिन्दी</strong><small id="drawerLanguageStatus">भाषा बदलें · अभी हिन्दी</small></span><span aria-hidden="true">↔</span></button>
+          <button type="button" id="drawerOwnerStudioLink" class="drawer-action-card" data-drawer-action="owner-studio" hidden><span class="drawer-icon">🛡️</span><span class="details"><strong>Owner Studio</strong><small>Dharmveer Godara · परीक्षा और वेबसाइट प्रबंधन</small></span><span aria-hidden="true">↗</span></button>
           <button type="button" class="drawer-action-card" data-drawer-action="literature"><span class="drawer-icon">📖</span><span class="details"><strong>29 नियम एवं साहित्य</strong><small>साहित्य अनुभाग खोलें</small></span></button>
         </section>
         <section class="drawer-group">
@@ -57,6 +58,27 @@ headerActions.insertBefore(trigger, insertBeforeNode);
       </div>`;
 
     document.body.append(backdrop, drawer);
+
+    // Keep the Owner Studio shortcut visible only when the existing authenticated
+    // header shortcut is visible. The Owner Studio page still performs its own auth check.
+    const ownerSource = document.getElementById('ownerStudioPortalBtn');
+    const ownerDrawerLink = document.getElementById('drawerOwnerStudioLink');
+    const syncOwnerShortcut = () => {
+      if (!ownerDrawerLink) return;
+      const visible = !!ownerSource && !ownerSource.classList.contains('hidden') && !ownerSource.hidden;
+      ownerDrawerLink.hidden = !visible;
+    };
+    syncOwnerShortcut();
+    if (ownerSource && ownerDrawerLink && typeof MutationObserver !== 'undefined') {
+      new MutationObserver(syncOwnerShortcut).observe(ownerSource, { attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
+    }
+    const languageStatus = document.getElementById('drawerLanguageStatus');
+    const syncDrawerLanguage = () => {
+      if (languageStatus) languageStatus.textContent = 'भाषा बदलें · अभी ' + (document.documentElement.lang === 'en' ? 'English' : 'हिन्दी');
+    };
+    syncDrawerLanguage();
+    document.addEventListener('bishnoism:languagechange', syncDrawerLanguage);
+
     drawer.querySelector('[data-slidebar-close]').addEventListener('click', () => window.toggleMainSlidebar(false));
     drawer.addEventListener('click', event => {
       const action = event.target.closest('[data-drawer-action]')?.dataset.drawerAction;
@@ -70,6 +92,8 @@ headerActions.insertBefore(trigger, insertBeforeNode);
         document.getElementById('amavasyaCountdownBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else if (action === 'language') {
         document.querySelector('[data-language-toggle]')?.click();
+      } else if (action === 'owner-studio') {
+        window.location.href = './owner-studio.html';
       } else if (action === 'literature') {
         window.switchTab?.('library');
         document.getElementById('tab-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
