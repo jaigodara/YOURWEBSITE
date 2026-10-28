@@ -14,7 +14,7 @@ test('Main slidebar is wired without replacing the five core bottom tabs', () =>
     assert.ok(html.includes('id="' + id + '"'), 'core bottom tab must remain: ' + id);
   }
   assert.match(html, /href="slidebar\.css"/);
-  assert.match(html, /<script src="main-slidebar\.js"><\/script>/);
+  assert.match(html, /<script src="main-slidebar\.js(?:\?[^"]*)?"><\/script>/);
   assert.match(js, /id = 'mainSlidebarTrigger'/);
   assert.match(js, /window\.toggleMainSlidebar = function \(open\)/);
 });
