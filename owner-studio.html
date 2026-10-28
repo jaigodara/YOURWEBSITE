@@ -653,6 +653,17 @@ Ans: B"></textarea>
       <div id="ownerExamVisibilitySettingsPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">🎛️ परीक्षा अनुभाग नियंत्रण</h3>
         <p class="text-xs text-stone-500">ये विकल्प मुख्य वेबसाइट के examConfig/current दस्तावेज़ में सहेजे जाते हैं। किसी सेक्शन को छिपाने से उसका डेटा मिटता नहीं है।</p>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <h4 class="font-bold text-forest">👤 सदस्य प्रोफ़ाइल नियंत्रण</h4>
+          <p class="text-xs text-stone-600">ये विकल्प प्रोफ़ाइल में दिखाई देने वाले हिस्सों को नियंत्रित करते हैं।</p>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowExamInfo" type="checkbox" class="accent-forest"> प्रोफ़ाइल में परीक्षा जानकारी दिखाएँ</label>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowFavorites" type="checkbox" class="accent-forest"> पसंदीदा सामग्री दिखाएँ</label>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowPersonalInfo" type="checkbox" class="accent-forest"> व्यक्तिगत जानकारी संपादन दिखाएँ</label>
+          <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerProfileShowSecurity" type="checkbox" class="accent-forest"> मोबाइल / पासवर्ड सुरक्षा अनुभाग दिखाएँ</label>
+          <label class="block text-xs font-bold text-stone-700">प्रोफ़ाइल के ऊपर Owner संदेश
+            <textarea id="ownerProfileMessage" maxlength="300" rows="3" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3" placeholder="सदस्यों के लिए छोटा संदेश (अधिकतम 300 अक्षर)"></textarea>
+          </label>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuiz" type="checkbox" class="accent-forest"> दैनिक क्विज़ दिखाएँ</label>
           <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-stone-50 border"><input id="ownerShowDailyQuizResults" type="checkbox" class="accent-forest"> दैनिक क्विज़ परिणाम दिखाएँ</label>
@@ -2942,6 +2953,11 @@ async function saveBulkQuestionDrafts() {
           ['ownerShowEnrollment', data.enrollmentVisible !== false],
           ['ownerShowResults', data.resultsVisible !== false],
           ['ownerRandomizeSets', data.randomizeSets !== false],
+          ['ownerProfileShowExamInfo', data.profileExamInfoVisible !== false],
+          ['ownerProfileShowFavorites', data.profileFavoritesVisible !== false],
+          ['ownerProfileShowPersonalInfo', data.profilePersonalInfoVisible !== false],
+          ['ownerProfileShowSecurity', data.profileSecurityVisible !== false],
+          ['ownerProfileMessage', String(data.profileOwnerMessage || '').slice(0, 300)],
           ['ownerCustomExamTitle', String(data.customExamTitle || '')],
           ['ownerCustomExamDuration', Math.min(360, Math.max(1, Number(data.customExamDuration) || 60))],
           ['ownerCustomExamTotalMarks', Math.min(10000, Math.max(1, Number(data.customExamTotalMarks) || 100))],
@@ -3815,6 +3831,11 @@ async function changeCustomExamStatus(nextStatus) {
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
         randomizeSets: !!document.getElementById('ownerRandomizeSets')?.checked,
+        profileExamInfoVisible: !!document.getElementById('ownerProfileShowExamInfo')?.checked,
+        profileFavoritesVisible: !!document.getElementById('ownerProfileShowFavorites')?.checked,
+        profilePersonalInfoVisible: !!document.getElementById('ownerProfileShowPersonalInfo')?.checked,
+        profileSecurityVisible: !!document.getElementById('ownerProfileShowSecurity')?.checked,
+        profileOwnerMessage: String(document.getElementById('ownerProfileMessage')?.value || '').trim().slice(0, 300),
         customExamTitle: String(document.getElementById('ownerCustomExamTitle')?.value || '').trim().slice(0, 120),
         customExamDuration: Math.min(360, Math.max(1, Number(document.getElementById('ownerCustomExamDuration')?.value) || 60)),
         customExamTotalMarks: Math.min(10000, Math.max(1, Number(document.getElementById('ownerCustomExamTotalMarks')?.value) || 100)),
