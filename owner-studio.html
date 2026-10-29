@@ -241,8 +241,8 @@
         <p class="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-stone-500">प्रबंधन मेनू / Admin menu</p>
         <nav class="grid grid-cols-2 md:grid-cols-1 gap-1.5">
           <button type="button" data-studio-page="dashboard" class="studio-nav-item studio-nav-active">📊 Dashboard</button>
-          <button type="button" data-studio-page="questions" class="studio-nav-item">📝 Question Bank</button>
-          <button type="button" data-studio-page="checking" class="studio-nav-item">✅ Check Answer Sheets</button>
+          <button type="button" data-studio-page="questions" class="studio-nav-item">📝 परीक्षा प्रबंधन — प्रश्न बैंक एवं उत्तर-पत्र जाँच</button>
+          <button type="button" data-studio-page="checking" class="studio-nav-item" hidden aria-hidden="true">✅ Check Answer Sheets</button>
           <button type="button" data-studio-page="admit" class="studio-nav-item">🎟️ Admit Cards</button>
           <button type="button" data-studio-page="notifications" class="studio-nav-item">🔔 Notifications</button>
           <button type="button" data-studio-page="settings" class="studio-nav-item">⚙️ Settings</button>
@@ -371,6 +371,34 @@
         <p id="ownerExportStatus" class="text-sm text-stone-600" aria-live="polite">बड़ी सूचियाँ पेज-दर-पेज पढ़ी जाएँगी। निजी विद्यार्थी डेटा केवल सुरक्षित डिवाइस पर डाउनलोड करें।</p>
       </section>
 
+      <section id="ownerExamArchivePanel" data-editor-permission="reports" class="mb-5 rounded-3xl border-2 border-emerald-200 bg-white p-5 shadow-sm space-y-3">
+        <div>
+          <h3 class="font-yatra text-base text-forest">🗄️ परीक्षा पूरी करें और आर्काइव बनाएँ</h3>
+          <p class="mt-1 text-xs leading-relaxed text-stone-600">यह कार्रवाई चुनी गई परीक्षा के सक्रिय उत्तर-पत्र, सत्र और संबंधित समीक्षा रिकॉर्ड को पहले आर्काइव में कॉपी करती है, फिर सक्रिय कतार साफ करती है। प्रकाशित परिणाम विद्यार्थी इतिहास के लिए सुरक्षित रहते हैं।</p>
+        </div>
+        <label class="block text-sm font-bold text-stone-700">पूरी हुई परीक्षा चुनें
+          <select id="archiveExamMode" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
+            <option value="main">मुख्य परीक्षा</option>
+            <option value="mock1">मॉक परीक्षा 1</option>
+            <option value="mock2">मॉक परीक्षा 2</option>
+            <option value="quiz">दैनिक क्विज़</option>
+          </select>
+        </label>
+        <button type="button" onclick="archiveCompletedExamWorkflow()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">परीक्षा आर्काइव करें और सक्रिय कतार रीसेट करें</button>
+        <div class="border-t border-stone-200 pt-3 space-y-2">
+          <label class="block text-sm font-bold text-stone-700">पुराना आर्काइव डाउनलोड करें
+            <select id="examArchiveSelect" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
+              <option value="">पहले आर्काइव सूची लोड करें</option>
+            </select>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button type="button" onclick="loadExamArchives()" class="rounded-xl border border-forest px-4 py-3 text-sm font-bold text-forest">आर्काइव सूची रिफ्रेश करें</button>
+            <button type="button" onclick="downloadSelectedExamArchive()" class="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">CSV रिपोर्ट डाउनलोड करें</button>
+          </div>
+        </div>
+        <p id="examArchiveStatus" class="text-xs text-stone-600" role="status" aria-live="polite">आर्काइव बनाने से पहले परीक्षा पूरी होने और सही मोड चुनने की पुष्टि करें।</p>
+      </section>
+
       <!-- DRAFT APPROVAL QUEUE -->
       <div class="bg-amber-50/80 p-5 rounded-3xl border-2 border-amber-300 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
@@ -441,6 +469,11 @@
   </label>
   <button type="button" onclick="window.BishnoiMedia && window.BishnoiMedia.saveMediaLink()" class="min-h-12 w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">प्रकाशित करें</button>
   <p id="mediaLinkStatus" role="status" aria-live="polite" class="text-xs text-stone-600"></p>
+  <div class="border-t border-stone-200 pt-3 space-y-2">
+    <h4 class="text-sm font-bold text-forest">प्रकाशित लिंक मीडिया प्रबंधन</h4>
+    <p class="text-xs text-stone-500">यहाँ से YouTube, Drive PDF और ऑडियो लिंक हटाएँ।</p>
+    <div id="platformMediaManageList" class="space-y-2 max-h-64 overflow-y-auto" aria-live="polite"></div>
+  </div>
 </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -540,8 +573,6 @@
           <option value="mockExam_2">Mock Exam 2</option>
           <option value="mainExamQuestions">Main Exam</option>
         </select>
-        <label class="block text-xs font-bold text-stone-700">प्रश्न सेट चुनें</label>
-        <select id="bulkQuestionSet" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-50"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select>
         <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
@@ -776,8 +807,12 @@ Ans: B"></textarea>
       Unpublish / Draft
     </button>
     <button type="button" onclick="changeCustomExamStatus('archived')"
-      class="rounded-xl border border-stone-300 p-3 text-sm font-bold sm:col-span-2">
+      class="rounded-xl border border-stone-300 p-3 text-sm font-bold">
       परीक्षा Archive करें
+    </button>
+    <button type="button" onclick="deleteCustomExamRecord()"
+      class="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
+      परीक्षा रिकॉर्ड हटाएँ
     </button>
   </div>
 
@@ -787,16 +822,7 @@ Ans: B"></textarea>
 </div>
 
         </div>
-        <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-3">
-          <h4 class="font-bold text-sm text-forest">📚 विद्यार्थियों के लिए सक्रिय प्रश्न सेट</h4>
-          <p class="text-xs text-stone-600">हर परीक्षा के लिए सक्रिय सेट चुनें। पुराने प्रश्न जिनमें Set दर्ज नहीं है, वे Set 1 में माने जाएँगे।</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label class="text-xs font-bold text-stone-700">दैनिक क्विज़<select id="ownerQuizQuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-            <label class="text-xs font-bold text-stone-700">मॉक परीक्षा 1<select id="ownerMock1QuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-            <label class="text-xs font-bold text-stone-700">मॉक परीक्षा 2<select id="ownerMock2QuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-            <label class="text-xs font-bold text-stone-700">मुख्य परीक्षा<select id="ownerMainQuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-          </div>
-        </div>
+        <!-- Per-student question-set controls removed: one shared bank per exam. -->
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
           <div><h4 class="font-yatra text-sm text-forest">⏳ परीक्षा शुरू होने का समय तय करें</h4><p class="text-[11px] text-stone-600 mt-1">दैनिक क्विज़ हर दिन पूरे दिन उपलब्ध रहता है—इसके लिए समय या late-entry अनुमति की जरूरत नहीं है। नीचे का समय केवल मॉक परीक्षा 1/2 और मुख्य परीक्षा के लिए लागू है; समय आपके डिवाइस के स्थानीय समय क्षेत्र के अनुसार सहेजा जाता है।</p></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -1470,7 +1496,8 @@ if (environmentEl) {
             document.querySelectorAll('#ownerStudioSidebar [data-studio-page]').forEach(button => {
               const page = button.dataset.studioPage;
               const permitted = page === 'dashboard' ||
-                (routePermissions[page] && permissions[routePermissions[page]] === true);
+                (page === 'questions' && (permissions.quizDrafts === true || permissions.examReview === true)) ||
+                (page !== 'checking' && routePermissions[page] && permissions[routePermissions[page]] === true);
               button.dataset.editorAllowed = String(permitted);
               button.hidden = !permitted;
               button.classList.toggle('hidden', !permitted);
@@ -1588,11 +1615,16 @@ const OWNER_STUDIO_ROUTES = {
   },
   questions: {
     pane: 'pane_quiz',
-    permission: 'quizDrafts',
-    panels: ['ownerQuestionBankPanel']
+    permission: null,
+    permissions: ['quizDrafts', 'examReview'],
+    panels: [
+      'ownerQuestionBankPanel',
+      'ownerExamSessionMonitorPanel',
+      'manualExamReviewSection'
+    ]
   },
   checking: {
-    pane: 'pane_exam',
+    pane: 'pane_quiz',
     permission: 'examReview',
     panels: [
       'ownerExamSessionMonitorPanel',
@@ -1662,6 +1694,12 @@ function moveOwnerStudioPanels() {
       systemPane.appendChild(panel);
     }
   });
+
+  const questionPane = document.getElementById('pane_quiz');
+  ['ownerExamSessionMonitorPanel', 'manualExamReviewSection'].forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel && questionPane && !questionPane.contains(panel)) questionPane.appendChild(panel);
+  });
 }
 
 function openStudioPage(page) {
@@ -1673,11 +1711,11 @@ function openStudioPage(page) {
 
   const owner = isPrimaryOwner();
 
-  if (
-    !owner &&
-    page !== 'dashboard' &&
-    (!route.permission || !hasEditorPermission(route.permission))
-  ) {
+  const routeAllowed = Array.isArray(route.permissions)
+    ? route.permissions.some(permission => hasEditorPermission(permission))
+    : !!route.permission && hasEditorPermission(route.permission);
+
+  if (!owner && page !== 'dashboard' && !routeAllowed) {
     showToast('इस अनुभाग के लिए अनुमति नहीं है।');
     return;
   }
@@ -1700,6 +1738,8 @@ function openStudioPage(page) {
       panel.classList.remove('hidden');
     }
   });
+
+  if (page === 'questions' && (owner || hasEditorPermission('examReview'))) window.setTimeout(() => loadExamSessionQueue(), 0);
 
   document.querySelectorAll('[data-studio-page]').forEach(button => {
     const active = button.dataset.studioPage === page;
@@ -1767,7 +1807,7 @@ function switchStudioPane(paneId) {
 
   const panePermissions = {
     pane_media: ['media'],
-    pane_quiz: ['quizDrafts'],
+    pane_quiz: ['quizDrafts', 'examReview'],
     pane_exam: ['examReview'],
     pane_system: ['notifications', 'reports']
   };
@@ -2067,16 +2107,45 @@ function switchStudioPane(paneId) {
           `;
         });
       });
+      db.collection('platform_media').orderBy('createdAt', 'desc').limit(100).onSnapshot(snap => {
+        const box = document.getElementById('platformMediaManageList');
+        if (!box) return;
+        box.replaceChildren();
+        snap.forEach(doc => {
+          const data = doc.data() || {};
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 rounded-xl border border-stone-200 bg-stone-50 p-2';
+          const title = document.createElement('span');
+          title.className = 'min-w-0 truncate text-xs font-semibold text-stone-800';
+          title.textContent = `${data.title || 'मीडिया'} · ${data.type || 'लिंक'}`;
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700';
+          remove.textContent = 'हटाएँ';
+          remove.addEventListener('click', () => deleteDocItem('platform_media', doc.id));
+          row.append(title, remove);
+          box.appendChild(row);
+        });
+      }, error => showToast('लिंक मीडिया सूची लोड नहीं हुई: ' + error.message));
     }
 
     async function deleteDocItem(col, id) {
-      if (!isPrimaryOwner()) return showToast('रिकॉर्ड हटाने का अधिकार केवल Owner को है।');
-      if (!confirm("क्या आप इसे हटाना चाहते हैं?")) return;
+      if (!isPrimaryOwner() && !hasEditorPermission('media')) return showToast('मीडिया हटाने की अनुमति नहीं है।');
+      if (!confirm('क्या आप इसे हटाना चाहते हैं?')) return;
       try {
-        await db.collection(col).doc(id).delete();
-        showToast("आइटम हटा दिया गया।");
+        const ref = db.collection(col).doc(id);
+        const snap = await ref.get();
+        if (!snap.exists) return showToast('यह रिकॉर्ड पहले ही हटाया जा चुका है।');
+        const data = snap.data() || {};
+        const fileUrl = data.url || data.link || data.pdfUrl || data.audioUrl || '';
+        if (/^https:\/\/firebasestorage\.googleapis\.com\//i.test(fileUrl)) {
+          try { await firebase.storage().refFromURL(fileUrl).delete(); }
+          catch (storageError) { console.warn('Storage cleanup was not possible; deleting the library record only.', storageError); }
+        }
+        await ref.delete();
+        showToast('आइटम हटा दिया गया।');
       } catch (e) {
-        showToast("त्रुटि: " + e.message);
+        showToast('त्रुटि: ' + e.message);
       }
     }
 
@@ -2587,7 +2656,6 @@ async function saveBulkQuestionDrafts() {
   }
 
   const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
-  const selectedQuestionSet = ['set1','set2','set3','set4'].includes(document.getElementById('bulkQuestionSet')?.value) ? document.getElementById('bulkQuestionSet').value : 'set1';
 
   if (!isPrimaryOwner() && target !== 'quiz') {
     return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
@@ -2694,8 +2762,6 @@ async function saveBulkQuestionDrafts() {
         text: questionText,
         opts: options,
         options,
-        questionSet: selectedQuestionSet,
-        questionSetKey: selectedQuestionSet,
         examMode: target === 'quiz'
           ? 'quiz'
           : target === 'mockExam_1'
@@ -2733,9 +2799,7 @@ async function saveBulkQuestionDrafts() {
 
         batch.set(keyRef, {
           answerIndex,
-          questionSet: selectedQuestionSet,
-          questionSetKey: selectedQuestionSet,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: uid
         }, { merge: true });
       }
@@ -2784,11 +2848,6 @@ async function saveBulkQuestionDrafts() {
         const options = Array.isArray(d.options) ? d.options : Array.isArray(d.opts) ? d.opts : [];
         if (options.length !== 4) return showToast('इस प्रश्न में चार विकल्प नहीं हैं; पहले डेटा सुधारें।');
         document.getElementById('bulkQuestionTarget').value = target;
-        const storedSet = d.questionSetKey || d.questionSet;
-        const setSelect = document.getElementById('bulkQuestionSet');
-        if (setSelect && ['set1', 'set2', 'set3', 'set4'].includes(storedSet)) {
-          setSelect.value = storedSet;
-        }
         let storedAnswer = d.correctAnswer ?? d.answerIndex ?? d.ans;
         if (target !== 'quiz') {
           const keySnap = await db.collection('examAnswerKeys').doc(target).collection('items').doc(id).get();
@@ -3024,10 +3083,6 @@ async function saveBulkQuestionDrafts() {
           ['ownerCustomExamTotalMarks', Math.min(10000, Math.max(1, Number(data.customExamTotalMarks) || 100))],
           ['ownerCustomExamPassingMarks', Math.min(10000, Math.max(0, Number(data.customExamPassingMarks) || 0))],
           ['ownerCustomExamNegativeMarks', Math.min(10, Math.max(0, Number(data.customExamNegativeMarks) || 0))],
-          ['ownerQuizQuestionSet', ['set1','set2','set3','set4'].includes(data.quizQuestionSet) ? data.quizQuestionSet : 'set1'],
-          ['ownerMock1QuestionSet', ['set1','set2','set3','set4'].includes(data.mock1QuestionSet) ? data.mock1QuestionSet : 'set1'],
-          ['ownerMock2QuestionSet', ['set1','set2','set3','set4'].includes(data.mock2QuestionSet) ? data.mock2QuestionSet : 'set1'],
-          ['ownerMainQuestionSet', ['set1','set2','set3','set4'].includes(data.mainQuestionSet) ? data.mainQuestionSet : 'set1']
         ];
         pairs.forEach(([id, value]) => {
           const el = document.getElementById(id);
@@ -3110,19 +3165,20 @@ async function saveBulkQuestionDrafts() {
         await ref.set(record, { merge: true });
         const rollNumber = await assignRealEnrollmentRoll(ref, previousRoll, false);
         const configSnap = await db.collection('examConfig').doc('current').get();
-        if (configSnap.exists && configSnap.data()?.admitCardReleased === true) {
-          await db.collection('userNotifications').doc(uid).collection('items').add({
-            title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-            message: (configSnap.data()?.admitCardTitle || examName) + ' के लिए आपका पंजीकरण Owner ने बनाया है। प्रवेश-पत्र परीक्षा अनुभाग में उपलब्ध है। रोल नंबर: ' + rollNumber,
-            type: 'admit-card',
-            admitCardReady: true,
-            recipientUid: uid,
-            active: true,
-            audience: 'private',
-            createdBy: auth.currentUser?.uid || null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }
+        const admitCardReleased = configSnap.exists && configSnap.data()?.admitCardReleased === true;
+        await db.collection('userNotifications').doc(uid).collection('items').add({
+          title: admitCardReleased ? '🎟️ आपका प्रवेश-पत्र जारी हो गया' : '✅ परीक्षा पंजीकरण सफल',
+          message: admitCardReleased
+            ? (configSnap.data()?.admitCardTitle || examName) + ' के लिए आपका प्रवेश-पत्र अब सूचना में दिए गए बटन से डाउनलोड किया जा सकता है। रोल नंबर: ' + rollNumber
+            : examName + ' के लिए आपका पंजीकरण Owner ने पूरा कर दिया है। आपका रोल नंबर: ' + rollNumber + '। प्रवेश-पत्र जारी होते ही सूचना में डाउनलोड विकल्प मिलेगा।',
+          type: admitCardReleased ? 'admit-card' : 'registration',
+          admitCardReady: admitCardReleased,
+          recipientUid: uid,
+          active: true,
+          audience: 'private',
+          createdBy: auth.currentUser?.uid || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         if (status) status.textContent = 'विद्यार्थी पंजीकृत: ' + fullName + ' · रोल नंबर: ' + rollNumber;
         showToast('विद्यार्थी का पंजीकरण और रोल नंबर सहेज दिया गया।');
         ['ownerManualStudentUid','ownerManualStudentName','ownerManualStudentDob','ownerManualStudentPhone','ownerManualStudentRoll'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -3771,6 +3827,39 @@ async function saveCustomExamRecord() {
   }
 }
 
+async function deleteCustomExamRecord() {
+  if (!isPrimaryOwner()) {
+    showToast('परीक्षा रिकॉर्ड हटाने का अधिकार केवल Owner को है।');
+    return;
+  }
+  const id = document.getElementById('ownerCustomExamRecordId')?.value
+    || document.getElementById('ownerCustomExamSelect')?.value;
+  if (!id) {
+    showToast('पहले मौजूदा परीक्षा चुनें।');
+    return;
+  }
+  const ref = customExamRegistryCollection().doc(id);
+  try {
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      showToast('परीक्षा रिकॉर्ड नहीं मिला।');
+      return;
+    }
+    const title = String(snapshot.data()?.title || 'यह परीक्षा');
+    if (!window.confirm('"' + title + '" का परीक्षा-रजिस्ट्री रिकॉर्ड हटाएँ? यह प्रश्नों/पुराने परिणामों को नहीं मिटाएगा।')) return;
+    await ref.delete();
+    document.getElementById('ownerCustomExamRecordId').value = '';
+    document.getElementById('ownerCustomExamSelect').value = '';
+    await loadCustomExamRegistry();
+    newCustomExamRecord();
+    setCustomExamRegistryStatus('परीक्षा रिकॉर्ड हटाया गया। पुराने प्रश्न/परिणाम सुरक्षित रखे गए हैं।');
+    showToast('परीक्षा रजिस्ट्री रिकॉर्ड हटा दिया गया।');
+  } catch (error) {
+    console.error('Custom exam delete failed:', error);
+    showToast('परीक्षा रिकॉर्ड नहीं हटा सके। Owner access और Firestore rules जाँचें।');
+  }
+}
+
 async function changeCustomExamStatus(nextStatus) {
   if (!isPrimaryOwner()) {
     showToast('परीक्षा की स्थिति बदलने का अधिकार केवल Owner को है।');
@@ -3902,10 +3991,6 @@ async function changeCustomExamStatus(nextStatus) {
         customExamTotalMarks: Math.min(10000, Math.max(1, Number(document.getElementById('ownerCustomExamTotalMarks')?.value) || 100)),
         customExamPassingMarks: Math.min(10000, Math.max(0, Number(document.getElementById('ownerCustomExamPassingMarks')?.value) || 0)),
         customExamNegativeMarks: Math.min(10, Math.max(0, Number(document.getElementById('ownerCustomExamNegativeMarks')?.value) || 0)),
-        quizQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerQuizQuestionSet')?.value) ? document.getElementById('ownerQuizQuestionSet').value : 'set1',
-        mock1QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock1QuestionSet')?.value) ? document.getElementById('ownerMock1QuestionSet').value : 'set1',
-        mock2QuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMock2QuestionSet')?.value) ? document.getElementById('ownerMock2QuestionSet').value : 'set1',
-        mainQuestionSet: ['set1','set2','set3','set4'].includes(document.getElementById('ownerMainQuestionSet')?.value) ? document.getElementById('ownerMainQuestionSet').value : 'set1',
         durationMinutes: duration,
         customExamTitle: customTitle,
         customExamDuration: customDuration,
@@ -4024,13 +4109,12 @@ async function changeCustomExamStatus(nextStatus) {
         scoreInput.focus();
         return false;
       }
-      const questionSet = d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] ||
-        (examReviewCollection === 'mainExamSubmissions' ? 'mainExamQuestions' : examReviewCollection === 'mockExamSubmissions' ? (d.mode === 'mock2' ? 'mockExam_2' : 'mockExam_1') : 'quiz');
+      const questionCollection = examQuestionCollectionForRecord(d, examReviewCollection === 'mainExamSubmissions' ? 'mainExamQuestions' : examReviewCollection === 'mockExamSubmissions' ? (d.mode === 'mock2' ? 'mockExam_2' : 'mockExam_1') : 'quiz');
       const questionScores = d.questionScores && typeof d.questionScores === 'object' ? d.questionScores : {};
       let scoreSum = 0;
       for (const [questionId, rawMark] of Object.entries(questionScores)) {
         const mark = Number(rawMark);
-        const question = examReviewQuestionLookup[questionSet + '::' + questionId] || examReviewQuestionLookup[questionId];
+        const question = examReviewQuestionLookup[questionCollection + '::' + questionId] || examReviewQuestionLookup[questionId];
         const rawMaximum = Number(question?.marks ?? question?.points ?? question?.marksPerQuestion ?? 1);
         const maximum = Number.isFinite(rawMaximum) && rawMaximum >= 0 ? Math.min(rawMaximum, total) : Math.min(1, total);
         if (!Number.isFinite(mark) || mark < 0 || mark > maximum) {
@@ -4153,7 +4237,7 @@ async function changeCustomExamStatus(nextStatus) {
         return value;
       };
       scoreEntries.forEach(([questionId, answer]) => {
-        const question = examReviewQuestionLookup[(d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] || '') + '::' + questionId] || examReviewQuestionLookup[questionId];
+        const question = examReviewQuestionLookup[examQuestionCollectionForRecord(d) + '::' + questionId] || examReviewQuestionLookup[questionId];
         if (!question) return;
         const correct = question.correctAnswer ?? question.answerIndex ?? question.ans;
         if (correct === undefined || correct === null) return;
@@ -4315,7 +4399,7 @@ async function changeCustomExamStatus(nextStatus) {
       }
 
       answerEntries.forEach(([questionId, answer], index) => {
-        const q = examReviewQuestionLookup[(d.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[d.mode] || '') + '::' + questionId] || examReviewQuestionLookup[questionId] || {};
+        const q = examReviewQuestionLookup[examQuestionCollectionForRecord(d) + '::' + questionId] || examReviewQuestionLookup[questionId] || {};
         const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
         const correct = q.correctAnswer ?? q.answerIndex ?? q.ans ?? q.correctOption;
         const normalizeOptionIndex = value => {
@@ -4679,7 +4763,15 @@ next.addEventListener('click', async () => {
     }
     window.loadLiveExamViolations = loadLiveExamViolations;
 
-    async function loadExamSessionQueue() {
+    function examQuestionCollectionForRecord(row, fallbackCollection = '') {
+  const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+  const explicit = row?.questionCollection || row?.questionSetKey;
+  if (allowed.has(String(explicit || ''))) return String(explicit);
+  const modeToCollection = { main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' };
+  return modeToCollection[row?.mode] || fallbackCollection || '';
+}
+
+async function loadExamSessionQueue() {
       if (!isPrimaryOwner()) return showToast('लाइव सत्र केवल Owner देख सकता है।');
       const host = document.getElementById('examSessionQueue');
       if (!host) return;
@@ -4916,7 +5008,7 @@ next.addEventListener('click', async () => {
         let rows = Array.isArray(payload) ? payload : Object.entries(payload || {}).flatMap(([setName, items]) =>
           (Array.isArray(items) ? items : []).map(item => ({
             ...item,
-            questionSet: item.questionSet || item.questionSetKey || setName,
+            questionCollection: item.questionCollection || item.questionSetKey || setName,
             _sourceCollection: setName
           }))
         );
@@ -5092,7 +5184,7 @@ window.clearExamReviewFilters = clearExamReviewFilters;
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       })[char]);
       const getAnswerText = (questionId, answer, student) => {
-        const key = (student.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[student.mode] || '') + '::' + questionId;
+        const key = examQuestionCollectionForRecord(student) + '::' + questionId;
         const q = examReviewQuestionLookup[key] || examReviewQuestionLookup[questionId] || {};
         const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
         const answerIndex = Number(answer);
@@ -5261,13 +5353,12 @@ return review ? {
         });
         const modeToCollection = { main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' };
         const questionCollections = [...new Set(examReviewQueue.map(d =>
-          d.questionSetKey || modeToCollection[d.mode] ||
-          (examReviewCollection === 'mainExamSubmissions' ? 'mainExamQuestions' :
+          examQuestionCollectionForRecord(d, examReviewCollection === 'mainExamSubmissions' ? 'mainExamQuestions' :
             examReviewCollection === 'mockExamSubmissions' ? (d.mode === 'mock2' ? 'mockExam_2' : 'mockExam_1') : 'quiz')
         ))];
         examReviewQuestionLookup = {};
         examReviewQueue.forEach(row => {
-          const setKey = row.questionSetKey || modeToCollection[row.mode] || '';
+          const setKey = examQuestionCollectionForRecord(row);
           (Array.isArray(row.questionSnapshots) ? row.questionSnapshots : []).forEach(snapshot => {
             if (snapshot && snapshot.id != null) {
               examReviewQuestionLookup[setKey + '::' + String(snapshot.id)] = { ...snapshot };
@@ -6558,7 +6649,168 @@ async function removeTrustedEditor(uid) {
         window.location.href = "index.html";
       });
     }
-  </script>
+      // Completed exam archival: copy records first, then clear only active queue data.
+    function archiveCsvCell(value) {
+      const textValue = value == null ? '' : String(value);
+      return '"' + textValue.replace(/"/g, '""') + '"';
+    }
+
+    async function loadExamArchives() {
+      if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट देखने की अनुमति नहीं है।');
+      const select = document.getElementById('examArchiveSelect');
+      const status = document.getElementById('examArchiveStatus');
+      if (!select) return;
+      if (status) status.textContent = 'आर्काइव सूची लोड हो रही है…';
+      try {
+        const snap = await db.collection('examArchives').orderBy('createdAt', 'desc').limit(100).get();
+        select.replaceChildren(new Option('आर्काइव चुनें', ''));
+        snap.forEach(doc => {
+          const row = doc.data() || {};
+          const created = row.createdAt && typeof row.createdAt.toDate === 'function'
+            ? row.createdAt.toDate().toLocaleString('hi-IN')
+            : 'तिथि उपलब्ध नहीं';
+          select.add(new Option((row.title || row.mode || 'परीक्षा') + ' · ' + created + ' · ' + (row.status || 'unknown'), doc.id));
+        });
+        if (status) status.textContent = snap.size + ' आर्काइव रिकॉर्ड मिले।';
+      } catch (error) {
+        console.error('Exam archive list failed:', error);
+        if (status) status.textContent = 'आर्काइव सूची नहीं खुली। Owner access और Firestore rules जाँचें।';
+      }
+    }
+    window.loadExamArchives = loadExamArchives;
+
+    async function archiveCompletedExamWorkflow() {
+      if (!isPrimaryOwner()) return showToast('परीक्षा आर्काइव करने का अधिकार केवल Owner को है।');
+      const mode = document.getElementById('archiveExamMode')?.value || '';
+      const status = document.getElementById('examArchiveStatus');
+      const config = {
+        main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions' },
+        mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions' },
+        mock2: { title: 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions' },
+        quiz: { title: 'दैनिक क्विज़', submissions: 'quizAttempts' }
+      }[mode];
+      if (!config) return showToast('परीक्षा मोड चुनें।');
+      if (!window.confirm(config.title + ' के सक्रिय उत्तर-पत्र/सत्र आर्काइव करके सक्रिय समीक्षा कतार साफ करें? प्रकाशित परिणाम सुरक्षित रहेंगे।')) return;
+      const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
+      if (button) button.disabled = true;
+      if (status) status.textContent = 'सक्रिय रिकॉर्ड पढ़े जा रहे हैं…';
+      let archiveRef = null;
+      try {
+        const submissionSnap = await db.collection(config.submissions).get();
+        const submissions = submissionSnap.docs.filter(doc => {
+          const data = doc.data() || {};
+          if (config.submissions === 'mockExamSubmissions') return data.mode === mode;
+          if (config.submissions === 'mainExamSubmissions') return !data.mode || data.mode === mode || data.mode === 'main';
+          return !data.mode || data.mode === mode || data.mode === 'quiz';
+        });
+        const submissionIds = new Set(submissions.map(doc => doc.id));
+        const sessionSnap = await db.collection('examSessions').get();
+        const sessions = sessionSnap.docs.filter(doc => {
+          const data = doc.data() || {};
+          return data.mode === mode || doc.id.endsWith('_' + mode);
+        });
+        const violationSnap = await db.collection('live_violations').get();
+        const violations = violationSnap.docs.filter(doc => (doc.data() || {}).mode === mode);
+        const reviewSnap = await db.collection('reviews').where('sourceCollection', '==', config.submissions).get();
+        const reviews = reviewSnap.docs.filter(doc => submissionIds.has(String((doc.data() || {}).submissionId || '')));
+        const reviewHistory = [];
+        for (const reviewDoc of reviews) {
+          const historySnap = await reviewDoc.ref.collection('history').get();
+          historySnap.forEach(historyDoc => reviewHistory.push({ ref: historyDoc.ref, id: historyDoc.id, data: historyDoc.data(), sourceCollection: 'reviews/' + reviewDoc.id + '/history' }));
+        }
+        // Preserve released results for students; include a copy in the archive report.
+        const resultSnap = await db.collection('publishedResults').get();
+        const results = resultSnap.docs.filter(doc => (doc.data() || {}).mode === mode);
+        const total = submissions.length + sessions.length + violations.length + reviews.length + reviewHistory.length + results.length;
+        if (!total) {
+          if (status) status.textContent = 'इस परीक्षा मोड के लिए कोई सक्रिय या ऐतिहासिक रिकॉर्ड नहीं मिला।';
+          return;
+        }
+        archiveRef = db.collection('examArchives').doc();
+        await archiveRef.set({
+          mode, title: config.title, status: 'in_progress',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.currentUser.uid,
+          counts: { submissions: submissions.length, sessions: sessions.length, violations: violations.length, reviews: reviews.length, reviewHistory: reviewHistory.length, publishedResults: results.length }
+        });
+        const records = [
+          ...submissions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: config.submissions, removeSource: true })),
+          ...sessions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'examSessions', removeSource: true })),
+          ...violations.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'live_violations', removeSource: true })),
+          ...reviews.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'reviews', removeSource: true })),
+          ...reviewHistory.map(row => ({ ...row, removeSource: true })),
+          ...results.map(doc => ({ id: doc.id, data: doc.data(), sourceCollection: 'publishedResults', removeSource: false }))
+        ];
+        for (let offset = 0; offset < records.length; offset += 200) {
+          const batch = db.batch();
+          records.slice(offset, offset + 200).forEach(record => {
+            const safeSource = record.sourceCollection.replace(/[^A-Za-z0-9_-]/g, '_');
+            const archiveRecordId = (safeSource + '__' + record.id).slice(0, 1400);
+            batch.set(archiveRef.collection('records').doc(archiveRecordId), {
+              sourceCollection: record.sourceCollection,
+              sourceId: record.id,
+              data: record.data || {},
+              archivedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            if (record.removeSource) batch.delete(record.ref);
+          });
+          await batch.commit();
+          if (status) status.textContent = 'आर्काइव कॉपी हो रहा है… ' + Math.min(offset + 200, records.length) + '/' + records.length;
+        }
+        await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
+        if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड और ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
+        await loadExamArchives();
+        if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
+        showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');
+      } catch (error) {
+        console.error('Exam archive failed:', error);
+        if (archiveRef) {
+          try { await archiveRef.set({ status: 'incomplete', errorMessage: String(error.message || error).slice(0, 240), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); } catch (_) {}
+        }
+        if (status) status.textContent = 'आर्काइव पूरी नहीं हुई। रिकॉर्ड जाँचें; आंशिक आर्काइव को सूची से देखें।';
+        showToast('आर्काइव विफल हुई। रिकॉर्ड सुरक्षित रखने के लिए त्रुटि जाँचें।');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+    window.archiveCompletedExamWorkflow = archiveCompletedExamWorkflow;
+
+    async function downloadSelectedExamArchive() {
+      if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट डाउनलोड करने की अनुमति नहीं है।');
+      const archiveId = document.getElementById('examArchiveSelect')?.value || '';
+      const status = document.getElementById('examArchiveStatus');
+      if (!archiveId) return showToast('पहले आर्काइव चुनें।');
+      try {
+        const archiveSnap = await db.collection('examArchives').doc(archiveId).get();
+        if (!archiveSnap.exists) throw new Error('आर्काइव रिकॉर्ड नहीं मिला।');
+        const archive = archiveSnap.data() || {};
+        const recordSnap = await db.collection('examArchives').doc(archiveId).collection('records').get();
+        const rows = [['sourceCollection', 'sourceId', 'dataJson']];
+        recordSnap.forEach(doc => {
+          const row = doc.data() || {};
+          rows.push([row.sourceCollection || '', row.sourceId || '', JSON.stringify(row.data || {})]);
+        });
+        const csv = rows.map(row => row.map(archiveCsvCell).join(',')).join('\r\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'bishnoism-exam-archive-' + String(archive.mode || 'exam') + '-' + archiveId + '.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        if (status) status.textContent = (archive.title || 'परीक्षा') + ' की ' + recordSnap.size + ' रिकॉर्ड वाली CSV डाउनलोड की गई।';
+      } catch (error) {
+        console.error('Exam archive export failed:', error);
+        if (status) status.textContent = 'आर्काइव रिपोर्ट डाउनलोड नहीं हुई।';
+        showToast('आर्काइव डाउनलोड विफल: ' + error.message);
+      }
+    }
+    window.downloadSelectedExamArchive = downloadSelectedExamArchive;
+
+
+</script>
 <script id="bx-owner-mobile-bottom-nav">
 (() => {
   const install = () => {

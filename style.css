@@ -1328,3 +1328,68 @@ body > header.sticky > div { flex-wrap: nowrap; }
   #tab-quiz .grid.grid-cols-3 > div:nth-child(1) { order: 2; }
   #tab-quiz .grid.grid-cols-3 > div:nth-child(3) { order: 3; }
 }
+
+
+/* Community glassmorphism refresh; existing Firestore feed and IDs remain intact. */
+#tab-community #communityFeed{background:linear-gradient(145deg,#143622 0%,#183d2c 58%,#10291d 100%);border:1px solid rgba(16,74,49,.35);border-radius:1.5rem;padding:1rem;box-shadow:0 18px 48px rgba(20,54,34,.14)}
+#tab-community #communityFeed .bx-chat-message{max-width:min(100%,52rem);border-radius:1.15rem;padding:1rem;background:rgba(255,255,255,.10);color:#fff8e7;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.12);backdrop-filter:blur(14px)}
+#tab-community #communityFeed .bx-chat-message p,#tab-community #communityFeed .bx-chat-message .text-stone-800{color:#fff8e7!important}
+#tab-community #communityFeed .bx-chat-message .text-stone-400,#tab-community #communityFeed .bx-chat-message .text-stone-500{color:rgba(226,245,231,.78)!important}
+#tab-community #communityFeed .bx-chat-message-mine{background:rgba(217,150,31,.18);border-color:rgba(245,190,74,.38);border-bottom-right-radius:.35rem}
+#tab-community #communityFeed .bx-chat-message-other{border-bottom-left-radius:.35rem}
+#tab-community #communityFeed .bx-chat-message [class*="bg-emerald-50"]{background:rgba(255,255,255,.12)!important;color:#f9d88b!important}
+#bishnoiMediaReader.is-mini .bishnoi-media-dialog{width:min(360px,calc(100vw - 16px));max-width:calc(100vw - 16px);position:fixed;right:16px;bottom:16px;margin:0;z-index:2147483000;resize:both;overflow:hidden;box-shadow:0 18px 55px rgba(0,0,0,.32)}
+#bishnoiMediaReader.is-mini .bishnoi-media-toolbar{cursor:move;touch-action:none;user-select:none}
+#bishnoiMediaReader.is-mini .bishnoi-media-body{aspect-ratio:16/9;min-height:120px}
+#bishnoiMediaReader.is-mini .bishnoi-media-body iframe{width:100%;height:100%;min-height:120px;border:0}
+
+
+/* Owner community moderation controls. */
+#tab-community [data-block-community-user],#tab-community [data-delete-community-post]{min-height:32px;white-space:nowrap}
+#platformMediaManageList button{min-height:40px}
+@media(max-width:640px){#platformMediaManageList>div{align-items:flex-start}#platformMediaManageList span{white-space:normal;overflow-wrap:anywhere}}
+
+
+/* Daily Quiz leaderboard: polished, responsive winner podium. */
+#dailyQuizSection .grid.grid-cols-3 > div {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  overflow: hidden;
+  border-radius: 1.15rem;
+  background: linear-gradient(150deg, rgba(255,255,255,.98), rgba(248,245,236,.92));
+  box-shadow: 0 8px 22px rgba(20,54,34,.08);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+#dailyQuizSection .grid.grid-cols-3 > div::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg,#b58a2b,#f6d979,#b58a2b);
+  opacity: .72;
+}
+#dailyQuizSection .grid.grid-cols-3 > div:nth-child(2) {
+  z-index: 1;
+  border-color: #d6a43a;
+  background: linear-gradient(150deg,#fff5ce 0%,#fffdf7 55%,#f5e6b0 100%);
+  box-shadow: 0 12px 28px rgba(170,126,30,.18);
+  transform: translateY(-5px);
+}
+#dailyQuizSection .grid.grid-cols-3 > div h4 {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+#dailyQuizSection .grid.grid-cols-3 > div:focus-within,
+#dailyQuizSection .grid.grid-cols-3 > div:hover {
+  box-shadow: 0 14px 30px rgba(20,54,34,.13);
+}
+@media(max-width:420px){
+  #dailyQuizSection .grid.grid-cols-3{gap:.45rem}
+  #dailyQuizSection .grid.grid-cols-3 > div{padding:.65rem .35rem;min-height:124px}
+  #dailyQuizSection .grid.grid-cols-3 > div:nth-child(2){transform:translateY(-3px)}
+}
+@media(prefers-reduced-motion:reduce){
+  #dailyQuizSection .grid.grid-cols-3 > div{transition:none}
+}

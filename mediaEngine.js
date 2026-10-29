@@ -44,13 +44,8 @@
   }
 
   function driveDocumentViewerUrl(input) {
-    const raw = String(input || '').trim();
-    if (!/^https:\/\//i.test(raw)) return '';
-    try {
-      const url = new URL(raw);
-      if (!/(^|\.)drive\.google\.com$/.test(url.hostname)) return '';
-      return 'https://docs.google.com/viewer?url=' + encodeURIComponent(url.href) + '&embedded=true';
-    } catch (_) { return ''; }
+    // Prefer Drive's native embedded preview over the Docs web viewer.
+    return drivePreviewUrl(input);
   }
 
   function normalizePhone(input) {
@@ -88,6 +83,24 @@
       modal.classList.add('is-mini');
       modal.hidden = false;
     });
+    let dragState = null;
+    toolbar.style.touchAction = 'none';
+    toolbar.addEventListener('pointerdown', function (event) {
+      if (!modal.classList.contains('is-mini') || event.target.closest('button')) return;
+      const rect = dialog.getBoundingClientRect();
+      dragState = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+      if (toolbar.setPointerCapture) toolbar.setPointerCapture(event.pointerId);
+      Object.assign(dialog.style, { position: 'fixed', margin: '0', left: rect.left + 'px', top: rect.top + 'px', right: 'auto', bottom: 'auto' });
+    });
+    toolbar.addEventListener('pointermove', function (event) {
+      if (!dragState || !modal.classList.contains('is-mini')) return;
+      const rect = dialog.getBoundingClientRect();
+      dialog.style.left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, dragState.left + event.clientX - dragState.x)) + 'px';
+      dialog.style.top = Math.max(8, Math.min(window.innerHeight - rect.height - 8, dragState.top + event.clientY - dragState.y)) + 'px';
+    });
+    const stopDragging = function () { dragState = null; };
+    toolbar.addEventListener('pointerup', stopDragging);
+    toolbar.addEventListener('pointercancel', stopDragging);
     close.addEventListener('click', closeReader);
     modal.addEventListener('click', function (event) { if (event.target === modal && !modal.classList.contains('is-mini')) closeReader(); });
     actions.append(mini, close);
