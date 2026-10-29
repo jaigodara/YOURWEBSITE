@@ -1288,3 +1288,36 @@ body > header.sticky #authActionsContainer { min-width: 0; }
   #tab-community #communityFeed .bx-chat-message,
   #tab-community #postEditor button { transition: none; }
 }
+
+
+/* Final responsive polish: stable five-tab navigation, readable podium and flexible header controls. */
+.bnav-mobile > div { width: 100%; max-width: 34rem; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.bnav-mobile button { min-width: 0; max-width: 100%; }
+.bnav-mobile .bnav-icon { width: min(100%, 3.5rem); min-width: 0; flex-shrink: 1; }
+.bnav-mobile .bnav-label { display: block; width: 100%; min-width: 0; white-space: nowrap; font-size: clamp(9px, 2.4vw, 11px); letter-spacing: 0; }
+#tab-quiz .grid.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(4px, 1.6vw, 8px); }
+#tab-quiz #winner1Name, #tab-quiz #winner2Name, #tab-quiz #winner3Name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body > header.sticky > div { flex-wrap: nowrap; }
+@media (max-width: 640px) {
+  body > header.sticky > div { gap: .35rem !important; padding-left: .55rem !important; padding-right: .55rem !important; }
+  body > header.sticky > div > a { gap: .35rem !important; flex: 1 1 auto; min-width: 0; }
+  body > header.sticky > div > a > div:first-child { width: 1.9rem !important; height: 1.9rem !important; flex: 0 0 1.9rem !important; font-size: 1rem !important; }
+  body > header.sticky > div > a .font-yatra { font-size: clamp(.78rem, 3.3vw, .95rem) !important; }
+  body > header.sticky > div > a .tracking-wider { font-size: 7px !important; }
+  body > header.sticky > div > #authActionsContainer { flex: 0 0 auto; }
+  #notificationBellButton { width: 40px; min-width: 40px; height: 40px; padding: .4rem; }
+  #authLoginButton { min-height: 40px; padding: .55rem .55rem; font-size: 10px; white-space: nowrap; }
+  .bnav-mobile { padding-left: max(3px, env(safe-area-inset-left, 0px)) !important; padding-right: max(3px, env(safe-area-inset-right, 0px)) !important; }
+  .bnav-mobile > div { gap: 1px !important; }
+  .bnav-mobile button { padding: 4px 1px !important; border-radius: 10px !important; }
+  .bnav-mobile .bnav-icon { height: 27px !important; margin-bottom: 1px !important; font-size: 16px !important; }
+  .bnav-mobile .bnav-label { font-size: clamp(8px, 2.35vw, 10px) !important; }
+  #tab-quiz .grid.grid-cols-3 > div { padding: 8px 3px !important; min-width: 0; }
+  #tab-quiz .grid.grid-cols-3 .text-3xl { font-size: 1.5rem !important; }
+}
+@media (max-width: 360px) {
+  body > header.sticky > div > a .font-yatra { font-size: .76rem !important; }
+  body > header.sticky > div > a .tracking-wider { display: none; }
+  #authLoginButton { padding: .5rem .4rem; font-size: 9px; }
+  .bnav-mobile .bnav-label { font-size: 8px !important; }
+}
