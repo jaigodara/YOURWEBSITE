@@ -4935,7 +4935,7 @@ const digits = String(value || '').replace(/\D/g, '');
       return;
     }
 
-    const durationMinutes = Math.max(1, Number(mode === 'quiz' ? state.examConfig?.quizDurationMinutes : state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
+    const durationMinutes = Math.max(1, Number(mode === 'quiz' ? (state.examConfig?.quizDurationMinutes ?? state.examConfig?.durationMinutes) : state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
     const scheduledEndAt = (mode === 'quiz' ? Date.now() : scheduledStart) + durationMinutes * 60 * 1000;
     let lateEntryGranted = false;
     let ownerGrantedEndAt = null;
