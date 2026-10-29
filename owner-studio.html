@@ -241,8 +241,8 @@
         <p class="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-stone-500">प्रबंधन मेनू / Admin menu</p>
         <nav class="grid grid-cols-2 md:grid-cols-1 gap-1.5">
           <button type="button" data-studio-page="dashboard" class="studio-nav-item studio-nav-active">📊 Dashboard</button>
-          <button type="button" data-studio-page="questions" class="studio-nav-item">📝 Question Bank</button>
-          <button type="button" data-studio-page="checking" class="studio-nav-item">✅ Check Answer Sheets</button>
+          <button type="button" data-studio-page="questions" class="studio-nav-item">📝 परीक्षा प्रबंधन — प्रश्न बैंक एवं उत्तर-पत्र जाँच</button>
+          <button type="button" data-studio-page="checking" class="studio-nav-item" hidden aria-hidden="true">✅ Check Answer Sheets</button>
           <button type="button" data-studio-page="admit" class="studio-nav-item">🎟️ Admit Cards</button>
           <button type="button" data-studio-page="notifications" class="studio-nav-item">🔔 Notifications</button>
           <button type="button" data-studio-page="settings" class="studio-nav-item">⚙️ Settings</button>
@@ -1496,7 +1496,8 @@ if (environmentEl) {
             document.querySelectorAll('#ownerStudioSidebar [data-studio-page]').forEach(button => {
               const page = button.dataset.studioPage;
               const permitted = page === 'dashboard' ||
-                (routePermissions[page] && permissions[routePermissions[page]] === true);
+                (page === 'questions' && (permissions.quizDrafts === true || permissions.examReview === true)) ||
+                (page !== 'checking' && routePermissions[page] && permissions[routePermissions[page]] === true);
               button.dataset.editorAllowed = String(permitted);
               button.hidden = !permitted;
               button.classList.toggle('hidden', !permitted);
@@ -1614,11 +1615,16 @@ const OWNER_STUDIO_ROUTES = {
   },
   questions: {
     pane: 'pane_quiz',
-    permission: 'quizDrafts',
-    panels: ['ownerQuestionBankPanel']
+    permission: null,
+    permissions: ['quizDrafts', 'examReview'],
+    panels: [
+      'ownerQuestionBankPanel',
+      'ownerExamSessionMonitorPanel',
+      'manualExamReviewSection'
+    ]
   },
   checking: {
-    pane: 'pane_exam',
+    pane: 'pane_quiz',
     permission: 'examReview',
     panels: [
       'ownerExamSessionMonitorPanel',
@@ -1688,6 +1694,12 @@ function moveOwnerStudioPanels() {
       systemPane.appendChild(panel);
     }
   });
+
+  const questionPane = document.getElementById('pane_quiz');
+  ['ownerExamSessionMonitorPanel', 'manualExamReviewSection'].forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel && questionPane && !questionPane.contains(panel)) questionPane.appendChild(panel);
+  });
 }
 
 function openStudioPage(page) {
@@ -1699,11 +1711,11 @@ function openStudioPage(page) {
 
   const owner = isPrimaryOwner();
 
-  if (
-    !owner &&
-    page !== 'dashboard' &&
-    (!route.permission || !hasEditorPermission(route.permission))
-  ) {
+  const routeAllowed = Array.isArray(route.permissions)
+    ? route.permissions.some(permission => hasEditorPermission(permission))
+    : !!route.permission && hasEditorPermission(route.permission);
+
+  if (!owner && page !== 'dashboard' && !routeAllowed) {
     showToast('इस अनुभाग के लिए अनुमति नहीं है।');
     return;
   }
@@ -1726,6 +1738,8 @@ function openStudioPage(page) {
       panel.classList.remove('hidden');
     }
   });
+
+  if (page === 'questions') window.setTimeout(() => loadExamSessionQueue(), 0);
 
   document.querySelectorAll('[data-studio-page]').forEach(button => {
     const active = button.dataset.studioPage === page;
