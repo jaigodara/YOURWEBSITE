@@ -953,7 +953,11 @@ Ans: B"></textarea>
         <div class="space-y-2 pt-2 border-t border-stone-100 text-xs">
           <label class="font-bold text-stone-700 block">2. विशेष सेक्शन लॉक करें (Section Locks):</label>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
+            <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border">
+              <span>🏠 मुख्य पृष्ठ (Home)</span>
+              <select id="lock_home" class="p-2 rounded-lg border text-xs font-semibold" aria-label="मुख्य पृष्ठ रखरखाव"><option value="off">🟢 चालू</option><option value="both">🔴 लॉक</option></select>
+            </div>
+            <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border">
               <span>📿 जप माला (Mala)</span>
               <select id="lock_mala" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
             </div>
@@ -5583,7 +5587,7 @@ return review ? {
         if (message) message.value = data.message || '';
         if (bypass) bypass.checked = data.vipBypass !== false;
         const sections = data.sections || {};
-        Object.entries({mala:'lock_mala', library:'lock_library', quiz:'lock_quiz', community:'lock_community', history:'lock_history'}).forEach(([key,id]) => {
+        Object.entries({home:'lock_home', mala:'lock_mala', library:'lock_library', quiz:'lock_quiz', community:'lock_community', history:'lock_history'}).forEach(([key,id]) => {
           const el = document.getElementById(id);
           if (el) el.value = sections[key] || 'off';
         });
@@ -5596,6 +5600,7 @@ return review ? {
       const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
       const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
       const sections = {
+        home: document.getElementById('lock_home')?.value || 'off',
         mala: document.getElementById('lock_mala')?.value || 'off',
         library: document.getElementById('lock_library')?.value || 'off',
         quiz: document.getElementById('lock_quiz')?.value || 'off',
@@ -6710,6 +6715,34 @@ pre,code{overflow-wrap:anywhere}
  #ownerStudioPageContent .overflow-x-auto { -webkit-overflow-scrolling:touch; }
 }
 #ownerStudioPageContent .rounded-2xl:has(#ownerProfileShowExamInfo) { display:none !important; }
+
+    /* Final Owner Studio usability pass: explicit hierarchy, larger controls, and a true mobile drawer. */
+    #ownerStudioSidebar nav { gap: .55rem; }
+    .studio-nav-item { min-height: 48px; padding: .72rem .8rem; font-size: .8rem; letter-spacing: -.01em; }
+    #ownerMaintenanceSettingsPanel { border-width: 1px; border-color: #e8c7b8; background: linear-gradient(180deg,#fff 0%,#fffdfa 100%); }
+    #ownerMaintenanceSettingsPanel > div:first-child { align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    #ownerMaintenanceSettingsPanel .grid > div { min-width: 0; gap: .65rem; }
+    #ownerMaintenanceSettingsPanel .grid > div > span { min-width: 0; line-height: 1.45; }
+    #ownerMaintenanceSettingsPanel select { width: auto; min-width: 118px; }
+    #ownerStudioPageContent > section, #ownerStudioPageContent > div { min-width: 0; }
+    #ownerStudioPageContent button { min-height: 44px; }
+    @media(max-width:767px) {
+      #ownerStudioSidebar { width: min(88vw, 350px) !important; padding: 16px !important; }
+      #ownerStudioSidebar nav { grid-template-columns: minmax(0,1fr) !important; }
+      .studio-nav-item { min-height: 50px; font-size: .86rem; }
+      #ownerMaintenanceSettingsPanel .grid { grid-template-columns: minmax(0,1fr) !important; }
+      #ownerMaintenanceSettingsPanel .grid > div { align-items: center; }
+      #ownerMaintenanceSettingsPanel select { min-height: 44px; max-width: 60%; }
+      #ownerMaintenanceSettingsPanel > div:first-child label { width: 100%; }
+      #ownerStudioPageContent input:not([type=checkbox]):not([type=radio]),
+      #ownerStudioPageContent select, #ownerStudioPageContent textarea { width: 100%; }
+      #ownerStudioPageContent input[type=checkbox], #ownerStudioPageContent input[type=radio] { width: 20px; height: 20px; flex: 0 0 20px; }
+    }
+    @media(min-width:768px) {
+      #ownerStudioSidebar nav { grid-template-columns: minmax(0,1fr) !important; }
+      #ownerStudioSidebar { width: 100%; }
+      #ownerStudioPageContent { min-width: 0; }
+    }
 </style>
 
 </body>
