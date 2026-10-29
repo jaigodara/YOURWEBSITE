@@ -1075,6 +1075,24 @@ notify(
         }
       });
     });
+    // Community can remain readable while posting is paused. This is separate
+    // from locking the entire community section.
+    const communityPostingBlocked = (m.sections || {}).community === 'posting_only' && !(m.vipBypass !== false && state.isOwner);
+    const postEditor = byId('postEditor');
+    const postText = byId('postText');
+    if (postEditor) {
+      postEditor.classList.toggle('maintenance-posting-locked', communityPostingBlocked);
+      postEditor.setAttribute('aria-disabled', communityPostingBlocked ? 'true' : 'false');
+    }
+    if (postText) {
+      postText.disabled = communityPostingBlocked;
+      postText.placeholder = communityPostingBlocked ? 'संवाद मंच पर संदेश भेजना अस्थायी रूप से बंद है।' : 'अपना संदेश लिखें…';
+    }
+    const postButton = byId('postEditor')?.querySelector('button[onclick*="submitPost"], button[type="submit"]');
+    if (postButton) {
+      postButton.disabled = communityPostingBlocked;
+      postButton.title = communityPostingBlocked ? 'Owner Studio में संदेश भेजना फिर चालू करें' : 'संदेश भेजें';
+    }
     const globalOverlay = byId('globalMaintenanceOverlay');
     if (globalOverlay) {
       const blockWebsite = (mode === 'web_only' || mode === 'both') && !(m.vipBypass !== false && state.isOwner);
@@ -2920,6 +2938,18 @@ window.renderExamVisibility = function renderExamVisibility() {
     window.renderCommunity(communityPostsCache);
   };
   window.BishnoiCommunity.submitPost = async function () {
+    const maintenance = state.maintenance || {};
+    const sectionMode = (maintenance.sections || {}).community || 'off';
+    const globalMode = maintenance.globalMode || 'off';
+    const ownerBypass = maintenance.vipBypass !== false && state.isOwner;
+    const postingBlocked = !ownerBypass && (
+      sectionMode === 'posting_only' || sectionMode === 'both' ||
+      globalMode === 'both' || globalMode === 'web_only'
+    );
+    if (postingBlocked) {
+      notify(maintenance.message || 'संवाद मंच पर संदेश भेजना अभी अस्थायी रूप से बंद है।', 'error');
+      return;
+    }
     if (!requireUser()) return;
 
     const input = byId('postText');
