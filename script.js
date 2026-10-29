@@ -3112,9 +3112,6 @@ window.renderExamVisibility = function renderExamVisibility() {
           <div class="grid gap-3 sm:grid-cols-2">${schedules.map(([key,label]) => `<label class="block text-sm font-semibold text-stone-700">${escapeHtml(label)}<input type="datetime-local" data-exam-schedule="${key}" value="${toLocalInput(c[key])}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>`).join('')}</div>
           <div class="mt-3 grid gap-3 sm:grid-cols-2">${[['quizDurationMinutes','दैनिक क्विज़ अवधि'],['mock1DurationMinutes','Mock 1 अवधि'],['mock2DurationMinutes','Mock 2 अवधि'],['mainDurationMinutes','Main Exam अवधि']].map(([key,label]) => `<label class="block text-sm font-semibold text-stone-700">${label} (मिनट)<input type="number" min="1" max="360" data-exam-duration="${key}" value="${Math.max(1, Number(c[key] || c.durationMinutes) || CONFIG.defaultExamMinutes)}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"></label>`).join('')}</div>
         </div>
-        <div><h3 class="mb-2 font-bold text-stone-900">प्रश्न सेट</h3><div class="grid gap-3 sm:grid-cols-2">
-          ${[['quizQuestionSet','दैनिक परीक्षा'],['mock1QuestionSet','मॉक परीक्षा 1'],['mock2QuestionSet','मॉक परीक्षा 2'],['mainQuestionSet','मुख्य परीक्षा']].map(([key,label]) => `<label class="text-sm font-semibold text-stone-700">${label}<select data-exam-set="${key}" class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">${['set1','set2','set3','set4'].map(v => `<option value="${v}" ${(c[key] || 'set1') === v ? 'selected' : ''}>${v.toUpperCase()}</option>`).join('')}</select></label>`).join('')}
-        </div></div>
         <div><h3 class="mb-2 font-bold text-stone-900">रखरखाव मोड</h3>
           <label class="block text-sm font-semibold text-stone-700">मोड<select data-maintenance-mode class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">
             ${[['off','बंद'],['both','वेबसाइट और ऐप'],['web_only','केवल वेबसाइट'],['phone_only','केवल मोबाइल/ऐप']].map(([v,l]) => `<option value="${v}" ${(maintenance.globalMode || 'off') === v ? 'selected' : ''}>${l}</option>`).join('')}
@@ -4764,7 +4761,8 @@ const digits = String(value || '').replace(/\D/g, '');
     setText('cbtRollNumber', identity.rollNumber || 'पंजीकरण रिकॉर्ड में उपलब्ध होने पर दिखेगा');
     const verifiedPhone = normalizeStudentPhone(state.user?.phoneNumber || '');
     setText('cbtPhoneNumber', verifiedPhone || 'Firebase verified phone उपलब्ध नहीं');
-    setText('cbtQuestionSet', String(exam.questionSet || 'set1').toUpperCase());
+    const questionSetLabel = document.getElementById('cbtQuestionSet')?.closest('div');
+    if (questionSetLabel) questionSetLabel.hidden = true;
     renderExamQuestionPalette(exam);
 
     if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -4984,8 +4982,6 @@ const digits = String(value || '').replace(/\D/g, '');
     const attemptEndAt = lateEntryGranted ? ownerGrantedEndAt : scheduledEndAt;
 
     const collectionName = CONFIG.examCollections[mode];
-    const questionSetConfigKey = ({ quiz: 'quizQuestionSet', mock1: 'mock1QuestionSet', mock2: 'mock2QuestionSet', main: 'mainQuestionSet' })[mode];
-    const selectedQuestionSet = ['set1','set2','set3','set4'].includes(config[questionSetConfigKey]) ? config[questionSetConfigKey] : 'set1';
     if (!collectionName) {
       notify('Unknown exam type.', 'error');
       return;
@@ -4998,8 +4994,7 @@ const digits = String(value || '').replace(/\D/g, '');
       const questions = snapshot.docs
         .filter(doc => {
           const data = doc.data() || {};
-          const docSet = ['set1','set2','set3','set4'].includes(data.questionSet || data.questionSetKey || data.set) ? (data.questionSet || data.questionSetKey || data.set) : 'set1';
-          return data.published === true && data.status !== 'draft' && docSet === selectedQuestionSet;
+          return data.published === true && data.status !== 'draft';
         })
         .map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -5071,7 +5066,6 @@ const digits = String(value || '').replace(/\D/g, '');
       state.exam = {
         active: true,
         mode,
-        questionSet: selectedQuestionSet,
         questionSetKey: collectionName,
         questions,
         index: 0,

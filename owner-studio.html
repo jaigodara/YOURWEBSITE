@@ -540,8 +540,6 @@
           <option value="mockExam_2">Mock Exam 2</option>
           <option value="mainExamQuestions">Main Exam</option>
         </select>
-        <label class="block text-xs font-bold text-stone-700">प्रश्न सेट चुनें</label>
-        <select id="bulkQuestionSet" class="w-full p-2.5 rounded-xl border border-stone-300 text-xs bg-stone-50"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select>
         <textarea id="bulkQuizInput" rows="6" class="w-full p-3 font-mono text-xs rounded-2xl border border-stone-300 bg-stone-50 focus:outline-none" placeholder="Q: खेजड़ली बलिदान किस वर्ष हुआ था?
 A) 1730 ईस्वी
 B) 1485 ईस्वी
@@ -787,16 +785,7 @@ Ans: B"></textarea>
 </div>
 
         </div>
-        <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-3">
-          <h4 class="font-bold text-sm text-forest">📚 विद्यार्थियों के लिए सक्रिय प्रश्न सेट</h4>
-          <p class="text-xs text-stone-600">हर परीक्षा के लिए सक्रिय सेट चुनें। पुराने प्रश्न जिनमें Set दर्ज नहीं है, वे Set 1 में माने जाएँगे।</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label class="text-xs font-bold text-stone-700">दैनिक क्विज़<select id="ownerQuizQuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-            <label class="text-xs font-bold text-stone-700">मॉक परीक्षा 1<select id="ownerMock1QuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-            <label class="text-xs font-bold text-stone-700">मॉक परीक्षा 2<select id="ownerMock2QuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-            <label class="text-xs font-bold text-stone-700">मुख्य परीक्षा<select id="ownerMainQuestionSet" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-base"><option value="set1">Set 1</option><option value="set2">Set 2</option><option value="set3">Set 3</option><option value="set4">Set 4</option></select></label>
-          </div>
-        </div>
+        <!-- Per-student question-set controls removed: one shared bank per exam. -->
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
           <div><h4 class="font-yatra text-sm text-forest">⏳ परीक्षा शुरू होने का समय तय करें</h4><p class="text-[11px] text-stone-600 mt-1">दैनिक क्विज़ हर दिन पूरे दिन उपलब्ध रहता है—इसके लिए समय या late-entry अनुमति की जरूरत नहीं है। नीचे का समय केवल मॉक परीक्षा 1/2 और मुख्य परीक्षा के लिए लागू है; समय आपके डिवाइस के स्थानीय समय क्षेत्र के अनुसार सहेजा जाता है।</p></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
