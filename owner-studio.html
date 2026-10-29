@@ -5184,7 +5184,7 @@ window.clearExamReviewFilters = clearExamReviewFilters;
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       })[char]);
       const getAnswerText = (questionId, answer, student) => {
-        const key = (student.questionSetKey || ({ main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' })[student.mode] || '') + '::' + questionId;
+        const key = examQuestionCollectionForRecord(student) + '::' + questionId;
         const q = examReviewQuestionLookup[key] || examReviewQuestionLookup[questionId] || {};
         const options = Array.isArray(q.options) ? q.options : Array.isArray(q.opts) ? q.opts : Array.isArray(q.choices) ? q.choices : [];
         const answerIndex = Number(answer);

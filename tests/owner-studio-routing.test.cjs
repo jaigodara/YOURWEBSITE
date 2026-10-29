@@ -86,3 +86,11 @@ test('Question uploader compares against existing Firestore records and offers d
   assert.match(ownerHtml, /const questionsPerBatch = Math\.max\(1, Math\.floor\(400 \/ writesPerQuestion\)\)/);
   assert.match(ownerHtml, /await batch\.commit\(\);[\s\S]*committedCount \+= chunk\.length/);
 });
+
+test('Exam question workflow has no per-student Set selector and resolves answer keys by exam collection', () => {
+  assert.doesNotMatch(ownerHtml, /bulkQuestionSet|ownerQuizQuestionSet|ownerMock1QuestionSet|ownerMock2QuestionSet|ownerMainQuestionSet/);
+  assert.match(ownerHtml, /function examQuestionCollectionForRecord\(row/);
+  assert.match(ownerHtml, /questionCollection: item\.questionCollection/);
+  assert.doesNotMatch(scriptJs, /data-question-set|VALID_QUESTION_SETS/);
+  assert.match(scriptJs, /questionCollection: CONFIG\.examCollections\[exam\.mode\]/);
+});
