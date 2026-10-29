@@ -3104,7 +3104,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   };
 
-  // Owner Studio — exam visibility, schedule, question-set and maintenance controls.
+  // Owner Studio — exam visibility, schedule, and maintenance controls.
   // Writes use the existing Firestore documents; server-side rules must restrict these
   // writes to the owner role. Controls are generated only for authenticated owners.
   function renderOwnerStudio() {
@@ -3193,12 +3193,6 @@ window.renderExamVisibility = function renderExamVisibility() {
               <option value="mainExamQuestions">मुख्य परीक्षा</option>
             </select>
           </label>
-          <label class="text-sm font-semibold text-stone-700">Question Set
-            <select data-question-set class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3">
-              <option value="set1">Set 1</option><option value="set2">Set 2</option>
-              <option value="set3">Set 3</option><option value="set4">Set 4</option>
-            </select>
-          </label>
         </div>
         <label class="block text-sm font-semibold text-stone-700">Question file (.json, .csv, .xlsx, .xls)
           <input data-question-file type="file" accept=".json,.csv,.xlsx,.xls,application/json,text/csv" class="mt-1 block min-h-12 w-full rounded-xl border border-stone-300 bg-white p-2">
@@ -3218,7 +3212,7 @@ window.renderExamVisibility = function renderExamVisibility() {
           <p class="mt-1 text-sm text-stone-600">Uploaded questions are drafts. Review them and publish only after verifying the answer key.</p></div>
           <button type="button" data-owner-load-questions class="min-h-12 rounded-xl border border-emerald-800 px-5 font-bold text-emerald-900">प्रश्न सूची लोड करें</button>
         </div>
-        <p data-owner-question-bank-status class="text-sm text-stone-600">पहले परीक्षा संग्रह और Set चुनें, फिर प्रश्न सूची लोड करें।</p>
+        <p data-owner-question-bank-status class="text-sm text-stone-600">परीक्षा संग्रह चुनें, फिर सभी प्रश्नों की समीक्षा करें।</p>
         <div data-owner-question-bank-list class="space-y-3"></div>
       </section>
 
@@ -3546,8 +3540,7 @@ escapeHtml(statusLabel) + '</span></div>' +
     const previewOutput = host.querySelector('[data-question-preview-output]');
     const uploadButton = host.querySelector('[data-question-upload]');
     const getQuestionImportOptions = () => ({
-      target: host.querySelector('[data-question-target]')?.value || 'mainExamQuestions',
-      set: host.querySelector('[data-question-set]')?.value || 'set1'
+      target: host.querySelector('[data-question-target]')?.value || 'mainExamQuestions'
     });
 
     host.querySelector('[data-question-file]')?.addEventListener('change', event => {
@@ -3560,7 +3553,7 @@ escapeHtml(statusLabel) + '</span></div>' +
       }
     });
     
-    // Invalidate an old preview whenever the exam or set changes.
+    // Invalidate an old preview whenever the exam collection changes.
     const invalidateQuestionPreview = () => {
       questionImportPreview = null;
 
@@ -3575,9 +3568,6 @@ escapeHtml(statusLabel) + '</span></div>' +
     host.querySelector('[data-question-target]')
       ?.addEventListener('change', invalidateQuestionPreview);
 
-    host.querySelector('[data-question-set]')
-      ?.addEventListener('change', invalidateQuestionPreview);
-
 
     host.querySelector('[data-question-preview]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
@@ -3586,11 +3576,11 @@ escapeHtml(statusLabel) + '</span></div>' +
         notify('पहले JSON, CSV या Excel फ़ाइल चुनें।', 'error');
         return;
       }
-      const { target, set } = getQuestionImportOptions();
+      const { target } = getQuestionImportOptions();
       const button = host.querySelector('[data-question-preview]');
       if (button) button.disabled = true;
       try {
-        const result = await window.BishnoiApp.importExamQuestionFile(file, target, set, { previewOnly: true });
+        const result = await window.BishnoiApp.importExamQuestionFile(file, target, { previewOnly: true });
         questionImportPreview = result;
         questionImportFile = file;
         if (previewOutput) {
@@ -3641,11 +3631,11 @@ escapeHtml(statusLabel) + '</span></div>' +
   return;
 }
 
-      const { target, set } = getQuestionImportOptions();
+      const { target } = getQuestionImportOptions();
       const button = host.querySelector('[data-question-upload]');
       if (button) button.disabled = true;
       try {
-        const result = await window.BishnoiApp.importExamQuestionFile(questionImportFile, target, set);
+        const result = await window.BishnoiApp.importExamQuestionFile(questionImportFile, target);
         questionImportPreview = null;
         if (previewOutput) {
           previewOutput.classList.remove('hidden');
@@ -3731,7 +3721,7 @@ const answerKeyByQuestionId = new Map();
 const questionCollections = [
   ...new Set(
     rows
-      .map(row => CONFIG.examCollections[row.mode] || row.questionSetKey)
+      .map(row => CONFIG.examCollections[row.mode] || row.questionCollection || row.questionSetKey)
       .filter(Boolean)
   )
 ];
@@ -3744,14 +3734,8 @@ await Promise.all(questionCollections.map(async questionCollection => {
 
     questionSnap.docs.forEach(questionDoc => {
       const question = questionDoc.data() || {};
-      const set = question.questionSet || question.questionSetKey || question.set || 'set1';
-
-      if (!['set1', 'set2', 'set3', 'set4'].includes(set)) return;
-
-     
-const answerKey = {
-  set,
- answer:
+      const answerKey = {
+        answer:
   question.correctAnswer ??
   question.answerIndex ??
   question.ans ??
@@ -3809,19 +3793,7 @@ const total = Math.max(
           const modeLabel = ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' })[row.mode] || row.mode;
           const answers = row.answers && typeof row.answers === 'object' ? row.answers : {};
 const questionCollection =
-  CONFIG.examCollections[row.mode] || row.questionSetKey || '';
-
-const rawSet = String(
-  row.questionSet ?? row.questionSetKey ?? row.set ?? 'set1'
-).trim().toLowerCase();
-
-const rowSet = /^([1-4])$/.test(rawSet)
-  ? 'set' + rawSet
-  : rawSet;
-
-const validRowSet = ['set1', 'set2', 'set3', 'set4'].includes(rowSet)
-  ? rowSet
-  : 'set1';
+  CONFIG.examCollections[row.mode] || row.questionCollection || row.questionSetKey || '';
 
 const questionHtml = snapshots.map((q, qi) => {
  const questionId = String(q.id ?? qi);
@@ -3866,9 +3838,7 @@ const questionHtml = snapshots.map((q, qi) => {
     questionCollection + '::' + questionId
   );
 
-  const correctIndex = keyRecord && keyRecord.set === validRowSet
-  ? normalizeAnswerIndex(keyRecord.answer)
-  : -1;
+  const correctIndex = keyRecord ? normalizeAnswerIndex(keyRecord.answer) : -1;
   
   const answerLabel = index => index >= 0
     ? String.fromCharCode(65 + index)
@@ -3916,7 +3886,7 @@ const questionHtml = snapshots.map((q, qi) => {
           const isPublished = row.manualCheckStatus === 'published';
           return '<article class="rounded-2xl border border-stone-200 bg-white p-4" data-check-card="' + escapeHtml(row.id) + '">' +
             '<div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-extrabold text-emerald-950">' + escapeHtml(row.name || 'विद्यार्थी') +
-            '</h3><p class="mt-1 text-xs text-stone-600">' + escapeHtml(modeLabel) + ' · ' + escapeHtml(String(row.questionSet || 'set1').toUpperCase()) +
+            '</h3><p class="mt-1 text-xs text-stone-600">' + escapeHtml(modeLabel) +
             ' · रोल: ' + escapeHtml(row.rollNumber || '—') + '</p><p class="text-xs text-stone-600">फोन: ' + escapeHtml(row.studentPhone || '—') +
             ' · हल किए: ' + Number(row.attempted || 0) + '/' +
 Number(row.totalQuestions || snapshots.length || 0) + '</p></div><span data-check-status class="rounded-full px-3 py-1 text-xs font-bold ' +
@@ -3934,7 +3904,7 @@ Number(row.totalQuestions || snapshots.length || 0) + '</p></div><span data-chec
 '" data-roll="' + escapeHtml(row.rollNumber || '') +
 '" data-father-name="' + escapeHtml(row.fatherName || row.fathersName || '') +
 '" data-email="' + escapeHtml(row.email || '') +
-'" data-set="' + escapeHtml(row.questionSet || 'set1') + '" class="mt-3 min-h-12 w-full rounded-xl bg-emerald-900 px-4 font-bold text-white">' +
+'" class="mt-3 min-h-12 w-full rounded-xl bg-emerald-900 px-4 font-bold text-white">' +
             (isPublished ? 'परिणाम अपडेट करें' : 'जाँच सेव करें और परिणाम प्रकाशित करें') + '</button></article>';
         }).join('');
 
@@ -4011,7 +3981,6 @@ rollNumber: button.dataset.roll || null,
 fatherName: button.dataset.fatherName || '',
 email: button.dataset.email || '',
 mode,
-                questionSet: button.dataset.set || 'set1',
                 score,
                 total,
                 status: 'published',
@@ -4078,7 +4047,6 @@ if (status) {
               'Date of Birth': r.dateOfBirth ?? r.dob ?? r.birthDate ?? '',
               'Phone Number': normalizeStudentPhone(r.studentPhone || r.phone || r.mobile || ''),
               'Email': r.email || '',
-              'Assigned Exam Set': r.questionSet || '',
               'Exam Mode': r.mode || '',
               'Status': r.status || '',
               'Score': r.score ?? '',
@@ -4128,7 +4096,6 @@ if (status) {
             'Date of Birth': d.dateOfBirth ?? d.dob ?? d.birthDate ?? '',
             'Phone Number': normalizeStudentPhone(d.phone || d.phoneNumber || d.mobile || d.studentPhone || ''),
             'Email': d.email || '',
-            'Assigned Exam Set': d.questionSet || d.examSet || d.assignedExamSet || state.examConfig?.mainQuestionSet || 'set1',
             'Exam': d.examName || d.examTitle || 'मुख्य परीक्षा',
             'Status': d.verificationStatus || d.status || (d.verified === true ? 'verified' : 'pending')
           };
@@ -4155,7 +4122,6 @@ if (status) {
     host.querySelector('[data-owner-load-questions]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
       const target = host.querySelector('[data-question-target]')?.value || 'mainExamQuestions';
-      const set = host.querySelector('[data-question-set]')?.value || 'set1';
       const status = host.querySelector('[data-owner-question-bank-status]');
       const list = host.querySelector('[data-owner-question-bank-list]');
       if (status) status.textContent = 'प्रश्न लोड हो रहे हैं…';
@@ -4163,19 +4129,8 @@ if (status) {
       try {
        const snap = await collection(target).limit(200).get();
 
-const normalizeSet = value => {
-  const text = String(value ?? 'set1').trim().toLowerCase();
-  return /^[1-4]$/.test(text) ? 'set' + text : text;
-};
-
-const rows = snap.docs
-  .map(doc => ({ ...doc.data(), id: doc.id }))
-  .filter(row =>
-    normalizeSet(
-      row.questionSet ?? row.questionSetKey ?? row.set
-    ) === normalizeSet(set)
-  );
-        if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस संग्रह और Set में प्रश्न नहीं मिले।';
+const rows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस परीक्षा संग्रह में प्रश्न नहीं मिले।';
         if (!list) return;
         list.innerHTML = rows.map(row => {
           const options = Array.isArray(row.options) ? row.options
@@ -4380,7 +4335,6 @@ const digits = String(value || '').replace(/\D/g, '');
       studentPhone: getStudentIdentity().phone || '',
       studentIdentityKey: getStudentIdentity().identityKey || ('uid:' + state.user.uid),
       mode: exam.mode,
-      questionSet: exam.questionSet || 'set1',
       questions: exam.questions,
       index: exam.index,
       answers: exam.answers,
@@ -4445,7 +4399,6 @@ const digits = String(value || '').replace(/\D/g, '');
     state.exam = {
       active: true,
       mode: saved.mode,
-      questionSet: saved.questionSet || 'set1',
       questions: saved.questions,
       index: Math.max(0, Math.min(Number(saved.index) || 0, saved.questions.length - 1)),
       answers: saved.answers && typeof saved.answers === 'object' ? saved.answers : {},
@@ -4678,7 +4631,7 @@ const digits = String(value || '').replace(/\D/g, '');
             <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">विद्यार्थी</span><strong id="cbtStudentName" class="break-words text-forest">—</strong></div>
             <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">रोल नंबर</span><strong id="cbtRollNumber" class="break-words text-forest">—</strong></div>
             <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">सत्यापित फोन</span><strong id="cbtPhoneNumber" class="break-words text-forest">—</strong></div>
-            <div class="rounded-lg bg-stone-50 p-2"><span class="block text-stone-500">परीक्षा सेट</span><strong id="cbtQuestionSet" class="break-words text-forest">—</strong></div>
+            
           </div>
         </div>
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -5327,8 +5280,7 @@ const digits = String(value || '').replace(/\D/g, '');
       // Mock/Main attempts remain pending owner review.
       answers: { ...exam.answers },
       review: { ...exam.review },
-      questionSetKey: CONFIG.examCollections[exam.mode] || exam.mode,
-      questionSet: exam.questionSet || 'set1',
+      questionCollection: CONFIG.examCollections[exam.mode] || exam.mode,
       questionOrder: exam.questions.map((question, index) => String(question.id || index)),
       questionSnapshots: exam.questions.map((question, index) => ({
         id: String(question.id || index),
@@ -5357,8 +5309,7 @@ const digits = String(value || '').replace(/\D/g, '');
           sourceCollection: CONFIG.submissionCollections[exam.mode],
           sourceSubmissionId: submissionRef.id,
           mode: exam.mode,
-          questionSet: exam.questionSet || 'set1',
-          name: result.name,
+              name: result.name,
           rollNumber: result.rollNumber,
           score,
           total: maxMarks,
@@ -6753,7 +6704,6 @@ window.toggleAuthPassword = function (id, button) {
     mock2: 'mockExam_2',
     main: 'mainExamQuestions'
   });
-  const VALID_QUESTION_SETS = new Set(['set1', 'set2', 'set3', 'set4']);
 
  
   function hasEditorPermission(permission) {
@@ -6906,12 +6856,6 @@ window.toggleAuthPassword = function (id, button) {
       correctAnswer: Number(correctAnswer),
       answerIndex: Number(correctAnswer),
 
-      questionSet: VALID_QUESTION_SETS.has(
-        String(item.questionSet || item.set || setName)
-      )
-        ? String(item.questionSet || item.set || setName)
-        : setName,
-
       marks: validMarks ? marks : 1,
       negativeMarks: validNegativeMarks ? negativeMarks : 0,
 
@@ -6954,10 +6898,9 @@ window.toggleAuthPassword = function (id, button) {
     });
   }
 
-  window.BishnoiApp.previewQuestionImport = function(rows, questionSet = 'set1') {
-    const setName = VALID_QUESTION_SETS.has(String(questionSet)) ? String(questionSet) : 'set1';
+  window.BishnoiApp.previewQuestionImport = function(rows) {
     const list = Array.isArray(rows) ? rows : [];
-    const normalized = list.map((row, index) => normalizeImportedQuestion(row, index, setName));
+    const normalized = list.map((row, index) => normalizeImportedQuestion(row, index));
     const seenText = new Map();
     normalized.forEach((entry, index) => {
       const key = String(entry.value.question || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
@@ -6985,9 +6928,11 @@ window.toggleAuthPassword = function (id, button) {
 window.BishnoiApp.importExamQuestions = async function (
   rows,
   target,
-  questionSet = 'set1',
-  options = {}
+  questionSetOrOptions = {},
+  legacyOptions = {}
 ) {
+  const options = questionSetOrOptions && typeof questionSetOrOptions === 'object' && !Array.isArray(questionSetOrOptions)
+    ? questionSetOrOptions : legacyOptions;
   if (!state.user) {
     throw new Error('प्रश्न अपलोड करने के लिए पहले लॉगिन करें।');
   }
@@ -7006,18 +6951,11 @@ window.BishnoiApp.importExamQuestions = async function (
     throw new Error('अमान्य परीक्षा चुनी गई है।');
   }
 
-  if (!VALID_QUESTION_SETS.has(String(questionSet))) {
-    throw new Error('Set 1 से Set 4 में से सेट चुनें।');
-  }
-
   if (!Array.isArray(rows) || rows.length > 2000) {
     throw new Error('एक बार में अधिकतम 2000 प्रश्न अपलोड करें।');
   }
 
-  const preview = window.BishnoiApp.previewQuestionImport(
-    rows,
-    questionSet
-  );
+  const preview = window.BishnoiApp.previewQuestionImport(rows);
 
   if (!preview.total || preview.invalid) {
     const error = new Error(
@@ -7097,7 +7035,6 @@ window.BishnoiApp.importExamQuestions = async function (
 
       batch.set(ref, {
         ...question,
-        questionSet,
         active: true,
         published: false,
         status: 'draft',
@@ -7113,13 +7050,14 @@ window.BishnoiApp.importExamQuestions = async function (
   return {
     ...preview,
     collection: collectionName,
-    questionSet,
     published: false
   };
 };
 
 
-  window.BishnoiApp.importExamQuestionFile = async function(file, target, questionSet = 'set1', options = {}) {
+  window.BishnoiApp.importExamQuestionFile = async function(file, target, questionSetOrOptions = {}, legacyOptions = {}) {
+    const options = questionSetOrOptions && typeof questionSetOrOptions === 'object' && !Array.isArray(questionSetOrOptions)
+      ? questionSetOrOptions : legacyOptions;
     if (!file) throw new Error('पहले JSON, CSV या Excel फ़ाइल चुनें।');
     if (!Number.isFinite(file.size) || file.size <= 0) {
       throw new Error('चुनी गई फ़ाइल खाली या पढ़ने योग्य नहीं है।');
@@ -7142,7 +7080,7 @@ window.BishnoiApp.importExamQuestions = async function (
     } else {
       throw new Error('केवल JSON, CSV, XLSX या XLS फ़ाइल समर्थित है।');
     }
-    return window.BishnoiApp.importExamQuestions(rows, target, questionSet, options);
+    return window.BishnoiApp.importExamQuestions(rows, target, options);
   };
 
   window.BishnoiApp.getExamConfiguration = async function() {
@@ -7157,7 +7095,6 @@ window.BishnoiApp.importExamQuestions = async function (
     const allowed = [
       'dailyQuizVisible','dailyQuizResultsVisible','mockVisible','mock1Visible','mock2Visible',
       'mainExamVisible','resultsVisible','enrollmentVisible','separateExamPortalVisible','examPortalVisible',
-      'quizQuestionSet','mock1QuestionSet','mock2QuestionSet','mainQuestionSet',
       'quizStartAtMs','mock1StartAtMs','mock2StartAtMs','mainStartAtMs',
       'quizDurationMinutes','mock1DurationMinutes','mock2DurationMinutes','mainDurationMinutes',
       'broadcastEnabled','broadcastMessage','maintenanceMode','maintenanceMessage'
@@ -7165,7 +7102,6 @@ window.BishnoiApp.importExamQuestions = async function (
     const safePatch = {};
     allowed.forEach(key => { if (Object.prototype.hasOwnProperty.call(patch, key)) safePatch[key] = patch[key]; });
     Object.keys(safePatch).forEach(key => {
-      if (key.endsWith('QuestionSet') && !VALID_QUESTION_SETS.has(String(safePatch[key]))) throw new Error(key + ' के लिए Set 1-4 चुनें।');
       if (key.endsWith('DurationMinutes') && (!Number.isFinite(Number(safePatch[key])) || Number(safePatch[key]) < 1 || Number(safePatch[key]) > 360)) throw new Error('परीक्षा अवधि 1 से 360 मिनट के बीच होनी चाहिए।');
       if (key === 'maintenanceMode' && !['off', 'both', 'web_only', 'phone_only'].includes(String(safePatch[key]))) {
         throw new Error('अमान्य maintenance mode चुना गया है।');
