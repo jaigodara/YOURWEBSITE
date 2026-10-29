@@ -4365,7 +4365,7 @@ async function changeCustomExamStatus(nextStatus) {
         const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'समय अज्ञात';
         option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' +
           (row.name || row.fullName || row.displayName || 'विद्यार्थी') + ' · ' +
-          (row.mode || examReviewCollection) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
+          (row.examTitle || row.mode || examReviewCollection) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
         option.title = 'सबमिशन ID: ' + row.id + ' · जमा: ' + submittedLabel;
         jump.appendChild(option);
       });
@@ -4388,7 +4388,7 @@ async function changeCustomExamStatus(nextStatus) {
       const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
       const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय अज्ञात';
       meta.textContent = 'मोबाइल: ' + (d.phone || d.mobile || '—') + ' · ईमेल: ' + (d.email || '—') +
-        ' · परीक्षा: ' + (d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
+        ' · परीक्षा: ' + (d.examTitle || d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
         (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
         ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी') +
         ' · जमा: ' + submittedLabel + ' · रिकॉर्ड ID: ' + String(d.id).slice(0, 10);
@@ -5225,7 +5225,7 @@ window.clearExamReviewFilters = clearExamReviewFilters;
         return '<section class="student"><h2>विद्यार्थी ' + (index + 1) + ' / ' + examReviewQueue.length + '</h2>' +
           '<p><b>नाम:</b> ' + escapeHtml(name) + ' &nbsp; <b>रोल नंबर:</b> ' + escapeHtml(student.rollNumber || student.rollNo || 'उपलब्ध नहीं') + '</p>' +
           '<p><b>जन्म तिथि:</b> ' + escapeHtml(dob) + ' &nbsp; <b>मोबाइल:</b> ' + escapeHtml(student.phone || student.mobile || '—') + '</p>' +
-          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.mode || examReviewCollection) + '</p>' +
+          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.examTitle || student.mode || examReviewCollection) + '</p>' +
           '<p><b>जमा समय:</b> ' + escapeHtml(submitted) + ' &nbsp; <b>रिकॉर्ड ID:</b> ' + escapeHtml(student.id || '—') + '</p>' +
           '<p><b>स्वचालित अंक:</b> ' + escapeHtml(student.score ?? student.autoScore ?? student.correct ?? '—') + ' / ' + escapeHtml(student.total ?? student.totalQuestions ?? '—') +
           ' &nbsp; <b>सत्यापित अंक:</b> ' + escapeHtml(student.manualScore ?? 'अभी सत्यापित नहीं') + '</p>' +
