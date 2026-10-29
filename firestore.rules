@@ -661,14 +661,18 @@ service cloud.firestore {
     // Firestore rules cannot reliably identify the caller's device type.
     function communityPostingAllowed() {
       let maintenancePath = /databases/$(database)/documents/settings/maintenance;
+      // A community posting/full-section lock is absolute: no user, owner or editor may post.
+      // Global maintenance may still honor the configured owner bypass when community itself is open.
       return !exists(maintenancePath)
         || (
-          get(maintenancePath).data.get('globalMode', 'off') == 'off'
-          && get(maintenancePath).data.get('sections', {}).get('community', 'off') == 'off'
-        )
-        || (
-          get(maintenancePath).data.get('vipBypass', true) == true
-          && owner()
+          get(maintenancePath).data.get('sections', {}).get('community', 'off') == 'off'
+          && (
+            get(maintenancePath).data.get('globalMode', 'off') == 'off'
+            || (
+              get(maintenancePath).data.get('vipBypass', true) == true
+              && owner()
+            )
+          )
         );
     }
 
