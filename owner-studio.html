@@ -1739,7 +1739,7 @@ function openStudioPage(page) {
     }
   });
 
-  if (page === 'questions') window.setTimeout(() => loadExamSessionQueue(), 0);
+  if (page === 'questions' && (owner || hasEditorPermission('examReview'))) window.setTimeout(() => loadExamSessionQueue(), 0);
 
   document.querySelectorAll('[data-studio-page]').forEach(button => {
     const active = button.dataset.studioPage === page;
@@ -1807,7 +1807,7 @@ function switchStudioPane(paneId) {
 
   const panePermissions = {
     pane_media: ['media'],
-    pane_quiz: ['quizDrafts'],
+    pane_quiz: ['quizDrafts', 'examReview'],
     pane_exam: ['examReview'],
     pane_system: ['notifications', 'reports']
   };
