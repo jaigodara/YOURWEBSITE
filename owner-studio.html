@@ -2218,7 +2218,7 @@ function switchStudioPane(paneId) {
       try {
         const saved = JSON.parse(localStorage.getItem(BULK_QUESTION_DRAFT_KEY) || 'null');
         if (!saved || !Array.isArray(saved.drafts) || !saved.drafts.length) return;
-        const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+        const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions', 'customExamQuestions']);
         const target = document.getElementById('bulkQuestionTarget');
         if (target && allowed.has(saved.target)) target.value = saved.target;
         bulkQuestionDrafts = saved.drafts.slice(0, 450).map(question => ({
@@ -2664,7 +2664,7 @@ async function saveBulkQuestionDrafts() {
     return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
   }
 
-  const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+  const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions', 'customExamQuestions']);
   if (!allowed.has(target)) return showToast('पहले सही परीक्षा चुनें।');
   if (!Array.isArray(bulkQuestionDrafts) || !bulkQuestionDrafts.length) {
     return showToast('पहले प्रश्नों का Preview तैयार करें।');
@@ -4190,6 +4190,9 @@ async function changeCustomExamStatus(nextStatus) {
             sourceCollection: examReviewCollection,
             sourceSubmissionId: d.id,
             mode: d.mode || (examReviewCollection === 'quizAttempts' ? 'quiz' : examReviewCollection === 'mainExamSubmissions' ? 'main' : 'mock'),
+            examTitle: d.examTitle || null,
+            customExamId: d.customExamId || null,
+            passingMarks: Number(d.passingMarks || 0),
             name: d.name || d.fullName || null,
             rollNumber: d.rollNumber || null,
             score: value,
@@ -4777,7 +4780,7 @@ next.addEventListener('click', async () => {
     window.loadLiveExamViolations = loadLiveExamViolations;
 
     function examQuestionCollectionForRecord(row, fallbackCollection = '') {
-  const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions']);
+  const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions', 'customExamQuestions']);
   const explicit = row?.questionCollection || row?.questionSetKey;
   if (allowed.has(String(explicit || ''))) return String(explicit);
   const modeToCollection = { main: 'mainExamQuestions', mock1: 'mockExam_1', mock2: 'mockExam_2', quiz: 'quiz' };

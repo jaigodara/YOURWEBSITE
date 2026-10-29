@@ -638,7 +638,7 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
       return;
     }
 
-    await loadPublishedCustomExams(db);
+    loadPublishedCustomExams(db);
     const mockGroupVisible = config.mockVisible !== false;
     const mock1Visible = mockGroupVisible && config.mock1Visible !== false;
     const mock2Visible = mockGroupVisible && config.mock2Visible !== false;

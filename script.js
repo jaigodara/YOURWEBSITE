@@ -4188,7 +4188,14 @@ if (status) {
          ? (customExamId ? await collection(target).where('examId','==',customExamId).limit(200).get() : null)
          : await collection(target).limit(200).get();
        if (!snap) { if (status) status.textContent='कस्टम परीक्षा चुनें, फिर प्रश्न लोड करें।'; return; }
-const rows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+const rows = await Promise.all(snap.docs.map(async doc => {
+          const row = { ...doc.data(), id: doc.id };
+          if (target === 'customExamQuestions') {
+            const key = await collection('examAnswerKeys').doc('customExamQuestions').collection('items').doc(doc.id).get();
+            if (key.exists) Object.assign(row, key.data() || {});
+          }
+          return row;
+        }));
         if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस परीक्षा संग्रह में प्रश्न नहीं मिले।';
         if (!list) return;
         list.innerHTML = rows.map(row => {
@@ -4235,11 +4242,23 @@ const rows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
             }
             button.disabled = true;
             try {
-              await collection(target).doc(id).set({
-                ...(target === 'customExamQuestions' ? { examId: customExamId } : {}),
-                correctAnswer: answerIndex, answerIndex, published: false, status: 'draft',
-                publishedBy: null, publishedAt: null, updatedAt: serverTimestamp(), updatedBy: state.user.uid
-              }, { merge: true });
+              if (target === 'customExamQuestions') {
+                const batch = state.db.batch();
+                batch.set(collection('examAnswerKeys').doc('customExamQuestions').collection('items').doc(id), {
+                  examId: customExamId, correctAnswer: answerIndex, answerIndex,
+                  updatedAt: serverTimestamp(), updatedBy: state.user.uid
+                }, { merge: true });
+                batch.set(collection(target).doc(id), {
+                  examId: customExamId, published: false, status: 'draft',
+                  publishedBy: null, publishedAt: null, updatedAt: serverTimestamp(), updatedBy: state.user.uid
+                }, { merge: true });
+                await batch.commit();
+              } else {
+                await collection(target).doc(id).set({
+                  correctAnswer: answerIndex, answerIndex, published: false, status: 'draft',
+                  publishedBy: null, publishedAt: null, updatedAt: serverTimestamp(), updatedBy: state.user.uid
+                }, { merge: true });
+              }
               notify('Answer Key सेव हुआ। सुरक्षा के लिए प्रश्न Draft में रखा गया; जाँचकर फिर publish करें।', 'success');
               host.querySelector('[data-owner-load-questions]')?.click();
             } catch (error) {
@@ -5065,6 +5084,19 @@ const digits = String(value || '').replace(/\D/g, '');
       const snapshot = await query.get();
       const questions = snapshot.docs.map(doc => ({id:doc.id,...doc.data()}))
         .filter(data => data.published === true && data.status !== 'draft' && (!customExamId || data.examId === customExamId));
+      if (customExamId && questions.length) {
+        const configuredTotal = Number(customExamRecord.totalMarks) > 0 ? Number(customExamRecord.totalMarks) : questions.length;
+        const baseTotal = questions.reduce((sum, question) => {
+          const value = Number(question.marks ?? question.points ?? 1);
+          return sum + (Number.isFinite(value) && value > 0 ? value : 1);
+        }, 0);
+        const scale = configuredTotal / (baseTotal || questions.length);
+        questions.forEach(question => {
+          const value = Number(question.marks ?? question.points ?? 1);
+          question.marks = Math.round((Number.isFinite(value) && value > 0 ? value : 1) * scale * 10000) / 10000;
+          question.negativeMarks = Number(customExamRecord.negativeMarks) >= 0 ? Number(customExamRecord.negativeMarks) : 0;
+        });
+      }
 
       // Randomize question and option order only when the Owner enables it.
       // Fisher-Yates is applied to attempt-local copies; Firestore question records are untouched.
@@ -7100,21 +7132,27 @@ window.BishnoiApp.importExamQuestions = async function (
   }
 
   // Write only after validation and duplicate checks succeed.
-  for (let offset = 0; offset < safeQuestions.length; offset += 400) {
+  const chunkSize = requestedTarget === 'customExamQuestions' ? 200 : 400;
+  for (let offset = 0; offset < safeQuestions.length; offset += chunkSize) {
     const batch = db.batch();
 
-    safeQuestions.slice(offset, offset + 400).forEach(question => {
+    safeQuestions.slice(offset, offset + chunkSize).forEach(question => {
       const ref = db.collection(collectionName).doc(question.id);
 
+      const publicQuestion = { ...question };
+      const privateAnswer = publicQuestion.correctAnswer ?? publicQuestion.answerIndex ?? publicQuestion.ans ?? publicQuestion.answer ?? publicQuestion.correctOption ?? null;
+      if (requestedTarget === 'customExamQuestions') ['correctAnswer','answerIndex','ans','answer','correctOption'].forEach(key => delete publicQuestion[key]);
       batch.set(ref, {
-        ...question,
-        active: true,
-        published: false,
-        status: 'draft',
-        publishedBy: null,
-        uploadedBy: state.user.uid,
+        ...publicQuestion, active: true, published: false, status: 'draft',
+        publishedBy: null, uploadedBy: state.user.uid,
         uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+      if (requestedTarget === 'customExamQuestions' && privateAnswer !== null) {
+        batch.set(db.collection('examAnswerKeys').doc('customExamQuestions').collection('items').doc(question.id), {
+          examId: customExamId, correctAnswer: privateAnswer, updatedBy: state.user.uid,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
     });
 
     await batch.commit();
