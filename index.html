@@ -1142,5 +1142,142 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 </style>
 
+
+<style id="bx-floating-audio-player-styles">
+  #bxFloatingAudioMiniPlayer{position:fixed;z-index:1200;width:min(350px,calc(100vw - 24px));color:#fff;background:linear-gradient(145deg,#102f20,#1d4931);border:1px solid rgba(226,190,92,.65);border-radius:18px;box-shadow:0 18px 55px rgba(8,28,17,.32);overflow:hidden;touch-action:pan-y}
+  #bxFloatingAudioMiniPlayer[hidden]{display:none!important}
+  #bxFloatingAudioMiniPlayer .bx-mini-grab{display:flex;align-items:center;gap:9px;padding:12px 12px 10px;cursor:grab;touch-action:none;user-select:none;border-bottom:1px solid rgba(255,255,255,.13)}
+  #bxFloatingAudioMiniPlayer .bx-mini-grab:active{cursor:grabbing}
+  #bxFloatingAudioMiniPlayer .bx-mini-title{min-width:0;flex:1;font-size:12px;font-weight:800;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #bxFloatingAudioMiniPlayer button,#bxFloatingAudioMiniPlayer select{min-height:38px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:700;padding:7px 9px}
+  #bxFloatingAudioMiniPlayer select option{color:#173522;background:#fff}
+  #bxFloatingAudioMiniPlayer .bx-mini-controls{display:flex;align-items:center;gap:8px;padding:10px 12px}
+  #bxFloatingAudioMiniPlayer .bx-mini-play{width:42px;height:42px;border-radius:50%;background:#f3c85b;color:#142b1d;border:0;font-size:16px}
+  #bxFloatingAudioMiniPlayer .bx-mini-progress{padding:0 12px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font:10px ui-monospace,monospace;color:#e9e8d8}
+  #bxFloatingAudioMiniPlayer input[type=range]{width:100%;min-width:0;accent-color:#f3c85b}
+  @media(max-width:640px){#bxFloatingAudioMiniPlayer{width:min(340px,calc(100vw - 16px));border-radius:16px}#bxFloatingAudioMiniPlayer .bx-mini-controls{gap:6px;padding:9px}#bxFloatingAudioMiniPlayer button,#bxFloatingAudioMiniPlayer select{min-height:42px}#bxFloatingAudioMiniPlayer .bx-mini-grab{padding:10px}}
+  @media(prefers-reduced-motion:no-preference){#bxFloatingAudioMiniPlayer{transition:box-shadow .18s ease,opacity .18s ease}#bxFloatingAudioMiniPlayer.bx-mini-visible{animation:bxMiniEnter .2s ease-out}}
+  @keyframes bxMiniEnter{from{opacity:.6;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+</style>
+<script id="bx-floating-audio-mini-player">
+(() => {
+  const init = () => {
+    const audio = document.getElementById('audioElement');
+    const speedButton = document.getElementById('audioSpeedBtn');
+    if (!audio || document.getElementById('bxFloatingAudioMiniPlayer')) return;
+    const dock = document.createElement('section');
+    dock.id = 'bxFloatingAudioMiniPlayer';
+    dock.hidden = true;
+    dock.setAttribute('aria-label','चलता हुआ भजन मिनी प्लेयर');
+    dock.innerHTML = `
+      <div class="bx-mini-grab" id="bxMiniPlayerDragHandle" title="मिनी प्लेयर को खींचकर स्थान बदलें">
+        <span aria-hidden="true">🎵</span>
+        <span class="bx-mini-title" id="bxMiniPlayerTitle">भजन एवं आरती</span>
+        <select id="bxMiniPlayerPosition" aria-label="मिनी प्लेयर की जगह चुनें" title="प्लेयर की जगह चुनें">
+          <option value="br">↘ नीचे दायाँ</option><option value="bl">↙ नीचे बायाँ</option>
+          <option value="tr">↗ ऊपर दायाँ</option><option value="tl">↖ ऊपर बायाँ</option>
+        </select>
+        <button type="button" id="bxMiniPlayerClose" aria-label="मिनी प्लेयर बंद करें" title="छिपाएँ">×</button>
+      </div>
+      <div class="bx-mini-controls">
+        <button type="button" id="bxMiniBack" aria-label="10 सेकंड पीछे">−10</button>
+        <button type="button" class="bx-mini-play" id="bxMiniPlay" aria-label="चलाएँ या रोकें">▶</button>
+        <button type="button" id="bxMiniForward" aria-label="10 सेकंड आगे">+10</button>
+        <span style="flex:1"></span><button type="button" id="bxMiniSpeed" title="प्लेबैक गति">1×</button>
+      </div>
+      <div class="bx-mini-progress"><span id="bxMiniCurrent">0:00</span><input id="bxMiniSeek" type="range" min="0" max="1000" value="0" aria-label="भजन की स्थिति"><span id="bxMiniDuration">0:00</span></div>`;
+    document.body.appendChild(dock);
+    const $ = id => document.getElementById(id);
+    const storageKey = 'bishnoism-mini-player-position-v1';
+    const fmt = n => { if (!Number.isFinite(n) || n < 0) n=0; return Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0'); };
+    let position = 'br', customPoint = null, dragging = false, dragOffset = {x:0,y:0}, seekDragging = false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      if (['br','bl','tr','tl'].includes(saved.position)) position = saved.position;
+      if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) customPoint = {x:saved.x,y:saved.y};
+    } catch (_) {}
+    const place = () => {
+      const margin = 12, w = dock.offsetWidth || 340, h = dock.offsetHeight || 145;
+      dock.style.left = ''; dock.style.right = ''; dock.style.top = ''; dock.style.bottom = '';
+      if (customPoint && dock.dataset.custom === 'true') {
+        dock.style.left = Math.max(margin,Math.min(innerWidth-w-margin,customPoint.x))+'px';
+        dock.style.top = Math.max(margin,Math.min(innerHeight-h-margin,customPoint.y))+'px';
+      } else {
+        dock.style[position.includes('r') ? 'right' : 'left'] = margin+'px';
+        dock.style[position.startsWith('t') ? 'top' : 'bottom'] = margin+'px';
+      }
+      $('bxMiniPlayerPosition').value = position;
+    };
+    const persist = () => { try { localStorage.setItem(storageKey,JSON.stringify({position,x:customPoint?.x,y:customPoint?.y})); } catch (_) {} };
+    const show = () => {
+      if (!audio.currentSrc && !audio.getAttribute('src')) {
+        const title = document.getElementById('audioPlayerTitle');
+        if (title) title.scrollIntoView({behavior:'smooth',block:'center'});
+        return;
+      }
+      dock.hidden = false; dock.classList.remove('bx-mini-visible'); void dock.offsetWidth; dock.classList.add('bx-mini-visible');
+      $('bxMiniPlayerTitle').textContent = document.getElementById('audioPlayerTitle')?.textContent || 'भजन एवं आरती';
+      place(); sync();
+    };
+    const sync = () => {
+      $('bxMiniPlay').textContent = audio.paused ? '▶' : 'Ⅱ';
+      $('bxMiniPlay').setAttribute('aria-label',audio.paused?'भजन चलाएँ':'भजन रोकें');
+      $('bxMiniCurrent').textContent = fmt(audio.currentTime);
+      $('bxMiniDuration').textContent = fmt(audio.duration);
+      if (!seekDragging) $('bxMiniSeek').value = audio.duration > 0 ? Math.round(audio.currentTime/audio.duration*1000) : 0;
+      $('bxMiniSpeed').textContent = String(audio.playbackRate || 1)+'×';
+      $('bxMiniPlayerTitle').textContent = document.getElementById('audioPlayerTitle')?.textContent || 'भजन एवं आरती';
+    };
+    const toggle = async () => {
+      if (!audio.currentSrc && !audio.getAttribute('src')) return;
+      try { if (audio.paused) await audio.play(); else audio.pause(); }
+      catch (_) { const play = document.getElementById('audioPlayBtn'); play?.focus(); }
+      sync();
+    };
+    const miniButton = document.createElement('button');
+    miniButton.type='button'; miniButton.id='bxOpenMiniPlayer'; miniButton.textContent='▣ मिनी प्लेयर';
+    miniButton.title='भजन को छोटे फ्लोटिंग प्लेयर में चलाएँ';
+    miniButton.className='px-2.5 py-1 bg-white/10 hover:bg-white/20 text-amber-200 rounded-lg text-xs font-bold border border-amber-400/30';
+    miniButton.style.minHeight='38px';
+    miniButton.addEventListener('click',show);
+    if (speedButton?.parentElement) speedButton.parentElement.insertBefore(miniButton,speedButton);
+    $('bxMiniPlayerClose').addEventListener('click',()=>{dock.hidden=true;});
+    $('bxMiniPlay').addEventListener('click',toggle);
+    $('bxMiniBack').addEventListener('click',()=>{audio.currentTime=Math.max(0,(audio.currentTime||0)-10);sync();});
+    $('bxMiniForward').addEventListener('click',()=>{audio.currentTime=Math.min(Number.isFinite(audio.duration)?audio.duration:Infinity,(audio.currentTime||0)+10);sync();});
+    $('bxMiniSpeed').addEventListener('click',()=>{const speeds=[1,1.25,1.5,1.75,2,.75];let i=speeds.indexOf(Number(audio.playbackRate));audio.playbackRate=speeds[(i+1)%speeds.length];sync();});
+    $('bxMiniSeek').addEventListener('pointerdown',()=>seekDragging=true);
+    $('bxMiniSeek').addEventListener('input',e=>{if(Number.isFinite(audio.duration)&&audio.duration>0){audio.currentTime=audio.duration*(Number(e.target.value)/1000);sync();}});
+    ['pointerup','change','blur'].forEach(ev=>$('bxMiniSeek').addEventListener(ev,()=>{seekDragging=false;sync();}));
+    $('bxMiniPlayerPosition').addEventListener('change',e=>{position=e.target.value;customPoint=null;dock.dataset.custom='false';place();persist();});
+    const handle=$('bxMiniPlayerDragHandle');
+    handle.addEventListener('pointerdown',e=>{
+      if (e.target.closest('button,select')) return;
+      const rect=dock.getBoundingClientRect(); dragging=true;customPoint={x:rect.left,y:rect.top};dock.dataset.custom='true';
+      dragOffset={x:e.clientX-rect.left,y:e.clientY-rect.top};handle.setPointerCapture?.(e.pointerId);e.preventDefault();
+    });
+    handle.addEventListener('pointermove',e=>{
+      if(!dragging)return;
+      customPoint={x:Math.max(8,Math.min(innerWidth-dock.offsetWidth-8,e.clientX-dragOffset.x)),y:Math.max(8,Math.min(innerHeight-dock.offsetHeight-8,e.clientY-dragOffset.y))};
+      place();
+    });
+    const endDrag=()=>{if(!dragging)return;dragging=false;persist();};
+    handle.addEventListener('pointerup',endDrag);handle.addEventListener('pointercancel',endDrag);
+    ['play','pause','timeupdate','loadedmetadata','durationchange','ratechange','seeked','ended'].forEach(ev=>audio.addEventListener(ev,sync));
+    window.addEventListener('resize',place);
+    const originalToggle=window.BishnoiApp?.toggleAudio;
+    if(window.BishnoiApp && typeof originalToggle==='function' && !window.BishnoiApp.toggleAudio.__miniWrapped){
+      const wrapped=async function(){await originalToggle.apply(this,arguments);sync();};
+      wrapped.__miniWrapped=true;window.BishnoiApp.toggleAudio=wrapped;
+    }
+    dock.hidden=true;
+    $('bxMiniPlayerPosition').value=position;
+    if(customPoint)dock.dataset.custom='true';
+    window.BishnoismMiniPlayer={show,hide:()=>dock.hidden=true,toggle:()=>dock.hidden?show():dock.hidden=true};
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
+
 </body>
 </html>
