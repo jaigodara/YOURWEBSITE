@@ -294,6 +294,14 @@ service cloud.firestore {
       allow read, create, update, delete: if examOwner();
     }
 
+
+    match /examArchives/{archiveId} {
+      allow read, create, update, delete: if examOwner();
+      match /records/{recordId} {
+        allow read, create, update, delete: if examOwner();
+      }
+    }
+
     match /examConfig/{id} {
       allow read: if true;
       allow write: if examOwner();

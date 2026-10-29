@@ -371,6 +371,34 @@
         <p id="ownerExportStatus" class="text-sm text-stone-600" aria-live="polite">बड़ी सूचियाँ पेज-दर-पेज पढ़ी जाएँगी। निजी विद्यार्थी डेटा केवल सुरक्षित डिवाइस पर डाउनलोड करें।</p>
       </section>
 
+      <section id="ownerExamArchivePanel" data-editor-permission="reports" class="mb-5 rounded-3xl border-2 border-emerald-200 bg-white p-5 shadow-sm space-y-3">
+        <div>
+          <h3 class="font-yatra text-base text-forest">🗄️ परीक्षा पूरी करें और आर्काइव बनाएँ</h3>
+          <p class="mt-1 text-xs leading-relaxed text-stone-600">यह कार्रवाई चुनी गई परीक्षा के सक्रिय उत्तर-पत्र, सत्र और संबंधित समीक्षा रिकॉर्ड को पहले आर्काइव में कॉपी करती है, फिर सक्रिय कतार साफ करती है। प्रकाशित परिणाम विद्यार्थी इतिहास के लिए सुरक्षित रहते हैं।</p>
+        </div>
+        <label class="block text-sm font-bold text-stone-700">पूरी हुई परीक्षा चुनें
+          <select id="archiveExamMode" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
+            <option value="main">मुख्य परीक्षा</option>
+            <option value="mock1">मॉक परीक्षा 1</option>
+            <option value="mock2">मॉक परीक्षा 2</option>
+            <option value="quiz">दैनिक क्विज़</option>
+          </select>
+        </label>
+        <button type="button" onclick="archiveCompletedExamWorkflow()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">परीक्षा आर्काइव करें और सक्रिय कतार रीसेट करें</button>
+        <div class="border-t border-stone-200 pt-3 space-y-2">
+          <label class="block text-sm font-bold text-stone-700">पुराना आर्काइव डाउनलोड करें
+            <select id="examArchiveSelect" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
+              <option value="">पहले आर्काइव सूची लोड करें</option>
+            </select>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button type="button" onclick="loadExamArchives()" class="rounded-xl border border-forest px-4 py-3 text-sm font-bold text-forest">आर्काइव सूची रिफ्रेश करें</button>
+            <button type="button" onclick="downloadSelectedExamArchive()" class="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">CSV रिपोर्ट डाउनलोड करें</button>
+          </div>
+        </div>
+        <p id="examArchiveStatus" class="text-xs text-stone-600" role="status" aria-live="polite">आर्काइव बनाने से पहले परीक्षा पूरी होने और सही मोड चुनने की पुष्टि करें।</p>
+      </section>
+
       <!-- DRAFT APPROVAL QUEUE -->
       <div class="bg-amber-50/80 p-5 rounded-3xl border-2 border-amber-300 shadow-sm space-y-3">
         <div class="flex items-center justify-between">
@@ -6672,7 +6700,165 @@ async function removeTrustedEditor(uid) {
 </style>
 
 
-<script src="./exportReports.js"></script>
+<script src="./exportReports.js">
+    // Completed exam archival: copy records first, then clear only active queue data.
+    function archiveCsvCell(value) {
+      const textValue = value == null ? '' : String(value);
+      return '"' + textValue.replace(/"/g, '""') + '"';
+    }
+
+    async function loadExamArchives() {
+      if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट देखने की अनुमति नहीं है।');
+      const select = document.getElementById('examArchiveSelect');
+      const status = document.getElementById('examArchiveStatus');
+      if (!select) return;
+      if (status) status.textContent = 'आर्काइव सूची लोड हो रही है…';
+      try {
+        const snap = await db.collection('examArchives').orderBy('createdAt', 'desc').limit(100).get();
+        select.replaceChildren(new Option('आर्काइव चुनें', ''));
+        snap.forEach(doc => {
+          const row = doc.data() || {};
+          const created = row.createdAt && typeof row.createdAt.toDate === 'function'
+            ? row.createdAt.toDate().toLocaleString('hi-IN')
+            : 'तिथि उपलब्ध नहीं';
+          select.add(new Option((row.title || row.mode || 'परीक्षा') + ' · ' + created + ' · ' + (row.status || 'unknown'), doc.id));
+        });
+        if (status) status.textContent = snap.size + ' आर्काइव रिकॉर्ड मिले।';
+      } catch (error) {
+        console.error('Exam archive list failed:', error);
+        if (status) status.textContent = 'आर्काइव सूची नहीं खुली। Owner access और Firestore rules जाँचें।';
+      }
+    }
+    window.loadExamArchives = loadExamArchives;
+
+    async function archiveCompletedExamWorkflow() {
+      if (!isPrimaryOwner()) return showToast('परीक्षा आर्काइव करने का अधिकार केवल Owner को है।');
+      const mode = document.getElementById('archiveExamMode')?.value || '';
+      const status = document.getElementById('examArchiveStatus');
+      const config = {
+        main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions' },
+        mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions' },
+        mock2: { title: 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions' },
+        quiz: { title: 'दैनिक क्विज़', submissions: 'quizAttempts' }
+      }[mode];
+      if (!config) return showToast('परीक्षा मोड चुनें।');
+      if (!window.confirm(config.title + ' के सक्रिय उत्तर-पत्र/सत्र आर्काइव करके सक्रिय समीक्षा कतार साफ करें? प्रकाशित परिणाम सुरक्षित रहेंगे।')) return;
+      const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
+      if (button) button.disabled = true;
+      if (status) status.textContent = 'सक्रिय रिकॉर्ड पढ़े जा रहे हैं…';
+      let archiveRef = null;
+      try {
+        const submissionSnap = await db.collection(config.submissions).get();
+        const submissions = submissionSnap.docs.filter(doc => {
+          const data = doc.data() || {};
+          if (config.submissions === 'mockExamSubmissions') return data.mode === mode;
+          if (config.submissions === 'mainExamSubmissions') return !data.mode || data.mode === mode || data.mode === 'main';
+          return !data.mode || data.mode === mode || data.mode === 'quiz';
+        });
+        const submissionIds = new Set(submissions.map(doc => doc.id));
+        const sessionSnap = await db.collection('examSessions').get();
+        const sessions = sessionSnap.docs.filter(doc => {
+          const data = doc.data() || {};
+          return data.mode === mode || doc.id.endsWith('_' + mode);
+        });
+        const reviewSnap = await db.collection('reviews').where('sourceCollection', '==', config.submissions).get();
+        const reviews = reviewSnap.docs.filter(doc => submissionIds.has(String((doc.data() || {}).submissionId || '')));
+        const reviewHistory = [];
+        for (const reviewDoc of reviews) {
+          const historySnap = await reviewDoc.ref.collection('history').get();
+          historySnap.forEach(historyDoc => reviewHistory.push({ ref: historyDoc.ref, id: historyDoc.id, data: historyDoc.data(), sourceCollection: 'reviews/' + reviewDoc.id + '/history' }));
+        }
+        // Preserve released results for students; include a copy in the archive report.
+        const resultSnap = await db.collection('publishedResults').get();
+        const results = resultSnap.docs.filter(doc => (doc.data() || {}).mode === mode);
+        const total = submissions.length + sessions.length + reviews.length + reviewHistory.length + results.length;
+        if (!total) {
+          if (status) status.textContent = 'इस परीक्षा मोड के लिए कोई सक्रिय या ऐतिहासिक रिकॉर्ड नहीं मिला।';
+          return;
+        }
+        archiveRef = db.collection('examArchives').doc();
+        await archiveRef.set({
+          mode, title: config.title, status: 'in_progress',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: auth.currentUser.uid,
+          counts: { submissions: submissions.length, sessions: sessions.length, reviews: reviews.length, reviewHistory: reviewHistory.length, publishedResults: results.length }
+        });
+        const records = [
+          ...submissions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: config.submissions, removeSource: true })),
+          ...sessions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'examSessions', removeSource: true })),
+          ...reviews.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'reviews', removeSource: true })),
+          ...reviewHistory.map(row => ({ ...row, removeSource: true })),
+          ...results.map(doc => ({ id: doc.id, data: doc.data(), sourceCollection: 'publishedResults', removeSource: false }))
+        ];
+        for (let offset = 0; offset < records.length; offset += 200) {
+          const batch = db.batch();
+          records.slice(offset, offset + 200).forEach(record => {
+            const safeSource = record.sourceCollection.replace(/[^A-Za-z0-9_-]/g, '_');
+            const archiveRecordId = (safeSource + '__' + record.id).slice(0, 1400);
+            batch.set(archiveRef.collection('records').doc(archiveRecordId), {
+              sourceCollection: record.sourceCollection,
+              sourceId: record.id,
+              data: record.data || {},
+              archivedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            if (record.removeSource) batch.delete(record.ref);
+          });
+          await batch.commit();
+          if (status) status.textContent = 'आर्काइव कॉपी हो रहा है… ' + Math.min(offset + 200, records.length) + '/' + records.length;
+        }
+        await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
+        if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
+        await loadExamArchives();
+        if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
+        showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');
+      } catch (error) {
+        console.error('Exam archive failed:', error);
+        if (archiveRef) {
+          try { await archiveRef.set({ status: 'incomplete', errorMessage: String(error.message || error).slice(0, 240), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); } catch (_) {}
+        }
+        if (status) status.textContent = 'आर्काइव पूरी नहीं हुई। रिकॉर्ड जाँचें; आंशिक आर्काइव को सूची से देखें।';
+        showToast('आर्काइव विफल हुई। रिकॉर्ड सुरक्षित रखने के लिए त्रुटि जाँचें।');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+    window.archiveCompletedExamWorkflow = archiveCompletedExamWorkflow;
+
+    async function downloadSelectedExamArchive() {
+      if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट डाउनलोड करने की अनुमति नहीं है।');
+      const archiveId = document.getElementById('examArchiveSelect')?.value || '';
+      const status = document.getElementById('examArchiveStatus');
+      if (!archiveId) return showToast('पहले आर्काइव चुनें।');
+      try {
+        const archiveSnap = await db.collection('examArchives').doc(archiveId).get();
+        if (!archiveSnap.exists) throw new Error('आर्काइव रिकॉर्ड नहीं मिला।');
+        const archive = archiveSnap.data() || {};
+        const recordSnap = await db.collection('examArchives').doc(archiveId).collection('records').get();
+        const rows = [['sourceCollection', 'sourceId', 'dataJson']];
+        recordSnap.forEach(doc => {
+          const row = doc.data() || {};
+          rows.push([row.sourceCollection || '', row.sourceId || '', JSON.stringify(row.data || {})]);
+        });
+        const csv = rows.map(row => row.map(archiveCsvCell).join(',')).join('\r\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'bishnoism-exam-archive-' + String(archive.mode || 'exam') + '-' + archiveId + '.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        if (status) status.textContent = (archive.title || 'परीक्षा') + ' की ' + recordSnap.size + ' रिकॉर्ड वाली CSV डाउनलोड की गई।';
+      } catch (error) {
+        console.error('Exam archive export failed:', error);
+        if (status) status.textContent = 'आर्काइव रिपोर्ट डाउनलोड नहीं हुई।';
+        showToast('आर्काइव डाउनलोड विफल: ' + error.message);
+      }
+    }
+    window.downloadSelectedExamArchive = downloadSelectedExamArchive;
+
+</script>
 <style id="owner-studio-mobile-ux">
 
 /* Review desk fixes: prevent the candidate rail from crushing names and keep
