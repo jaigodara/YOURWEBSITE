@@ -1080,20 +1080,21 @@ notify(
     // including Owner/Editors. Reading stays available in posting-only mode.
     const communityMode = (m.sections || {}).community || 'off';
     const communityPostingBlocked = communityMode === 'posting_only' || communityMode === 'both';
+    const communityPostingNoticeVisible = communityMode === 'posting_only';
     const postEditor = byId('postEditor');
     const postText = byId('postText');
     let communityMaintenanceNotice = byId('communityMaintenanceNotice');
     const communitySection = byId('tab-community');
-    if (communitySection && communityPostingBlocked && !communityMaintenanceNotice) {
+    if (communitySection && communityPostingNoticeVisible && !communityMaintenanceNotice) {
       communityMaintenanceNotice = document.createElement('div');
       communityMaintenanceNotice.id = 'communityMaintenanceNotice';
       communityMaintenanceNotice.className = 'mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-4 text-sm text-amber-950 shadow-sm';
       communitySection.prepend(communityMaintenanceNotice);
     }
     if (communityMaintenanceNotice) {
-      communityMaintenanceNotice.hidden = !communityPostingBlocked;
-      communityMaintenanceNotice.classList.toggle('hidden', !communityPostingBlocked);
-      communityMaintenanceNotice.innerHTML = communityPostingBlocked
+      communityMaintenanceNotice.hidden = !communityPostingNoticeVisible;
+      communityMaintenanceNotice.classList.toggle('hidden', !communityPostingNoticeVisible);
+      communityMaintenanceNotice.innerHTML = communityPostingNoticeVisible
         ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं!</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(message || 'नई सुविधाएँ जोड़ी जा रही हैं। कृपया प्रतीक्षा करें।') + '</p><p class="mt-1 text-xs font-semibold">अभी नए संदेश भेजना अस्थायी रूप से बंद है। कृपया प्रतीक्षा करें।</p></div></div>'
         : '';
     }
@@ -2977,9 +2978,10 @@ window.renderExamVisibility = function renderExamVisibility() {
     const globalMaintenanceBlocked = globalMode === 'both' ||
       (globalMode === 'web_only' && !isNativeApp) ||
       (globalMode === 'phone_only' && isNativeApp);
-    const postingBlocked = !ownerBypass && (
-      sectionMode === 'posting_only' || sectionMode === 'both' || globalMaintenanceBlocked
-    );
+    // Community section locks are absolute for every account; only global maintenance
+    // can honor the Owner bypass setting.
+    const postingBlocked = sectionMode === 'posting_only' || sectionMode === 'both' ||
+      (!ownerBypass && globalMaintenanceBlocked);
     if (postingBlocked) {
       notify(maintenance.message || 'संवाद मंच पर संदेश भेजना अभी अस्थायी रूप से बंद है।', 'error');
       return;
