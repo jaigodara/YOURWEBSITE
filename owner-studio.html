@@ -3846,14 +3846,18 @@ async function deleteCustomExamRecord() {
       return;
     }
     const title = String(snapshot.data()?.title || 'यह परीक्षा');
-    if (!window.confirm('"' + title + '" का परीक्षा-रजिस्ट्री रिकॉर्ड हटाएँ? यह प्रश्नों/पुराने परिणामों को नहीं मिटाएगा।')) return;
-    await ref.delete();
-    document.getElementById('ownerCustomExamRecordId').value = '';
-    document.getElementById('ownerCustomExamSelect').value = '';
+    if (!window.confirm('"' + title + '" को आर्काइव करें? प्रश्न, उत्तर-पत्र और प्रकाशित परिणामों को सुरक्षित रखने के लिए रजिस्ट्री रिकॉर्ड स्थायी रूप से नहीं मिटाया जाएगा।')) return;
+    await ref.update({
+      status: 'archived',
+      archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: auth.currentUser.uid
+    });
+    document.getElementById('ownerCustomExamRecordId').value = id;
     await loadCustomExamRegistry();
-    newCustomExamRecord();
-    setCustomExamRegistryStatus('परीक्षा रिकॉर्ड हटाया गया। पुराने प्रश्न/परिणाम सुरक्षित रखे गए हैं।');
-    showToast('परीक्षा रजिस्ट्री रिकॉर्ड हटा दिया गया।');
+    document.getElementById('ownerCustomExamSelect').value = id;
+    setCustomExamRegistryStatus('परीक्षा आर्काइव कर दी गई। संबंधित प्रश्न और ऐतिहासिक रिकॉर्ड सुरक्षित हैं।');
+    showToast('परीक्षा सुरक्षित रूप से आर्काइव कर दी गई।');
   } catch (error) {
     console.error('Custom exam delete failed:', error);
     showToast('परीक्षा रिकॉर्ड नहीं हटा सके। Owner access और Firestore rules जाँचें।');
@@ -6741,6 +6745,8 @@ async function removeTrustedEditor(uid) {
           ...reviewHistory.map(row => ({ ...row, removeSource: true })),
           ...results.map(doc => ({ id: doc.id, data: doc.data(), sourceCollection: 'publishedResults', removeSource: false }))
         ];
+        // Phase 1: copy every source record to the archive without deleting anything.
+        // If any write fails, the original submissions/sessions/reviews remain intact.
         for (let offset = 0; offset < records.length; offset += 200) {
           const batch = db.batch();
           records.slice(offset, offset + 200).forEach(record => {
@@ -6752,10 +6758,29 @@ async function removeTrustedEditor(uid) {
               data: record.data || {},
               archivedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            if (record.removeSource) batch.delete(record.ref);
           });
           await batch.commit();
           if (status) status.textContent = 'आर्काइव कॉपी हो रहा है… ' + Math.min(offset + 200, records.length) + '/' + records.length;
+        }
+
+        // Phase 2: verify the complete archive before clearing any active queue.
+        const archivedSnapshot = await archiveRef.collection('records').get();
+        if (archivedSnapshot.size !== records.length) {
+          throw new Error('Archive verification failed: expected ' + records.length + ' records but found ' + archivedSnapshot.size);
+        }
+        await archiveRef.update({
+          status: 'verified',
+          verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          recordCount: archivedSnapshot.size
+        });
+
+        // Only after successful verification, remove active source records in safe batches.
+        const removableRecords = records.filter(record => record.removeSource && record.ref);
+        for (let offset = 0; offset < removableRecords.length; offset += 200) {
+          const batch = db.batch();
+          removableRecords.slice(offset, offset + 200).forEach(record => batch.delete(record.ref));
+          await batch.commit();
+          if (status) status.textContent = 'सत्यापित आर्काइव के बाद सक्रिय कतार साफ हो रही है… ' + Math.min(offset + 200, removableRecords.length) + '/' + removableRecords.length;
         }
         await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
         if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड और ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
