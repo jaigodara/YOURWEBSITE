@@ -3165,19 +3165,20 @@ async function saveBulkQuestionDrafts() {
         await ref.set(record, { merge: true });
         const rollNumber = await assignRealEnrollmentRoll(ref, previousRoll, false);
         const configSnap = await db.collection('examConfig').doc('current').get();
-        if (configSnap.exists && configSnap.data()?.admitCardReleased === true) {
-          await db.collection('userNotifications').doc(uid).collection('items').add({
-            title: '🎟️ आपका प्रवेश-पत्र जारी हो गया',
-            message: (configSnap.data()?.admitCardTitle || examName) + ' के लिए आपका पंजीकरण Owner ने बनाया है। प्रवेश-पत्र परीक्षा अनुभाग में उपलब्ध है। रोल नंबर: ' + rollNumber,
-            type: 'admit-card',
-            admitCardReady: true,
-            recipientUid: uid,
-            active: true,
-            audience: 'private',
-            createdBy: auth.currentUser?.uid || null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }
+        const admitCardReleased = configSnap.exists && configSnap.data()?.admitCardReleased === true;
+        await db.collection('userNotifications').doc(uid).collection('items').add({
+          title: admitCardReleased ? '🎟️ आपका प्रवेश-पत्र जारी हो गया' : '✅ परीक्षा पंजीकरण सफल',
+          message: admitCardReleased
+            ? (configSnap.data()?.admitCardTitle || examName) + ' के लिए आपका प्रवेश-पत्र अब सूचना में दिए गए बटन से डाउनलोड किया जा सकता है। रोल नंबर: ' + rollNumber
+            : examName + ' के लिए आपका पंजीकरण Owner ने पूरा कर दिया है। आपका रोल नंबर: ' + rollNumber + '। प्रवेश-पत्र जारी होते ही सूचना में डाउनलोड विकल्प मिलेगा।',
+          type: admitCardReleased ? 'admit-card' : 'registration',
+          admitCardReady: admitCardReleased,
+          recipientUid: uid,
+          active: true,
+          audience: 'private',
+          createdBy: auth.currentUser?.uid || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         if (status) status.textContent = 'विद्यार्थी पंजीकृत: ' + fullName + ' · रोल नंबर: ' + rollNumber;
         showToast('विद्यार्थी का पंजीकरण और रोल नंबर सहेज दिया गया।');
         ['ownerManualStudentUid','ownerManualStudentName','ownerManualStudentDob','ownerManualStudentPhone','ownerManualStudentRoll'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });

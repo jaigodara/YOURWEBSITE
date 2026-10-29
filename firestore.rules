@@ -296,9 +296,11 @@ service cloud.firestore {
 
 
     match /examArchives/{archiveId} {
-      allow read, create, update, delete: if examOwner();
+      allow read: if examOwner() || editorHasPermission('reports');
+      allow create, update, delete: if examOwner();
       match /records/{recordId} {
-        allow read, create, update, delete: if examOwner();
+        allow read: if examOwner() || editorHasPermission('reports');
+        allow create, update, delete: if examOwner();
       }
     }
 
