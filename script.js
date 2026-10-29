@@ -2960,12 +2960,16 @@ window.renderExamVisibility = function renderExamVisibility() {
           <div class="flex items-center justify-between gap-2">
             <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)}</div>
             ${(isMine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-white/20 bg-black/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="संदेश हटाएँ">हटाएँ</button>` : ''}
+            ${state.isOwner && !isMine && post.uid ? `<button type="button" data-block-community-user="${escapeHtml(post.uid)}" class="rounded-lg border border-amber-200/30 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="सदस्य ब्लॉक करें">ब्लॉक करें</button>` : ''}
           </div>
         </article>
       `;
     }).join('');
     host.querySelectorAll('[data-delete-community-post]').forEach(button => {
       button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost));
+    });
+    host.querySelectorAll('[data-block-community-user]').forEach(button => {
+      button.addEventListener('click', () => window.BishnoiCommunity.blockUser(button.dataset.blockCommunityUser, button));
     });
   }
 
@@ -2990,6 +2994,28 @@ window.renderExamVisibility = function renderExamVisibility() {
       notify('संदेश नहीं हट सका। Firestore permissions जाँचें।', 'error');
     }
   };
+  window.BishnoiCommunity.blockUser = async function (uid, button) {
+    if (!requireUser() || !state.isOwner || !uid || uid === state.user.uid) return;
+    const blockRef = collection('communityBlocks').doc(uid);
+    try {
+      const existing = await blockRef.get();
+      if (existing.exists && existing.data()?.blocked === true) {
+        if (!window.confirm('इस सदस्य को दोबारा संदेश भेजने की अनुमति दें?')) return;
+        await blockRef.delete();
+        if (button) button.textContent = 'ब्लॉक करें';
+        notify('सदस्य को अनब्लॉक कर दिया गया।', 'success');
+        return;
+      }
+      if (!window.confirm('इस सदस्य को संवाद मंच पर संदेश भेजने से ब्लॉक करें?')) return;
+      await blockRef.set({ uid, blocked: true, blockedBy: state.user.uid, blockedAt: serverTimestamp() });
+      if (button) button.textContent = 'अनब्लॉक करें';
+      notify('सदस्य को संवाद मंच पर ब्लॉक कर दिया गया।', 'success');
+    } catch (error) {
+      console.error('Community block failed:', error);
+      notify('सदस्य को ब्लॉक नहीं कर सके। Firestore rules जाँचें।', 'error');
+    }
+  };
+
   window.BishnoiCommunity.submitPost = async function () {
     const maintenance = state.maintenance || {};
     const sectionMode = (maintenance.sections || {}).community || 'off';
@@ -3024,6 +3050,11 @@ window.renderExamVisibility = function renderExamVisibility() {
 
     const topic = byId('chatTopicFilter')?.value || 'सामान्य चर्चा';
     try {
+      const blockSnapshot = await collection('communityBlocks').doc(state.user.uid).get();
+      if (blockSnapshot.exists && blockSnapshot.data()?.blocked === true) {
+        notify('आपको संवाद मंच पर संदेश भेजने से रोका गया है। Owner से संपर्क करें।', 'error');
+        return;
+      }
       // These fields match the current Firestore rule:
       // request.resource.data.uid == request.auth.uid and body is a string.
       await collection('posts').add({

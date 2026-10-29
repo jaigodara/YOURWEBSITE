@@ -676,10 +676,21 @@ service cloud.firestore {
         );
     }
 
+    match /communityBlocks/{uid} {
+      allow read: if owner() || (signedIn() && request.auth.uid == uid);
+      allow create, update, delete: if owner();
+    }
+
+    function communityUserNotBlocked(uid) {
+      let blockPath = /databases/$(database)/documents/communityBlocks/$(uid);
+      return !exists(blockPath) || get(blockPath).data.get('blocked', false) != true;
+    }
+
     match /posts/{id} {
       allow read: if true;
 
       allow create: if signedIn()
+        && communityUserNotBlocked(request.auth.uid)
         && communityPostingAllowed()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('body', null) is string

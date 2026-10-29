@@ -1342,3 +1342,9 @@ body > header.sticky > div { flex-wrap: nowrap; }
 #bishnoiMediaReader.is-mini .bishnoi-media-toolbar{cursor:move;touch-action:none;user-select:none}
 #bishnoiMediaReader.is-mini .bishnoi-media-body{aspect-ratio:16/9;min-height:120px}
 #bishnoiMediaReader.is-mini .bishnoi-media-body iframe{width:100%;height:100%;min-height:120px;border:0}
+
+
+/* Owner community moderation controls. */
+#tab-community [data-block-community-user],#tab-community [data-delete-community-post]{min-height:32px;white-space:nowrap}
+#platformMediaManageList button{min-height:40px}
+@media(max-width:640px){#platformMediaManageList>div{align-items:flex-start}#platformMediaManageList span{white-space:normal;overflow-wrap:anywhere}}
