@@ -1182,3 +1182,46 @@ button,a,[role="button"],input,select,textarea{touch-action:manipulation}
  .results-meta{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 }
 @media(prefers-reduced-motion:reduce){.results-card{transition:none}.results-card:hover{transform:none}}
+
+
+/* Bishnoism responsive polish: compact header, readable podium, and Owner Studio controls. */
+body > header.sticky { width: 100%; max-width: 100%; }
+body > header.sticky > div { min-width: 0; }
+body > header.sticky > div > a { min-width: 0; flex: 0 1 auto; }
+body > header.sticky > div > a > div:last-child { min-width: 0; }
+body > header.sticky .font-yatra { overflow-wrap: normal; word-break: keep-all; }
+body > header.sticky #authActionsContainer { min-width: 0; }
+#postEditor.maintenance-posting-locked { opacity: .82; }
+#postEditor.maintenance-posting-locked button { cursor: not-allowed; }
+#postEditor.maintenance-posting-locked textarea { cursor: not-allowed; }
+#ownerStudioContent button, #ownerStudioContent select, #ownerStudioContent input, #ownerStudioContent textarea {
+  touch-action: manipulation;
+}
+#ownerStudioContent select, #ownerStudioContent input:not([type="checkbox"]):not([type="radio"]), #ownerStudioContent textarea {
+  min-height: 44px;
+}
+#ownerStudioContent .grid { min-width: 0; }
+@media (max-width: 640px) {
+  body > header.sticky > div:first-child,
+  body > header.sticky > div { gap: .45rem !important; }
+  body > header.sticky > div > a { flex-shrink: 1; }
+  body > header.sticky > div > a > div:first-child { width: 2rem !important; height: 2rem !important; flex: 0 0 2rem; }
+  body > header.sticky > div > a .font-yatra { font-size: clamp(.85rem, 3.5vw, 1rem) !important; line-height: 1.15; }
+  body > header.sticky > div > a .tracking-wider { font-size: 8px !important; letter-spacing: .04em; }
+  body > header.sticky #authActionsContainer { max-width: 42vw; }
+  body > header.sticky #authLoginButton { min-width: 0; font-size: 11px; }
+  #notificationBellButton { flex: 0 0 42px; }
+  #tab-home .grid.grid-cols-3:has(#winner1Name) { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: .4rem !important; }
+  #tab-home .grid.grid-cols-3:has(#winner1Name) > div { min-width: 0; padding: .55rem .25rem !important; }
+  #tab-home #winner1Name, #tab-home #winner2Name, #tab-home #winner3Name {
+    max-width: 100%; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #tab-home #winner1Score, #tab-home #winner2Score, #tab-home #winner3Score { overflow-wrap: anywhere; text-align: center; }
+  #ownerStudioContent .grid.grid-cols-2, #ownerStudioContent .grid.sm\:grid-cols-2 { grid-template-columns: minmax(0, 1fr) !important; }
+  #ownerMaintenanceSettingsPanel label { align-items: flex-start; }
+  #ownerMaintenanceSettingsPanel select { max-width: 58%; }
+}
+@media (min-width: 641px) {
+  #ownerStudioContent { max-width: 100%; }
+  #ownerMaintenanceSettingsPanel { padding: clamp(1rem, 2vw, 1.5rem); }
+}
