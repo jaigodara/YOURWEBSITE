@@ -952,6 +952,27 @@ notify(
       'Daily banner message'
     );
 
+    // Read the same dailyWinners document edited in Owner Studio and render the
+    // exact rank IDs used by the public leaderboard component.
+    subscribe(
+      collection('settings').doc('dailyWinners'),
+      snap => {
+        const data = snap.exists ? snap.data() : {};
+        const scoreLabel = value => {
+          const score = String(value == null ? '' : value).trim();
+          if (!score || score === '—' || score === '-') return '— अंक';
+          return /(?:अंक|points?)$/i.test(score) ? score : score + ' अंक';
+        };
+        [
+          ['rank1Name', data.p1Name, '—'], ['rank2Name', data.p2Name, '—'], ['rank3Name', data.p3Name, '—']
+        ].forEach(([id, value, fallback]) => setText(id, String(value || fallback)));
+        [
+          ['rank1Score', data.p1Score], ['rank2Score', data.p2Score], ['rank3Score', data.p3Score]
+        ].forEach(([id, value]) => setText(id, scoreLabel(value)));
+      },
+      'Daily quiz leaderboard'
+    );
+
     subscribe(
       collection('settings').doc('maintenance'),
       snap => {

@@ -55,9 +55,18 @@ service cloud.firestore {
       return examOwner() || editorHasPermission('media');
     }
 
+    function sectionMaintenanceAllows(sectionKey) {
+      let p = /databases/$(database)/documents/settings/maintenance;
+      return !exists(p)
+        || get(p).data.get('sections', {}).get(sectionKey, 'off') != 'both'
+        || get(p).data.get('sectionAllow', {}).get(sectionKey, false) == true
+        || (get(p).data.get('vipBypass', true) == true && owner());
+    }
+
     function examEnabled(mode) {
       let p = /databases/$(database)/documents/examConfig/current;
       return exists(p)
+        && sectionMaintenanceAllows('quiz')
         && get(p).data.get('examPortalVisible', true) != false
         && (
           (mode == 'quiz' && get(p).data.get('dailyQuizVisible', true) != false)
@@ -727,7 +736,7 @@ service cloud.firestore {
     }
 
     match /posts/{id} {
-      allow read: if true;
+      allow read: if sectionMaintenanceAllows('community');
 
       allow create: if signedIn()
         && communityUserNotBlocked(request.auth.uid)
@@ -743,17 +752,17 @@ service cloud.firestore {
     }
 
     match /audios/{id} {
-      allow read: if true;
+      allow read: if sectionMaintenanceAllows('library');
       allow write: if canManageMedia();
     }
 
     match /pdfs/{id} {
-      allow read: if true;
+      allow read: if sectionMaintenanceAllows('library');
       allow write: if canManageMedia();
     }
 
     match /shabadwani/{id} {
-      allow read: if true;
+      allow read: if sectionMaintenanceAllows('library');
       allow write: if canManageMedia();
     }
 

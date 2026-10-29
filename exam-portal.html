@@ -288,7 +288,7 @@
       <article id="mock1Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">📝</div>
         <h3>मॉक परीक्षा 1</h3>
-        <p id="mock1SetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
+        <p class="exam-meta" aria-live="polite">परीक्षा की उपलब्धता और समय जाँचा जा रहा है…</p>
         <p>समयबद्ध अभ्यास परीक्षा। प्रवेश के लिए निर्धारित समय और पंजीकरण की शर्तें लागू होंगी।</p>
         <div class="card-actions">
           <button class="button" type="button" data-launch-exam="mock1">मॉक परीक्षा 1 खोलें</button>
@@ -298,8 +298,8 @@
       <article id="mock2Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🎯</div>
         <h3>मॉक परीक्षा 2</h3>
-        <p id="mock2SetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
-        <p>दूसरा अभ्यास सेट। परीक्षा शुरू करने से पहले मुख्य वेबसाइट पर संबंधित विकल्प चुनें।</p>
+        <p class="exam-meta" aria-live="polite">परीक्षा की उपलब्धता और समय जाँचा जा रहा है…</p>
+        <p>दूसरी अभ्यास परीक्षा। प्रवेश का समय और पात्रता स्वतः जाँची जाएगी।</p>
         <div class="card-actions">
           <button class="button" type="button" data-launch-exam="mock2">मॉक परीक्षा 2 खोलें</button>
         </div>
@@ -308,7 +308,7 @@
       <article id="mainExamCard" class="exam hide">
         <div class="exam-icon" aria-hidden="true">🏆</div>
         <h3>मुख्य परीक्षा</h3>
-        <p id="mainSetStatus" class="exam-meta" aria-live="polite">सक्रिय सेट जाँचा जा रहा है…</p>
+        <p class="exam-meta" aria-live="polite">परीक्षा की उपलब्धता और समय जाँचा जा रहा है…</p>
         <p>पंजीकरण की पुष्टि, निर्धारित समय और वैध प्रवेश-पत्र/रोल नंबर की शर्तें लागू हो सकती हैं।</p>
         <div class="card-actions">
           <button class="button gold" type="button" data-launch-exam="main">मुख्य परीक्षा खोलें</button>
@@ -531,6 +531,11 @@ function toScheduleDate(value) {
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-launch-exam");
       if (!examTitles[mode]) return;
+      if (window.__bishnoismMaintenanceLocked === true) {
+        const maintenance = window.__bishnoismMaintenance || {};
+        setPortalStatus((maintenance.sectionMessages || {}).quiz || "परीक्षा अनुभाग में नए फीचर आ रहे हैं। कृपया प्रतीक्षा करें।");
+        return;
+      }
       const config=window.__bishnoismExamConfig||{};const key=examScheduleKeys[mode];const value = key ? config[key] : "";
 const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.getTime()>Date.now()){setPortalStatus("यह परीक्षा "+date.toLocaleString("hi-IN")+" बजे शुरू होगी।");return;}
       // Always open the requested section. Login and eligibility are checked
@@ -554,6 +559,35 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
     byId("portalStatus").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
+  db.collection("settings").doc("maintenance").onSnapshot(snapshot => {
+    const maintenance = snapshot.exists ? snapshot.data() : {};
+    window.__bishnoismMaintenance = maintenance;
+    const sectionMode = (maintenance.sections || {}).quiz || "off";
+    window.__bishnoismMaintenanceLocked = sectionMode === "both" &&
+      (maintenance.sectionAllow || {}).quiz !== true;
+    const config = window.__bishnoismExamConfig || {};
+    const portalEnabled = config.examPortalVisible !== false &&
+      config.separateExamPortalVisible !== false &&
+      config.separateExamPortalActive !== false;
+    area.classList.toggle("hide", !portalEnabled || window.__bishnoismMaintenanceLocked);
+    disabledPanel.classList.toggle("hide", portalEnabled && !window.__bishnoismMaintenanceLocked);
+    if (window.__bishnoismMaintenanceLocked) {
+      const title = disabledPanel.querySelector("h2");
+      const copy = disabledPanel.querySelector("p");
+      if (title) title.textContent = "परीक्षा अनुभाग रखरखाव पर है";
+      if (copy) copy.textContent = (maintenance.sectionMessages || {}).quiz || "परीक्षा अनुभाग में नए फीचर आ रहे हैं। कृपया प्रतीक्षा करें।";
+      setPortalStatus((maintenance.sectionMessages || {}).quiz || "परीक्षा अनुभाग में नए फीचर आ रहे हैं। कृपया प्रतीक्षा करें।");
+    } else if (portalEnabled) {
+      const title = disabledPanel.querySelector("h2");
+      const copy = disabledPanel.querySelector("p");
+      if (title) title.textContent = "परीक्षा पोर्टल अभी बंद है";
+      if (copy) copy.textContent = "पोर्टल उपलब्ध होने पर यहाँ परीक्षाओं के विकल्प दिखेंगे।";
+    }
+  }, error => {
+    console.error("Could not load settings/maintenance:", error);
+    // Maintenance read failures do not silently alter the Firestore security boundary.
+  });
+
   db.collection("examConfig").doc("current").onSnapshot(snapshot => {
     const config = snapshot.exists ? snapshot.data() : {};
     window.__bishnoismExamConfig = config;
@@ -561,8 +595,19 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
       config.separateExamPortalVisible !== false &&
       config.separateExamPortalActive !== false;
 
-    area.classList.toggle("hide", !portalEnabled);
-    disabledPanel.classList.toggle("hide", portalEnabled);
+    const maintenanceLocked = window.__bishnoismMaintenanceLocked === true;
+    area.classList.toggle("hide", !portalEnabled || maintenanceLocked);
+    disabledPanel.classList.toggle("hide", portalEnabled && !maintenanceLocked);
+
+    if (maintenanceLocked) {
+      const title = disabledPanel.querySelector("h2");
+      const copy = disabledPanel.querySelector("p");
+      const maintenance = window.__bishnoismMaintenance || {};
+      if (title) title.textContent = "परीक्षा अनुभाग रखरखाव पर है";
+      if (copy) copy.textContent = (maintenance.sectionMessages || {}).quiz || "परीक्षा अनुभाग में नए फीचर आ रहे हैं। कृपया प्रतीक्षा करें।";
+      setPortalStatus((maintenance.sectionMessages || {}).quiz || "परीक्षा अनुभाग में नए फीचर आ रहे हैं। कृपया प्रतीक्षा करें।");
+      return;
+    }
 
     if (!portalEnabled) {
       setPortalStatus("परीक्षा पोर्टल Owner द्वारा बंद किया गया है।");
@@ -578,16 +623,6 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
     setCard("mainExamCard", config.mainExamVisible !== false);
     setCard("enrollmentCard", config.enrollmentVisible !== false);
     setCard("resultsCard", config.resultsVisible !== false);
-    const setLabel = value => ({ set1: "Set 1", set2: "Set 2", set3: "Set 3", set4: "Set 4" })[value] || "Set 1";
-    const updateSetBadge = (id, value, visible) => {
-      const badge = byId(id);
-      if (!badge) return;
-      badge.textContent = visible ? "उपलब्ध प्रश्न सेट: " + setLabel(value) : "यह परीक्षा अभी बंद है";
-      badge.dataset.state = visible ? "on" : "off";
-    };
-    updateSetBadge("mock1SetStatus", config.mock1QuestionSet, mock1Visible);
-    updateSetBadge("mock2SetStatus", config.mock2QuestionSet, mock2Visible);
-    updateSetBadge("mainSetStatus", config.mainQuestionSet || config.activeSets?.main, config.mainExamVisible !== false);
     setCard("resultsCard", config.resultsVisible !== false);
     const showDuration=(mode,cardId,visible)=>{const card=byId(cardId);if(!card)return;let badge=byId(mode+"Duration");if(!badge){badge=document.createElement("span");badge.id=mode+"Duration";badge.className="exam-time";const setBadge=card.querySelector(".exam-meta");if(setBadge)setBadge.insertAdjacentElement("afterend",badge);}const duration=Number(config[durationKeys[mode]]||config.defaultDurationMinutes);badge.textContent=Number.isFinite(duration)&&duration>0?"अवधि: "+Math.round(duration)+" मिनट":"अवधि: निर्धारित नहीं";badge.dataset.state=visible?"on":"off";};
     showDuration("mock1","mock1Card",mock1Visible);showDuration("mock2","mock2Card",mock2Visible);showDuration("main","mainExamCard",config.mainExamVisible!==false);

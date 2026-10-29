@@ -5,6 +5,8 @@ const { test } = require('node:test');
 
 const root = path.join(__dirname, '..');
 const ownerHtml = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
+const indexHtml = readFileSync(path.join(root, 'index.html'), 'utf8');
+const portalHtml = readFileSync(path.join(root, 'exam-portal.html'), 'utf8');
 const scriptJs = readFileSync(path.join(root, 'script.js'), 'utf8');
 const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
@@ -45,4 +47,28 @@ test('Firestore validates maintenance settings and enforces community maintenanc
   assert.match(rules, /function communityPostingAllowed\(\)/);
   assert.match(rules, /get\('sections', \{\}\)\.get\('community', 'off'\) == 'off'/);
   assert.match(rules, /communityUserNotBlocked\(request\.auth\.uid\)/);
+});
+
+test('Public leaderboard uses rank IDs and is populated from the Owner Studio dailyWinners document', () => {
+  for (const id of ['rank1Name', 'rank1Score', 'rank2Name', 'rank2Score', 'rank3Name', 'rank3Score']) {
+    assert.equal((indexHtml.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id + ' should exist exactly once');
+  }
+  assert.doesNotMatch(indexHtml, /id="winner[123](Name|Score)"/);
+  assert.match(scriptJs, /collection\('settings'\)\.doc\('dailyWinners'\)/);
+  assert.match(scriptJs, /data\.p1Name/);
+  assert.match(scriptJs, /setText\(id, scoreLabel\(value\)\)/);
+});
+
+test('Separate exam portal no longer displays question-set labels and obeys the exam maintenance lock', () => {
+  assert.doesNotMatch(portalHtml, /Set 1|mock1QuestionSet|mock2QuestionSet|mainQuestionSet|activeSets|mock1SetStatus|mock2SetStatus|mainSetStatus/);
+  assert.match(portalHtml, /settings\"\)\.doc\(\"maintenance\"\)/);
+  assert.match(portalHtml, /__bishnoismMaintenanceLocked/);
+  assert.match(portalHtml, /sectionMessages\)\.quiz/);
+});
+
+test('Firestore blocks exam and media reads during a full section maintenance lock unless access is allowed', () => {
+  assert.match(rules, /function sectionMaintenanceAllows\(sectionKey\)/);
+  assert.match(rules, /sectionMaintenanceAllows\('quiz'\)/);
+  assert.match(rules, /sectionMaintenanceAllows\('library'\)/);
+  assert.match(rules, /allow read: if sectionMaintenanceAllows\('community'\)/);
 });
