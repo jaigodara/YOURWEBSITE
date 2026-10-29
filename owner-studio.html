@@ -659,6 +659,15 @@ Ans: B"></textarea>
           </label>
 
           <label class="block text-xs font-bold text-stone-700">
+            कस्टम परीक्षा
+            <select id="reviewCustomExamFilter" onchange="loadExamSubmissions()"
+              aria-label="कस्टम परीक्षा के उत्तर-पत्र चुनें"
+              class="mt-1 w-full min-h-[48px] rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
+              <option value="">सभी कस्टम परीक्षाएँ</option>
+            </select>
+          </label>
+
+          <label class="block text-xs font-bold text-stone-700">
             जमा करने की तारीख
             <input id="reviewSubmissionDate"
               type="date"
@@ -3664,6 +3673,18 @@ async function loadCustomExamRegistry() {
 
     select.replaceChildren(new Option('नई परीक्षा बनाएँ', ''));
     list.replaceChildren();
+    const reviewCustomFilter = document.getElementById('reviewCustomExamFilter');
+    if (reviewCustomFilter) {
+      const previousFilter = reviewCustomFilter.value;
+      reviewCustomFilter.replaceChildren(new Option('सभी कस्टम परीक्षाएँ', ''));
+      snapshot.forEach(doc => {
+        const exam = doc.data() || {};
+        if (exam.status !== 'archived') {
+          reviewCustomFilter.add(new Option(String(exam.title || 'बिना नाम की परीक्षा') + ' — ' + String(exam.status || 'draft'), doc.id));
+        }
+      });
+      if (previousFilter && [...reviewCustomFilter.options].some(option => option.value === previousFilter)) reviewCustomFilter.value = previousFilter;
+    }
 
     snapshot.forEach(doc => {
       const exam = doc.data() || {};
@@ -5305,11 +5326,13 @@ return review ? {
         });
                const selectedDate =
           document.getElementById('reviewSubmissionDate')?.value || '';
+        const selectedCustomExamId = document.getElementById('reviewCustomExamFilter')?.value || '';
 
         const selectedStatus =
           document.getElementById('reviewSubmissionStatus')?.value || 'all';
 
         examReviewQueue = rows.filter(d => {
+          if (selectedCustomExamId && d.customExamId !== selectedCustomExamId) return false;
           const haystack = [
             d.name,
             d.fullName,
