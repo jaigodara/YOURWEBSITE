@@ -623,7 +623,6 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
     setCard("mainExamCard", config.mainExamVisible !== false);
     setCard("enrollmentCard", config.enrollmentVisible !== false);
     setCard("resultsCard", config.resultsVisible !== false);
-    setCard("resultsCard", config.resultsVisible !== false);
     const showDuration=(mode,cardId,visible)=>{const card=byId(cardId);if(!card)return;let badge=byId(mode+"Duration");if(!badge){badge=document.createElement("span");badge.id=mode+"Duration";badge.className="exam-time";const setBadge=card.querySelector(".exam-meta");if(setBadge)setBadge.insertAdjacentElement("afterend",badge);}const duration=Number(config[durationKeys[mode]]||config.defaultDurationMinutes);badge.textContent=Number.isFinite(duration)&&duration>0?"अवधि: "+Math.round(duration)+" मिनट":"अवधि: निर्धारित नहीं";badge.dataset.state=visible?"on":"off";};
     showDuration("mock1","mock1Card",mock1Visible);showDuration("mock2","mock2Card",mock2Visible);showDuration("main","mainExamCard",config.mainExamVisible!==false);
 

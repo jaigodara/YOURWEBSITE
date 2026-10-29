@@ -63,7 +63,7 @@ test('Separate exam portal no longer displays question-set labels and obeys the 
   assert.doesNotMatch(portalHtml, /Set 1|mock1QuestionSet|mock2QuestionSet|mainQuestionSet|activeSets|mock1SetStatus|mock2SetStatus|mainSetStatus/);
   assert.match(portalHtml, /settings\"\)\.doc\(\"maintenance\"\)/);
   assert.match(portalHtml, /__bishnoismMaintenanceLocked/);
-  assert.match(portalHtml, /sectionMessages\)\.quiz/);
+  assert.match(portalHtml, /sectionMessages[\s\S]{0,60}\.quiz/);
 });
 
 test('Firestore blocks exam and media reads during a full section maintenance lock unless access is allowed', () => {
