@@ -2951,9 +2951,13 @@ window.renderExamVisibility = function renderExamVisibility() {
     const sectionMode = (maintenance.sections || {}).community || 'off';
     const globalMode = maintenance.globalMode || 'off';
     const ownerBypass = maintenance.vipBypass !== false && state.isOwner;
+    const ua = String(window.navigator?.userAgent || '');
+    const isNativeApp = /; wv\)|\bWebView\b|BishnoismAndroid/i.test(ua);
+    const globalMaintenanceBlocked = globalMode === 'both' ||
+      (globalMode === 'web_only' && !isNativeApp) ||
+      (globalMode === 'phone_only' && isNativeApp);
     const postingBlocked = !ownerBypass && (
-      sectionMode === 'posting_only' || sectionMode === 'both' ||
-      globalMode === 'both' || globalMode === 'web_only'
+      sectionMode === 'posting_only' || sectionMode === 'both' || globalMaintenanceBlocked
     );
     if (postingBlocked) {
       notify(maintenance.message || 'संवाद मंच पर संदेश भेजना अभी अस्थायी रूप से बंद है।', 'error');
