@@ -5166,7 +5166,7 @@ const digits = String(value || '').replace(/\D/g, '');
       state.exam = {
         active: true,
         mode,
-        questionCollection: collectionName,
+        questionCollection: CONFIG.examCollections[exam.mode] && !customExamId ? CONFIG.examCollections[exam.mode] : collectionName,
         questions,
         index: 0,
         answers: {},
