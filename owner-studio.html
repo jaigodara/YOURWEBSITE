@@ -976,32 +976,35 @@ Ans: B"></textarea>
           <input type="text" id="adminMaintMessage" placeholder="सामान्य मेंटेनेंस संदेश लिखें..." class="w-full p-2.5 rounded-xl border border-stone-300">
         </div>
 
-        <div class="space-y-2 pt-2 border-t border-stone-100 text-xs">
-          <label class="font-bold text-stone-700 block">2. विशेष सेक्शन लॉक करें (Section Locks):</label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border">
-              <span>🏠 मुख्य पृष्ठ (Home)</span>
-              <select id="lock_home" class="p-2 rounded-lg border text-xs font-semibold" aria-label="मुख्य पृष्ठ रखरखाव"><option value="off">🟢 चालू</option><option value="both">🔴 लॉक</option></select>
+        <div class="space-y-3 pt-3 border-t border-stone-100 text-xs">
+          <label class="font-bold text-stone-700 block">2. विशेष सेक्शन लॉक एवं कस्टम संदेश (Section Locks)</label>
+          <p class="text-[11px] text-stone-500">हर सेक्शन का संदेश अलग सेव होगा। संवाद मंच में रखरखाव के दौरान संदेश भेजना बंद रहेगा; चाहें तो पुराने संदेश पढ़ने दें।</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-xl bg-stone-50 border border-stone-200 p-3 space-y-2">
+              <div class="flex items-center justify-between gap-2"><span class="font-bold">🏠 मुखपृष्ठ (Home)</span><select id="lock_home" class="p-2 rounded-lg border text-xs font-semibold"><option value="open">🟢 चालू</option><option value="maintenance">🛠️ मेंटेनेंस</option></select></div>
+              <input id="msg_home" maxlength="250" class="w-full rounded-lg border border-stone-200 bg-white p-2" placeholder="मुखपृष्ठ के लिए रखरखाव संदेश">
+              <label class="flex items-start gap-2 text-[11px] text-stone-600"><input id="allow_home" type="checkbox" class="mt-0.5 accent-forest"><span>मेंटेनेंस के दौरान भी सेक्शन उपयोग करने दें</span></label>
             </div>
-            <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border">
-              <span>📿 जप माला (Mala)</span>
-              <select id="lock_mala" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            <div class="rounded-xl bg-stone-50 border border-stone-200 p-3 space-y-2">
+              <div class="flex items-center justify-between gap-2"><span class="font-bold">📚 साहित्य (Sahitya)</span><select id="lock_sahitya" class="p-2 rounded-lg border text-xs font-semibold"><option value="open">🟢 चालू</option><option value="maintenance">🛠️ मेंटेनेंस</option></select></div>
+              <input id="msg_sahitya" maxlength="250" class="w-full rounded-lg border border-stone-200 bg-white p-2" placeholder="साहित्य के लिए रखरखाव संदेश">
+              <label class="flex items-start gap-2 text-[11px] text-stone-600"><input id="allow_sahitya" type="checkbox" class="mt-0.5 accent-forest"><span>मेंटेनेंस के दौरान भी सेक्शन उपयोग करने दें</span></label>
             </div>
-            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
-              <span>📚 साहित्य (Library)</span>
-              <select id="lock_library" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            <div class="rounded-xl bg-stone-50 border border-stone-200 p-3 space-y-2">
+              <div class="flex items-center justify-between gap-2"><span class="font-bold">🏆 ज्ञान परीक्षा (Pariksha)</span><select id="lock_pariksha" class="p-2 rounded-lg border text-xs font-semibold"><option value="open">🟢 चालू</option><option value="maintenance">🛠️ मेंटेनेंस</option></select></div>
+              <input id="msg_pariksha" maxlength="250" class="w-full rounded-lg border border-stone-200 bg-white p-2" placeholder="परीक्षा के लिए रखरखाव संदेश">
+              <label class="flex items-start gap-2 text-[11px] text-stone-600"><input id="allow_pariksha" type="checkbox" class="mt-0.5 accent-forest"><span>मेंटेनेंस के दौरान भी सेक्शन उपयोग करने दें</span></label>
             </div>
-            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
-              <span>🏆 ज्ञान परीक्षा (Quiz)</span>
-              <select id="lock_quiz" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock</option></select>
+            <div class="rounded-xl bg-stone-50 border border-stone-200 p-3 space-y-2">
+              <div class="flex items-center justify-between gap-2"><span class="font-bold">💬 संवाद मंच (Samvad)</span><select id="lock_samvad" class="p-2 rounded-lg border text-xs font-semibold"><option value="open">🟢 चालू</option><option value="maintenance">🛠️ मेंटेनेंस</option></select></div>
+              <input id="msg_samvad" maxlength="250" class="w-full rounded-lg border border-stone-200 bg-white p-2" placeholder="संवाद मंच के लिए रखरखाव संदेश">
+              <label class="flex items-start gap-2 text-[11px] text-stone-600"><input id="allow_samvad" type="checkbox" class="mt-0.5 accent-forest"><span>रखरखाव में पुराने संदेश पढ़ने दें (नए संदेश बंद रहेंगे)</span></label>
             </div>
-            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
-              <span>💬 संवाद मंच (Community)</span>
-              <select id="lock_community" class="p-2 rounded-lg border text-xs font-semibold" aria-label="संवाद मंच रखरखाव"><option value="off">🟢 पूरा चालू</option><option value="posting_only">✋ संदेश भेजना रोकें</option><option value="both">🔴 पूरा सेक्शन लॉक</option></select>
+            <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200">
+              <span>📿 जप माला (Mala)</span><select id="lock_mala" class="p-2 rounded-lg border text-xs"><option value="off">🟢 चालू</option><option value="both">🔴 लॉक</option></select>
             </div>
-            <div class="flex items-center justify-between p-2 rounded-xl bg-stone-50 border">
-              <span>📜 इतिहास व संस्कार</span>
-              <select id="lock_history" class="p-1 rounded-lg border text-[11px]"><option value="off">🟢 Open</option><option value="both">🔴 Lock / अपडेट संदेश</option></select>
+            <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200">
+              <span>📜 इतिहास व संस्कार</span><select id="lock_history" class="p-2 rounded-lg border text-xs"><option value="off">🟢 चालू</option><option value="both">🔴 लॉक</option></select>
             </div>
           </div>
         </div>
@@ -5678,9 +5681,28 @@ return review ? {
         if (message) message.value = data.message || '';
         if (bypass) bypass.checked = data.vipBypass !== false;
         const sections = data.sections || {};
-        Object.entries({home:'lock_home', mala:'lock_mala', library:'lock_library', quiz:'lock_quiz', community:'lock_community', history:'lock_history'}).forEach(([key,id]) => {
+        const sectionControls = { home: 'lock_home', mala: 'lock_mala', library: 'lock_sahitya', quiz: 'lock_pariksha', community: 'lock_samvad', history: 'lock_history' };
+        Object.entries(sectionControls).forEach(([key, id]) => {
           const el = document.getElementById(id);
-          if (el) el.value = sections[key] || 'off';
+          if (!el) return;
+          const stored = sections[key] || 'off';
+          if (key === 'mala' || key === 'history') el.value = stored;
+          else el.value = stored === 'off' ? 'open' : 'maintenance';
+        });
+        const sectionMessages = data.sectionMessages || {};
+        const sectionAllow = data.sectionAllow || {};
+        const messageControls = { home: 'msg_home', library: 'msg_sahitya', quiz: 'msg_pariksha', community: 'msg_samvad' };
+        Object.entries(messageControls).forEach(([key, id]) => {
+          const el = document.getElementById(id);
+          if (el) el.value = String(sectionMessages[key] || '');
+        });
+        const allowControls = { home: 'allow_home', library: 'allow_sahitya', quiz: 'allow_pariksha', community: 'allow_samvad' };
+        Object.entries(allowControls).forEach(([key, id]) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.checked = Object.prototype.hasOwnProperty.call(sectionAllow, key)
+            ? sectionAllow[key] === true
+            : (key === 'community' && sections.community === 'posting_only');
         });
       } catch (e) { showToast('मेंटेनेंस सेटिंग्स लोड नहीं हुईं: ' + e.message); }
     }
@@ -5690,17 +5712,31 @@ return review ? {
       const globalMode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
       const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
       const vipBypass = document.getElementById('adminVipBypassToggle') ? document.getElementById('adminVipBypassToggle').checked : true;
+      const selected = id => document.getElementById(id)?.value || 'open';
       const sections = {
-        home: document.getElementById('lock_home')?.value || 'off',
+        home: selected('lock_home') === 'maintenance' ? 'both' : 'off',
         mala: document.getElementById('lock_mala')?.value || 'off',
-        library: document.getElementById('lock_library')?.value || 'off',
-        quiz: document.getElementById('lock_quiz')?.value || 'off',
-        community: document.getElementById('lock_community')?.value || 'off',
+        library: selected('lock_sahitya') === 'maintenance' ? 'both' : 'off',
+        quiz: selected('lock_pariksha') === 'maintenance' ? 'both' : 'off',
+        community: selected('lock_samvad') !== 'maintenance' ? 'off'
+          : (document.getElementById('allow_samvad')?.checked ? 'posting_only' : 'both'),
         history: document.getElementById('lock_history')?.value || 'off'
+      };
+      const sectionMessages = {
+        home: String(document.getElementById('msg_home')?.value || '').trim().slice(0, 250),
+        library: String(document.getElementById('msg_sahitya')?.value || '').trim().slice(0, 250),
+        quiz: String(document.getElementById('msg_pariksha')?.value || '').trim().slice(0, 250),
+        community: String(document.getElementById('msg_samvad')?.value || '').trim().slice(0, 250)
+      };
+      const sectionAllow = {
+        home: document.getElementById('allow_home')?.checked === true,
+        library: document.getElementById('allow_sahitya')?.checked === true,
+        quiz: document.getElementById('allow_pariksha')?.checked === true,
+        community: document.getElementById('allow_samvad')?.checked === true
       };
       try {
         await db.collection('settings').doc('maintenance').set({
-          globalMode, message, vipBypass, sections,
+          globalMode, message, vipBypass, sections, sectionMessages, sectionAllow,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: auth.currentUser?.uid || null
         }, { merge: true });

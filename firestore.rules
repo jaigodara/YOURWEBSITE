@@ -285,9 +285,39 @@ service cloud.firestore {
         && resource.data.get('uid', '') == request.auth.uid;
     }
 
+    function validMaintenanceSettings() {
+      return request.resource.data.get('globalMode', 'off') in ['off', 'phone_only', 'web_only', 'both']
+        && request.resource.data.get('message', '') is string
+        && request.resource.data.get('message', '').size() <= 500
+        && request.resource.data.get('vipBypass', true) is bool
+        && request.resource.data.get('sections', {}) is map
+        && request.resource.data.get('sectionMessages', {}) is map
+        && request.resource.data.get('sectionAllow', {}) is map
+        && request.resource.data.get('sections', {}).get('home', 'off') in ['off', 'both']
+        && request.resource.data.get('sections', {}).get('mala', 'off') in ['off', 'both']
+        && request.resource.data.get('sections', {}).get('library', 'off') in ['off', 'both']
+        && request.resource.data.get('sections', {}).get('quiz', 'off') in ['off', 'both']
+        && request.resource.data.get('sections', {}).get('community', 'off') in ['off', 'posting_only', 'both']
+        && request.resource.data.get('sections', {}).get('history', 'off') in ['off', 'both']
+        && request.resource.data.get('sectionMessages', {}).get('home', '') is string
+        && request.resource.data.get('sectionMessages', {}).get('home', '').size() <= 250
+        && request.resource.data.get('sectionMessages', {}).get('library', '') is string
+        && request.resource.data.get('sectionMessages', {}).get('library', '').size() <= 250
+        && request.resource.data.get('sectionMessages', {}).get('quiz', '') is string
+        && request.resource.data.get('sectionMessages', {}).get('quiz', '').size() <= 250
+        && request.resource.data.get('sectionMessages', {}).get('community', '') is string
+        && request.resource.data.get('sectionMessages', {}).get('community', '').size() <= 250
+        && request.resource.data.get('sectionAllow', {}).get('home', false) is bool
+        && request.resource.data.get('sectionAllow', {}).get('library', false) is bool
+        && request.resource.data.get('sectionAllow', {}).get('quiz', false) is bool
+        && request.resource.data.get('sectionAllow', {}).get('community', false) is bool;
+    }
+
     match /settings/{id} {
       allow read: if id != 'rollCounter' || examOwner();
-      allow write: if id == 'rollCounter' ? examOwner() : owner();
+      allow write: if id == 'rollCounter'
+        ? examOwner()
+        : (owner() && (id != 'maintenance' || validMaintenanceSettings()));
     }
 
     match /customExams/{examId} {

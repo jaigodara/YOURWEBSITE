@@ -1046,20 +1046,30 @@ notify(
       community: ['tab-community', '💬 संवाद'],
       history: ['tab-history', '📜 इतिहास व संस्कार']
     };
+    const sectionMessages = m.sectionMessages || {};
+    const sectionAllow = m.sectionAllow || {};
     Object.entries(sectionLabels).forEach(([key, [sectionId, label]]) => {
       const section = byId(sectionId);
       if (!section) return;
+      const sectionMode = (m.sections || {})[key] || 'off';
+      const ownerBypass = m.vipBypass !== false && state.isOwner;
+      // posting_only is rendered by the dedicated community read-only notice below.
+      const maintenanceActive = sectionMode === 'both' && !ownerBypass;
+      const allowAccess = sectionAllow[key] === true;
+      const locked = maintenanceActive && !allowAccess;
+      const sectionMessage = String(sectionMessages[key] || message);
       let notice = byId(`maintenance-notice-${key}`);
-      const locked = (m.sections || {})[key] === 'both' && !(m.vipBypass !== false && state.isOwner);
       if (!notice) {
         notice = document.createElement('div');
         notice.id = `maintenance-notice-${key}`;
         notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
         section.prepend(notice);
       }
-      notice.hidden = !locked;
-      notice.classList.toggle('hidden', !locked);
-      notice.innerHTML = locked ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(message)}</p>` : '';
+      notice.hidden = !maintenanceActive;
+      notice.classList.toggle('hidden', !maintenanceActive);
+      notice.innerHTML = maintenanceActive
+        ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(sectionMessage)}</p>${allowAccess ? '<p class="mt-1 text-xs font-semibold">मेंटेनेंस के दौरान भी सामग्री उपलब्ध है।</p>' : '<p class="mt-1 text-xs font-semibold">सेक्शन अस्थायी रूप से लॉक है। कृपया प्रतीक्षा करें।</p>'}`
+        : '';
       Array.from(section.children).forEach(child => {
         if (child === notice) return;
         if (locked) {
@@ -1094,8 +1104,9 @@ notify(
     if (communityMaintenanceNotice) {
       communityMaintenanceNotice.hidden = !communityPostingNoticeVisible;
       communityMaintenanceNotice.classList.toggle('hidden', !communityPostingNoticeVisible);
+      const communityMessage = String((state.maintenance?.sectionMessages || {}).community || message || 'नई सुविधाएँ जोड़ी जा रही हैं। कृपया प्रतीक्षा करें।');
       communityMaintenanceNotice.innerHTML = communityPostingNoticeVisible
-        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं!</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(message || 'नई सुविधाएँ जोड़ी जा रही हैं। कृपया प्रतीक्षा करें।') + '</p><p class="mt-1 text-xs font-semibold">अभी नए संदेश भेजना अस्थायी रूप से बंद है। कृपया प्रतीक्षा करें।</p></div></div>'
+        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं!</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(communityMessage) + '</p><p class="mt-1 text-xs font-semibold">अभी नए संदेश भेजना अस्थायी रूप से बंद है। कृपया प्रतीक्षा करें।</p></div></div>'
         : '';
     }
     if (postEditor) {
@@ -3031,7 +3042,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     const postingBlocked = sectionMode === 'posting_only' || sectionMode === 'both' ||
       (!ownerBypass && globalMaintenanceBlocked);
     if (postingBlocked) {
-      notify(maintenance.message || 'संवाद मंच पर संदेश भेजना अभी अस्थायी रूप से बंद है।', 'error');
+      notify((maintenance.sectionMessages || {}).community || maintenance.message || 'संवाद मंच पर संदेश भेजना अभी अस्थायी रूप से बंद है।', 'error');
       return;
     }
     if (!requireUser()) return;
