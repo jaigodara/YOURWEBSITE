@@ -6721,6 +6721,8 @@ async function removeTrustedEditor(uid) {
           const data = doc.data() || {};
           return data.mode === mode || doc.id.endsWith('_' + mode);
         });
+        const violationSnap = await db.collection('live_violations').get();
+        const violations = violationSnap.docs.filter(doc => (doc.data() || {}).mode === mode);
         const reviewSnap = await db.collection('reviews').where('sourceCollection', '==', config.submissions).get();
         const reviews = reviewSnap.docs.filter(doc => submissionIds.has(String((doc.data() || {}).submissionId || '')));
         const reviewHistory = [];
@@ -6731,7 +6733,7 @@ async function removeTrustedEditor(uid) {
         // Preserve released results for students; include a copy in the archive report.
         const resultSnap = await db.collection('publishedResults').get();
         const results = resultSnap.docs.filter(doc => (doc.data() || {}).mode === mode);
-        const total = submissions.length + sessions.length + reviews.length + reviewHistory.length + results.length;
+        const total = submissions.length + sessions.length + violations.length + reviews.length + reviewHistory.length + results.length;
         if (!total) {
           if (status) status.textContent = 'इस परीक्षा मोड के लिए कोई सक्रिय या ऐतिहासिक रिकॉर्ड नहीं मिला।';
           return;
@@ -6741,11 +6743,12 @@ async function removeTrustedEditor(uid) {
           mode, title: config.title, status: 'in_progress',
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           createdBy: auth.currentUser.uid,
-          counts: { submissions: submissions.length, sessions: sessions.length, reviews: reviews.length, reviewHistory: reviewHistory.length, publishedResults: results.length }
+          counts: { submissions: submissions.length, sessions: sessions.length, violations: violations.length, reviews: reviews.length, reviewHistory: reviewHistory.length, publishedResults: results.length }
         });
         const records = [
           ...submissions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: config.submissions, removeSource: true })),
           ...sessions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'examSessions', removeSource: true })),
+          ...violations.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'live_violations', removeSource: true })),
           ...reviews.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'reviews', removeSource: true })),
           ...reviewHistory.map(row => ({ ...row, removeSource: true })),
           ...results.map(doc => ({ id: doc.id, data: doc.data(), sourceCollection: 'publishedResults', removeSource: false }))
@@ -6767,7 +6770,7 @@ async function removeTrustedEditor(uid) {
           if (status) status.textContent = 'आर्काइव कॉपी हो रहा है… ' + Math.min(offset + 200, records.length) + '/' + records.length;
         }
         await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
-        if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
+        if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड और ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
         await loadExamArchives();
         if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
         showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');

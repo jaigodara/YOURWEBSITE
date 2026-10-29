@@ -4767,8 +4767,6 @@ const digits = String(value || '').replace(/\D/g, '');
     setText('cbtRollNumber', identity.rollNumber || 'पंजीकरण रिकॉर्ड में उपलब्ध होने पर दिखेगा');
     const verifiedPhone = normalizeStudentPhone(state.user?.phoneNumber || '');
     setText('cbtPhoneNumber', verifiedPhone || 'Firebase verified phone उपलब्ध नहीं');
-    const questionSetLabel = document.getElementById('cbtQuestionSet')?.closest('div');
-    if (questionSetLabel) questionSetLabel.hidden = true;
     renderExamQuestionPalette(exam);
 
     if (workspace && !renderOptions.noScroll) workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5072,7 +5070,7 @@ const digits = String(value || '').replace(/\D/g, '');
       state.exam = {
         active: true,
         mode,
-        questionSetKey: collectionName,
+        questionCollection: collectionName,
         questions,
         index: 0,
         answers: {},
@@ -6727,7 +6725,7 @@ window.toggleAuthPassword = function (id, button) {
   }
 
 
- function normalizeImportedQuestion(row, index, setName) {
+ function normalizeImportedQuestion(row, index) {
   const item = row && typeof row === 'object' ? row : {};
 
   const question = String(
