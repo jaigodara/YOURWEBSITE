@@ -1321,3 +1321,10 @@ body > header.sticky > div { flex-wrap: nowrap; }
   #authLoginButton { padding: .5rem .4rem; font-size: 9px; }
   .bnav-mobile .bnav-label { font-size: 8px !important; }
 }
+
+@media (max-width: 640px) {
+  /* On narrow screens, list podium cards in natural rank order: 1st, 2nd, 3rd. */
+  #tab-quiz .grid.grid-cols-3 > div:nth-child(2) { order: 1; }
+  #tab-quiz .grid.grid-cols-3 > div:nth-child(1) { order: 2; }
+  #tab-quiz .grid.grid-cols-3 > div:nth-child(3) { order: 3; }
+}
