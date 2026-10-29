@@ -3223,7 +3223,11 @@ window.renderExamVisibility = function renderExamVisibility() {
               <option value="mockExam_1">मॉक परीक्षा 1</option>
               <option value="mockExam_2">मॉक परीक्षा 2</option>
               <option value="mainExamQuestions">मुख्य परीक्षा</option>
+              <option value="customExamQuestions">कस्टम परीक्षा</option>
             </select>
+          </label>
+          <label class="text-sm font-semibold text-stone-700" data-custom-exam-target-wrap hidden>कस्टम परीक्षा चुनें
+            <select data-question-custom-exam class="mt-1 min-h-12 w-full rounded-xl border border-stone-300 bg-white px-3"><option value="">कस्टम परीक्षा चुनें</option></select>
           </label>
         </div>
         <label class="block text-sm font-semibold text-stone-700">Question file (.json, .csv, .xlsx, .xls)
@@ -3571,9 +3575,25 @@ escapeHtml(statusLabel) + '</span></div>' +
     let questionImportFile = null;
     const previewOutput = host.querySelector('[data-question-preview-output]');
     const uploadButton = host.querySelector('[data-question-upload]');
-    const getQuestionImportOptions = () => ({
-      target: host.querySelector('[data-question-target]')?.value || 'mainExamQuestions'
-    });
+    const getQuestionImportOptions = () => {
+      const target = host.querySelector('[data-question-target]')?.value || 'mainExamQuestions';
+      const customExamId = host.querySelector('[data-question-custom-exam]')?.value || '';
+      const wrap = host.querySelector('[data-custom-exam-target-wrap]');
+      if (wrap) wrap.hidden = target !== 'customExamQuestions';
+      return { target, customExamId: target === 'customExamQuestions' ? customExamId : '' };
+    };
+    const loadCustomExamTargets = async () => {
+      const select = host.querySelector('[data-question-custom-exam]');
+      if (!select || !state.db) return;
+      try {
+        const snap = await collection('customExams').orderBy('updatedAt','desc').limit(100).get();
+        const selected = select.value;
+        select.replaceChildren(new Option('कस्टम परीक्षा चुनें',''));
+        snap.forEach(doc => { const exam=doc.data()||{}; if(exam.status!=='archived') select.add(new Option(String(exam.title||'बिना नाम')+' — '+String(exam.status||'draft'),doc.id)); });
+        if(selected && [...select.options].some(option=>option.value===selected)) select.value=selected;
+      } catch(error) { console.warn('Custom exam options unavailable',error); }
+    };
+    loadCustomExamTargets();
 
     host.querySelector('[data-question-file]')?.addEventListener('change', event => {
       questionImportFile = event.target.files?.[0] || null;
@@ -3597,8 +3617,12 @@ escapeHtml(statusLabel) + '</span></div>' +
       }
     };
 
-    host.querySelector('[data-question-target]')
-      ?.addEventListener('change', invalidateQuestionPreview);
+    host.querySelector('[data-question-target]')?.addEventListener('change', () => {
+      getQuestionImportOptions();
+      if (host.querySelector('[data-question-target]')?.value === 'customExamQuestions') loadCustomExamTargets();
+      invalidateQuestionPreview();
+    });
+    host.querySelector('[data-question-custom-exam]')?.addEventListener('change', invalidateQuestionPreview);
 
 
     host.querySelector('[data-question-preview]')?.addEventListener('click', async () => {
@@ -3612,7 +3636,7 @@ escapeHtml(statusLabel) + '</span></div>' +
       const button = host.querySelector('[data-question-preview]');
       if (button) button.disabled = true;
       try {
-        const result = await window.BishnoiApp.importExamQuestionFile(file, target, { previewOnly: true });
+        const result = await window.BishnoiApp.importExamQuestionFile(file, target, { previewOnly: true, customExamId: getQuestionImportOptions().customExamId });
         questionImportPreview = result;
         questionImportFile = file;
         if (previewOutput) {
@@ -3667,7 +3691,7 @@ escapeHtml(statusLabel) + '</span></div>' +
       const button = host.querySelector('[data-question-upload]');
       if (button) button.disabled = true;
       try {
-        const result = await window.BishnoiApp.importExamQuestionFile(questionImportFile, target);
+        const result = await window.BishnoiApp.importExamQuestionFile(questionImportFile, target, { customExamId: getQuestionImportOptions().customExamId });
         questionImportPreview = null;
         if (previewOutput) {
           previewOutput.classList.remove('hidden');
@@ -4154,13 +4178,16 @@ if (status) {
     host.querySelector('[data-owner-load-questions]')?.addEventListener('click', async () => {
       if (!requireOwner()) return;
       const target = host.querySelector('[data-question-target]')?.value || 'mainExamQuestions';
+      const customExamId = host.querySelector('[data-question-custom-exam]')?.value || '';
       const status = host.querySelector('[data-owner-question-bank-status]');
       const list = host.querySelector('[data-owner-question-bank-list]');
       if (status) status.textContent = 'प्रश्न लोड हो रहे हैं…';
       if (list) list.innerHTML = '';
       try {
-       const snap = await collection(target).limit(200).get();
-
+       const snap = target === 'customExamQuestions'
+         ? (customExamId ? await collection(target).where('examId','==',customExamId).limit(200).get() : null)
+         : await collection(target).limit(200).get();
+       if (!snap) { if (status) status.textContent='कस्टम परीक्षा चुनें, फिर प्रश्न लोड करें।'; return; }
 const rows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         if (status) status.textContent = rows.length ? rows.length + ' प्रश्न मिले। Draft प्रश्नों की Answer Key जाँचकर प्रकाशित करें।' : 'इस परीक्षा संग्रह में प्रश्न नहीं मिले।';
         if (!list) return;
@@ -4209,6 +4236,7 @@ const rows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
             button.disabled = true;
             try {
               await collection(target).doc(id).set({
+                ...(target === 'customExamQuestions' ? { examId: customExamId } : {}),
                 correctAnswer: answerIndex, answerIndex, published: false, status: 'draft',
                 publishedBy: null, publishedAt: null, updatedAt: serverTimestamp(), updatedBy: state.user.uid
               }, { merge: true });
@@ -4229,6 +4257,7 @@ const rows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
             button.disabled = true;
             try {
               await collection(target).doc(id).set({
+                ...(target === 'customExamQuestions' ? { examId: customExamId } : {}),
                 published: publish,
                 status: publish ? 'published' : 'draft',
                 publishedBy: publish ? state.user.uid : null,
@@ -4902,6 +4931,14 @@ const digits = String(value || '').replace(/\D/g, '');
   }
 
   window.startPortalExam = async function (mode = 'quiz') {
+    const customExamId = new URLSearchParams(window.location.search).get('customExamId') || '';
+    let customExamRecord = null;
+    if (customExamId) {
+      try { const snap = await collection('customExams').doc(customExamId).get(); customExamRecord = snap.exists ? snap.data() || null : null; }
+      catch(error) { notify('कस्टम परीक्षा सेटिंग नहीं पढ़ी जा सकी।','error'); return; }
+      if (!customExamRecord || customExamRecord.status !== 'published') { notify('यह कस्टम परीक्षा प्रकाशित नहीं है।','error'); return; }
+      mode = 'main';
+    }
     if (!requireUser()) return;
     if (state.profile?.gmailVerified !== true) {
       notify('परीक्षा देने से पहले Google सत्यापन पूरा करना ज़रूरी है।', 'error');
@@ -4935,11 +4972,8 @@ const digits = String(value || '').replace(/\D/g, '');
     // Match the visible cards with the actual start handlers, so hidden exams
     // cannot still be launched by an old button or a direct JavaScript call.
     const config = state.examConfig || {};
-    const visibilityField = ({
-      quiz: 'dailyQuizVisible',
-      mock1: 'mock1Visible',
-      mock2: 'mock2Visible',
-      main: 'mainExamVisible'
+    const visibilityField = customExamId ? null : ({
+      quiz: 'dailyQuizVisible', mock1: 'mock1Visible', mock2: 'mock2Visible', main: 'mainExamVisible'
     })[mode];
     if (visibilityField && config[visibilityField] === false) {
       notify('यह परीक्षा अभी Owner Studio में बंद है।', 'error');
@@ -4953,15 +4987,15 @@ const digits = String(value || '').replace(/\D/g, '');
     // Daily Quiz is an all-day activity: it ignores the optional schedule
     // fields and never uses the late-entry request workflow. Timed mock/main
     // exams continue to follow the Owner Studio schedule.
-    const scheduledStart = mode === 'quiz' ? Date.now() : getExamStartAt(mode);
-    if (mode !== 'quiz' && !scheduledStart) {
+    const scheduledStart = (mode === 'quiz' || customExamId) ? Date.now() : getExamStartAt(mode);
+    if (!customExamId && mode !== 'quiz' && !scheduledStart) {
       const message = 'इस परीक्षा का शुरू होने का समय Owner Studio में सेट नहीं है। व्यवस्थापक से समय निर्धारित करने को कहें।';
       const countdownId = ({ mock1: 'mock1Countdown', mock2: 'mock2Countdown', main: 'mainExamCountdown' })[mode];
       if (countdownId) setText(countdownId, '⚠️ ' + message);
       notify(message, 'error');
       return;
     }
-    if (mode !== 'quiz' && Date.now() < scheduledStart) {
+    if (!customExamId && mode !== 'quiz' && Date.now() < scheduledStart) {
       const startText = new Date(scheduledStart).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' });
       notify(`यह परीक्षा ${startText} पर शुरू होगी। काउंटडाउन पूरा होने तक प्रवेश बंद है।`, 'error');
       window.switchTab('quiz');
@@ -4969,11 +5003,11 @@ const digits = String(value || '').replace(/\D/g, '');
       return;
     }
 
-    const durationMinutes = Math.max(1, Number(mode === 'quiz' ? (state.examConfig?.quizDurationMinutes ?? state.examConfig?.durationMinutes) : state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
+    const durationMinutes = Math.max(1, Number(customExamRecord?.durationMinutes ?? (mode === 'quiz' ? (state.examConfig?.quizDurationMinutes ?? state.examConfig?.durationMinutes) : state.examConfig?.durationMinutes)) || CONFIG.defaultExamMinutes);
     const scheduledEndAt = (mode === 'quiz' ? Date.now() : scheduledStart) + durationMinutes * 60 * 1000;
     let lateEntryGranted = false;
     let ownerGrantedEndAt = null;
-    if (mode !== 'quiz' && Date.now() >= scheduledEndAt) {
+    if (!customExamId && mode !== 'quiz' && Date.now() >= scheduledEndAt) {
       const sessionRef = collection('examSessions').doc(state.user.uid + '_' + mode);
       try {
         const sessionSnap = await sessionRef.get();
@@ -5017,7 +5051,7 @@ const digits = String(value || '').replace(/\D/g, '');
     }
     const attemptEndAt = lateEntryGranted ? ownerGrantedEndAt : scheduledEndAt;
 
-    const collectionName = CONFIG.examCollections[mode];
+    const collectionName = customExamId ? 'customExamQuestions' : CONFIG.examCollections[mode];
     if (!collectionName) {
       notify('Unknown exam type.', 'error');
       return;
@@ -5026,13 +5060,11 @@ const digits = String(value || '').replace(/\D/g, '');
     try {
       // Fetch only explicitly published questions. Old/unmarked records must
       // be reviewed and published in Owner Studio before they enter an exam.
-      const snapshot = await collection(collectionName).where('published', '==', true).get();
-      const questions = snapshot.docs
-        .filter(doc => {
-          const data = doc.data() || {};
-          return data.published === true && data.status !== 'draft';
-        })
-        .map(doc => ({ id: doc.id, ...doc.data() }));
+      let query = collection(collectionName).where('published','==',true);
+      if (customExamId) query = query.where('examId','==',customExamId);
+      const snapshot = await query.get();
+      const questions = snapshot.docs.map(doc => ({id:doc.id,...doc.data()}))
+        .filter(data => data.published === true && data.status !== 'draft' && (!customExamId || data.examId === customExamId));
 
       // Randomize question and option order only when the Owner enables it.
       // Fisher-Yates is applied to attempt-local copies; Firestore question records are untouched.
@@ -5091,7 +5123,7 @@ const digits = String(value || '').replace(/\D/g, '');
       }
 
       if (!questions.length) {
-        const message = 'अभी mainExamQuestions संग्रह में कोई प्रश्न उपलब्ध नहीं है। Owner Studio में प्रश्न जोड़ें।';
+        const message = customExamId ? 'इस कस्टम परीक्षा में प्रकाशित प्रश्न नहीं हैं। Question Studio में प्रश्न अपलोड और Publish करें।' : 'अभी mainExamQuestions संग्रह में कोई प्रश्न उपलब्ध नहीं है। Owner Studio में प्रश्न जोड़ें।';
         setText('mainExamCountdown', '⚠️ ' + message);
         notify(message, 'error');
         return;
@@ -5117,17 +5149,23 @@ const digits = String(value || '').replace(/\D/g, '');
         beforeUnload: null,
         kicked: false,
         sessionUnsubscribe: null,
-        sessionId: null
+        sessionId: null,
+        customExamId: customExamId || null,
+        examTitle: customExamRecord?.title || null,
+        totalMarksConfigured: customExamRecord?.totalMarks ?? null,
+        passingMarksConfigured: customExamRecord?.passingMarks ?? null,
+        negativeMarksConfigured: customExamRecord?.negativeMarks ?? null
       };
       persistActiveExam();
-      attachExamSessionListener();
-      updateExamSession('active', {
-        startedAt: serverTimestamp(),
-        reentryGrantConsumedAt: serverTimestamp(),
-        lateEntryRequested: false
-      });
-
+      if (!customExamId) {
+        attachExamSessionListener();
+        updateExamSession('active', { startedAt: serverTimestamp(), reentryGrantConsumedAt: serverTimestamp(), lateEntryRequested: false });
+      }
       ensureExamWorkspace(mode);
+      if (customExamRecord) {
+        const heading=document.querySelector('#mainExamSection h3'); if(heading) heading.textContent=customExamRecord.title||'कस्टम परीक्षा';
+        setText('mainExamCountdown','कस्टम परीक्षा · '+durationMinutes+' मिनट · कुल अंक '+Number(customExamRecord.totalMarks||0));
+      }
       setVisible('portalExamWorkspace', true);
       installExamIntegrityGuards();
       ['enrollmentSection', 'myResultsPanel', 'dailyQuizSection', 'mockHub', 'mainExamSection']
@@ -5310,7 +5348,8 @@ const digits = String(value || '').replace(/\D/g, '');
       // Mock/Main attempts remain pending owner review.
       answers: { ...exam.answers },
       review: { ...exam.review },
-      questionCollection: CONFIG.examCollections[exam.mode] || exam.mode,
+      questionCollection: exam.customExamId ? 'customExamQuestions' : (CONFIG.examCollections[exam.mode] || exam.mode),
+      ...(exam.customExamId ? { customExamId: exam.customExamId, examTitle: exam.examTitle || 'कस्टम परीक्षा', configuredTotalMarks: Number(exam.totalMarksConfigured || maxMarks), passingMarks: Number(exam.passingMarksConfigured || 0), configuredNegativeMarks: Number(exam.negativeMarksConfigured || 0) } : {}),
       questionOrder: exam.questions.map((question, index) => String(question.id || index)),
       questionSnapshots: exam.questions.map((question, index) => ({
         id: String(question.id || index),
@@ -5360,7 +5399,7 @@ const digits = String(value || '').replace(/\D/g, '');
       exam.active = false;
       clearPersistedExam();
       window.stopExamResources();
-      updateExamSession('submitted', { submittedAt: serverTimestamp() });
+      if (!exam.customExamId) updateExamSession('submitted', { submittedAt: serverTimestamp() });
       if (instantResult) {
         collection('userNotifications').doc(state.user.uid).collection('items').add({
           title: '🏆 दैनिक क्विज़ परिणाम',
@@ -6975,10 +7014,13 @@ window.BishnoiApp.importExamQuestions = async function (
       : 'परीक्षा प्रश्न बदलने के लिए Exam Checking permission आवश्यक है।');
   }
 
-  const collectionName = ({ quiz: 'quiz', mainExamQuestions: 'mainExamQuestions', mockExam_1: 'mockExam_1', mockExam_2: 'mockExam_2' })[requestedTarget] || '';
-
-  if (!collectionName) {
-    throw new Error('अमान्य परीक्षा चुनी गई है।');
+  const collectionName = ({ quiz: 'quiz', mainExamQuestions: 'mainExamQuestions', mockExam_1: 'mockExam_1', mockExam_2: 'mockExam_2', customExamQuestions: 'customExamQuestions' })[requestedTarget] || '';
+  const customExamId = String(options.customExamId || '').trim();
+  if (!collectionName) throw new Error('अमान्य परीक्षा चुनी गई है।');
+  if (requestedTarget === 'customExamQuestions' && !customExamId) throw new Error('कस्टम परीक्षा चुनकर प्रश्न अपलोड करें।');
+  if (requestedTarget === 'customExamQuestions') {
+    const customSnap = await state.db.collection('customExams').doc(customExamId).get();
+    if (!customSnap.exists || (customSnap.data()||{}).status === 'archived') throw new Error('कस्टम परीक्षा उपलब्ध नहीं है।');
   }
 
   if (!Array.isArray(rows) || rows.length > 2000) {
@@ -7029,7 +7071,8 @@ window.BishnoiApp.importExamQuestions = async function (
     }
 
     seenIds.add(id);
-    safeQuestions.push({ ...question, id });
+    const storageId = requestedTarget === 'customExamQuestions' ? (customExamId + '_' + id).slice(0,180) : id;
+    safeQuestions.push({ ...question, id: storageId, ...(requestedTarget === 'customExamQuestions' ? { examId: customExamId } : {}) });
   }
 
   // Preflight: refuse to overwrite existing question documents.
@@ -7080,6 +7123,7 @@ window.BishnoiApp.importExamQuestions = async function (
   return {
     ...preview,
     collection: collectionName,
+    examId: requestedTarget === 'customExamQuestions' ? customExamId : null,
     published: false
   };
 };

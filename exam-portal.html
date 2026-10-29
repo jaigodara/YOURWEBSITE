@@ -333,6 +333,8 @@
         </div>
       </article>
     </div>
+    <h2 id="customExamsHeading" class="section-heading hide">🧩 अन्य प्रकाशित परीक्षाएँ</h2>
+    <div id="customExamCards" class="grid"></div>
   </section>
 
   <section id="examFramePanel" class="panel hide">
@@ -380,12 +382,34 @@
 };
   const durationKeys = { mock1: "mock1DurationMinutes", mock2: "mock2DurationMinutes", main: "mainDurationMinutes" };
   const examTitles = {
-    mock1: "📝 मॉक परीक्षा 1",
-    mock2: "🎯 मॉक परीक्षा 2",
-    main: "🏆 मुख्य परीक्षा",
-    enrollment: "🧾 विद्यार्थी पंजीकरण",
-    results: "📊 परिणाम डेस्क"
+    mock1: "📝 मॉक परीक्षा 1", mock2: "🎯 मॉक परीक्षा 2", main: "🏆 मुख्य परीक्षा",
+    enrollment: "🧾 विद्यार्थी पंजीकरण", results: "📊 परिणाम डेस्क"
   };
+  async function loadPublishedCustomExams(db) {
+    const container=byId("customExamCards"), heading=byId("customExamsHeading");
+    if(!container||!heading)return; container.replaceChildren();
+    try {
+      const snap=await db.collection("customExams").where("status","==","published").limit(100).get();
+      snap.forEach(doc=>{
+        const e=doc.data()||{}; if(e.status!=="published"||e.archivedAt)return;
+        const card=document.createElement("article");card.className="exam";
+        const icon=document.createElement("div");icon.className="exam-icon";icon.textContent="🧩";
+        const title=document.createElement("h3");title.textContent=String(e.title||"कस्टम परीक्षा");
+        const meta=document.createElement("span");meta.className="exam-meta";meta.textContent="अवधि: "+(Number(e.durationMinutes)||60)+" मिनट · कुल अंक: "+(Number(e.totalMarks)||100);
+        const detail=document.createElement("p");detail.textContent="उत्तीर्ण अंक: "+(Number(e.passingMarks)||0)+" · प्रकाशित परीक्षा";
+        const actions=document.createElement("div");actions.className="card-actions";
+        const btn=document.createElement("button");btn.type="button";btn.className="button gold";btn.textContent="यह परीक्षा खोलें";
+        btn.addEventListener("click",()=>{
+          if(window.__bishnoismMaintenanceLocked===true){setPortalStatus((window.__bishnoismMaintenance?.sectionMessages||{}).quiz||"परीक्षा रखरखाव पर है।");return;}
+          byId("examFrameTitle").textContent=String(e.title||"कस्टम परीक्षा");framePanel.classList.remove("hide");examArea.classList.add("hide");framePanel.classList.add("exam-frame-fullscreen");
+          if(framePanel.requestFullscreen)framePanel.requestFullscreen().catch(()=>{});framePanel.scrollIntoView({behavior:"smooth",block:"start"});
+          examFrame.src="./index.html?examEmbed=main&customExamId="+encodeURIComponent(doc.id)+"#tab-quiz";
+        });
+        actions.appendChild(btn);card.append(icon,title,meta,detail,actions);container.appendChild(card);
+      });
+      heading.classList.toggle("hide",container.children.length===0);
+    } catch(err){console.error("Custom exams load failed",err);heading.classList.add("hide");setPortalStatus("कस्टम परीक्षा सूची लोड नहीं हुई। Firebase read rules जाँचें।");}
+  }
 function toScheduleDate(value) {
   if (value == null || value === "") return null;
 
@@ -614,6 +638,7 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
       return;
     }
 
+    await loadPublishedCustomExams(db);
     const mockGroupVisible = config.mockVisible !== false;
     const mock1Visible = mockGroupVisible && config.mock1Visible !== false;
     const mock2Visible = mockGroupVisible && config.mock2Visible !== false;
@@ -631,7 +656,8 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
       mock2Visible,
       config.mainExamVisible !== false,
       config.enrollmentVisible !== false,
-      config.resultsVisible !== false
+      config.resultsVisible !== false,
+      (byId("customExamCards")?.children.length || 0) > 0
     ].filter(Boolean).length;
 
     setPortalStatus(

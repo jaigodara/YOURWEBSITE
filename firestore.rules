@@ -330,7 +330,17 @@ service cloud.firestore {
     }
 
     match /customExams/{examId} {
-      allow read, create, update, delete: if examOwner();
+      allow read: if examOwner() || (signedIn() && resource.data.get('status', '') == 'published');
+      allow create, update, delete: if examOwner();
+    }
+    match /customExamQuestions/{questionId} {
+      function linkedPublishedCustomExam() {
+        let p = /databases/$(database)/documents/customExams/$(resource.data.get('examId', ''));
+        return resource.data.get('examId', '') is string && resource.data.get('examId', '') != ''
+          && exists(p) && get(p).data.get('status', '') == 'published' && examEnabled('main');
+      }
+      allow read: if canReviewExam() || (signedIn() && resource.data.get('published', false) == true && linkedPublishedCustomExam());
+      allow create, update, delete: if examOwner();
     }
 
 
@@ -484,10 +494,16 @@ service cloud.firestore {
 
     match /mainExamSubmissions/{attemptId} {
       allow create: if confirmedExamStudent()
-        && examEnabled('main')
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'main'
-        && examStarted('mainStartAt');
+        && (
+          (request.resource.data.get('customExamId', '') is string
+            && request.resource.data.get('customExamId', '') != ''
+            && exists(/databases/$(database)/documents/customExams/$(request.resource.data.get('customExamId', '')))
+            && get(/databases/$(database)/documents/customExams/$(request.resource.data.get('customExamId', ''))).data.get('status', '') == 'published'
+            && examEnabled('main'))
+          || (!request.resource.data.keys().hasAny(['customExamId']) && examEnabled('main') && examStarted('mainStartAt'))
+        );
 
       allow read, update: if canReviewExam();
       allow delete: if examOwner();
