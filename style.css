@@ -1225,3 +1225,66 @@ body > header.sticky #authActionsContainer { min-width: 0; }
   #ownerStudioContent { max-width: 100%; }
   #ownerMaintenanceSettingsPanel { padding: clamp(1rem, 2vw, 1.5rem); }
 }
+
+
+/* Community chat: modern message cards and thumb-friendly composer. */
+#tab-community #communityFeed {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  min-width: 0;
+  padding: .25rem;
+  scroll-behavior: smooth;
+}
+#tab-community #communityFeed .bx-chat-message {
+  max-width: min(100%, 52rem);
+  border-radius: 1.15rem;
+  padding: .9rem 1rem;
+  box-shadow: 0 5px 18px rgba(20,54,34,.06);
+  overflow-wrap: anywhere;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+#tab-community #communityFeed .bx-chat-message-mine {
+  align-self: flex-end;
+  background: #f0f7f0;
+  border-color: #c7ddc9;
+  border-bottom-right-radius: .4rem;
+}
+#tab-community #communityFeed .bx-chat-message-other {
+  align-self: flex-start;
+  background: #fffdf8;
+  border-color: #e8e1d5;
+  border-bottom-left-radius: .4rem;
+}
+#tab-community #communityFeed .bx-chat-message-pinned {
+  border-color: #e6bd61;
+  box-shadow: 0 5px 20px rgba(179,74,27,.08);
+}
+#tab-community #postEditor {
+  border: 1px solid #dce5d9;
+  border-radius: 1.15rem;
+  background: rgba(255,253,248,.97);
+  box-shadow: 0 12px 30px rgba(20,54,34,.1);
+  backdrop-filter: blur(14px);
+}
+#tab-community #postEditor textarea {
+  min-width: 0;
+  border-radius: .85rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+#tab-community #postEditor button {
+  border-radius: .85rem;
+  font-weight: 800;
+  transition: transform .15s ease, filter .15s ease;
+}
+#tab-community #postEditor button:active { transform: scale(.97); }
+#tab-community #postEditor button:disabled { opacity: .55; filter: grayscale(.25); }
+@media (min-width: 768px) {
+  #tab-community #communityFeed { max-height: min(66vh, 48rem); padding: .5rem; }
+  #tab-community #communityFeed .bx-chat-message { padding: 1rem 1.15rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #tab-community #communityFeed .bx-chat-message,
+  #tab-community #postEditor button { transition: none; }
+}
