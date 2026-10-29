@@ -655,10 +655,28 @@ service cloud.firestore {
       allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
     }
 
+    // Enforce community maintenance at the database boundary too. Clients cannot
+    // bypass a posting lock by calling Firestore directly instead of the UI.
+    // Global maintenance conservatively blocks writes for all clients because
+    // Firestore rules cannot reliably identify the caller's device type.
+    function communityPostingAllowed() {
+      let maintenancePath = /databases/$(database)/documents/settings/maintenance;
+      return !exists(maintenancePath)
+        || (
+          get(maintenancePath).data.get('globalMode', 'off') == 'off'
+          && get(maintenancePath).data.get('sections', {}).get('community', 'off') == 'off'
+        )
+        || (
+          get(maintenancePath).data.get('vipBypass', true) == true
+          && owner()
+        );
+    }
+
     match /posts/{id} {
       allow read: if true;
 
       allow create: if signedIn()
+        && communityPostingAllowed()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('body', null) is string
         && request.resource.data.body.size() <= 2000;
