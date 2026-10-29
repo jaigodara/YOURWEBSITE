@@ -1029,7 +1029,7 @@ notify(
   function applyMaintenanceSettings() {
     const m = state.maintenance || {};
     const mode = m.globalMode || 'off';
-    const message = m.message || 'इस भाग में नए अपडेट जोड़े जा रहे हैं। कृपया कुछ समय बाद फिर देखें।';
+    const message = m.message || 'नई सुविधाएँ आ रही हैं। कृपया प्रतीक्षा करें।';
     const banner = byId('maintenanceBanner');
     if (banner) {
       const active = mode !== 'off';
