@@ -1039,6 +1039,7 @@ notify(
       setText('maintenanceModeLabel', mode === 'both' ? 'पूरे मंच पर रखरखाव' : mode === 'web_only' ? 'वेबसाइट रखरखाव' : mode === 'phone_only' ? 'मोबाइल/ऐप रखरखाव' : '');
     }
     const sectionLabels = {
+      home: ['tab-home', '🏠 मुख्य पृष्ठ'],
       mala: ['tab-mala', '📿 डिजिटल जप माला'],
       library: ['tab-library', '📚 साहित्य'],
       quiz: ['tab-quiz', '🏆 परीक्षा'],
@@ -1095,7 +1096,15 @@ notify(
     }
     const globalOverlay = byId('globalMaintenanceOverlay');
     if (globalOverlay) {
-      const blockWebsite = (mode === 'web_only' || mode === 'both') && !(m.vipBypass !== false && state.isOwner);
+      // "Phone/app only" targets the Android WebView app; "website only"
+      // targets normal browsers. "Both" targets every client.
+      const ua = String(window.navigator?.userAgent || '');
+      const isNativeApp = /; wv\)|\bWebView\b|BishnoismAndroid/i.test(ua);
+      const blockWebsite = (
+        mode === 'both' ||
+        (mode === 'web_only' && !isNativeApp) ||
+        (mode === 'phone_only' && isNativeApp)
+      ) && !(m.vipBypass !== false && state.isOwner);
       globalOverlay.hidden = !blockWebsite;
       globalOverlay.classList.toggle('hidden', !blockWebsite);
       setText('globalMaintenanceMessage', message);
