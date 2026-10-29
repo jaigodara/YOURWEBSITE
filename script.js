@@ -2957,16 +2957,38 @@ window.renderExamVisibility = function renderExamVisibility() {
           </div>
           ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
           <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
-          <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)}</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)}</div>
+            ${(isMine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-white/20 bg-black/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="संदेश हटाएँ">हटाएँ</button>` : ''}
+          </div>
         </article>
       `;
     }).join('');
+    host.querySelectorAll('[data-delete-community-post]').forEach(button => {
+      button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost));
+    });
   }
 
   window.BishnoiCommunity = window.BishnoiCommunity || {};
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
     window.renderCommunity(communityPostsCache);
+  };
+  window.BishnoiCommunity.deletePost = async function (postId) {
+    if (!requireUser() || !postId) return;
+    const post = communityPostsCache.find(item => item.id === postId);
+    if (!post || (post.uid !== state.user.uid && !state.isOwner)) {
+      notify('केवल अपना संदेश या Owner ही संदेश हटा सकता है।', 'error');
+      return;
+    }
+    if (!window.confirm('क्या आप इस संदेश को हटाना चाहते हैं?')) return;
+    try {
+      await collection('posts').doc(postId).delete();
+      notify('संदेश हटा दिया गया।', 'success');
+    } catch (error) {
+      console.error('Community post delete failed:', error);
+      notify('संदेश नहीं हट सका। Firestore permissions जाँचें।', 'error');
+    }
   };
   window.BishnoiCommunity.submitPost = async function () {
     const maintenance = state.maintenance || {};

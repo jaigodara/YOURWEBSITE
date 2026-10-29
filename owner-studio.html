@@ -774,8 +774,12 @@ Ans: B"></textarea>
       Unpublish / Draft
     </button>
     <button type="button" onclick="changeCustomExamStatus('archived')"
-      class="rounded-xl border border-stone-300 p-3 text-sm font-bold sm:col-span-2">
+      class="rounded-xl border border-stone-300 p-3 text-sm font-bold">
       परीक्षा Archive करें
+    </button>
+    <button type="button" onclick="deleteCustomExamRecord()"
+      class="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
+      परीक्षा रिकॉर्ड हटाएँ
     </button>
   </div>
 
@@ -3757,6 +3761,39 @@ async function saveCustomExamRecord() {
   } catch (error) {
     console.error('Custom exam save failed:', error);
     showToast('सहेजना विफल हुआ। Firestore rules और Owner access जाँचें।');
+  }
+}
+
+async function deleteCustomExamRecord() {
+  if (!isPrimaryOwner()) {
+    showToast('परीक्षा रिकॉर्ड हटाने का अधिकार केवल Owner को है।');
+    return;
+  }
+  const id = document.getElementById('ownerCustomExamRecordId')?.value
+    || document.getElementById('ownerCustomExamSelect')?.value;
+  if (!id) {
+    showToast('पहले मौजूदा परीक्षा चुनें।');
+    return;
+  }
+  const ref = customExamRegistryCollection().doc(id);
+  try {
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      showToast('परीक्षा रिकॉर्ड नहीं मिला।');
+      return;
+    }
+    const title = String(snapshot.data()?.title || 'यह परीक्षा');
+    if (!window.confirm('"' + title + '" का परीक्षा-रजिस्ट्री रिकॉर्ड हटाएँ? यह प्रश्नों/पुराने परिणामों को नहीं मिटाएगा।')) return;
+    await ref.delete();
+    document.getElementById('ownerCustomExamRecordId').value = '';
+    document.getElementById('ownerCustomExamSelect').value = '';
+    await loadCustomExamRegistry();
+    newCustomExamRecord();
+    setCustomExamRegistryStatus('परीक्षा रिकॉर्ड हटाया गया। पुराने प्रश्न/परिणाम सुरक्षित रखे गए हैं।');
+    showToast('परीक्षा रजिस्ट्री रिकॉर्ड हटा दिया गया।');
+  } catch (error) {
+    console.error('Custom exam delete failed:', error);
+    showToast('परीक्षा रिकॉर्ड नहीं हटा सके। Owner access और Firestore rules जाँचें।');
   }
 }
 
