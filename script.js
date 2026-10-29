@@ -1076,23 +1076,39 @@ notify(
         }
       });
     });
-    // Community can remain readable while posting is paused. This is separate
-    // from locking the entire community section.
-    const communityPostingBlocked = (m.sections || {}).community === 'posting_only' && !(m.vipBypass !== false && state.isOwner);
+    // Community posting maintenance is a hard pause for every account,
+    // including Owner/Editors. Reading stays available in posting-only mode.
+    const communityMode = (m.sections || {}).community || 'off';
+    const communityPostingBlocked = communityMode === 'posting_only' || communityMode === 'both';
     const postEditor = byId('postEditor');
     const postText = byId('postText');
+    let communityMaintenanceNotice = byId('communityMaintenanceNotice');
+    const communitySection = byId('tab-community');
+    if (communitySection && communityPostingBlocked && !communityMaintenanceNotice) {
+      communityMaintenanceNotice = document.createElement('div');
+      communityMaintenanceNotice.id = 'communityMaintenanceNotice';
+      communityMaintenanceNotice.className = 'mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-white p-4 text-sm text-amber-950 shadow-sm';
+      communitySection.prepend(communityMaintenanceNotice);
+    }
+    if (communityMaintenanceNotice) {
+      communityMaintenanceNotice.hidden = !communityPostingBlocked;
+      communityMaintenanceNotice.classList.toggle('hidden', !communityPostingBlocked);
+      communityMaintenanceNotice.innerHTML = communityPostingBlocked
+        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं!</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(message || 'नई सुविधाएँ जोड़ी जा रही हैं। कृपया प्रतीक्षा करें।') + '</p><p class="mt-1 text-xs font-semibold">अभी नए संदेश भेजना अस्थायी रूप से बंद है। कृपया प्रतीक्षा करें।</p></div></div>'
+        : '';
+    }
     if (postEditor) {
       postEditor.classList.toggle('maintenance-posting-locked', communityPostingBlocked);
       postEditor.setAttribute('aria-disabled', communityPostingBlocked ? 'true' : 'false');
     }
     if (postText) {
       postText.disabled = communityPostingBlocked;
-      postText.placeholder = communityPostingBlocked ? 'संवाद मंच पर संदेश भेजना अस्थायी रूप से बंद है।' : 'अपना संदेश लिखें…';
+      postText.placeholder = communityPostingBlocked ? 'नए फीचर आ रहे हैं — अभी संदेश भेजना बंद है।' : 'अपना संदेश लिखें…';
     }
     const postButton = byId('postEditor')?.querySelector('button[onclick*="submitPost"], button[type="submit"]');
     if (postButton) {
       postButton.disabled = communityPostingBlocked;
-      postButton.title = communityPostingBlocked ? 'Owner Studio में संदेश भेजना फिर चालू करें' : 'संदेश भेजें';
+      postButton.title = communityPostingBlocked ? 'मेंटेनेंस के दौरान संदेश भेजना बंद है' : 'संदेश भेजें';
     }
     const globalOverlay = byId('globalMaintenanceOverlay');
     if (globalOverlay) {
@@ -2532,6 +2548,11 @@ window.renderExamVisibility = function renderExamVisibility() {
       const el = byId(item.element);
       if (!el) return;
       const startAt = getExamStartAt(item.mode);
+      if (item.mode === 'quiz') {
+        el.textContent = '🟢 दैनिक क्विज़ पूरे दिन उपलब्ध • कभी भी प्रयास करें';
+        el.className = 'rounded-xl bg-white/90 border border-emerald-200 p-3 text-xs font-bold text-emerald-900';
+        return;
+      }
       if (!startAt) {
         el.textContent = '🟢 अभी उपलब्ध • समय निर्धारित नहीं';
         el.className = 'rounded-xl bg-white/90 border border-emerald-200 p-3 text-xs font-bold text-emerald-900';
@@ -4893,15 +4914,18 @@ const digits = String(value || '').replace(/\D/g, '');
       return;
     }
 
-    const scheduledStart = getExamStartAt(mode);
-    if (!scheduledStart) {
+    // Daily Quiz is an all-day activity: it ignores the optional schedule
+    // fields and never uses the late-entry request workflow. Timed mock/main
+    // exams continue to follow the Owner Studio schedule.
+    const scheduledStart = mode === 'quiz' ? Date.now() : getExamStartAt(mode);
+    if (mode !== 'quiz' && !scheduledStart) {
       const message = 'इस परीक्षा का शुरू होने का समय Owner Studio में सेट नहीं है। व्यवस्थापक से समय निर्धारित करने को कहें।';
-      const countdownId = ({ quiz: 'quizCountdown', mock1: 'mock1Countdown', mock2: 'mock2Countdown', main: 'mainExamCountdown' })[mode];
+      const countdownId = ({ mock1: 'mock1Countdown', mock2: 'mock2Countdown', main: 'mainExamCountdown' })[mode];
       if (countdownId) setText(countdownId, '⚠️ ' + message);
       notify(message, 'error');
       return;
     }
-    if (Date.now() < scheduledStart) {
+    if (mode !== 'quiz' && Date.now() < scheduledStart) {
       const startText = new Date(scheduledStart).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' });
       notify(`यह परीक्षा ${startText} पर शुरू होगी। काउंटडाउन पूरा होने तक प्रवेश बंद है।`, 'error');
       window.switchTab('quiz');
@@ -4909,11 +4933,11 @@ const digits = String(value || '').replace(/\D/g, '');
       return;
     }
 
-    const durationMinutes = Math.max(1, Number(state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
-    const scheduledEndAt = scheduledStart + durationMinutes * 60 * 1000;
+    const durationMinutes = Math.max(1, Number(mode === 'quiz' ? state.examConfig?.quizDurationMinutes : state.examConfig?.durationMinutes) || CONFIG.defaultExamMinutes);
+    const scheduledEndAt = (mode === 'quiz' ? Date.now() : scheduledStart) + durationMinutes * 60 * 1000;
     let lateEntryGranted = false;
     let ownerGrantedEndAt = null;
-    if (Date.now() >= scheduledEndAt) {
+    if (mode !== 'quiz' && Date.now() >= scheduledEndAt) {
       const sessionRef = collection('examSessions').doc(state.user.uid + '_' + mode);
       try {
         const sessionSnap = await sessionRef.get();
