@@ -3039,6 +3039,16 @@ window.renderExamVisibility = function renderExamVisibility() {
           </div>
           ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
           <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
+          <section class="space-y-2 border-t border-stone-100 pt-2" aria-label="संदेश के जवाब">
+            <div data-community-replies="${escapeHtml(post.id || '')}" class="space-y-1.5">
+              <p class="text-[11px] text-stone-400">जवाब लोड हो रहे हैं…</p>
+            </div>
+            <form data-community-reply-form="${escapeHtml(post.id || '')}" class="flex gap-2">
+              <label class="sr-only" for="community-reply-${escapeHtml(post.id || '')}">जवाब लिखें</label>
+              <input id="community-reply-${escapeHtml(post.id || '')}" data-community-reply-input maxlength="500" class="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs" placeholder="इस संदेश का जवाब लिखें…" autocomplete="off">
+              <button type="submit" class="shrink-0 rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">जवाब दें</button>
+            </form>
+          </section>
           <div class="flex items-center justify-between gap-2">
             <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)}</div>
             ${(isMine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-white/20 bg-black/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="संदेश हटाएँ">हटाएँ</button>` : ''}
@@ -3053,12 +3063,119 @@ window.renderExamVisibility = function renderExamVisibility() {
     host.querySelectorAll('[data-block-community-user]').forEach(button => {
       button.addEventListener('click', () => window.BishnoiCommunity.blockUser(button.dataset.blockCommunityUser, button));
     });
+    host.querySelectorAll('[data-community-reply-form]').forEach(form => {
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        const input = form.querySelector('[data-community-reply-input]');
+        window.BishnoiCommunity.submitReply(form.dataset.communityReplyForm, input, form);
+      });
+    });
+    host.querySelectorAll('[data-community-replies]').forEach(replyHost => {
+      window.BishnoiCommunity.loadReplies(replyHost.dataset.communityReplies, replyHost);
+    });
   }
 
   window.BishnoiCommunity = window.BishnoiCommunity || {};
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
     window.renderCommunity(communityPostsCache);
+  };
+  window.BishnoiCommunity.loadReplies = async function (postId, host) {
+    if (!postId || !host) return;
+    try {
+      const snapshot = await collection('posts').doc(postId).collection('replies').limit(20).get();
+      host.replaceChildren();
+      if (snapshot.empty) {
+        const empty = document.createElement('p');
+        empty.className = 'text-[11px] text-stone-400';
+        empty.textContent = 'अभी कोई जवाब नहीं है।';
+        host.appendChild(empty);
+        return;
+      }
+      snapshot.docs.forEach(replyDoc => {
+        const reply = replyDoc.data() || {};
+        const row = document.createElement('div');
+        row.className = 'flex items-start justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2';
+        const copy = document.createElement('p');
+        copy.className = 'min-w-0 flex-1 whitespace-pre-wrap break-words text-xs text-stone-700';
+        const author = document.createElement('strong');
+        author.className = 'mr-1 text-forest';
+        author.textContent = String(reply.displayName || 'सदस्य') + ':';
+        copy.append(author, document.createTextNode(String(reply.body || '')));
+        row.appendChild(copy);
+        if (state.user && (reply.uid === state.user.uid || state.isOwner)) {
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'shrink-0 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700';
+          remove.textContent = 'हटाएँ';
+          remove.setAttribute('aria-label', 'जवाब हटाएँ');
+          remove.addEventListener('click', () => window.BishnoiCommunity.deleteReply(postId, replyDoc.id));
+          row.appendChild(remove);
+        }
+        host.appendChild(row);
+      });
+    } catch (error) {
+      console.error('Community replies load failed:', error);
+      host.textContent = 'जवाब लोड नहीं हो सके।';
+    }
+  };
+  window.BishnoiCommunity.submitReply = async function (postId, input, form) {
+    const activeUser = state.auth?.currentUser ||
+      (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (state.user?.uid !== (activeUser?.uid || null)) state.user = activeUser || null;
+    if (!requireUser() || !postId || !input) return;
+    const body = String(input.value || '').trim();
+    if (!body || body.length > 500) {
+      notify('जवाब 1 से 500 अक्षरों में लिखें।', 'error');
+      input.focus();
+      return;
+    }
+    const maintenance = state.maintenance || {};
+    const mode = (maintenance.sections || {}).community || 'off';
+    if (mode === 'posting_only' || mode === 'both') {
+      notify((maintenance.sectionMessages || {}).community || 'संवाद मंच पर जवाब देना अभी बंद है।', 'error');
+      return;
+    }
+    try {
+      const blocked = await collection('communityBlocks').doc(state.user.uid).get();
+      if (blocked.exists && blocked.data()?.blocked === true) {
+        notify('आपको संवाद मंच पर जवाब देने से रोका गया है।', 'error');
+        return;
+      }
+      await collection('posts').doc(postId).collection('replies').add({
+        uid: state.user.uid,
+        displayName: state.profile?.displayName || state.user.displayName || 'समाज का सदस्य',
+        body,
+        createdAt: serverTimestamp()
+      });
+      input.value = '';
+      notify('जवाब प्रकाशित हो गया।', 'success');
+      const host = form?.parentElement?.querySelector('[data-community-replies]');
+      if (host) await window.BishnoiCommunity.loadReplies(postId, host);
+    } catch (error) {
+      console.error('Community reply failed:', error);
+      notify('जवाब प्रकाशित नहीं हुआ। Firestore permissions जाँचें।', 'error');
+    }
+  };
+  window.BishnoiCommunity.deleteReply = async function (postId, replyId) {
+    if (!requireUser() || !postId || !replyId) return;
+    try {
+      const ref = collection('posts').doc(postId).collection('replies').doc(replyId);
+      const snapshot = await ref.get();
+      if (!snapshot.exists) return;
+      if (snapshot.data()?.uid !== state.user.uid && !state.isOwner) {
+        notify('केवल अपना जवाब या Owner ही इसे हटा सकता है।', 'error');
+        return;
+      }
+      if (!window.confirm('क्या आप यह जवाब हटाना चाहते हैं?')) return;
+      await ref.delete();
+      notify('जवाब हटा दिया गया।', 'success');
+      const host = document.querySelector('[data-community-replies="' + CSS.escape(postId) + '"]');
+      if (host) await window.BishnoiCommunity.loadReplies(postId, host);
+    } catch (error) {
+      console.error('Community reply delete failed:', error);
+      notify('जवाब नहीं हट सका। Firestore permissions जाँचें।', 'error');
+    }
   };
   window.BishnoiCommunity.deletePost = async function (postId) {
     if (!requireUser() || !postId) return;
