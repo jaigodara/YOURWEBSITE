@@ -540,6 +540,10 @@
           </button>
         </div>
         <p class="text-xs text-stone-500">मुख्य परीक्षा टैब में दिखने वाले शीर्ष 3 विजेताओं का नाम व स्कोर यहाँ सेट करें:</p>
+        <label class="block text-xs font-bold text-stone-700">विजेता किस तारीख के लिए हैं?
+          <input type="date" id="dailyWinnerDate" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-2.5">
+        </label>
+        <p class="text-[11px] text-stone-500">नई तारीख के विजेता प्रकाशित करने पर पिछली तारीख की सूची सार्वजनिक लीडरबोर्ड से अपने-आप छिप जाएगी।
         <div class="space-y-2 text-xs">
           <div class="flex gap-2">
             <input type="text" id="win1Name" placeholder="🥇 1st Place Name" class="w-2/3 p-2.5 border rounded-xl font-bold">
@@ -2165,7 +2169,9 @@ function switchStudioPane(paneId) {
     async function saveDailyWinners() {
       if (!isPrimaryOwner()) return showToast('विजेता सूची केवल Owner बदल सकता है।');
       try {
+        const winnerDate = document.getElementById('dailyWinnerDate')?.value || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         await db.collection('settings').doc('dailyWinners').set({
+          winnerDate,
           p1Name: document.getElementById('win1Name')?.value.trim() || '—',
           p1Score: document.getElementById('win1Score')?.value.trim() || '—',
           p2Name: document.getElementById('win2Name')?.value.trim() || '—',
@@ -2183,6 +2189,7 @@ function switchStudioPane(paneId) {
       if (!isPrimaryOwner()) return showToast('विजेता सूची केवल Owner बदल सकता है।');
       try {
         await db.collection('settings').doc('dailyWinners').set({
+          winnerDate: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }),
           p1Name: '—', p1Score: '—',
           p2Name: '—', p2Score: '—',
           p3Name: '—', p3Score: '—'
@@ -6746,7 +6753,7 @@ async function removeTrustedEditor(uid) {
         if (status) status.textContent = snap.size + ' आर्काइव रिकॉर्ड मिले।';
       } catch (error) {
         console.error('Exam archive list failed:', error);
-        if (status) status.textContent = 'आर्काइव सूची नहीं खुली। Owner access और Firestore rules जाँचें।';
+        if (status) status.textContent = 'आर्काइव सूची नहीं खुली (' + (error.code || 'unknown') + '): ' + String(error.message || error).slice(0, 180);
       }
     }
     window.loadExamArchives = loadExamArchives;
