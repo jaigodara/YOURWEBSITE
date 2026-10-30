@@ -101,7 +101,7 @@ test('Legacy question uploader routes custom questions to the selected custom ex
   assert.match(ownerHtml, /id="bulkCustomExamId"/);
   assert.match(ownerHtml, /where\('examId', '==', customExamId\)/);
   assert.match(ownerHtml, /examId: customExamId/);
-  assert.match(ownerHtml, /doc\('examAnswerKeys'\)\.doc\(target\)/);
+  assert.match(ownerHtml, /collection\('examAnswerKeys'\)\.doc\(target\)/);
   assert.match(ownerHtml, /function handleBulkQuestionTargetChange/);
 });
 
