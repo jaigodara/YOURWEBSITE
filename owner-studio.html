@@ -1582,7 +1582,6 @@ if (environmentEl) {
           }
           if (isPrimaryOwner()) {
             listenTrustedEditors();
-            listenProctoringConfig();
             loadOwnerDataDashboard();
             loadExistingSettings();
             loadMaintenanceSettings();
@@ -3153,36 +3152,7 @@ async function saveBulkQuestionDrafts() {
       }
     }
 
-    // 6. EXAM PROCTORING TOGGLE & SUBMISSIONS
-    function listenProctoringConfig() {
-      db.collection('settings').doc('examConfig').onSnapshot(doc => {
-        const isEnabled = doc.exists && doc.data().proctoringEnabled === true;
-        const toggle = document.getElementById('examProctoringToggle');
-        const badge = document.getElementById('proctoringStatusBadge');
-        if (toggle) toggle.checked = isEnabled;
-        if (badge) {
-          badge.className = isEnabled 
-            ? "p-2.5 rounded-xl bg-emerald-50 text-forest font-bold text-xs border border-emerald-200" 
-            : "p-2.5 rounded-xl bg-stone-100 text-stone-600 font-bold text-xs border border-stone-200";
-          badge.innerText = isEnabled 
-            ? "✓ कैमरा फोटो कैप्चरिंग सक्रिय है (Active)" 
-            : "🔒 कैमरा प्रोक्टरिंग निष्क्रिय है (Disabled)";
-        }
-      });
-    }
-
-    async function toggleExamProctoring(val) {
-      if (!isPrimaryOwner()) return showToast('प्रोक्टरिंग सेटिंग केवल Owner बदल सकता है।');
-      try {
-        await db.collection('settings').doc('examConfig').set({
-          proctoringEnabled: val
-        }, { merge: true });
-        showToast(val ? "📷 फोटो प्रोक्टरिंग ऑन कर दी गई!" : "🔒 प्रोक्टरिंग बंद की गई।");
-      } catch (e) {
-        showToast("त्रुटि: " + e.message);
-      }
-    }
-
+    // 6. EXAM SUBMISSIONS AND REVIEW
     function escapeStudioText(value) {
       return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
