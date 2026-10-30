@@ -818,13 +818,9 @@ Ans: B"></textarea>
       class="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold">
       Unpublish / Draft
     </button>
-    <button type="button" onclick="changeCustomExamStatus('archived')"
-      class="rounded-xl border border-stone-300 p-3 text-sm font-bold">
-      परीक्षा Archive करें
-    </button>
-    <button type="button" onclick="deleteCustomExamRecord()"
-      class="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-950">
-      परीक्षा सुरक्षित रूप से Archive करें
+    <button type="button" onclick="archiveCustomExamFromRegistry()"
+      class="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-extrabold text-amber-950">
+      🗄️ परीक्षा, प्रश्न और उत्तर-पत्र आर्काइव करें
     </button>
   </div>
 
@@ -1115,7 +1111,7 @@ Ans: B"></textarea>
         <section id="examArchiveDownloads" class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
           <div>
             <h4 class="font-yatra text-sm text-forest">🗄️ परीक्षा आर्काइव डाउनलोड</h4>
-            <p class="mt-1 text-xs text-stone-600">पूरी की गई परीक्षाओं के सत्यापित आर्काइव यहाँ से CSV में डाउनलोड करें।</p>
+            <p class="mt-1 text-xs text-stone-600">पूरी की गई परीक्षाओं के सत्यापित उत्तर-पत्र, समीक्षा और संबंधित रिकॉर्ड यहाँ से CSV, Excel, PDF या पूरे JSON बैकअप में डाउनलोड करें।</p>
           </div>
           <label class="block text-sm font-bold text-stone-700">पुराना आर्काइव चुनें
             <select id="examArchiveSelect" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
@@ -1125,7 +1121,9 @@ Ans: B"></textarea>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button type="button" onclick="loadExamArchives()" class="rounded-xl border border-forest px-4 py-3 text-sm font-bold text-forest">↻ आर्काइव सूची रिफ्रेश करें</button>
             <button type="button" onclick="downloadSelectedExamArchive('csv')" class="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">⬇ CSV रिपोर्ट</button>
-            <button type="button" onclick="downloadSelectedExamArchive('json')" class="rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-bold text-forest">⬇ JSON बैकअप</button>
+            <button type="button" onclick="downloadSelectedExamArchive('xlsx')" class="rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-bold text-forest">⬇ Excel रिपोर्ट</button>
+            <button type="button" onclick="downloadSelectedExamArchive('pdf')" class="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-bold text-rose-800">⬇ PDF रिपोर्ट</button>
+            <button type="button" onclick="downloadSelectedExamArchive('json')" class="rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-bold text-stone-800">⬇ पूरा JSON बैकअप</button>
           </div>
           <p id="examArchiveStatus" class="text-xs text-stone-600" role="status" aria-live="polite">आर्काइव डाउनलोड करने के लिए सूची लोड करें।</p>
         </section>
@@ -2198,20 +2196,32 @@ function switchStudioPane(paneId) {
     // 5. BULK QUESTION BANK & WINNERS
     async function saveDailyWinners() {
       if (!isPrimaryOwner()) return showToast('विजेता सूची केवल Owner बदल सकता है।');
+      const winnerDate = document.getElementById('dailyWinnerDate')?.value ||
+        new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(winnerDate) || Number.isNaN(Date.parse(winnerDate + 'T00:00:00'))) {
+        return showToast('विजेता सूची के लिए सही तारीख़ चुनें।');
+      }
+      const readWinner = (nameId, scoreId) => ({
+        name: String(document.getElementById(nameId)?.value || '').trim().slice(0, 80),
+        score: String(document.getElementById(scoreId)?.value || '').trim().slice(0, 40)
+      });
+      const winners = [readWinner('win1Name', 'win1Score'), readWinner('win2Name', 'win2Score'), readWinner('win3Name', 'win3Score')];
+      if (winners.some(winner => Boolean(winner.name) !== Boolean(winner.score))) {
+        return showToast('हर स्थान के लिए नाम और स्कोर दोनों भरें, या दोनों खाली छोड़ें।');
+      }
       try {
-        const winnerDate = document.getElementById('dailyWinnerDate')?.value || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         await db.collection('settings').doc('dailyWinners').set({
           winnerDate,
-          p1Name: document.getElementById('win1Name')?.value.trim() || '—',
-          p1Score: document.getElementById('win1Score')?.value.trim() || '—',
-          p2Name: document.getElementById('win2Name')?.value.trim() || '—',
-          p2Score: document.getElementById('win2Score')?.value.trim() || '—',
-          p3Name: document.getElementById('win3Name')?.value.trim() || '—',
-          p3Score: document.getElementById('win3Score')?.value.trim() || '—'
+          p1Name: winners[0].name || '—', p1Score: winners[0].score || '—',
+          p2Name: winners[1].name || '—', p2Score: winners[1].score || '—',
+          p3Name: winners[2].name || '—', p3Score: winners[2].score || '—',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: auth.currentUser.uid
         });
-        showToast("✅ शीर्ष विजेता सूची अपडेट हो गई!");
+        showToast('दैनिक क्विज़ विजेता प्रकाशित हो गए। पिछली तारीख़ की सूची अब सार्वजनिक नहीं दिखेगी।');
       } catch (e) {
-        showToast("त्रुटि: " + e.message);
+        console.error('Daily winner publish failed:', e);
+        showToast('विजेता सूची प्रकाशित नहीं हुई: ' + (e.code || e.message));
       }
     }
 
@@ -3780,6 +3790,24 @@ function newCustomExamRecord() {
 
   setCustomExamRegistryStatus('नई परीक्षा तैयार है। Draft सहेजें।');
 }
+
+async function archiveCustomExamFromRegistry() {
+  if (!isPrimaryOwner()) return showToast('कस्टम परीक्षा आर्काइव करने का अधिकार केवल Owner को है।');
+  const id = document.getElementById('ownerCustomExamRecordId')?.value ||
+    document.getElementById('ownerCustomExamSelect')?.value || '';
+  if (!id) return showToast('पहले वह कस्टम परीक्षा चुनें जिसे पूरा करके आर्काइव करना है।');
+  const modeSelect = document.getElementById('archiveExamMode');
+  const archiveSelect = document.getElementById('archiveCustomExamId');
+  if (!modeSelect || !archiveSelect || typeof window.handleArchiveExamModeChange !== 'function') {
+    return showToast('आर्काइव नियंत्रण उपलब्ध नहीं हैं। पेज रिफ्रेश करें।');
+  }
+  modeSelect.value = 'custom';
+  await window.handleArchiveExamModeChange();
+  if (![...archiveSelect.options].some(option => option.value === id)) archiveSelect.add(new Option('चुनी गई परीक्षा', id));
+  archiveSelect.value = id;
+  await archiveCompletedExamWorkflow();
+}
+window.archiveCustomExamFromRegistry = archiveCustomExamFromRegistry;
 
 async function loadCustomExamRegistry() {
   if (!isPrimaryOwner()) return;
@@ -6943,18 +6971,29 @@ async function removeTrustedEditor(uid) {
         const submissions = submissionSnap.docs.filter(doc => {
           const data = doc.data() || {};
           if (config.isCustom) return data.customExamId === customExamId || data.examId === customExamId;
-          if (config.submissions === 'mockExamSubmissions') return data.mode === mode;
-          if (config.submissions === 'mainExamSubmissions') return !data.mode || data.mode === mode || data.mode === 'main';
-          return !data.mode || data.mode === mode || data.mode === 'quiz';
+          if (config.submissions === 'mockExamSubmissions') return data.mode === mode && !data.customExamId && !data.examId;
+          if (config.submissions === 'mainExamSubmissions') return !data.customExamId && !data.examId && (!data.mode || data.mode === mode || data.mode === 'main');
+          return !data.customExamId && !data.examId && (!data.mode || data.mode === mode || data.mode === 'quiz');
         });
         const submissionIds = new Set(submissions.map(doc => doc.id));
         const sessionSnap = await db.collection('examSessions').get();
         const sessions = sessionSnap.docs.filter(doc => {
           const data = doc.data() || {};
-          return config.isCustom ? (data.customExamId === customExamId || data.examId === customExamId) : (data.mode === mode || doc.id.endsWith('_' + mode));
+          return config.isCustom
+            ? (data.customExamId === customExamId || data.examId === customExamId)
+            : (!data.customExamId && !data.examId && (data.mode === mode || doc.id.endsWith('_' + mode)));
         });
         const violationSnap = await db.collection('live_violations').get();
-        const violations = violationSnap.docs.filter(doc => config.isCustom ? ((doc.data() || {}).customExamId === customExamId || (doc.data() || {}).examId === customExamId) : (doc.data() || {}).mode === mode);
+        const violations = violationSnap.docs.filter(doc => {
+          const data = doc.data() || {};
+          return config.isCustom
+            ? (data.customExamId === customExamId || data.examId === customExamId)
+            : (!data.customExamId && !data.examId && data.mode === mode);
+        });
+        const customQuestionSnap = config.isCustom
+          ? await db.collection('customExamQuestions').where('examId', '==', customExamId).get()
+          : null;
+        const customQuestions = customQuestionSnap ? customQuestionSnap.docs : [];
         const reviewSnap = await db.collection('reviews').where('sourceCollection', '==', config.submissions).get();
         const reviews = reviewSnap.docs.filter(doc => submissionIds.has(String((doc.data() || {}).submissionId || '')));
         const reviewHistory = [];
@@ -6964,8 +7003,13 @@ async function removeTrustedEditor(uid) {
         }
         // Preserve released results for students; include a copy in the archive report.
         const resultSnap = await db.collection('publishedResults').get();
-        const results = resultSnap.docs.filter(doc => config.isCustom ? ((doc.data() || {}).customExamId === customExamId || (doc.data() || {}).examId === customExamId) : (doc.data() || {}).mode === mode);
-        const total = submissions.length + sessions.length + violations.length + reviews.length + reviewHistory.length + results.length;
+        const results = resultSnap.docs.filter(doc => {
+          const data = doc.data() || {};
+          return config.isCustom
+            ? (data.customExamId === customExamId || data.examId === customExamId)
+            : (!data.customExamId && !data.examId && data.mode === mode);
+        });
+        const total = submissions.length + sessions.length + violations.length + reviews.length + reviewHistory.length + results.length + customQuestions.length;
         if (!total) {
           if (status) status.textContent = 'इस परीक्षा मोड के लिए कोई सक्रिय या ऐतिहासिक रिकॉर्ड नहीं मिला।';
           return;
@@ -6983,6 +7027,7 @@ async function removeTrustedEditor(uid) {
           ...violations.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'live_violations', removeSource: true })),
           ...reviews.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'reviews', removeSource: true })),
           ...reviewHistory.map(row => ({ ...row, removeSource: true })),
+          ...customQuestions.map(doc => ({ ref: doc.ref, id: doc.id, data: doc.data(), sourceCollection: 'customExamQuestions', removeSource: true })),
           ...results.map(doc => ({ id: doc.id, data: doc.data(), sourceCollection: 'publishedResults', removeSource: false }))
         ];
         // Phase 1: copy every source record to the archive without deleting anything.
@@ -7021,7 +7066,7 @@ async function removeTrustedEditor(uid) {
             status: 'archived', archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
             archivedBy: auth.currentUser.uid
           }, { merge: true });
-        } else {
+        } else if (mode !== 'quiz' && config.closeField) {
           const configRef = db.collection('examConfig').doc('current');
           const closePatch = { [config.closeField]: false, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
           if (mode === 'mock1' || mode === 'mock2') {
@@ -7041,7 +7086,7 @@ async function removeTrustedEditor(uid) {
           if (status) status.textContent = 'सत्यापित आर्काइव के बाद सक्रिय कतार साफ हो रही है… ' + Math.min(offset + 200, removableRecords.length) + '/' + removableRecords.length;
         }
         await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
-        if (status) status.textContent = config.title + ' आर्काइव हो गई। नई परीक्षा एंट्री बंद कर दी गई; ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड और ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
+        if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड, ' + reviews.length + ' समीक्षा रिकॉर्ड और ' + customQuestions.length + ' कस्टम प्रश्न सत्यापित आर्काइव में सुरक्षित किए गए। प्रकाशित परिणाम विद्यार्थी इतिहास में सुरक्षित हैं।';
         await loadExamArchives();
         if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
         showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');
@@ -7058,36 +7103,59 @@ async function removeTrustedEditor(uid) {
     }
     window.archiveCompletedExamWorkflow = archiveCompletedExamWorkflow;
 
-    async function downloadSelectedExamArchive(format = "csv") {
+    async function downloadSelectedExamArchive(format = 'csv') {
       if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट डाउनलोड करने की अनुमति नहीं है।');
       const archiveId = document.getElementById('examArchiveSelect')?.value || '';
       const status = document.getElementById('examArchiveStatus');
       if (!archiveId) return showToast('पहले आर्काइव चुनें।');
       try {
-        const archiveSnap = await db.collection('examArchives').doc(archiveId).get();
+        const archiveRef = db.collection('examArchives').doc(archiveId);
+        const archiveSnap = await archiveRef.get();
         if (!archiveSnap.exists) throw new Error('आर्काइव रिकॉर्ड नहीं मिला।');
         const archive = archiveSnap.data() || {};
-        const recordSnap = await db.collection('examArchives').doc(archiveId).collection('records').get();
+        const recordSnap = await archiveRef.collection('records').get();
         const records = recordSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
-        const isJson = format === 'json';
-        const rows = [['sourceCollection', 'sourceId', 'dataJson']];
-        recordSnap.forEach(doc => {
-          const row = doc.data() || {};
-          rows.push([row.sourceCollection || '', row.sourceId || '', JSON.stringify(row.data || {})]);
-        });
-        const csv = rows.map(row => row.map(archiveCsvCell).join(',')).join('\r\n');
-        const blob = isJson
-          ? new Blob([JSON.stringify({ archiveId, archive, records }, null, 2)], { type: 'application/json;charset=utf-8;' })
-          : new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const rows = [['Source collection', 'Source record', 'Archived data JSON']];
+        records.forEach(row => rows.push([row.sourceCollection || '', row.sourceId || '', JSON.stringify(row.data || {})]));
+        let blob, extension = 'csv';
+        if (format === 'json') {
+          blob = new Blob([JSON.stringify({ archiveId, archive, records }, null, 2)], { type: 'application/json;charset=utf-8;' });
+          extension = 'json';
+        } else if (format === 'xlsx') {
+          if (!window.XLSX?.utils) throw new Error('Excel export library उपलब्ध नहीं है।');
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Exam Archive');
+          blob = new Blob([XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          extension = 'xlsx';
+        } else if (format === 'pdf') {
+          const JsPDF = window.jspdf?.jsPDF;
+          if (!JsPDF) throw new Error('PDF export library उपलब्ध नहीं है।');
+          const pdf = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+          pdf.setFontSize(15);
+          pdf.text(String(archive.title || 'Exam Archive').slice(0, 90), 40, 38);
+          pdf.setFontSize(9);
+          pdf.text('Status: ' + String(archive.status || 'unknown') + ' | Records: ' + records.length, 40, 56);
+          const body = records.slice(0, 1000).map(row => [String(row.sourceCollection || ''), String(row.sourceId || '').slice(0, 36), JSON.stringify(row.data || {}).slice(0, 500)]);
+          if (typeof pdf.autoTable !== 'function') throw new Error('PDF table formatter उपलब्ध नहीं है।');
+          pdf.autoTable({ startY: 72, head: [['Source', 'Record', 'Archived data (preview)']], body, styles: { fontSize: 6, cellPadding: 3, overflow: 'linebreak' }, columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 120 }, 2: { cellWidth: 360 } }, margin: { left: 40, right: 40 } });
+          if (records.length > 1000) {
+            pdf.setFontSize(8);
+            pdf.text('PDF preview limited to first 1,000 records. Download JSON for the complete archive.', 40, pdf.lastAutoTable.finalY + 18);
+          }
+          blob = pdf.output('blob');
+          extension = 'pdf';
+        } else {
+          blob = new Blob(['\\uFEFF' + rows.map(row => row.map(archiveCsvCell).join(',')).join('\\r\\n')], { type: 'text/csv;charset=utf-8;' });
+        }
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'bishnoism-exam-archive-' + String(archive.mode || 'exam') + '-' + archiveId + (isJson ? '.json' : '.csv');
+        link.download = 'bishnoism-exam-archive-' + String(archive.mode || 'exam') + '-' + archiveId + '.' + extension;
         document.body.appendChild(link);
         link.click();
         link.remove();
-        URL.revokeObjectURL(url);
-        if (status) status.textContent = (archive.title || 'परीक्षा') + ' की ' + recordSnap.size + ' रिकॉर्ड वाली ' + (isJson ? 'JSON बैकअप' : 'CSV रिपोर्ट') + ' डाउनलोड की गई।';
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (status) status.textContent = (archive.title || 'परीक्षा') + ' की ' + records.length + ' रिकॉर्ड वाली ' + extension.toUpperCase() + ' फ़ाइल डाउनलोड हुई।' + (format === 'pdf' && records.length > 1000 ? ' PDF में पहले 1,000 रिकॉर्ड हैं; पूर्ण बैकअप JSON में है।' : '');
       } catch (error) {
         console.error('Exam archive export failed:', error);
         if (status) status.textContent = 'आर्काइव रिपोर्ट डाउनलोड नहीं हुई।';
