@@ -135,3 +135,12 @@ test('Archive downloads are placed in Reports & Exports and support CSV and JSON
   assert.match(ownerHtml, /downloadSelectedExamArchive\('csv'\)/);
   assert.match(ownerHtml, /downloadSelectedExamArchive\('json'\)/);
 });
+
+
+test('Student, login and exam report dashboard is routed to Reports & Exports, not Dashboard', () => {
+  const routeStart = ownerHtml.indexOf('exports: {');
+  const routeEnd = ownerHtml.indexOf('\n  }\n};', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  assert.match(ownerHtml.slice(routeStart, routeEnd), /'ownerDataDashboard'/);
+  assert.match(ownerHtml, /'ownerDataDashboard',\s*'ownerDataExportPanel'/);
+});
