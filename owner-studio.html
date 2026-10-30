@@ -385,7 +385,7 @@
           </select>
         </label>
         <button type="button" onclick="archiveCompletedExamWorkflow()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">परीक्षा आर्काइव करें और सक्रिय कतार रीसेट करें</button>
-        <p id="examArchiveStatus" class="text-xs text-stone-600" role="status" aria-live="polite">आर्काइव बनाने से पहले परीक्षा पूरी होने और सही मोड चुनने की पुष्टि करें।</p>
+        <p id="examArchiveActionStatus" class="text-xs text-stone-600" role="status" aria-live="polite">आर्काइव बनाने से पहले परीक्षा पूरी होने और सही मोड चुनने की पुष्टि करें।</p>
       </section>
 
       <!-- DRAFT APPROVAL QUEUE -->
@@ -6774,7 +6774,7 @@ async function removeTrustedEditor(uid) {
     async function archiveCompletedExamWorkflow() {
       if (!isPrimaryOwner()) return showToast('परीक्षा आर्काइव करने का अधिकार केवल Owner को है।');
       const mode = document.getElementById('archiveExamMode')?.value || '';
-      const status = document.getElementById('examArchiveStatus');
+      const status = document.getElementById('examArchiveActionStatus');
       const config = {
         main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions' },
         mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions' },
