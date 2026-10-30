@@ -722,20 +722,11 @@ Ans: B"></textarea>
       </div>
 
       
-      <!-- PHOTO PROCTORING TOGGLE -->
-      <div id="ownerProctoringPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="font-yatra text-base text-forest">📷 कैमरा निगरानी: उपलब्ध नहीं</h3>
-            <p class="text-xs text-stone-500">इस संस्करण में वास्तविक कैमरा कैप्चर लागू नहीं है। यह विकल्प कैमरा निगरानी शुरू नहीं करता।</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="examProctoringToggle" disabled aria-label="कैमरा निगरानी उपलब्ध नहीं" class="sr-only peer">
-            <div class="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-forest"></div>
-          </label>
-        </div>
-        <div id="proctoringStatusBadge" class="p-2.5 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold">
-          स्थिति: कैमरा निगरानी उपलब्ध नहीं है।
+      <!-- EXAM INTEGRITY: no camera/photo capture is requested or implemented. -->
+      <div id="ownerExamIntegrityPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-emerald-700/30 shadow-sm space-y-3">
+        <div>
+          <h3 class="font-yatra text-base text-forest">🛡️ लाइव परीक्षा सुरक्षा</h3>
+          <p class="text-xs text-stone-500">केवल टैब बदलने और फुल-स्क्रीन से बाहर निकलने के परीक्षा लॉग। कैमरा या फोटो कैप्चर नहीं किया जाता।</p>
         </div>
         <div class="border-t border-stone-200 pt-3 space-y-2">
           <div class="flex items-center justify-between gap-2">
