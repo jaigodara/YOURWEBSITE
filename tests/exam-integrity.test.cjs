@@ -8,6 +8,32 @@ const script = readFileSync(path.join(root, 'script.js'), 'utf8');
 const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const owner = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
 
+
+test('exam archive isolates custom exams and includes custom questions in archive', () => {
+  assert.match(owner, /archiveCustomExamFromRegistry\\(\\)/);
+  assert.doesNotMatch(owner, /onclick="changeCustomExamStatus\\('archived'\\)"/);
+  assert.match(owner, /downloadSelectedExamArchive\\('xlsx'\\)/);
+  assert.match(owner, /downloadSelectedExamArchive\\('pdf'\\)/);
+  assert.match(owner, /downloadSelectedExamArchive\\('json'\\)/);
+  assert.match(owner, /customExamQuestions/);
+  assert.match(owner, /!data\\.customExamId && !data\\.examId/);
+});
+
+test('daily quiz archive does not disable the year-round daily quiz', () => {
+  const start = owner.indexOf('async function archiveCompletedExamWorkflow');
+  const end = owner.indexOf('window.archiveCompletedExamWorkflow', start);
+  assert.match(owner.slice(start, end), /mode !== 'quiz' && config\\.closeField/);
+});
+
+test('Community posting synchronizes with the main Firebase Auth session', () => {
+  const start = script.indexOf('window.BishnoiCommunity.submitPost = async function');
+  const end = script.indexOf('window.upvoteCommunityPost', start);
+  const submit = script.slice(start, end);
+  assert.match(submit, /state\\.auth\\?\\.currentUser/);
+  assert.match(submit, /state\\.user = activeFirebaseUser \\|\\| null/);
+  assert.match(submit, /collection\\('posts'\\)\\.add/);
+});
+
 test('Exam integrity guards locally block clipboard actions and log tab/fullscreen violations', () => {
   assert.match(script, /function installExamIntegrityGuards\(\)/);
   assert.match(script, /\['copy', 'cut', 'paste', 'contextmenu', 'selectstart'\]/);
