@@ -6917,11 +6917,17 @@ async function removeTrustedEditor(uid) {
       }[mode];
       if (mode === 'custom') {
         if (!customExamId) return showToast('पहले कस्टम परीक्षा चुनें।');
-        const customSnap = await db.collection('customExams').doc(customExamId).get();
-        if (!customSnap.exists) return showToast('चुनी गई कस्टम परीक्षा नहीं मिली।');
-        const customData = customSnap.data() || {};
-        if (customData.status === 'archived') return showToast('यह कस्टम परीक्षा पहले ही आर्काइव है।');
-        config = { title: String(customData.title || 'कस्टम परीक्षा'), submissions: 'mainExamSubmissions', customExamId, isCustom: true };
+        try {
+          const customSnap = await db.collection('customExams').doc(customExamId).get();
+          if (!customSnap.exists) return showToast('चुनी गई कस्टम परीक्षा नहीं मिली।');
+          const customData = customSnap.data() || {};
+          if (customData.status === 'archived') return showToast('यह कस्टम परीक्षा पहले ही आर्काइव है।');
+          config = { title: String(customData.title || 'कस्टम परीक्षा'), submissions: 'mainExamSubmissions', customExamId, isCustom: true };
+        } catch (error) {
+          if (status) status.textContent = 'कस्टम परीक्षा नहीं पढ़ी जा सकी: ' + (error.code || error.message);
+          showToast('कस्टम परीक्षा लोड नहीं हुई। Owner access और Firestore rules जाँचें।');
+          return;
+        }
       }
       if (!config) return showToast('परीक्षा मोड चुनें।');
       if (!window.confirm(config.title + ' के सक्रिय उत्तर-पत्र/सत्र आर्काइव करके सक्रिय समीक्षा कतार साफ करें? प्रकाशित परिणाम सुरक्षित रहेंगे।')) return;
