@@ -397,6 +397,7 @@ try {
     const raw = String(id || '').replace(/^tab-/, '');
     // Profile is a modal in this static site, not a separate tab panel.
     const signedInUser = state.auth ? state.auth.currentUser : state.user;
+    if (signedInUser) state.user = signedInUser;
     if (raw === 'profile') {
       if (signedInUser) {
         window.BishnoiApp?.openProfileOrAuth?.();
