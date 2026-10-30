@@ -6840,10 +6840,10 @@ async function removeTrustedEditor(uid) {
       const mode = document.getElementById('archiveExamMode')?.value || '';
       const status = document.getElementById('examArchiveActionStatus');
       const config = {
-        main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions' },
-        mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions' },
-        mock2: { title: 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions' },
-        quiz: { title: 'दैनिक क्विज़', submissions: 'quizAttempts' }
+        main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions', closeField: 'mainExamVisible' },
+        mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions', closeField: 'mock1Visible' },
+        mock2: { title: 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions', closeField: 'mock2Visible' },
+        quiz: { title: 'दैनिक क्विज़', submissions: 'quizAttempts', closeField: 'dailyQuizVisible' }
       }[mode];
       if (!config) return showToast('परीक्षा मोड चुनें।');
       if (!window.confirm(config.title + ' के सक्रिय उत्तर-पत्र/सत्र आर्काइव करके सक्रिय समीक्षा कतार साफ करें? प्रकाशित परिणाम सुरक्षित रहेंगे।')) return;
@@ -6926,7 +6926,19 @@ async function removeTrustedEditor(uid) {
           recordCount: archivedSnapshot.size
         });
 
-        // Only after successful verification, remove active source records in safe batches.
+        // Revoke new entry to this exam only after the archive has been verified.
+        // Results visibility and published student history are intentionally untouched.
+        const configRef = db.collection('examConfig').doc('current');
+        const closePatch = { [config.closeField]: false, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        if (mode === 'mock1' || mode === 'mock2') {
+          const freshConfig = await configRef.get();
+          const current = freshConfig.exists ? freshConfig.data() || {} : {};
+          const otherMockVisible = mode === 'mock1' ? current.mock2Visible !== false : current.mock1Visible !== false;
+          closePatch.mockVisible = otherMockVisible;
+        }
+        await configRef.set(closePatch, { merge: true });
+
+        // Only after successful verification and entry revocation, remove active source records in safe batches.
         const removableRecords = records.filter(record => record.removeSource && record.ref);
         for (let offset = 0; offset < removableRecords.length; offset += 200) {
           const batch = db.batch();
@@ -6935,7 +6947,7 @@ async function removeTrustedEditor(uid) {
           if (status) status.textContent = 'सत्यापित आर्काइव के बाद सक्रिय कतार साफ हो रही है… ' + Math.min(offset + 200, removableRecords.length) + '/' + removableRecords.length;
         }
         await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
-        if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड और ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
+        if (status) status.textContent = config.title + ' आर्काइव हो गई। नई परीक्षा एंट्री बंद कर दी गई; ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड और ' + reviews.length + ' समीक्षा रिकॉर्ड रीसेट किए गए। प्रकाशित परिणाम सुरक्षित हैं।';
         await loadExamArchives();
         if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
         showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');
