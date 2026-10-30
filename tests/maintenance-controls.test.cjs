@@ -102,3 +102,17 @@ test('Exam archive copies and verifies records before deleting active records, w
   assert.match(workflow, /removeSource: false/);
   assert.match(workflow, /sourceCollection: 'publishedResults', removeSource: false/);
 });
+
+
+test('Daily quiz result CTA reveals the existing published-results panel', () => {
+  assert.match(indexHtml, /id="mainDailyQuizResultsCta"/);
+  assert.match(indexHtml, /show-daily-results/);
+  assert.match(scriptJs, /window\.openDailyQuizResults = function openDailyQuizResults/);
+  assert.match(scriptJs, /state\.myResults/);
+});
+
+test('Community actions use the current Firebase Auth session instead of waiting on stale observer state', () => {
+  assert.match(scriptJs, /const activeUser = state\.auth \? state\.auth\.currentUser : state\.user/);
+  assert.match(scriptJs, /state\.user = activeUser/);
+  assert.match(scriptJs, /const signedInUser = state\.auth \? state\.auth\.currentUser : state\.user/);
+});
