@@ -92,7 +92,7 @@ test('Exam question workflow has no per-student Set selector and resolves answer
   assert.match(ownerHtml, /function examQuestionCollectionForRecord\(row/);
   assert.match(ownerHtml, /questionCollection: item\.questionCollection/);
   assert.doesNotMatch(scriptJs, /data-question-set|VALID_QUESTION_SETS/);
-  assert.match(scriptJs, /questionCollection: CONFIG\\.examCollections\\[mode\\]/);
+  assert.match(scriptJs, /questionCollection: CONFIG\.examCollections\[mode\]/);
 });
 
 
