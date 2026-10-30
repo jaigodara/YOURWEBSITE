@@ -27,6 +27,11 @@ test('exam archive isolates custom exams and includes custom questions in archiv
   assert.ok(owner.includes('!data.customExamId && !data.examId'));
 });
 
+test('exam archive refuses to clear active, kicked or pending re-entry sessions', () => {
+  assert.ok(owner.includes("['active', 'late_request', 'kicked']"));
+  assert.ok(owner.includes('सभी प्रयास जमा/समाप्त होने के बाद ही आर्काइव करें'));
+});
+
 test('daily quiz archive does not disable the year-round daily quiz', () => {
   const start = owner.indexOf('async function archiveCompletedExamWorkflow');
   const end = owner.indexOf('window.archiveCompletedExamWorkflow', start);
