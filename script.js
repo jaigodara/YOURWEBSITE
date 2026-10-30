@@ -2358,6 +2358,11 @@ moreButton.textContent =
     if (!requireUser()) return;
     const quizTab = byId('tab-quiz');
     if (quizTab) quizTab.classList.add('show-daily-results');
+    const resultsPanel = byId('myResultsPanel');
+    if (resultsPanel) {
+      resultsPanel.hidden = false;
+      resultsPanel.classList.remove('hidden');
+    }
     window.renderMyResults();
     byId('myResultsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -2546,7 +2551,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['mainDailyQuizCta', c.dailyQuizVisible !== false],
     ['mainDailyQuizResultsCta', c.dailyQuizResultsVisible !== false],
     ['examPortalCard', c.separateExamPortalVisible !== false && c.examPortalVisible !== false],
-    ['myResultsPanel', c.resultsVisible !== false]
+    ['myResultsPanel', c.resultsVisible !== false || c.dailyQuizResultsVisible !== false]
   ];
 
   // Apply the Owner Studio visibility settings to the main-site CTA cards as
