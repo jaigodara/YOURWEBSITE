@@ -19,7 +19,10 @@ test('Community supports authenticated replies with owner-or-author deletion', (
 });
 
 test('Community replies obey global and section maintenance locks', () => {
-  const replyHandler = script.slice(script.indexOf('window.BishnoiCommunity.submitReply'), script.indexOf('window.BishnoiCommunity.deleteReply'));
+  const replyStart = script.indexOf('window.BishnoiCommunity.submitReply = async function');
+  const replyEnd = script.indexOf('window.BishnoiCommunity.deleteReply = async function', replyStart);
+  const replyHandler = script.slice(replyStart, replyEnd);
+  assert.ok(replyStart >= 0 && replyEnd > replyStart);
   assert.match(replyHandler, /globalMode/);
   assert.match(replyHandler, /globalBlocked/);
   assert.match(replyHandler, /mode === 'posting_only' \|\| mode === 'both'/);
