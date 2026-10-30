@@ -6974,6 +6974,15 @@ async function removeTrustedEditor(uid) {
             ? (data.customExamId === customExamId || data.examId === customExamId)
             : (!data.customExamId && !data.examId && (data.mode === mode || doc.id.endsWith('_' + mode)));
         });
+        const unfinishedSessions = sessions.filter(doc =>
+          ['active', 'late_request', 'kicked'].includes(String((doc.data() || {}).status || '').toLowerCase())
+        );
+        if (unfinishedSessions.length) {
+          const message = 'अभी ' + unfinishedSessions.length + ' परीक्षा सत्र सक्रिय या पुनः प्रवेश की प्रतीक्षा में हैं। सभी प्रयास जमा/समाप्त होने के बाद ही आर्काइव करें।';
+          if (status) status.textContent = message;
+          showToast(message);
+          return;
+        }
         const violationSnap = await db.collection('live_violations').get();
         const violations = violationSnap.docs.filter(doc => {
           const data = doc.data() || {};
