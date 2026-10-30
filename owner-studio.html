@@ -377,7 +377,7 @@
           <p class="mt-1 text-xs leading-relaxed text-stone-600">यह कार्रवाई चुनी गई परीक्षा के सक्रिय उत्तर-पत्र, सत्र और संबंधित समीक्षा रिकॉर्ड को पहले आर्काइव में कॉपी करती है, फिर सक्रिय कतार साफ करती है। प्रकाशित परिणाम विद्यार्थी इतिहास के लिए सुरक्षित रहते हैं।</p>
         </div>
         <label class="block text-sm font-bold text-stone-700">पूरी हुई परीक्षा चुनें
-          <select id="archiveExamMode" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
+          <select id="archiveExamMode" onchange="window.handleArchiveExamModeChange()" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
             <option value="main">मुख्य परीक्षा</option>
             <option value="mock1">मॉक परीक्षा 1</option>
             <option value="mock2">मॉक परीक्षा 2</option>
@@ -6847,6 +6847,37 @@ async function removeTrustedEditor(uid) {
       const textValue = value == null ? '' : String(value);
       return '"' + textValue.replace(/"/g, '""') + '"';
     }
+
+    async function loadCustomExamArchiveOptions() {
+      const select = document.getElementById('archiveCustomExamId');
+      if (!select || !db) return;
+      const previous = select.value;
+      try {
+        const snap = await db.collection('customExams').limit(100).get();
+        select.replaceChildren(new Option('कस्टम परीक्षा चुनें', ''));
+        snap.forEach(doc => {
+          const exam = doc.data() || {};
+          if (exam.status === 'archived') return;
+          select.add(new Option(String(exam.title || 'बिना नाम') + ' · ' + String(exam.status || 'draft'), doc.id));
+        });
+        if (previous && [...select.options].some(option => option.value === previous)) select.value = previous;
+      } catch (error) {
+        console.error('Custom exam archive options failed:', error);
+        const status = document.getElementById('examArchiveActionStatus');
+        if (status) status.textContent = 'कस्टम परीक्षा सूची नहीं खुली: ' + (error.code || error.message);
+      }
+    }
+
+    window.handleArchiveExamModeChange = function handleArchiveExamModeChange() {
+      const custom = document.getElementById('archiveExamMode')?.value === 'custom';
+      document.getElementById('archiveCustomExamWrap')?.classList.toggle('hidden', !custom);
+      if (custom) loadCustomExamArchiveOptions();
+    };
+    document.getElementById('archiveCustomExamId')?.addEventListener('change', () => {
+      const status = document.getElementById('examArchiveActionStatus');
+      if (status) status.textContent = 'चुनी गई कस्टम परीक्षा के सक्रिय रिकॉर्ड आर्काइव किए जाएँगे।';
+    });
+    loadCustomExamArchiveOptions();
 
     async function loadExamArchives() {
       if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट देखने की अनुमति नहीं है।');
