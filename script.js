@@ -334,14 +334,18 @@ try {
   const serverTimestamp = () => firebase.firestore.FieldValue.serverTimestamp();
   const deleteField = () => firebase.firestore.FieldValue.delete();
   const asArray = v => Array.isArray(v) ? v : [];
-  const currentUid = () => state.user?.uid || null;
+  const currentUid = () => (state.auth ? state.auth.currentUser?.uid : state.user?.uid) || null;
 
   const requireUser = () => {
-    if (!state.user) {
-      notify('Please sign in first.');
-      window.promptUserLogin();
+    // Firebase Auth is the source of truth. The observer may update state.user
+    // a moment after a WebView/website session has already been restored.
+    const activeUser = state.auth ? state.auth.currentUser : state.user;
+    if (!activeUser) {
+      notify('पहले मुख्य वेबसाइट पर Google लॉगिन करें।');
+      window.BishnoiAuth?.openAuthModal?.();
       return false;
     }
+    state.user = activeUser;
     return true;
   };
 
@@ -392,8 +396,10 @@ try {
   portalSwitchTabImplementationImpl = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     // Profile is a modal in this static site, not a separate tab panel.
+    const signedInUser = state.auth ? state.auth.currentUser : state.user;
+    if (signedInUser) state.user = signedInUser;
     if (raw === 'profile') {
-      if (state.user) {
+      if (signedInUser) {
         window.BishnoiApp?.openProfileOrAuth?.();
       } else {
         window.BishnoiAuth?.openAuthModal?.();
@@ -410,7 +416,7 @@ try {
     }
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
-    if (!state.user && restrictedTabs.has(raw)) {
+    if (!signedInUser && restrictedTabs.has(raw)) {
       // Keep navigation usable; data-changing actions still enforce requireUser().
       window.BishnoiAuth?.openAuthModal?.();
       notify('इस अनुभाग की सुविधाओं के लिए पहले लॉगिन करें।', 'error');
@@ -834,8 +840,10 @@ notify(
   }
 
   function renderAuthState() {
-    const label = state.user
-      ? (state.profile?.displayName || state.profile?.fullName || state.user.displayName || state.user.email || 'सदस्य')
+    const activeUser = state.auth ? state.auth.currentUser : state.user;
+    if (activeUser) state.user = activeUser;
+    const label = activeUser
+      ? (state.profile?.displayName || state.profile?.fullName || activeUser.displayName || activeUser.email || 'सदस्य')
       : 'लॉगिन करें';
 
     ['authButton', 'profileButton', 'loginBtn', 'authLoginButton'].forEach(id => {
@@ -958,17 +966,21 @@ notify(
       collection('settings').doc('dailyWinners'),
       snap => {
         const data = snap.exists ? snap.data() : {};
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const winnerDate = String(data.winnerDate || '');
+        const isToday = winnerDate === today;
         const scoreLabel = value => {
           const score = String(value == null ? '' : value).trim();
           if (!score || score === '—' || score === '-') return '— अंक';
           return /(?:अंक|points?)$/i.test(score) ? score : score + ' अंक';
         };
         [
-          ['rank1Name', data.p1Name, '—'], ['rank2Name', data.p2Name, '—'], ['rank3Name', data.p3Name, '—']
+          ['rank1Name', isToday ? data.p1Name : '—', '—'], ['rank2Name', isToday ? data.p2Name : '—', '—'], ['rank3Name', isToday ? data.p3Name : '—', '—']
         ].forEach(([id, value, fallback]) => setText(id, String(value || fallback)));
         [
-          ['rank1Score', data.p1Score], ['rank2Score', data.p2Score], ['rank3Score', data.p3Score]
+          ['rank1Score', isToday ? data.p1Score : '—'], ['rank2Score', isToday ? data.p2Score : '—'], ['rank3Score', isToday ? data.p3Score : '—']
         ].forEach(([id, value]) => setText(id, scoreLabel(value)));
+        setText('dailyWinnerDateLabel', isToday ? 'आज के दैनिक क्विज़ विजेता' : 'आज के विजेता अभी प्रकाशित नहीं हुए हैं।');
       },
       'Daily quiz leaderboard'
     );
@@ -2342,6 +2354,19 @@ moreButton.textContent =
     renderEnrollmentStatus(state.user ? undefined : null);
   }
 
+  window.openDailyQuizResults = function openDailyQuizResults() {
+    if (!requireUser()) return;
+    const quizTab = byId('tab-quiz');
+    if (quizTab) quizTab.classList.add('show-daily-results');
+    const resultsPanel = byId('myResultsPanel');
+    if (resultsPanel) {
+      resultsPanel.hidden = false;
+      resultsPanel.classList.remove('hidden');
+    }
+    window.renderMyResults();
+    byId('myResultsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
     if (!host) return;
@@ -2526,7 +2551,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['mainDailyQuizCta', c.dailyQuizVisible !== false],
     ['mainDailyQuizResultsCta', c.dailyQuizResultsVisible !== false],
     ['examPortalCard', c.separateExamPortalVisible !== false && c.examPortalVisible !== false],
-    ['myResultsPanel', c.resultsVisible !== false]
+    ['myResultsPanel', c.resultsVisible !== false || c.dailyQuizResultsVisible !== false]
   ];
 
   // Apply the Owner Studio visibility settings to the main-site CTA cards as
@@ -5166,7 +5191,7 @@ const digits = String(value || '').replace(/\D/g, '');
       state.exam = {
         active: true,
         mode,
-        questionCollection: CONFIG.examCollections[exam.mode] && !customExamId ? CONFIG.examCollections[exam.mode] : collectionName,
+        questionCollection: CONFIG.examCollections[mode] && !customExamId ? CONFIG.examCollections[mode] : collectionName,
         questions,
         index: 0,
         answers: {},

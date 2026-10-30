@@ -72,3 +72,47 @@ test('Firestore blocks exam and media reads during a full section maintenance lo
   assert.match(rules, /sectionMaintenanceAllows\('library'\)/);
   assert.match(rules, /allow read: if sectionMaintenanceAllows\('community'\)/);
 });
+
+
+test('Daily quiz winners are date-scoped so a previous day cannot remain on the public leaderboard', () => {
+  assert.match(ownerHtml, /id="dailyWinnerDate"/);
+  assert.match(ownerHtml, /winnerDate,/);
+  assert.match(ownerHtml, /dailyWinnerDate'\)\?\.value/);
+  assert.match(scriptJs, /const today = new Date\(\)\.toLocaleDateString\('en-CA', \{ timeZone: 'Asia\/Kolkata' \}\)/);
+  assert.match(scriptJs, /const isToday = winnerDate === today/);
+  assert.match(indexHtml, /id="dailyWinnerDateLabel"/);
+});
+
+test('Exam archive list exposes the actual Firestore error code instead of a misleading generic message', () => {
+  const start = ownerHtml.indexOf('async function loadExamArchives()');
+  const end = ownerHtml.indexOf('window.loadExamArchives = loadExamArchives;', start);
+  assert.ok(start >= 0 && end > start, 'archive loader should exist');
+  const loader = ownerHtml.slice(start, end);
+  assert.match(loader, /error\.code \|\| 'unknown'/);
+  assert.match(loader, /error\.message \|\| error/);
+});
+
+test('Exam archive copies and verifies records before deleting active records, while retaining published results', () => {
+  const start = ownerHtml.indexOf('async function archiveCompletedExamWorkflow()');
+  const end = ownerHtml.indexOf('window.archiveCompletedExamWorkflow = archiveCompletedExamWorkflow;', start);
+  assert.ok(start >= 0 && end > start, 'archive workflow should exist');
+  const workflow = ownerHtml.slice(start, end);
+  assert.ok(workflow.indexOf('await batch.commit()') < workflow.indexOf('const archivedSnapshot = await archiveRef.collection(\'records\').get()'));
+  assert.ok(workflow.indexOf('const archivedSnapshot = await archiveRef.collection(\'records\').get()') < workflow.indexOf('batch.delete(record.ref)'));
+  assert.match(workflow, /removeSource: false/);
+  assert.match(workflow, /sourceCollection: 'publishedResults', removeSource: false/);
+});
+
+
+test('Daily quiz result CTA reveals the existing published-results panel', () => {
+  assert.match(indexHtml, /id="mainDailyQuizResultsCta"/);
+  assert.match(indexHtml, /show-daily-results/);
+  assert.match(scriptJs, /window\.openDailyQuizResults = function openDailyQuizResults/);
+  assert.match(scriptJs, /state\.myResults/);
+});
+
+test('Community actions use the current Firebase Auth session instead of waiting on stale observer state', () => {
+  assert.match(scriptJs, /const activeUser = state\.auth \? state\.auth\.currentUser : state\.user/);
+  assert.match(scriptJs, /state\.user = activeUser/);
+  assert.match(scriptJs, /const signedInUser = state\.auth \? state\.auth\.currentUser : state\.user/);
+});
