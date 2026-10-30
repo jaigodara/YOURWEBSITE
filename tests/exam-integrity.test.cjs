@@ -9,9 +9,12 @@ const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const owner = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
 
 
-test('Owner Studio removes the unavailable photo proctoring placeholder but retains live violation logs', () => {
+test('Owner Studio removes the unused photo proctoring UI and settings listener but retains live violation logs', () => {
   assert.ok(!owner.includes('examProctoringToggle'));
   assert.ok(!owner.includes('proctoringStatusBadge'));
+  assert.ok(!owner.includes('proctoringEnabled'));
+  assert.ok(!owner.includes('listenProctoringConfig'));
+  assert.ok(!owner.includes('toggleExamProctoring'));
   assert.ok(owner.includes('ownerExamIntegrityPanel'));
   assert.ok(owner.includes('liveViolationsList'));
 });
