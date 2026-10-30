@@ -107,7 +107,8 @@ test('Exam archive copies and verifies records before deleting active records, w
 test('Daily quiz result CTA reveals the existing published-results panel', () => {
   assert.match(indexHtml, /id="mainDailyQuizResultsCta"/);
   assert.match(indexHtml, /show-daily-results/);
-  assert.match(scriptJs, /window\.openDailyQuizResults = function openDailyQuizResults/);
+  assert.match(scriptJs, /window\.openDailyQuizResults = async function openDailyQuizResults/);
+  assert.match(scriptJs, /collection\('publishedResults'\)/);
   assert.match(scriptJs, /state\.myResults/);
 });
 
