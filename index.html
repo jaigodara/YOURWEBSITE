@@ -59,7 +59,7 @@
 
     /* Main website: Daily Quiz stays here; scheduled exams, enrollment and results live in Exam Portal. */
     html:not([data-exam-embed]) #tab-quiz #enrollmentSection,
-    html:not([data-exam-embed]) #tab-quiz #myResultsPanel,
+    html:not([data-exam-embed]) #tab-quiz:not(.show-daily-results) #myResultsPanel,
     html:not([data-exam-embed]) #tab-quiz #mockHub,
     html:not([data-exam-embed]) #tab-quiz #mainExamSection { display: none !important; }
 
@@ -519,6 +519,9 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </section>
       <div id="dailyQuizSection" class="space-y-4">
+        <button id="mainDailyQuizResultsCta" type="button" onclick="window.openDailyQuizResults()" class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-extrabold text-forest shadow-sm hover:bg-emerald-50">
+          📊 दैनिक क्विज़ परिणाम दिखाएँ
+        </button>
         <p id="dailyWinnerDateLabel" class="text-center text-xs font-bold text-stone-600" aria-live="polite">आज के दैनिक क्विज़ विजेता</p>
         <div class="grid grid-cols-3 gap-2 pt-2">
           <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col items-center">
