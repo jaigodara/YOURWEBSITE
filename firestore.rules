@@ -765,6 +765,21 @@ service cloud.firestore {
 
       allow delete: if owner()
         || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+
+      match /replies/{replyId} {
+        allow read: if sectionMaintenanceAllows('community');
+        allow create: if signedIn()
+          && communityUserNotBlocked(request.auth.uid)
+          && communityPostingAllowed()
+          && exists(/databases/$(database)/documents/posts/$(id))
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('body', null) is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 500;
+        allow update: if false;
+        allow delete: if owner()
+          || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+      }
     }
 
     match /audios/{id} {
