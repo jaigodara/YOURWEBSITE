@@ -959,7 +959,7 @@ notify(
       snap => {
         const data = snap.exists ? snap.data() : {};
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-        const winnerDate = String(data.winnerDate || today);
+        const winnerDate = String(data.winnerDate || '');
         const isToday = winnerDate === today;
         const scoreLabel = value => {
           const score = String(value == null ? '' : value).trim();
