@@ -3091,6 +3091,19 @@ window.renderExamVisibility = function renderExamVisibility() {
       notify((maintenance.sectionMessages || {}).community || maintenance.message || 'संवाद मंच पर संदेश भेजना अभी अस्थायी रूप से बंद है।', 'error');
       return;
     }
+    // Use the exact Firebase Auth session initialized by the main website. If the
+    // Auth callback is one tick behind, synchronize its current user instead of
+    // prompting a signed-in browser/WebView user to log in again.
+    const activeFirebaseUser = state.auth?.currentUser ||
+      (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (state.user?.uid !== (activeFirebaseUser?.uid || null)) {
+      state.user = activeFirebaseUser || null;
+      state.profile = null;
+      if (state.user) {
+        setVisible('postAuthPrompt', false);
+        setVisible('postEditor', true);
+      }
+    }
     if (!requireUser()) return;
 
     const input = byId('postText');
