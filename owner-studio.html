@@ -2688,6 +2688,10 @@ async function saveBulkQuestionDrafts() {
   }
 
   const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+  const customExamId = target === 'customExamQuestions' ? (document.getElementById('bulkCustomExamId')?.value || '') : '';
+  if (target === 'customExamQuestions' && (!isPrimaryOwner() || !customExamId)) {
+    return showToast('कस्टम परीक्षा के प्रश्न जोड़ने के लिए Owner और चुनी हुई कस्टम परीक्षा आवश्यक है।');
+  }
 
   if (!isPrimaryOwner() && target !== 'quiz') {
     return showToast('Editor केवल दैनिक क्विज़ के Draft बना सकता है; मॉक/मुख्य परीक्षा Owner संभालेगा।');
@@ -2737,9 +2741,9 @@ async function saveBulkQuestionDrafts() {
     const existingKeys = new Set();
     let cursor = null;
     do {
-      let query = db.collection(target)
-        .orderBy(firebase.firestore.FieldPath.documentId())
-        .limit(400);
+      let query = db.collection(target);
+      if (target === 'customExamQuestions') query = query.where('examId', '==', customExamId);
+      query = query.orderBy(firebase.firestore.FieldPath.documentId()).limit(400);
       if (cursor) query = query.startAfter(cursor);
       const page = await query.get();
       page.forEach(doc => {
@@ -2800,7 +2804,8 @@ async function saveBulkQuestionDrafts() {
             ? 'mock1'
             : target === 'mockExam_2'
               ? 'mock2'
-              : 'main',
+              : target === 'customExamQuestions' ? 'custom' : 'main',
+        ...(target === 'customExamQuestions' ? { examId: customExamId } : {}),
         status: 'draft',
         published: false,
         marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
@@ -2987,11 +2992,64 @@ async function saveBulkQuestionDrafts() {
       if (status) status.textContent = (query ? filtered.length : Math.min(filtered.length, adminQuestionVisibleLimit)) + ' दिख रहे हैं · ' + filtered.length + ' मिले · सूची में ' + adminQuestionRows.length + ' तक रिकॉर्ड लोड हुए। खोजने के लिए शब्द लिखें।';
     }
 
+    async function loadBulkCustomExamOptions() {
+      const select = document.getElementById('bulkCustomExamId');
+      if (!select || !db) return;
+      const previous = select.value;
+      try {
+        const snap = await db.collection('customExams').limit(100).get();
+        select.replaceChildren(new Option('कस्टम परीक्षा चुनें', ''));
+        snap.forEach(doc => {
+          const exam = doc.data() || {};
+          if (exam.status === 'archived') return;
+          select.add(new Option(String(exam.title || 'बिना नाम') + ' · ' + String(exam.status || 'draft'), doc.id));
+        });
+        if (previous && [...select.options].some(option => option.value === previous)) select.value = previous;
+        else if (select.options.length === 2) select.selectedIndex = 1;
+      } catch (error) {
+        console.error('Custom exam selector failed:', error);
+        showToast('कस्टम परीक्षा सूची नहीं खुली: ' + (error.code || error.message));
+      }
+    }
+
+    window.handleBulkQuestionTargetChange = async function handleBulkQuestionTargetChange() {
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      const wrap = document.getElementById('bulkCustomExamWrap');
+      if (wrap) wrap.classList.toggle('hidden', target !== 'customExamQuestions');
+      if (target === 'customExamQuestions') await loadBulkCustomExamOptions();
+      if (target !== 'customExamQuestions' || document.getElementById('bulkCustomExamId')?.value) listenQuizQuestions();
+      else {
+        const box = document.getElementById('adminQuizList');
+        if (box) box.replaceChildren();
+        const status = document.getElementById('adminQuizListStatus');
+        if (status) status.textContent = 'कस्टम परीक्षा चुनने के बाद उसका प्रश्न बैंक दिखेगा।';
+      }
+    };
+
+    document.getElementById('bulkCustomExamId')?.addEventListener('change', listenQuizQuestions);
+    document.getElementById('bulkQuestionTarget')?.addEventListener('change', () => {
+      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      const wrap = document.getElementById('bulkCustomExamWrap');
+      if (wrap) wrap.classList.toggle('hidden', target !== 'customExamQuestions');
+    });
+    loadBulkCustomExamOptions();
+
     function listenQuizQuestions() {
       if (window.__quizQuestionListener) window.__quizQuestionListener();
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
+      const customExamId = target === 'customExamQuestions' ? (document.getElementById('bulkCustomExamId')?.value || '') : '';
       adminQuestionVisibleLimit = 40;
-      window.__quizQuestionListener = db.collection(target).orderBy('createdAt', 'desc').limit(1000).onSnapshot(snap => {
+      if (target === 'customExamQuestions' && !customExamId) {
+        const box = document.getElementById('adminQuizList');
+        if (box) box.replaceChildren();
+        const status = document.getElementById('adminQuizListStatus');
+        if (status) status.textContent = 'कस्टम परीक्षा चुनें।';
+        return;
+      }
+      let questionQuery = db.collection(target);
+      if (target === 'customExamQuestions') questionQuery = questionQuery.where('examId', '==', customExamId);
+      else questionQuery = questionQuery.orderBy('createdAt', 'desc');
+      window.__quizQuestionListener = questionQuery.limit(1000).onSnapshot(snap => {
         const box = document.getElementById('adminQuizList');
         if (!box) return;
         box.innerHTML = '';
@@ -3037,7 +3095,13 @@ async function saveBulkQuestionDrafts() {
       const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
       if (!confirm("क्या आप " + target + " के सभी प्रश्न हटाना चाहते हैं? यह कार्रवाई वापस नहीं होगी।")) return;
       try {
-        const snap = await db.collection(target).get();
+        let questionQuery = db.collection(target);
+        const customExamId = target === 'customExamQuestions' ? (document.getElementById('bulkCustomExamId')?.value || '') : '';
+        if (target === 'customExamQuestions') {
+          if (!customExamId) return showToast('पहले कस्टम परीक्षा चुनें।');
+          questionQuery = questionQuery.where('examId', '==', customExamId);
+        }
+        const snap = await questionQuery.get();
         const batch = db.batch();
         snap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
