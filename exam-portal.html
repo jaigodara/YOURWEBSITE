@@ -392,14 +392,22 @@
       const snap=await db.collection("customExams").where("status","==","published").limit(100).get();
       snap.forEach(doc=>{
         const e=doc.data()||{}; if(e.status!=="published"||e.archivedAt)return;
+        const now = Date.now();
+        const startAt = toScheduleDate(e.startAt);
+        const endAt = toScheduleDate(e.endAt);
+        if (endAt && endAt.getTime() <= now) return;
+        const scheduled = !!(startAt && startAt.getTime() > now);
         const card=document.createElement("article");card.className="exam";
         const icon=document.createElement("div");icon.className="exam-icon";icon.textContent="🧩";
         const title=document.createElement("h3");title.textContent=String(e.title||"कस्टम परीक्षा");
         const meta=document.createElement("span");meta.className="exam-meta";meta.textContent="अवधि: "+(Number(e.durationMinutes)||60)+" मिनट · कुल अंक: "+(Number(e.totalMarks)||100);
-        const detail=document.createElement("p");detail.textContent="उत्तीर्ण अंक: "+(Number(e.passingMarks)||0)+" · गलत उत्तर: −"+(Number(e.negativeMarks)||0)+" · प्रकाशित परीक्षा";
+        const scheduleLabel = scheduled ? " · शुरू: " + startAt.toLocaleString("hi-IN") : (endAt ? " · समाप्ति: " + endAt.toLocaleString("hi-IN") : "");
+        const detail=document.createElement("p");detail.textContent="उत्तीर्ण अंक: "+(Number(e.passingMarks)||0)+" · गलत उत्तर: −"+(Number(e.negativeMarks)||0)+" · "+(scheduled ? "निर्धारित परीक्षा" : "प्रकाशित परीक्षा")+scheduleLabel;
         const actions=document.createElement("div");actions.className="card-actions";
-        const btn=document.createElement("button");btn.type="button";btn.className="button gold";btn.textContent="यह परीक्षा खोलें";
+        const btn=document.createElement("button");btn.type="button";btn.className="button gold";btn.textContent=scheduled ? "निर्धारित समय पर खुलेगी" : "यह परीक्षा खोलें";btn.disabled=scheduled;
         btn.addEventListener("click",()=>{
+          if(startAt && startAt.getTime() > Date.now()){setPortalStatus("यह परीक्षा "+startAt.toLocaleString("hi-IN")+" बजे शुरू होगी।");return;}
+          if(endAt && endAt.getTime() <= Date.now()){setPortalStatus("इस परीक्षा की निर्धारित अवधि समाप्त हो चुकी है।");return;}
           if(window.__bishnoismMaintenanceLocked===true){setPortalStatus((window.__bishnoismMaintenance?.sectionMessages||{}).quiz||"परीक्षा रखरखाव पर है।");return;}
           byId("examFrameTitle").textContent=String(e.title||"कस्टम परीक्षा");framePanel.classList.remove("hide");examArea.classList.add("hide");framePanel.classList.add("exam-frame-fullscreen");
           if(framePanel.requestFullscreen)framePanel.requestFullscreen().catch(()=>{});framePanel.scrollIntoView({behavior:"smooth",block:"start"});

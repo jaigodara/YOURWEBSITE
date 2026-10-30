@@ -8,6 +8,58 @@ const script = readFileSync(path.join(root, 'script.js'), 'utf8');
 const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const owner = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
 
+
+test('Owner Studio removes the unused photo proctoring UI and settings listener but retains live violation logs', () => {
+  assert.ok(!owner.includes('examProctoringToggle'));
+  assert.ok(!owner.includes('proctoringStatusBadge'));
+  assert.ok(!owner.includes('proctoringEnabled'));
+  assert.ok(!owner.includes('listenProctoringConfig'));
+  assert.ok(!owner.includes('toggleExamProctoring'));
+  assert.ok(owner.includes('ownerExamIntegrityPanel'));
+  assert.ok(owner.includes('liveViolationsList'));
+});
+
+test('exam archive isolates custom exams and includes custom questions in archive', () => {
+  assert.ok(owner.includes('archiveCustomExamFromRegistry()'));
+  assert.ok(!owner.includes("onclick=\"changeCustomExamStatus('archived')\""));
+  assert.ok(owner.includes("downloadSelectedExamArchive('xlsx')"));
+  assert.ok(owner.includes("downloadSelectedExamArchive('pdf')"));
+  assert.ok(owner.includes("downloadSelectedExamArchive('json')"));
+  assert.ok(owner.includes('customExamQuestions'));
+  assert.ok(owner.includes('examAnswerKeys'));
+  assert.ok(owner.includes('!data.customExamId && !data.examId'));
+});
+
+test('exam archive refuses to clear active, kicked or pending re-entry sessions', () => {
+  assert.ok(owner.includes("['active', 'late_request', 'kicked']"));
+  assert.ok(owner.includes('सभी प्रयास जमा/समाप्त होने के बाद ही आर्काइव करें'));
+});
+
+test('daily quiz archive does not disable the year-round daily quiz', () => {
+  const start = owner.indexOf('async function archiveCompletedExamWorkflow');
+  const end = owner.indexOf('window.archiveCompletedExamWorkflow', start);
+  assert.ok(owner.slice(start, end).includes("mode !== 'quiz' && config.closeField"));
+});
+
+test('Daily Quiz results button refreshes the signed-in user results from the shared publishedResults collection', () => {
+  const start = script.indexOf('window.openDailyQuizResults = async function');
+  const end = script.indexOf('window.renderMyResults = function', start);
+  const handler = script.slice(start, end);
+  assert.ok(handler.includes('state.auth?.currentUser'));
+  assert.ok(handler.includes("collection('publishedResults')"));
+  assert.ok(handler.includes(".where('uid', '==', state.user.uid)"));
+  assert.ok(handler.includes("row.status === 'published'"));
+});
+
+test('Community posting synchronizes with the main Firebase Auth session', () => {
+  const start = script.indexOf('window.BishnoiCommunity.submitPost = async function');
+  const end = script.indexOf('window.upvoteCommunityPost', start);
+  const submit = script.slice(start, end);
+  assert.ok(submit.includes('state.auth?.currentUser'));
+  assert.ok(submit.includes('state.user = activeFirebaseUser || null'));
+  assert.ok(submit.includes("collection('posts').add"));
+});
+
 test('Exam integrity guards locally block clipboard actions and log tab/fullscreen violations', () => {
   assert.match(script, /function installExamIntegrityGuards\(\)/);
   assert.match(script, /\['copy', 'cut', 'paste', 'contextmenu', 'selectstart'\]/);
