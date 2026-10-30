@@ -2228,6 +2228,7 @@ function switchStudioPane(paneId) {
         const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
         localStorage.setItem(BULK_QUESTION_DRAFT_KEY, JSON.stringify({
           target,
+          customExamId: document.getElementById('bulkCustomExamId')?.value || '',
           drafts: bulkQuestionDrafts.map(question => ({
             q: String(question.q || ''),
             opts: Array.isArray(question.opts) ? question.opts.map(option => String(option || '')) : ['', '', '', ''],
@@ -2250,6 +2251,10 @@ function switchStudioPane(paneId) {
         const allowed = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions', 'customExamQuestions']);
         const target = document.getElementById('bulkQuestionTarget');
         if (target && allowed.has(saved.target)) target.value = saved.target;
+        const customExamSelect = document.getElementById('bulkCustomExamId');
+        if (customExamSelect && saved.customExamId) customExamSelect.value = String(saved.customExamId);
+        const customExamWrap = document.getElementById('bulkCustomExamWrap');
+        if (customExamWrap) customExamWrap.classList.toggle('hidden', saved.target !== 'customExamQuestions');
         bulkQuestionDrafts = saved.drafts.slice(0, 450).map(question => ({
           q: String(question.q || ''),
           opts: Array.isArray(question.opts) ? question.opts.slice(0, 4).map(option => String(option || '')) : ['', '', '', ''],
@@ -3027,11 +3032,6 @@ async function saveBulkQuestionDrafts() {
     };
 
     document.getElementById('bulkCustomExamId')?.addEventListener('change', listenQuizQuestions);
-    document.getElementById('bulkQuestionTarget')?.addEventListener('change', () => {
-      const target = document.getElementById('bulkQuestionTarget')?.value || 'quiz';
-      const wrap = document.getElementById('bulkCustomExamWrap');
-      if (wrap) wrap.classList.toggle('hidden', target !== 'customExamQuestions');
-    });
     loadBulkCustomExamOptions();
 
     function listenQuizQuestions() {
