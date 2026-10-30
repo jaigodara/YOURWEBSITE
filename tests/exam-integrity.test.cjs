@@ -16,6 +16,7 @@ test('exam archive isolates custom exams and includes custom questions in archiv
   assert.ok(owner.includes("downloadSelectedExamArchive('pdf')"));
   assert.ok(owner.includes("downloadSelectedExamArchive('json')"));
   assert.ok(owner.includes('customExamQuestions'));
+  assert.ok(owner.includes('examAnswerKeys'));
   assert.ok(owner.includes('!data.customExamId && !data.examId'));
 });
 
