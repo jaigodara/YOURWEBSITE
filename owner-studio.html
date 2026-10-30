@@ -774,6 +774,15 @@ Ans: B"></textarea>
             <label class="block text-xs font-bold text-stone-700">उत्तीर्ण अंक<input id="ownerCustomExamPassingMarks" type="number" min="0" max="10000" value="33" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
             <label class="block text-xs font-bold text-stone-700">प्रति गलत उत्तर ऋणात्मक अंक<input id="ownerCustomExamNegativeMarks" type="number" min="0" max="10" step="0.01" value="0.25" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"></label>
           </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+            <label class="block text-xs font-bold text-stone-700">परीक्षा शुरू होने का समय (वैकल्पिक)
+              <input id="ownerCustomExamStartAt" type="datetime-local" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm">
+            </label>
+            <label class="block text-xs font-bold text-stone-700">परीक्षा समाप्त होने का समय (वैकल्पिक)
+              <input id="ownerCustomExamEndAt" type="datetime-local" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm">
+            </label>
+            <p class="sm:col-span-2 text-[11px] text-stone-600">समय खाली छोड़ने पर प्रकाशित परीक्षा तुरंत उपलब्ध होगी। समय तय करने पर विद्यार्थी पोर्टल इसे निर्धारित समय पर ही खोल सकेगा।</p>
+          </div>
           <p id="ownerCustomExamStatus" class="text-xs text-stone-600" aria-live="polite">कस्टम परीक्षा की सेटिंग्स इसी कॉन्फ़िगरेशन में सुरक्षित होंगी।</p>
           
 <input id="ownerCustomExamRecordId" type="hidden" value="">
@@ -3730,6 +3739,13 @@ async function saveBulkQuestionDrafts() {
     
 const customExamRegistryCollection = () => db.collection('customExams');
 
+function customExamDateTimeInput(value) {
+  if (!value) return '';
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 function setCustomExamRegistryStatus(message) {
   const el = document.getElementById('customExamRegistryStatus');
   if (el) el.textContent = message;
@@ -3748,6 +3764,8 @@ function newCustomExamRecord() {
   document.getElementById('ownerCustomExamTotalMarks').value = '100';
   document.getElementById('ownerCustomExamPassingMarks').value = '33';
   document.getElementById('ownerCustomExamNegativeMarks').value = '0.25';
+  document.getElementById('ownerCustomExamStartAt').value = '';
+  document.getElementById('ownerCustomExamEndAt').value = '';
 
   setCustomExamRegistryStatus('नई परीक्षा तैयार है। Draft सहेजें।');
 }
@@ -3867,6 +3885,8 @@ async function editCustomExamRecord(id) {
       String(exam.passingMarks ?? 33);
     document.getElementById('ownerCustomExamNegativeMarks').value =
       String(exam.negativeMarks ?? 0.25);
+    document.getElementById('ownerCustomExamStartAt').value = customExamDateTimeInput(exam.startAt);
+    document.getElementById('ownerCustomExamEndAt').value = customExamDateTimeInput(exam.endAt);
 
     setCustomExamRegistryStatus(
       `चुनी गई परीक्षा: ${exam.title || 'बिना नाम की परीक्षा'} · स्थिति: ${exam.status || 'draft'}`
@@ -3899,6 +3919,18 @@ async function saveCustomExamRecord() {
   const negativeMarks = Number(
     document.getElementById('ownerCustomExamNegativeMarks')?.value
   );
+  const startValue = document.getElementById('ownerCustomExamStartAt')?.value || '';
+  const endValue = document.getElementById('ownerCustomExamEndAt')?.value || '';
+  const startDate = startValue ? new Date(startValue) : null;
+  const endDate = endValue ? new Date(endValue) : null;
+
+  if (Boolean(startValue) !== Boolean(endValue) ||
+      (startDate && Number.isNaN(startDate.getTime())) ||
+      (endDate && Number.isNaN(endDate.getTime())) ||
+      (startDate && endDate && endDate <= startDate)) {
+    showToast('निर्धारित परीक्षा शुरू और समाप्ति समय दोनों भरें; समाप्ति समय शुरू होने के बाद होना चाहिए।');
+    return;
+  }
 
   if (!title || title.length > 120) {
     showToast('परीक्षा का नाम 1–120 अक्षरों में भरें।');
@@ -3926,6 +3958,8 @@ async function saveCustomExamRecord() {
     totalMarks,
     passingMarks,
     negativeMarks,
+    startAt: startDate ? firebase.firestore.Timestamp.fromDate(startDate) : null,
+    endAt: endDate ? firebase.firestore.Timestamp.fromDate(endDate) : null,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedBy: auth.currentUser.uid
   };
