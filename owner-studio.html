@@ -2198,7 +2198,7 @@ function switchStudioPane(paneId) {
       if (!isPrimaryOwner()) return showToast('विजेता सूची केवल Owner बदल सकता है।');
       const winnerDate = document.getElementById('dailyWinnerDate')?.value ||
         new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(winnerDate) || Number.isNaN(Date.parse(winnerDate + 'T00:00:00'))) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(winnerDate) || Number.isNaN(Date.parse(winnerDate + 'T00:00:00'))) {
         return showToast('विजेता सूची के लिए सही तारीख़ चुनें।');
       }
       const readWinner = (nameId, scoreId) => ({
@@ -7145,7 +7145,7 @@ async function removeTrustedEditor(uid) {
           blob = pdf.output('blob');
           extension = 'pdf';
         } else {
-          blob = new Blob(['\\uFEFF' + rows.map(row => row.map(archiveCsvCell).join(',')).join('\\r\\n')], { type: 'text/csv;charset=utf-8;' });
+          blob = new Blob(['\uFEFF' + rows.map(row => row.map(archiveCsvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' });
         }
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
