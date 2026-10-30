@@ -33,6 +33,16 @@ test('daily quiz archive does not disable the year-round daily quiz', () => {
   assert.ok(owner.slice(start, end).includes("mode !== 'quiz' && config.closeField"));
 });
 
+test('Daily Quiz results button refreshes the signed-in user results from the shared publishedResults collection', () => {
+  const start = script.indexOf('window.openDailyQuizResults = async function');
+  const end = script.indexOf('window.renderMyResults = function', start);
+  const handler = script.slice(start, end);
+  assert.ok(handler.includes('state.auth?.currentUser'));
+  assert.ok(handler.includes("collection('publishedResults')"));
+  assert.ok(handler.includes(".where('uid', '==', state.user.uid)"));
+  assert.ok(handler.includes("row.status === 'published'"));
+});
+
 test('Community posting synchronizes with the main Firebase Auth session', () => {
   const start = script.indexOf('window.BishnoiCommunity.submitPost = async function');
   const end = script.indexOf('window.upvoteCommunityPost', start);
