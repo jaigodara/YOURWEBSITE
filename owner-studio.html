@@ -1690,6 +1690,7 @@ const OWNER_STUDIO_ROUTES = {
     pane: 'pane_system',
     permission: 'reports',
     panels: [
+      'ownerDataDashboard',
       'ownerDataExportPanel',
       'ownerExportPanel'
     ]
@@ -1708,6 +1709,7 @@ const OWNER_STUDIO_ROUTE_PANELS = [
   'ownerNotificationCard',
   'ownerMaintenanceSettingsPanel',
   'ownerTrustedEditorsPanel',
+  'ownerDataDashboard',
   'ownerDataExportPanel',
   'ownerExportPanel'
 ];
@@ -1717,6 +1719,7 @@ function moveOwnerStudioPanels() {
   if (!systemPane) return;
 
   [
+    'ownerDataDashboard',
     'ownerDataExportPanel',
     'ownerExamVisibilitySettingsPanel',
     'ownerProctoringPanel'
