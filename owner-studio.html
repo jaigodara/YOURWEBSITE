@@ -2165,6 +2165,16 @@ function switchStudioPane(paneId) {
         const snap = await ref.get();
         if (!snap.exists) return showToast('यह रिकॉर्ड पहले ही हटाया जा चुका है।');
         const data = snap.data() || {};
+        const questionCollections = new Set(['quiz', 'mockExam_1', 'mockExam_2', 'mainExamQuestions', 'customExamQuestions']);
+        if (questionCollections.has(col)) {
+          if (!isPrimaryOwner()) return showToast('प्रश्न और निजी उत्तर-कुंजी हटाने का अधिकार केवल Owner को है।');
+          const batch = db.batch();
+          batch.delete(ref);
+          if (col !== 'quiz') batch.delete(db.collection('examAnswerKeys').doc(col).collection('items').doc(id));
+          await batch.commit();
+          showToast('प्रश्न और उसकी निजी उत्तर-कुंजी हटा दी गई।');
+          return;
+        }
         const fileUrl = data.url || data.link || data.pdfUrl || data.audioUrl || '';
         if (/^https:\/\/firebasestorage\.googleapis\.com\//i.test(fileUrl)) {
           try { await firebase.storage().refFromURL(fileUrl).delete(); }
@@ -2890,6 +2900,16 @@ async function saveBulkQuestionDrafts() {
         const options = Array.isArray(d.options) ? d.options : Array.isArray(d.opts) ? d.opts : [];
         if (options.length !== 4) return showToast('इस प्रश्न में चार विकल्प नहीं हैं; पहले डेटा सुधारें।');
         document.getElementById('bulkQuestionTarget').value = target;
+        if (target === 'customExamQuestions') {
+          const wrap = document.getElementById('bulkCustomExamWrap');
+          if (wrap) wrap.classList.remove('hidden');
+          await loadBulkCustomExamOptions();
+          const customSelect = document.getElementById('bulkCustomExamId');
+          if (!d.examId || !customSelect || ![...customSelect.options].some(option => option.value === d.examId)) {
+            return showToast('इस प्रश्न से जुड़ी कस्टम परीक्षा उपलब्ध नहीं है।');
+          }
+          customSelect.value = d.examId;
+        }
         let storedAnswer = d.correctAnswer ?? d.answerIndex ?? d.ans;
         if (target !== 'quiz') {
           const keySnap = await db.collection('examAnswerKeys').doc(target).collection('items').doc(id).get();
@@ -3102,10 +3122,17 @@ async function saveBulkQuestionDrafts() {
           questionQuery = questionQuery.where('examId', '==', customExamId);
         }
         const snap = await questionQuery.get();
-        const batch = db.batch();
-        snap.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        showToast(target + " के सभी प्रश्न हटा दिए गए।");
+        const docs = snap.docs;
+        for (let offset = 0; offset < docs.length; offset += (target === 'quiz' ? 400 : 200)) {
+          const chunk = docs.slice(offset, offset + (target === 'quiz' ? 400 : 200));
+          const batch = db.batch();
+          chunk.forEach(doc => {
+            batch.delete(doc.ref);
+            if (target !== 'quiz') batch.delete(db.collection('examAnswerKeys').doc(target).collection('items').doc(doc.id));
+          });
+          await batch.commit();
+        }
+        showToast(target + " के " + docs.length + " प्रश्न और संबंधित निजी उत्तर-कुंजियाँ हटा दी गईं।");
       } catch (err) {
         showToast("त्रुटि: " + err.message);
       }
