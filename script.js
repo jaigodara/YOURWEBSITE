@@ -334,14 +334,18 @@ try {
   const serverTimestamp = () => firebase.firestore.FieldValue.serverTimestamp();
   const deleteField = () => firebase.firestore.FieldValue.delete();
   const asArray = v => Array.isArray(v) ? v : [];
-  const currentUid = () => state.user?.uid || null;
+  const currentUid = () => (state.auth ? state.auth.currentUser?.uid : state.user?.uid) || null;
 
   const requireUser = () => {
-    if (!state.user) {
-      notify('Please sign in first.');
-      window.promptUserLogin();
+    // Firebase Auth is the source of truth. The observer may update state.user
+    // a moment after a WebView/website session has already been restored.
+    const activeUser = state.auth ? state.auth.currentUser : state.user;
+    if (!activeUser) {
+      notify('पहले मुख्य वेबसाइट पर Google लॉगिन करें।');
+      window.BishnoiAuth?.openAuthModal?.();
       return false;
     }
+    state.user = activeUser;
     return true;
   };
 
@@ -2345,6 +2349,14 @@ moreButton.textContent =
     ensureEnrollmentStatusHost();
     renderEnrollmentStatus(state.user ? undefined : null);
   }
+
+  window.openDailyQuizResults = function openDailyQuizResults() {
+    if (!requireUser()) return;
+    const quizTab = byId('tab-quiz');
+    if (quizTab) quizTab.classList.add('show-daily-results');
+    window.renderMyResults();
+    byId('myResultsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   window.renderMyResults = function renderMyResults() {
     const host = byId('myResultsList');
