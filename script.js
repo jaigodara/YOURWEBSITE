@@ -958,17 +958,21 @@ notify(
       collection('settings').doc('dailyWinners'),
       snap => {
         const data = snap.exists ? snap.data() : {};
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const winnerDate = String(data.winnerDate || today);
+        const isToday = winnerDate === today;
         const scoreLabel = value => {
           const score = String(value == null ? '' : value).trim();
           if (!score || score === '—' || score === '-') return '— अंक';
           return /(?:अंक|points?)$/i.test(score) ? score : score + ' अंक';
         };
         [
-          ['rank1Name', data.p1Name, '—'], ['rank2Name', data.p2Name, '—'], ['rank3Name', data.p3Name, '—']
+          ['rank1Name', isToday ? data.p1Name : '—', '—'], ['rank2Name', isToday ? data.p2Name : '—', '—'], ['rank3Name', isToday ? data.p3Name : '—', '—']
         ].forEach(([id, value, fallback]) => setText(id, String(value || fallback)));
         [
-          ['rank1Score', data.p1Score], ['rank2Score', data.p2Score], ['rank3Score', data.p3Score]
+          ['rank1Score', isToday ? data.p1Score : '—'], ['rank2Score', isToday ? data.p2Score : '—'], ['rank3Score', isToday ? data.p3Score : '—']
         ].forEach(([id, value]) => setText(id, scoreLabel(value)));
+        setText('dailyWinnerDateLabel', isToday ? 'आज के दैनिक क्विज़ विजेता' : 'आज के विजेता अभी प्रकाशित नहीं हुए हैं।');
       },
       'Daily quiz leaderboard'
     );
