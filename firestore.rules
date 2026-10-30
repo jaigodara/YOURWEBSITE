@@ -720,21 +720,20 @@ service cloud.firestore {
       allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
     }
 
-    // Enforce community maintenance at the database boundary too. Clients cannot
-    // bypass a posting lock by calling Firestore directly instead of the UI.
-    // Global maintenance conservatively blocks writes for all clients because
-    // Firestore rules cannot reliably identify the caller's device type.
+    // Enforce the Community section's posting lock at the database boundary.
+    // Firestore rules cannot reliably identify whether a caller is the website or
+    // Android WebView, so web_only/phone_only are enforced by the matching client UI.
+    // A full global lock ('both') remains enforced here, with the configured Owner bypass.
     function communityPostingAllowed() {
       let maintenancePath = /databases/$(database)/documents/settings/maintenance;
-      // A community posting/full-section lock is absolute: no user, owner or editor may post.
-      // Global maintenance may still honor the configured owner bypass when community itself is open.
       return !exists(maintenancePath)
         || (
           get(maintenancePath).data.get('sections', {}).get('community', 'off') == 'off'
           && (
-            get(maintenancePath).data.get('globalMode', 'off') == 'off'
+            get(maintenancePath).data.get('globalMode', 'off') in ['off', 'web_only', 'phone_only']
             || (
-              get(maintenancePath).data.get('vipBypass', true) == true
+              get(maintenancePath).data.get('globalMode', 'off') == 'both'
+              && get(maintenancePath).data.get('vipBypass', true) == true
               && owner()
             )
           )
