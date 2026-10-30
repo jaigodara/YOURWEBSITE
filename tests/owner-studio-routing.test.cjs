@@ -94,3 +94,44 @@ test('Exam question workflow has no per-student Set selector and resolves answer
   assert.doesNotMatch(scriptJs, /data-question-set|VALID_QUESTION_SETS/);
   assert.match(scriptJs, /questionCollection: CONFIG\.examCollections\[exam\.mode\]/);
 });
+
+
+test('Legacy question uploader routes custom questions to the selected custom exam and its private key collection', () => {
+  assert.match(ownerHtml, /option value="customExamQuestions">कस्टम परीक्षा/);
+  assert.match(ownerHtml, /id="bulkCustomExamId"/);
+  assert.match(ownerHtml, /where\('examId', '==', customExamId\)/);
+  assert.match(ownerHtml, /examId: customExamId/);
+  assert.match(ownerHtml, /doc\('examAnswerKeys'\)\.doc\(target\)/);
+  assert.match(ownerHtml, /function handleBulkQuestionTargetChange/);
+});
+
+test('Question deletion also removes its private answer key in bounded batches', () => {
+  assert.match(ownerHtml, /questionCollections\.has\(col\)/);
+  assert.match(ownerHtml, /collection\('examAnswerKeys'\)\.doc\(col\)/);
+  assert.match(ownerHtml, /offset \+= \(target === 'quiz' \? 400 : 200\)/);
+});
+
+test('Exam completion is owner-only, closes new entry after archive verification, and preserves published results', () => {
+  const start = ownerHtml.indexOf('async function archiveCompletedExamWorkflow()');
+  const end = ownerHtml.indexOf('window.archiveCompletedExamWorkflow = archiveCompletedExamWorkflow;', start);
+  assert.ok(start >= 0 && end > start);
+  const workflow = ownerHtml.slice(start, end);
+  const verify = workflow.indexOf('const archivedSnapshot = await archiveRef.collection(\'records\').get()');
+  const close = workflow.indexOf('await configRef.set(closePatch, { merge: true })');
+  const remove = workflow.indexOf('batch.delete(record.ref)');
+  assert.ok(verify >= 0 && close > verify && remove > close);
+  assert.match(workflow, /publishedResults/);
+  assert.match(workflow, /removeSource: false/);
+});
+
+test('Archive downloads are placed in Reports & Exports and support CSV and JSON', () => {
+  const panelStart = ownerHtml.indexOf('id="ownerExamArchivePanel"');
+  const panelEnd = ownerHtml.indexOf('</section>', panelStart);
+  const actionPanel = ownerHtml.slice(panelStart, panelEnd);
+  assert.doesNotMatch(actionPanel, /examArchiveSelect|downloadSelectedExamArchive/);
+  const reportPanel = ownerHtml.indexOf('id="ownerExportPanel"');
+  const archiveDownloads = ownerHtml.indexOf('id="examArchiveDownloads"');
+  assert.ok(reportPanel >= 0 && archiveDownloads > reportPanel);
+  assert.match(ownerHtml, /downloadSelectedExamArchive\('csv'\)/);
+  assert.match(ownerHtml, /downloadSelectedExamArchive\('json'\)/);
+});
