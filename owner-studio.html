@@ -2914,6 +2914,7 @@ async function saveBulkQuestionDrafts() {
             return showToast('इस प्रश्न से जुड़ी कस्टम परीक्षा उपलब्ध नहीं है।');
           }
           customSelect.value = d.examId;
+          listenQuizQuestions();
         }
         let storedAnswer = d.correctAnswer ?? d.answerIndex ?? d.ans;
         if (target !== 'quiz') {
