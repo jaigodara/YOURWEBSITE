@@ -3132,8 +3132,15 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
     const maintenance = state.maintenance || {};
     const mode = (maintenance.sections || {}).community || 'off';
-    if (mode === 'posting_only' || mode === 'both') {
-      notify((maintenance.sectionMessages || {}).community || 'संवाद मंच पर जवाब देना अभी बंद है।', 'error');
+    const globalMode = maintenance.globalMode || 'off';
+    const userAgent = String(window.navigator?.userAgent || '');
+    const isNativeApp = /; wv\\)|\\bWebView\\b|BishnoismAndroid/i.test(userAgent);
+    const ownerBypass = maintenance.vipBypass !== false && state.isOwner;
+    const globalBlocked = globalMode === 'both' ||
+      (globalMode === 'web_only' && !isNativeApp) ||
+      (globalMode === 'phone_only' && isNativeApp);
+    if (mode === 'posting_only' || mode === 'both' || (!ownerBypass && globalBlocked)) {
+      notify((maintenance.sectionMessages || {}).community || maintenance.message || 'संवाद मंच पर जवाब देना अभी बंद है।', 'error');
       return;
     }
     try {
