@@ -2008,6 +2008,7 @@ function switchStudioPane(paneId) {
       db.collection('settings').doc('dailyWinners').get().then(doc => {
         if (doc.exists) {
           const d = doc.data();
+          if (document.getElementById('dailyWinnerDate')) document.getElementById('dailyWinnerDate').value = d.winnerDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
           if (document.getElementById('win1Name')) document.getElementById('win1Name').value = d.p1Name || '';
           if (document.getElementById('win1Score')) document.getElementById('win1Score').value = d.p1Score || '';
           if (document.getElementById('win2Name')) document.getElementById('win2Name').value = d.p2Name || '';
@@ -2194,6 +2195,7 @@ function switchStudioPane(paneId) {
           p2Name: '—', p2Score: '—',
           p3Name: '—', p3Score: '—'
         });
+        if (document.getElementById('dailyWinnerDate')) document.getElementById('dailyWinnerDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         if (document.getElementById('win1Name')) document.getElementById('win1Name').value = '—';
         if (document.getElementById('win1Score')) document.getElementById('win1Score').value = '—';
         if (document.getElementById('win2Name')) document.getElementById('win2Name').value = '—';
