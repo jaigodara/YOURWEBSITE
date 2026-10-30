@@ -3134,7 +3134,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     const mode = (maintenance.sections || {}).community || 'off';
     const globalMode = maintenance.globalMode || 'off';
     const userAgent = String(window.navigator?.userAgent || '');
-    const isNativeApp = /; wv\\)|\\bWebView\\b|BishnoismAndroid/i.test(userAgent);
+    const isNativeApp = /; wv\)|\bWebView\b|BishnoismAndroid/i.test(userAgent);
     const ownerBypass = maintenance.vipBypass !== false && state.isOwner;
     const globalBlocked = globalMode === 'both' ||
       (globalMode === 'web_only' && !isNativeApp) ||
