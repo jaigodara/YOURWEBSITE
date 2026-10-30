@@ -3020,7 +3020,11 @@ async function saveBulkQuestionDrafts() {
     async function loadBulkCustomExamOptions() {
       const select = document.getElementById('bulkCustomExamId');
       if (!select || !db) return;
-      const previous = select.value;
+      let previous = select.value;
+      try {
+        const savedDraft = JSON.parse(localStorage.getItem(BULK_QUESTION_DRAFT_KEY) || 'null');
+        if (!previous && savedDraft?.customExamId) previous = String(savedDraft.customExamId);
+      } catch (_) {}
       try {
         const snap = await db.collection('customExams').limit(100).get();
         select.replaceChildren(new Option('कस्टम परीक्षा चुनें', ''));
@@ -3031,6 +3035,7 @@ async function saveBulkQuestionDrafts() {
         });
         if (previous && [...select.options].some(option => option.value === previous)) select.value = previous;
         else if (select.options.length === 2) select.selectedIndex = 1;
+        if (document.getElementById('bulkQuestionTarget')?.value === 'customExamQuestions' && select.value) listenQuizQuestions();
       } catch (error) {
         console.error('Custom exam selector failed:', error);
         showToast('कस्टम परीक्षा सूची नहीं खुली: ' + (error.code || error.message));
