@@ -396,8 +396,9 @@ try {
   portalSwitchTabImplementationImpl = function (id) {
     const raw = String(id || '').replace(/^tab-/, '');
     // Profile is a modal in this static site, not a separate tab panel.
+    const signedInUser = state.auth ? state.auth.currentUser : state.user;
     if (raw === 'profile') {
-      if (state.user) {
+      if (signedInUser) {
         window.BishnoiApp?.openProfileOrAuth?.();
       } else {
         window.BishnoiAuth?.openAuthModal?.();
@@ -414,7 +415,7 @@ try {
     }
     const target = TAB_ALIASES[raw] || (String(id).startsWith('tab-') ? id : `tab-${raw}`);
     const restrictedTabs = new Set(['quiz', 'pariksha', 'community', 'profile']);
-    if (!state.user && restrictedTabs.has(raw)) {
+    if (!signedInUser && restrictedTabs.has(raw)) {
       // Keep navigation usable; data-changing actions still enforce requireUser().
       window.BishnoiAuth?.openAuthModal?.();
       notify('इस अनुभाग की सुविधाओं के लिए पहले लॉगिन करें।', 'error');
@@ -838,8 +839,10 @@ notify(
   }
 
   function renderAuthState() {
-    const label = state.user
-      ? (state.profile?.displayName || state.profile?.fullName || state.user.displayName || state.user.email || 'सदस्य')
+    const activeUser = state.auth ? state.auth.currentUser : state.user;
+    if (activeUser) state.user = activeUser;
+    const label = activeUser
+      ? (state.profile?.displayName || state.profile?.fullName || activeUser.displayName || activeUser.email || 'सदस्य')
       : 'लॉगिन करें';
 
     ['authButton', 'profileButton', 'loginBtn', 'authLoginButton'].forEach(id => {
