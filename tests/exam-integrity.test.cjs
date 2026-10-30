@@ -10,28 +10,28 @@ const owner = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
 
 
 test('exam archive isolates custom exams and includes custom questions in archive', () => {
-  assert.match(owner, /archiveCustomExamFromRegistry\\(\\)/);
-  assert.doesNotMatch(owner, /onclick="changeCustomExamStatus\\('archived'\\)"/);
-  assert.match(owner, /downloadSelectedExamArchive\\('xlsx'\\)/);
-  assert.match(owner, /downloadSelectedExamArchive\\('pdf'\\)/);
-  assert.match(owner, /downloadSelectedExamArchive\\('json'\\)/);
-  assert.match(owner, /customExamQuestions/);
-  assert.match(owner, /!data\\.customExamId && !data\\.examId/);
+  assert.ok(owner.includes('archiveCustomExamFromRegistry()'));
+  assert.ok(!owner.includes("onclick=\"changeCustomExamStatus('archived')\""));
+  assert.ok(owner.includes("downloadSelectedExamArchive('xlsx')"));
+  assert.ok(owner.includes("downloadSelectedExamArchive('pdf')"));
+  assert.ok(owner.includes("downloadSelectedExamArchive('json')"));
+  assert.ok(owner.includes('customExamQuestions'));
+  assert.ok(owner.includes('!data.customExamId && !data.examId'));
 });
 
 test('daily quiz archive does not disable the year-round daily quiz', () => {
   const start = owner.indexOf('async function archiveCompletedExamWorkflow');
   const end = owner.indexOf('window.archiveCompletedExamWorkflow', start);
-  assert.match(owner.slice(start, end), /mode !== 'quiz' && config\\.closeField/);
+  assert.ok(owner.slice(start, end).includes("mode !== 'quiz' && config.closeField"));
 });
 
 test('Community posting synchronizes with the main Firebase Auth session', () => {
   const start = script.indexOf('window.BishnoiCommunity.submitPost = async function');
   const end = script.indexOf('window.upvoteCommunityPost', start);
   const submit = script.slice(start, end);
-  assert.match(submit, /state\\.auth\\?\\.currentUser/);
-  assert.match(submit, /state\\.user = activeFirebaseUser \\|\\| null/);
-  assert.match(submit, /collection\\('posts'\\)\\.add/);
+  assert.ok(submit.includes('state.auth?.currentUser'));
+  assert.ok(submit.includes('state.user = activeFirebaseUser || null'));
+  assert.ok(submit.includes("collection('posts').add"));
 });
 
 test('Exam integrity guards locally block clipboard actions and log tab/fullscreen violations', () => {
