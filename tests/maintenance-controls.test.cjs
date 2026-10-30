@@ -77,7 +77,7 @@ test('Firestore blocks exam and media reads during a full section maintenance lo
 test('Daily quiz winners are date-scoped so a previous day cannot remain on the public leaderboard', () => {
   assert.match(ownerHtml, /id="dailyWinnerDate"/);
   assert.match(ownerHtml, /winnerDate,/);
-  assert.match(ownerHtml, /dailyWinnerDate\)\?\.value/);
+  assert.match(ownerHtml, /dailyWinnerDate'\)\?\.value/);
   assert.match(scriptJs, /const today = new Date\(\)\.toLocaleDateString\('en-CA', \{ timeZone: 'Asia\/Kolkata' \}\)/);
   assert.match(scriptJs, /const isToday = winnerDate === today/);
   assert.match(indexHtml, /id="dailyWinnerDateLabel"/);
