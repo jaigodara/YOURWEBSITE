@@ -46,6 +46,8 @@ test('Firestore validates maintenance settings and enforces community maintenanc
   assert.match(rules, /get\('community', 'off'\) in \['off', 'posting_only', 'both'\]/);
   assert.match(rules, /function communityPostingAllowed\(\)/);
   assert.match(rules, /get\('sections', \{\}\)\.get\('community', 'off'\) == 'off'/);
+  assert.match(rules, /get\('globalMode', 'off'\) in \['off', 'web_only', 'phone_only'\]/);
+  assert.match(rules, /get\('globalMode', 'off'\) == 'both'/);
   assert.match(rules, /communityUserNotBlocked\(request\.auth\.uid\)/);
 });
 
