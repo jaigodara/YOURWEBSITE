@@ -134,3 +134,21 @@ test('Fixed bottom navigation leaves enough scroll room for the result verificat
   assert.match(css, /#globalMaintenanceOverlay[^{]*\{[^}]*top:\s*100px/);
   assert.match(css, /#globalMaintenanceOverlay[^{]*\{[^}]*bottom:/);
 });
+
+test('Home maintenance replaces invalid placeholder copy with a useful update panel and uploaded bhajan list', () => {
+  assert.match(scriptJs, /function cleanMaintenanceMessage\(value, fallback\)/);
+  assert.match(scriptJs, /homeMaintenanceAudioList/);
+  assert.match(scriptJs, /डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो/);
+});
+
+test('Daily quiz results CTA opens the signed-in student result panel separately from winner rankings', () => {
+  assert.match(indexHtml, /id="openMyDailyQuizResultsCta"/);
+  assert.match(indexHtml, /onclick="window\.openDailyQuizResults\(\)"/);
+  assert.match(scriptJs, /window\.openDailyQuizResults = async function/);
+});
+
+test('Community uses one unfiltered conversation instead of the removed topic picker', () => {
+  assert.doesNotMatch(indexHtml, /id="chatTopicFilter"|📋 सभी विषय/);
+  assert.match(indexHtml, /id="communityFeed"/);
+  assert.match(indexHtml, /id="postEditor"/);
+});

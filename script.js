@@ -1059,10 +1059,16 @@ notify(
     window.renderExamVisibility();
   }
 
+  function cleanMaintenanceMessage(value, fallback) {
+    const text = String(value == null ? '' : value).trim();
+    if (!text || /^(?:not|none|null|undefined|false|off|n\/?a)$/i.test(text)) return fallback;
+    return text.slice(0, 500);
+  }
+
   function applyMaintenanceSettings() {
     const m = state.maintenance || {};
     const mode = m.globalMode || 'off';
-    const message = m.message || 'नई सुविधाएँ आ रही हैं। कृपया प्रतीक्षा करें।';
+    const message = cleanMaintenanceMessage(m.message, 'नई सुविधाएँ आ रही हैं। कृपया प्रतीक्षा करें।');
     const banner = byId('maintenanceBanner');
     if (banner) {
       const active = mode !== 'off';
@@ -1086,23 +1092,50 @@ notify(
       if (!section) return;
       const sectionMode = (m.sections || {})[key] || 'off';
       const ownerBypass = m.vipBypass !== false && state.isOwner;
-      // posting_only is rendered by the dedicated community read-only notice below.
       const maintenanceActive = sectionMode === 'both' && !ownerBypass;
       const allowAccess = sectionAllow[key] === true;
       const locked = maintenanceActive && !allowAccess;
-      const sectionMessage = String(sectionMessages[key] || message);
+      const sectionMessage = cleanMaintenanceMessage(sectionMessages[key], message);
       let notice = byId(`maintenance-notice-${key}`);
       if (!notice) {
         notice = document.createElement('div');
         notice.id = `maintenance-notice-${key}`;
-        notice.className = 'mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950';
+        notice.className = 'mb-4 rounded-3xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm';
         section.prepend(notice);
       }
       notice.hidden = !maintenanceActive;
       notice.classList.toggle('hidden', !maintenanceActive);
-      notice.innerHTML = maintenanceActive
-        ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(sectionMessage)}</p>${allowAccess ? '<p class="mt-1 text-xs font-semibold">मेंटेनेंस के दौरान भी सामग्री उपलब्ध है।</p>' : '<p class="mt-1 text-xs font-semibold">सेक्शन अस्थायी रूप से लॉक है। कृपया प्रतीक्षा करें।</p>'}`
-        : '';
+      if (maintenanceActive && key === 'home') {
+        notice.innerHTML = `
+          <div class="maintenance-arrival space-y-4">
+            <div class="flex items-start gap-3">
+              <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest text-2xl text-amber-300 shadow-sm" aria-hidden="true">🛠️</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p>
+                <h2 class="mt-1 font-yatra text-xl text-forest">मुख्य पृष्ठ पर नए फीचर आ रहे हैं</h2>
+                <p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(sectionMessage)}</p>
+                <p class="mt-2 text-xs font-semibold text-forest">${allowAccess ? 'कुछ सामग्री अभी भी उपलब्ध है।' : 'यह भाग थोड़े समय के लिए बंद है। इस बीच नीचे उपलब्ध भजन सुनें।'}</p>
+              </div>
+              <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span>
+            </div>
+            <div class="rounded-2xl border border-emerald-200 bg-white p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="font-yatra text-lg text-forest">🎵 भजन और सबदवाणी सुनें</h3>
+                  <p class="mt-1 text-xs text-stone-500">डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो</p>
+                </div>
+                <button type="button" onclick="window.BishnoiApp.toggleAudio()" class="rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white">▶ चलाएँ / रोकें</button>
+              </div>
+              <div id="homeMaintenanceAudioList" class="mt-3 flex flex-wrap gap-2" aria-live="polite">
+                <span class="text-xs text-stone-500">भजन लोड हो रहे हैं…</span>
+              </div>
+            </div>
+          </div>`;
+      } else {
+        notice.innerHTML = maintenanceActive
+          ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(sectionMessage)}</p>${allowAccess ? '<p class="mt-1 text-xs font-semibold">मेंटेनेंस के दौरान भी सामग्री उपलब्ध है।</p>' : '<p class="mt-1 text-xs font-semibold">यह सेक्शन कुछ समय के लिए बंद है। कृपया बाद में आएँ।</p>'}`
+          : '';
+      }
       Array.from(section.children).forEach(child => {
         if (child === notice) return;
         if (locked) {
@@ -1119,8 +1152,6 @@ notify(
         }
       });
     });
-    // Community posting maintenance is a hard pause for every account,
-    // including Owner/Editors. Reading stays available in posting-only mode.
     const communityMode = (m.sections || {}).community || 'off';
     const communityPostingBlocked = communityMode === 'posting_only' || communityMode === 'both';
     const communityPostingNoticeVisible = communityMode === 'posting_only';
@@ -1137,9 +1168,9 @@ notify(
     if (communityMaintenanceNotice) {
       communityMaintenanceNotice.hidden = !communityPostingNoticeVisible;
       communityMaintenanceNotice.classList.toggle('hidden', !communityPostingNoticeVisible);
-      const communityMessage = String((state.maintenance?.sectionMessages || {}).community || message || 'नई सुविधाएँ जोड़ी जा रही हैं। कृपया प्रतीक्षा करें।');
+      const communityMessage = cleanMaintenanceMessage((m.sectionMessages || {}).community, message);
       communityMaintenanceNotice.innerHTML = communityPostingNoticeVisible
-        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं!</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(communityMessage) + '</p><p class="mt-1 text-xs font-semibold">अभी नए संदेश भेजना अस्थायी रूप से बंद है। कृपया प्रतीक्षा करें।</p></div></div>'
+        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(communityMessage) + '</p><p class="mt-1 text-xs font-semibold">अभी संदेश भेजना अस्थायी रूप से बंद है। पुराने संदेश पढ़ सकते हैं।</p></div></div>'
         : '';
     }
     if (postEditor) {
@@ -1155,17 +1186,15 @@ notify(
       postButton.disabled = communityPostingBlocked;
       postButton.title = communityPostingBlocked ? 'मेंटेनेंस के दौरान संदेश भेजना बंद है' : 'संदेश भेजें';
     }
+    const authPrompt = byId('postAuthPrompt');
+    if (authPrompt && state.user && !communityPostingBlocked) authPrompt.classList.add('hidden');
+    else if (authPrompt && state.user) authPrompt.classList.remove('hidden');
     const globalOverlay = byId('globalMaintenanceOverlay');
     if (globalOverlay) {
-      // "Phone/app only" targets the Android WebView app; "website only"
-      // targets normal browsers. "Both" targets every client.
       const ua = String(window.navigator?.userAgent || '');
       const isNativeApp = /; wv\)|\bWebView\b|BishnoismAndroid/i.test(ua);
-      const blockWebsite = (
-        mode === 'both' ||
-        (mode === 'web_only' && !isNativeApp) ||
-        (mode === 'phone_only' && isNativeApp)
-      ) && !(m.vipBypass !== false && state.isOwner);
+      const blockWebsite = (mode === 'both' || (mode === 'web_only' && !isNativeApp) || (mode === 'phone_only' && isNativeApp))
+        && !(m.vipBypass !== false && state.isOwner);
       globalOverlay.hidden = !blockWebsite;
       globalOverlay.classList.toggle('hidden', !blockWebsite);
       setText('globalMaintenanceMessage', message);
@@ -2947,47 +2976,40 @@ window.renderExamVisibility = function renderExamVisibility() {
   };
 
   window.renderAudioList = function renderAudioList(items) {
-    const host = byId('audioList') || byId('audioPlayerTrackList');
-    if (!host) return;
-
-    host.innerHTML = items.length ? items.map(a => {
-      const audioUrl = a.audioUrl || a.link || a.url || '';
-      return `
-        <button type="button" class="audio-item rounded-full border border-amber-300/50 bg-white/10 px-3 py-2 text-left font-semibold text-white hover:bg-amber-400 hover:text-stone-950 focus-visible:outline focus-visible:outline-2" data-audio-id="${escapeHtml(a.id)}" ${audioUrl ? '' : 'disabled'}>
-          ${escapeHtml(a.title || 'Bhajan')} ${audioUrl ? '▶ चलाएँ' : 'लिंक नहीं'}
-        </button>
-      `;
-    }).join('') : '<span class="text-stone-300">अभी कोई भजन उपलब्ध नहीं है।</span>';
-
-    host.querySelectorAll('[data-audio-id]').forEach(btn => {
-      btn.onclick = () => {
-        const a = items.find(x => x.id === btn.dataset.audioId);
-        const audioUrl = a?.audioUrl || a?.link || a?.url;
-
-        if (!audioUrl) return notify('Audio URL has not been uploaded yet.');
-
-        const audio = byId('audioElement') || byId('karaokeAudio') || byId('bhajanAudio');
-
-        if (audio) {
+    const hosts = [byId('audioList'), byId('audioPlayerTrackList'), byId('homeMaintenanceAudioList')].filter(Boolean);
+    if (!hosts.length) return;
+    const tracks = Array.isArray(items) ? items : [];
+    hosts.forEach(host => {
+      const maintenanceHost = host.id === 'homeMaintenanceAudioList';
+      host.innerHTML = tracks.length ? tracks.map(track => {
+        const audioUrl = track.audioUrl || track.link || track.url || '';
+        return `
+          <button type="button" class="audio-item rounded-xl border border-emerald-200 ${maintenanceHost ? 'bg-forest text-white hover:bg-emerald-950' : 'bg-white/10 text-white hover:bg-amber-400 hover:text-stone-950'} px-3 py-2.5 text-left text-xs font-semibold focus-visible:outline focus-visible:outline-2" data-audio-id="${escapeHtml(track.id)}" ${audioUrl ? '' : 'disabled'}>
+            ${escapeHtml(track.title || 'भजन')} ${audioUrl ? '▶ सुनें' : 'लिंक उपलब्ध नहीं'}
+          </button>`;
+      }).join('') : '<span class="text-xs text-stone-500">अभी कोई भजन अपलोड नहीं किया गया है।</span>';
+      host.querySelectorAll('[data-audio-id]').forEach(button => {
+        button.onclick = () => {
+          const track = tracks.find(item => item.id === button.dataset.audioId);
+          const audioUrl = track?.audioUrl || track?.link || track?.url;
+          if (!audioUrl) return notify('इस भजन का ऑडियो लिंक उपलब्ध नहीं है।');
+          const audio = byId('audioElement') || byId('karaokeAudio') || byId('bhajanAudio');
+          if (!audio) return notify('ऑडियो प्लेयर इस पेज पर उपलब्ध नहीं है।');
           audio.src = audioUrl;
           audio.load();
-          setText('audioPlayerTitle', a.title || 'भजन एवं आरती');
-          window.activeKaraokeLyrics = asArray(a.lyrics).map(line =>
-            typeof line === 'string' ? { text: line } : line
-          );
-
+          setText('audioPlayerTitle', track.title || 'भजन एवं आरती');
+          window.activeKaraokeLyrics = asArray(track.lyrics).map(line => typeof line === 'string' ? { text: line } : line);
           const lines = byId('karaokeLyrics');
-          if (lines) {
-            lines.innerHTML = window.activeKaraokeLyrics
-              .map(l => `<p class="karaoke-line">${escapeHtml(l.text || l)}</p>`)
-              .join('');
-          }
-
-          audio.play().catch(() => {});
-        }
-      };
+          if (lines) lines.innerHTML = window.activeKaraokeLyrics.map(line => `<p class="karaoke-line">${escapeHtml(line.text || line)}</p>`).join('');
+          audio.play().then(() => {
+            const playButton = byId('audioPlayBtn');
+            if (playButton) playButton.textContent = 'Ⅱ';
+          }).catch(() => notify('ऑडियो नहीं चल सका। लिंक और इंटरनेट कनेक्शन जाँचें।'));
+        };
+      });
     });
   }
+
 
   window.renderPdfLibrary = function renderPdfLibrary(items) {
     const host = byId('pdfLibrary') || byId('literatureFiles') || byId('pdfGrid');

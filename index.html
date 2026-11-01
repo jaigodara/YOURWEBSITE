@@ -131,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
       #bnav-home,#bnav-library,#bnav-quiz,#bnav-community,#bnav-profile { min-height: 54px; }
       .bnav-mobile { padding-bottom: max(.375rem, env(safe-area-inset-bottom)); }
       #tab-community > .bg-white:first-child { align-items: stretch; }
-      #chatTopicFilter { width: 100%; min-height: 44px; font-size: 16px; }
       #communityFeed { max-height: min(54vh, 32rem); overscroll-behavior: contain; }
       #postEditor { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 25; }
       #postEditor textarea { min-height: 48px; font-size: 16px; }
@@ -519,9 +518,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </section>
       <div id="dailyQuizSection" class="space-y-4">
-        <button id="mainDailyQuizResultsCta" type="button" onclick="document.getElementById('dailyWinnerDateLabel')?.scrollIntoView({behavior:'smooth',block:'center'})" class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-extrabold text-forest shadow-sm hover:bg-emerald-50">
-          🏆 आज के विजेता देखें
-        </button>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button id="mainDailyQuizResultsCta" type="button" onclick="document.getElementById('dailyWinnerDateLabel')?.scrollIntoView({behavior:'smooth',block:'center'})" class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-extrabold text-forest shadow-sm hover:bg-emerald-50">
+            🏆 आज के विजेता देखें
+          </button>
+          <button id="openMyDailyQuizResultsCta" type="button" onclick="window.openDailyQuizResults()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-950">
+            📊 दैनिक क्विज़ परिणाम दिखाएँ
+          </button>
+        </div>
         <p id="dailyWinnerDateLabel" class="text-center text-xs font-bold text-stone-600" aria-live="polite">आज के विजेता अभी प्रकाशित नहीं हुए हैं।</p>
         <div class="grid grid-cols-3 gap-2 pt-2">
           <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col items-center">
@@ -587,12 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद मंच (Live Community Chat)</h2>
           <p class="text-xs text-stone-500">विचार, नियम चर्चा एवं समाज संवाद (सुरक्षित एवं मर्यादित)</p>
         </div>
-        <select id="chatTopicFilter" onchange="window.BishnoiCommunity.filterTopic(this.value)" class="p-2 text-xs rounded-xl border border-stone-300 bg-stone-50 font-semibold text-stone-700">
-          <option value="all">📋 सभी विषय</option>
-          <option value="सामान्य चर्चा">💬 सामान्य चर्चा</option>
-          <option value="जीव रक्षा सूचना">🦌 जीव रक्षा सूचना</option>
-          <option value="इतिहास व नियम">📜 इतिहास व नियम</option>
-        </select>
+        <span class="text-xs text-stone-500">सदस्यों के संदेश और जवाब</span>
       </div>
 
       <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm flex items-start justify-between gap-3">
@@ -611,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <div id="postEditor" class="hidden bg-white p-3.5 rounded-2xl border-2 border-emerald-800/20 shadow-md space-y-2.5">
         <div class="flex gap-2">
-          <textarea id="postText" rows="2" maxlength="300" placeholder="यहाँ अपना पावन विचार लिखें (अधिकतम ३०० अक्षर)..." class="flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none resize-none"></textarea>
+          <textarea id="postText" rows="2" maxlength="300" placeholder="संदेश लिखें… (अधिकतम ३०० अक्षर)" class="flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none resize-none"></textarea>
           <button onclick="window.BishnoiCommunity.submitPost()" class="px-4 bg-forest text-white font-bold text-xs rounded-xl shadow">भेजें ➤</button>
         </div>
       </div>
