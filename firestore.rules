@@ -829,7 +829,7 @@ service cloud.firestore {
 
     match /communityPolls/{pollId} {
       allow read: if sectionMaintenanceAllows('community');
-      allow create: if owner()
+      allow create: if examOwner()
         && request.resource.data.get('createdBy', '') == request.auth.uid
         && request.resource.data.get('title', null) is string
         && request.resource.data.title.size() >= 4
@@ -840,10 +840,10 @@ service cloud.firestore {
         && request.resource.data.get('optionIds', null) is list
         && request.resource.data.optionIds.size() == request.resource.data.options.size()
         && request.resource.data.get('active', false) == true;
-      allow update: if owner()
+      allow update: if examOwner()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'closedAt'])
         && request.resource.data.get('active', true) == false;
-      allow delete: if owner();
+      allow delete: if examOwner();
 
       match /votes/{voterUid} {
         allow read: if signedIn() && sectionMaintenanceAllows('community');
