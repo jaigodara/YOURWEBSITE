@@ -772,10 +772,32 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/posts/$(id)/votes/$(request.auth.uid))
         && existsAfter(/databases/$(database)/documents/posts/$(id)/votes/$(request.auth.uid))
         && getAfter(/databases/$(database)/documents/posts/$(id)/votes/$(request.auth.uid)).data.get('uid', '') == request.auth.uid
+      ) || (
+        signedIn()
+        && communityUserNotBlocked(request.auth.uid)
+        && communityPostingAllowed()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readCount'])
+        && request.resource.data.get('readCount', 0) is number
+        && request.resource.data.get('readCount', 0) == resource.data.get('readCount', 0) + 1
+        && !exists(/databases/$(database)/documents/posts/$(id)/reads/$(request.auth.uid))
+        && existsAfter(/databases/$(database)/documents/posts/$(id)/reads/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/posts/$(id)/reads/$(request.auth.uid)).data.get('uid', '') == request.auth.uid
       );
 
       allow delete: if owner()
         || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+
+      match /reads/{readerUid} {
+        allow read: if owner() || (signedIn() && request.auth.uid == readerUid);
+        allow create: if signedIn()
+          && readerUid == request.auth.uid
+          && communityUserNotBlocked(request.auth.uid)
+          && communityPostingAllowed()
+          && request.resource.data.keys().hasOnly(['uid', 'readAt'])
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('readAt', null) is timestamp;
+        allow update, delete: if false;
+      }
 
       match /votes/{voterUid} {
         allow read: if owner() || (signedIn() && request.auth.uid == voterUid);
