@@ -760,10 +760,34 @@ service cloud.firestore {
         && request.resource.data.get('body', null) is string
         && request.resource.data.body.size() <= 2000;
 
-      allow update: if owner();
+      // A member may only increase the counter by one in the same atomic
+      // write that creates their own one-time vote document.
+      allow update: if owner() || (
+        signedIn()
+        && communityUserNotBlocked(request.auth.uid)
+        && communityPostingAllowed()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes'])
+        && request.resource.data.get('upvotes', 0) is number
+        && request.resource.data.get('upvotes', 0) == resource.data.get('upvotes', 0) + 1
+        && !exists(/databases/$(database)/documents/posts/$(id)/votes/$(request.auth.uid))
+        && existsAfter(/databases/$(database)/documents/posts/$(id)/votes/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/posts/$(id)/votes/$(request.auth.uid)).data.get('uid', '') == request.auth.uid
+      );
 
       allow delete: if owner()
         || (signedIn() && resource.data.get('uid', '') == request.auth.uid);
+
+      match /votes/{voterUid} {
+        allow read: if owner() || (signedIn() && request.auth.uid == voterUid);
+        allow create: if signedIn()
+          && voterUid == request.auth.uid
+          && communityUserNotBlocked(request.auth.uid)
+          && communityPostingAllowed()
+          && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('createdAt', null) is timestamp;
+        allow update, delete: if false;
+      }
 
       match /replies/{replyId} {
         allow read: if sectionMaintenanceAllows('community');
