@@ -146,8 +146,8 @@ test('Owner exam monitoring combines live sessions, re-entry actions, and privac
 });
 
 test('Exam archive controls use plain Hindi and show the actual failure code and message', () => {
-  assert.match(owner, /कौन-सी परीक्षा पूरी हो चुकी है\?/);
-  assert.match(owner, /रिकॉर्ड सुरक्षित करें और पुरानी सूची साफ करें/);
+  assert.match(owner, /पूरी हुई परीक्षा चुनें/);
+  assert.match(owner, /रिकॉर्ड सुरक्षित करें और सक्रिय सूची साफ करें/);
   assert.match(owner, /String\(error\.code \|\| 'unknown'\)/);
   assert.match(owner, /String\(error\.message \|\| error\)\.slice\(0, 220\)/);
 });
