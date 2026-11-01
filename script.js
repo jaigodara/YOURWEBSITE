@@ -1077,6 +1077,47 @@ notify(
       setText('maintenanceMessage', message);
       setText('maintenanceModeLabel', mode === 'both' ? 'पूरे मंच पर रखरखाव' : mode === 'web_only' ? 'वेबसाइट रखरखाव' : mode === 'phone_only' ? 'मोबाइल/ऐप रखरखाव' : '');
     }
+    const homeMaintenanceActive = (m.sections || {}).home === 'both' && !(m.vipBypass !== false && state.isOwner);
+    const mainContent = document.querySelector('main');
+    let platformNotice = byId('platformHomeMaintenanceNotice');
+    if (mainContent && !platformNotice) {
+      platformNotice = document.createElement('section');
+      platformNotice.id = 'platformHomeMaintenanceNotice';
+      platformNotice.className = 'mb-6 w-full rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 shadow-md sm:p-6';
+      mainContent.insertBefore(platformNotice, mainContent.firstElementChild);
+    }
+    if (platformNotice) {
+      platformNotice.hidden = !homeMaintenanceActive;
+      platformNotice.classList.toggle('hidden', !homeMaintenanceActive);
+      const homeMessage = cleanMaintenanceMessage((m.sectionMessages || {}).home, message);
+      if (homeMaintenanceActive) {
+        platformNotice.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex items-start gap-3">
+              <span class="flex h-12 w-12 shrink-0 animate-pulse items-center justify-center rounded-2xl bg-forest text-2xl text-amber-300 shadow-sm" aria-hidden="true">🛠️</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p>
+                <h2 class="mt-1 font-yatra text-xl text-forest sm:text-2xl">नए फीचर आ रहे हैं</h2>
+                <p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(homeMessage)}</p>
+                <p class="mt-2 text-xs font-semibold text-forest">मुख्य पृष्ठ पर काम चल रहा है। तब तक यहाँ उपलब्ध भजन और सबदवाणी सुनें।</p>
+              </div>
+              <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span>
+            </div>
+            <div class="rounded-2xl border border-emerald-200 bg-white p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="font-yatra text-lg text-forest">🎵 भजन और सबदवाणी सुनें</h3>
+                  <p class="mt-1 text-xs text-stone-500">डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो</p>
+                </div>
+                <button type="button" onclick="window.BishnoiApp.toggleAudio()" class="rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white">▶ चलाएँ / रोकें</button>
+              </div>
+              <div id="platformMaintenanceAudioList" class="mt-3 flex flex-wrap gap-2" aria-live="polite">
+                <span class="text-xs text-stone-500">भजन लोड हो रहे हैं…</span>
+              </div>
+            </div>
+          </div>`;
+      }
+    }
     const sectionLabels = {
       home: ['tab-home', '🏠 मुख्य पृष्ठ'],
       mala: ['tab-mala', '📿 डिजिटल जप माला'],
@@ -1096,42 +1137,16 @@ notify(
       const allowAccess = sectionAllow[key] === true;
       const locked = maintenanceActive && !allowAccess;
       const sectionMessage = cleanMaintenanceMessage(sectionMessages[key], message);
-      let notice = byId(`maintenance-notice-${key}`);
-      if (!notice) {
-        notice = document.createElement('div');
-        notice.id = `maintenance-notice-${key}`;
-        notice.className = 'mb-4 rounded-3xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm';
-        section.prepend(notice);
-      }
-      notice.hidden = !maintenanceActive;
-      notice.classList.toggle('hidden', !maintenanceActive);
-      if (maintenanceActive && key === 'home') {
-        notice.innerHTML = `
-          <div class="maintenance-arrival space-y-4">
-            <div class="flex items-start gap-3">
-              <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-forest text-2xl text-amber-300 shadow-sm" aria-hidden="true">🛠️</span>
-              <div class="min-w-0 flex-1">
-                <p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p>
-                <h2 class="mt-1 font-yatra text-xl text-forest">मुख्य पृष्ठ पर नए फीचर आ रहे हैं</h2>
-                <p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(sectionMessage)}</p>
-                <p class="mt-2 text-xs font-semibold text-forest">${allowAccess ? 'कुछ सामग्री अभी भी उपलब्ध है।' : 'यह भाग थोड़े समय के लिए बंद है। इस बीच नीचे उपलब्ध भजन सुनें।'}</p>
-              </div>
-              <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span>
-            </div>
-            <div class="rounded-2xl border border-emerald-200 bg-white p-4">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 class="font-yatra text-lg text-forest">🎵 भजन और सबदवाणी सुनें</h3>
-                  <p class="mt-1 text-xs text-stone-500">डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो</p>
-                </div>
-                <button type="button" onclick="window.BishnoiApp.toggleAudio()" class="rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white">▶ चलाएँ / रोकें</button>
-              </div>
-              <div id="homeMaintenanceAudioList" class="mt-3 flex flex-wrap gap-2" aria-live="polite">
-                <span class="text-xs text-stone-500">भजन लोड हो रहे हैं…</span>
-              </div>
-            </div>
-          </div>`;
-      } else {
+      let notice = key === 'home' ? null : byId(`maintenance-notice-${key}`);
+      if (key !== 'home') {
+        if (!notice) {
+          notice = document.createElement('div');
+          notice.id = `maintenance-notice-${key}`;
+          notice.className = 'mb-4 rounded-3xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm';
+          section.prepend(notice);
+        }
+        notice.hidden = !maintenanceActive;
+        notice.classList.toggle('hidden', !maintenanceActive);
         notice.innerHTML = maintenanceActive
           ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(sectionMessage)}</p>${allowAccess ? '<p class="mt-1 text-xs font-semibold">मेंटेनेंस के दौरान भी सामग्री उपलब्ध है।</p>' : '<p class="mt-1 text-xs font-semibold">यह सेक्शन कुछ समय के लिए बंद है। कृपया बाद में आएँ।</p>'}`
           : '';
@@ -2976,7 +2991,7 @@ window.renderExamVisibility = function renderExamVisibility() {
   };
 
   window.renderAudioList = function renderAudioList(items) {
-    const hosts = [byId('audioList'), byId('audioPlayerTrackList'), byId('homeMaintenanceAudioList')].filter(Boolean);
+    const hosts = [byId('audioList'), byId('audioPlayerTrackList'), byId('platformMaintenanceAudioList')].filter(Boolean);
     if (!hosts.length) return;
     const tracks = Array.isArray(items) ? items : [];
     hosts.forEach(host => {
