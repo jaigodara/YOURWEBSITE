@@ -191,6 +191,44 @@
     });
   }
 
+  function renderMaintenanceFeed(container) {
+    if (!container) return;
+    const items = mediaItemsCache.filter(item => {
+      const type = String(item.type || '').toLowerCase();
+      const category = String(item.category || '').toLowerCase();
+      return type.includes('youtube') || type.includes('video') || type.includes('audio') ||
+        category === 'bhajan' || category === 'katha';
+    });
+    container.replaceChildren();
+    if (!items.length) {
+      container.append(node('p', { className: 'bishnoi-media-empty col-span-full' },
+        'अभी कोई भजन, सबदवाणी या वीडियो प्रकाशित नहीं है। Owner द्वारा डिजिटल साहित्य में सामग्री जोड़ने पर यहाँ दिखाई देगी।'));
+      return;
+    }
+    container.className = 'mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3';
+    items.slice(0, 6).forEach(item => {
+      const card = node('article', { className: 'bishnoi-media-card min-w-0' });
+      const videoId = item.videoId || extractYouTubeId(item.url || item.rawUrl || '');
+      if (videoId) {
+        const image = node('img', {
+          src: 'https://i.ytimg.com/vi/' + videoId + '/hqdefault.jpg',
+          alt: item.title || 'भजन वीडियो',
+          loading: 'lazy',
+          className: 'bishnoi-media-thumb'
+        });
+        card.append(image);
+      }
+      const category = mediaCategoryLabels[item.category] || 'भजन / सबदवाणी';
+      card.append(node('span', { className: 'bishnoi-media-badge' }, category));
+      card.append(node('h4', { className: 'bishnoi-media-card-title' }, item.title || 'भजन / सबदवाणी'));
+      const button = node('button', { type: 'button', className: 'bishnoi-media-open' },
+        videoId ? '▶ ऐप में देखें' : '♫ ऐप में सुनें');
+      button.addEventListener('click', () => openMedia(item));
+      card.append(button);
+      container.append(card);
+    });
+  }
+
   function mediaFirebaseReady() {
     return !!(window.firebase && window.firebase.apps && window.firebase.apps.length);
   }
@@ -237,6 +275,7 @@
       });
       mediaItemsCache = items;
       renderMediaFeed(container, mediaItemsCache);
+      renderMaintenanceFeed(document.getElementById('platformMaintenanceMediaList'));
     } catch (error) {
       console.warn('[Bishnoism media] Feed unavailable:', error);
       showMediaFeedError(container, 'मीडिया सूची लोड नहीं हुई। इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।');
@@ -304,6 +343,7 @@
     openMedia,
     closeReader,
     loadMediaFeed,
+    renderMaintenanceFeed,
     saveMediaLink
   };
 
