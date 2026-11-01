@@ -510,13 +510,13 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("Community read receipts increment once per reader and hide individual reader records", async () => {
       await reset();
-      const postRef = doc(googleStudentContext(STUDENT).firestore(), "posts", "read-receipt-post");
+      const studentDb = googleStudentContext(STUDENT).firestore();
+      const postRef = doc(studentDb, "posts", "read-receipt-post");
       await env.withSecurityRulesDisabled(async ctx => {
         await setDoc(doc(ctx.firestore(), "posts/read-receipt-post"), {
           uid: "another-member", body: "पढ़ने की पुष्टि", upvotes: 0, readCount: 0,
         });
       });
-      const studentDb = googleStudentContext(STUDENT).firestore();
       const batch = writeBatch(studentDb);
       batch.set(doc(studentDb, "posts/read-receipt-post/reads", STUDENT), {
         uid: STUDENT, readAt: serverTimestamp(),
