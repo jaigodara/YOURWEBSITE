@@ -468,6 +468,70 @@ test("Firestore security rules regression suite", async (t) => {
       }));
     });
 
+    await t.test("Owner-only Community polls allow one valid vote per member and reject closed or invalid votes", async () => {
+      await reset();
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const pollRef = doc(ownerDb, "communityPolls", "owner-poll-1");
+      await assertSucceeds(setDoc(pollRef, {
+        title: "समुदाय के लिए अगला कार्यक्रम?",
+        options: [{ id: "option_1", text: "सामूहिक बैठक" }, { id: "option_2", text: "ऑनलाइन चर्चा" }],
+        optionIds: ["option_1", "option_2"],
+        active: true,
+        createdBy: OWNER,
+        createdAt: serverTimestamp(),
+      }));
+      const studentDb = googleStudentContext(STUDENT).firestore();
+      await assertFails(setDoc(doc(studentDb, "communityPolls/student-poll"), {
+        title: "अनधिकृत मतदान",
+        options: [{ id: "option_1", text: "हाँ" }, { id: "option_2", text: "नहीं" }],
+        optionIds: ["option_1", "option_2"],
+        active: true,
+        createdBy: STUDENT,
+        createdAt: serverTimestamp(),
+      }));
+      const voteRef = doc(studentDb, "communityPolls/owner-poll-1/votes", STUDENT);
+      await assertSucceeds(setDoc(voteRef, {
+        uid: STUDENT, optionId: "option_1", createdAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(voteRef, {
+        uid: STUDENT, optionId: "option_2", createdAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(studentDb, "communityPolls/owner-poll-1/votes/another-user"), {
+        uid: "another-user", optionId: "option_1", createdAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(studentDb, "communityPolls/owner-poll-1/votes/invalid-option"), {
+        uid: "invalid-option", optionId: "option_99", createdAt: serverTimestamp(),
+      }));
+      await assertSucceeds(updateDoc(pollRef, { active: false, closedAt: serverTimestamp() }));
+      await assertFails(setDoc(doc(studentDb, "communityPolls/owner-poll-1/votes/late-voter"), {
+        uid: "late-voter", optionId: "option_1", createdAt: serverTimestamp(),
+      }));
+    });
+
+    await t.test("Community read receipts increment once per reader and hide individual reader records", async () => {
+      await reset();
+      const postRef = doc(googleStudentContext(STUDENT).firestore(), "posts", "read-receipt-post");
+      await env.withSecurityRulesDisabled(async ctx => {
+        await setDoc(doc(ctx.firestore(), "posts/read-receipt-post"), {
+          uid: "another-member", body: "पढ़ने की पुष्टि", upvotes: 0, readCount: 0,
+        });
+      });
+      const studentDb = googleStudentContext(STUDENT).firestore();
+      const batch = writeBatch(studentDb);
+      batch.set(doc(studentDb, "posts/read-receipt-post/reads", STUDENT), {
+        uid: STUDENT, readAt: serverTimestamp(),
+      });
+      batch.update(postRef, { readCount: 1 });
+      await assertSucceeds(batch.commit());
+      await assertFails(getDoc(doc(googleStudentContext("another-student").firestore(), "posts/read-receipt-post/reads", STUDENT)));
+      const duplicate = writeBatch(studentDb);
+      duplicate.set(doc(studentDb, "posts/read-receipt-post/reads", STUDENT), {
+        uid: STUDENT, readAt: serverTimestamp(),
+      });
+      duplicate.update(postRef, { readCount: 2 });
+      await assertFails(duplicate.commit());
+    });
+
     await t.test("Community members can cast only one atomic vote and cannot edit vote counts directly", async () => {
       await reset();
       const db = googleStudentContext(STUDENT).firestore();
