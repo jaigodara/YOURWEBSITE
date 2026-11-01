@@ -179,8 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- SACRED DAILY MESSAGE BANNER -->
-  <div id="globalMaintenanceOverlay" class="hidden fixed inset-0 z-[10000] bg-[#FAF6EE] p-6 flex items-center justify-center text-center" role="alert">
-    <div class="max-w-md rounded-3xl border border-amber-300 bg-white p-8 shadow-xl space-y-4">
+  <div id="globalMaintenanceOverlay" class="hidden fixed inset-x-0 top-20 bottom-24 z-[90] overflow-y-auto bg-[#FAF6EE] p-3 sm:p-5 flex items-stretch justify-center text-center" role="alert">
+    <div class="w-full max-w-6xl min-h-full mx-auto rounded-3xl border border-amber-300 bg-white p-5 sm:p-8 shadow-xl space-y-4 flex flex-col justify-center">
       <div class="text-5xl">🛠️</div><h1 class="font-yatra text-2xl text-forest">वेबसाइट रखरखाव में है</h1>
       <p id="globalMaintenanceMessage" class="text-sm text-stone-700 leading-relaxed">नए अपडेट जोड़े जा रहे हैं। कृपया बाद में वापस आएँ।</p>
       <p class="text-xs text-stone-500">व्यवस्थापक Owner Studio को अलग से खोल सकते हैं।</p>
@@ -519,10 +519,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </section>
       <div id="dailyQuizSection" class="space-y-4">
-        <button id="mainDailyQuizResultsCta" type="button" onclick="window.openDailyQuizResults()" class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-extrabold text-forest shadow-sm hover:bg-emerald-50">
-          📊 दैनिक क्विज़ परिणाम दिखाएँ
+        <button id="mainDailyQuizResultsCta" type="button" onclick="document.getElementById('dailyWinnerDateLabel')?.scrollIntoView({behavior:'smooth',block:'center'})" class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-extrabold text-forest shadow-sm hover:bg-emerald-50">
+          🏆 आज के विजेता देखें
         </button>
-        <p id="dailyWinnerDateLabel" class="text-center text-xs font-bold text-stone-600" aria-live="polite">आज के दैनिक क्विज़ विजेता</p>
+        <p id="dailyWinnerDateLabel" class="text-center text-xs font-bold text-stone-600" aria-live="polite">आज के विजेता अभी प्रकाशित नहीं हुए हैं।</p>
         <div class="grid grid-cols-3 gap-2 pt-2">
           <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col items-center">
             <span class="text-2xl">🥈</span>
