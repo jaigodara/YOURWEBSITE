@@ -1010,6 +1010,12 @@ notify(
     );
 
     subscribe(
+      collection('communityPolls').orderBy('createdAt', 'desc').limit(20),
+      snap => window.renderCommunityPolls(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      'Community polls'
+    );
+
+    subscribe(
       collection('audios').orderBy('order', 'asc'),
       snap => {
         state.audioItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1120,10 +1126,20 @@ notify(
                 <button type="button" onclick="window.BishnoiApp.toggleAudio()" class="rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white">▶ चलाएँ / रोकें</button>
               </div>
               <div id="platformMaintenanceAudioList" class="mt-3 flex flex-wrap gap-2" aria-live="polite">
-                <span class="text-xs text-stone-500">भजन लोड हो रहे हैं…</span>
+                <span class="text-xs text-stone-500">ऑडियो भजन लोड हो रहे हैं…</span>
+              </div>
+              <div class="mt-4 border-t border-emerald-100 pt-3">
+                <p class="mb-2 text-xs font-bold text-forest">🎬 Owner द्वारा प्रकाशित वीडियो और सबदवाणी</p>
+                <div id="platformMaintenanceMediaList" class="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-live="polite">
+                  <span class="text-xs text-stone-500">वीडियो लोड हो रहे हैं…</span>
+                </div>
               </div>
             </div>
           </div>`;
+      }
+      if (homeMaintenanceActive) {
+        window.BishnoiMedia?.renderMaintenanceFeed?.(byId('platformMaintenanceMediaList'));
+        window.renderAudioList?.(state.audioItems || []);
       }
     }
     const sectionLabels = {
@@ -3090,6 +3106,9 @@ window.renderExamVisibility = function renderExamVisibility() {
           </div>
           ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
           <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
+          <div class="flex items-center justify-end border-t border-stone-100 pt-2">
+            <button type="button" data-community-like="${escapeHtml(post.id || '')}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-900">👍 पसंद करें · ${Number(post.upvotes || 0)}</button>
+          </div>
           <section class="space-y-2 border-t border-stone-100 pt-2" aria-label="संदेश के जवाब">
             <div data-community-replies="${escapeHtml(post.id || '')}" class="space-y-1.5">
               <p class="text-[11px] text-stone-400">जवाब लोड हो रहे हैं…</p>
@@ -3108,6 +3127,9 @@ window.renderExamVisibility = function renderExamVisibility() {
         </article>
       `;
     }).join('');
+    host.querySelectorAll('[data-community-like]').forEach(button => {
+      button.addEventListener('click', () => window.upvoteCommunityPost(button.dataset.communityLike));
+    });
     host.querySelectorAll('[data-delete-community-post]').forEach(button => {
       button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost));
     });
@@ -3127,6 +3149,130 @@ window.renderExamVisibility = function renderExamVisibility() {
   }
 
   window.BishnoiCommunity = window.BishnoiCommunity || {};
+  window.renderCommunityPolls = function renderCommunityPolls(polls) {
+    const host = byId('communityPollFeed');
+    if (!host) return;
+    host.replaceChildren();
+    const activePolls = (Array.isArray(polls) ? polls : []).filter(poll => poll.active !== false);
+    if (!activePolls.length) {
+      const empty = document.createElement('p');
+      empty.className = 'rounded-xl border border-stone-200 bg-white p-4 text-center text-xs text-stone-500';
+      empty.textContent = 'अभी कोई मतदान उपलब्ध नहीं है।';
+      host.append(empty);
+      return;
+    }
+    activePolls.forEach(async poll => {
+      const card = document.createElement('article');
+      card.className = 'rounded-2xl border border-amber-200 bg-white p-4 shadow-sm space-y-3';
+      const title = document.createElement('h3');
+      title.className = 'font-bold text-sm text-forest';
+      title.textContent = '📊 ' + String(poll.title || 'समुदाय मतदान');
+      card.append(title);
+      const options = Array.isArray(poll.options) ? poll.options : [];
+      let voteSnapshot = null;
+      let ownVote = null;
+      try {
+        if (state.user?.uid) {
+          voteSnapshot = await collection('communityPolls').doc(poll.id).collection('votes').get();
+          ownVote = voteSnapshot.docs.find(doc => doc.id === state.user.uid)?.data() || null;
+        }
+      } catch (error) { console.warn('Poll votes unavailable:', error); }
+      const counts = new Map();
+      (voteSnapshot?.docs || []).forEach(doc => {
+        const optionId = doc.data()?.optionId;
+        counts.set(optionId, (counts.get(optionId) || 0) + 1);
+      });
+      const total = [...counts.values()].reduce((sum, value) => sum + value, 0);
+      options.forEach(option => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.disabled = !!ownVote || !state.user;
+        button.className = 'flex min-h-11 flex-1 items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-left text-xs font-semibold text-stone-800 disabled:opacity-70';
+        const label = document.createElement('span');
+        label.textContent = String(option.text || '');
+        const count = counts.get(option.id) || 0;
+        const result = document.createElement('span');
+        result.className = 'shrink-0 text-[11px] text-stone-500';
+        result.textContent = ownVote || state.isOwner ? count + ' वोट' : 'वोट दें';
+        button.append(label, result);
+        button.addEventListener('click', () => window.BishnoiCommunity.votePoll(poll.id, option.id));
+        row.append(button);
+        card.append(row);
+      });
+      const footer = document.createElement('p');
+      footer.className = 'text-[10px] text-stone-500';
+      footer.textContent = total + ' कुल वोट' + (ownVote ? ' · आपका वोट दर्ज है' : state.user ? '' : ' · वोट देने के लिए लॉगिन करें');
+      card.append(footer);
+      if (state.isOwner) {
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700';
+        close.textContent = 'मतदान बंद करें';
+        close.addEventListener('click', () => window.BishnoiCommunity.closePoll(poll.id));
+        card.append(close);
+      }
+      host.append(card);
+    });
+  };
+
+  window.BishnoiCommunity.createPoll = async function () {
+    if (!requireUser() || !state.isOwner) return notify('केवल Owner मतदान बना सकता है।', 'error');
+    const titleInput = byId('ownerCommunityPollTitle');
+    const optionsInput = byId('ownerCommunityPollOptions');
+    const title = String(titleInput?.value || '').trim();
+    const labels = String(optionsInput?.value || '').split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+    if (title.length < 4 || title.length > 180 || labels.length < 2 || labels.length > 6 || labels.some(label => label.length > 80)) {
+      return notify('प्रश्न 4–180 अक्षरों में और 2–6 विकल्प (हर विकल्प अलग पंक्ति में) लिखें।', 'error');
+    }
+    try {
+      await collection('communityPolls').add({
+        title,
+        options: labels.map((text, index) => ({ id: 'option_' + (index + 1), text })),
+        active: true,
+        createdBy: state.user.uid,
+        createdAt: serverTimestamp()
+      });
+      titleInput.value = '';
+      optionsInput.value = '';
+      notify('मतदान प्रकाशित हो गया।', 'success');
+    } catch (error) {
+      console.error('Community poll create failed:', error);
+      notify('मतदान प्रकाशित नहीं हुआ। Owner अनुमति जाँचें।', 'error');
+    }
+  };
+
+  window.BishnoiCommunity.votePoll = async function (pollId, optionId) {
+    if (!requireUser()) return;
+    try {
+      const pollRef = collection('communityPolls').doc(pollId);
+      const voteRef = pollRef.collection('votes').doc(state.user.uid);
+      await state.db.runTransaction(async transaction => {
+        const poll = await transaction.get(pollRef);
+        const existing = await transaction.get(voteRef);
+        if (!poll.exists || poll.data()?.active === false || existing.exists) throw new Error('poll-closed-or-voted');
+        const validOption = (poll.data()?.options || []).some(option => option.id === optionId);
+        if (!validOption) throw new Error('invalid-option');
+        transaction.set(voteRef, { uid: state.user.uid, optionId, createdAt: serverTimestamp() });
+      });
+      notify('आपका वोट दर्ज हो गया।', 'success');
+    } catch (error) {
+      notify(error.message === 'poll-closed-or-voted' ? 'यह मतदान बंद है या आप पहले वोट दे चुके हैं।' : 'वोट दर्ज नहीं हुआ। कृपया फिर प्रयास करें।', 'error');
+    }
+  };
+
+  window.BishnoiCommunity.closePoll = async function (pollId) {
+    if (!requireUser() || !state.isOwner) return;
+    try {
+      await collection('communityPolls').doc(pollId).update({ active: false, closedAt: serverTimestamp() });
+      notify('मतदान बंद कर दिया गया।', 'success');
+    } catch (error) {
+      console.error('Poll close failed:', error);
+      notify('मतदान बंद नहीं हो सका।', 'error');
+    }
+  };
+
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
     window.renderCommunity(communityPostsCache);
