@@ -532,6 +532,30 @@ test("Firestore security rules regression suite", async (t) => {
       await assertFails(duplicate.commit());
     });
 
+    await t.test("Community emoji reactions are limited to the signed-in member and approved emoji", async () => {
+      await reset();
+      const db = googleStudentContext(STUDENT).firestore();
+      await env.withSecurityRulesDisabled(async ctx => {
+        await setDoc(doc(ctx.firestore(), "posts/reaction-post"), {
+          uid: "another-member", body: "प्रतिक्रिया परीक्षण", upvotes: 0, readCount: 0,
+        });
+      });
+      const ownReaction = doc(db, "posts/reaction-post/reactions", STUDENT);
+      await assertSucceeds(setDoc(ownReaction, {
+        uid: STUDENT, emoji: "🙏", createdAt: serverTimestamp(),
+      }));
+      await assertSucceeds(updateDoc(ownReaction, {
+        emoji: "❤️", updatedAt: serverTimestamp(),
+      }));
+      await assertSucceeds(deleteDoc(ownReaction));
+      await assertFails(setDoc(doc(db, "posts/reaction-post/reactions", "another-user"), {
+        uid: "another-user", emoji: "👏", createdAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(db, "posts/reaction-post/reactions", "invalid-emoji"), {
+        uid: "invalid-emoji", emoji: "🔥", createdAt: serverTimestamp(),
+      }));
+    });
+
     await t.test("Community members can cast only one atomic vote and cannot edit vote counts directly", async () => {
       await reset();
       const db = googleStudentContext(STUDENT).firestore();
