@@ -1185,7 +1185,7 @@ notify(
       communityMaintenanceNotice.classList.toggle('hidden', !communityPostingNoticeVisible);
       const communityMessage = cleanMaintenanceMessage((m.sectionMessages || {}).community, message);
       communityMaintenanceNotice.innerHTML = communityPostingNoticeVisible
-        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(communityMessage) + '</p><p class="mt-1 text-xs font-semibold">अभी संदेश भेजना अस्थायी रूप से बंद है। पुराने संदेश पढ़ सकते हैं।</p></div></div>'
+        ? '<div class="flex items-start gap-3"><span class="text-2xl" aria-hidden="true">🛠️</span><div><strong class="block">संवाद मंच में नए फीचर आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">' + escapeHtml(communityMessage) + '</p><p class="mt-1 text-xs font-semibold">अभी नए संदेश भेजना अस्थायी रूप से बंद है। पुराने संदेश पढ़ सकते हैं।</p></div></div>'
         : '';
     }
     if (postEditor) {
