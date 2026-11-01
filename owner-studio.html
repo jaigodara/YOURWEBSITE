@@ -373,10 +373,10 @@
 
       <section id="ownerExamArchivePanel" data-owner-only="true" class="mb-5 rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50 p-5 shadow-sm space-y-3">
         <div>
-          <h3 class="font-yatra text-base text-forest">🗄️ पूरी हो चुकी परीक्षा का रिकॉर्ड सुरक्षित करें</h3>
-          <p class="mt-1 text-xs leading-relaxed text-stone-600">यहाँ से पूरी हो चुकी परीक्षा का रिकॉर्ड सुरक्षित करें। पहले सभी रिकॉर्ड की कॉपी जाँची जाएगी, उसके बाद ही पुरानी सक्रिय सूची हटेगी। विद्यार्थियों के प्रकाशित परिणाम सुरक्षित रहेंगे।</p>
+          <h3 class="font-yatra text-base text-forest">🗄️ पूरी हुई परीक्षा का रिकॉर्ड सुरक्षित करें</h3>
+          <p class="mt-1 text-xs leading-relaxed text-stone-600">चुनी हुई परीक्षा के उत्तर-पत्र, सत्र और जाँच रिकॉर्ड पहले सुरक्षित कॉपी होंगे। कॉपी की जाँच पूरी होने के बाद ही सक्रिय सूची हटेगी। जारी किए गए परिणाम विद्यार्थियों के इतिहास में बने रहेंगे।</p>
         </div>
-        <label class="block text-sm font-bold text-stone-700">कौन-सी परीक्षा पूरी हो चुकी है?
+        <label class="block text-sm font-bold text-stone-700">पूरी हुई परीक्षा चुनें
           <select id="archiveExamMode" onchange="window.handleArchiveExamModeChange()" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3">
             <option value="main">मुख्य परीक्षा</option>
             <option value="mock1">मॉक परीक्षा 1</option>
@@ -388,7 +388,7 @@
         <label id="archiveCustomExamWrap" class="hidden block text-sm font-bold text-stone-700">कस्टम परीक्षा चुनें
           <select id="archiveCustomExamId" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3"><option value="">कस्टम परीक्षा सूची लोड हो रही है…</option></select>
         </label>
-        <button type="button" onclick="archiveCompletedExamWorkflow()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">रिकॉर्ड सुरक्षित करें और पुरानी सूची साफ करें</button>
+        <button type="button" onclick="archiveCompletedExamWorkflow()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white">रिकॉर्ड सुरक्षित करें और सक्रिय सूची साफ करें</button>
         <p id="examArchiveActionStatus" class="text-xs text-stone-600" role="status" aria-live="polite">पहले सही परीक्षा चुनें। सभी विद्यार्थियों के प्रयास जमा या समाप्त होने चाहिए।</p>
       </section>
 
@@ -635,20 +635,20 @@ Ans: B"></textarea>
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <h3 class="font-yatra text-base text-forest">🛡️ लाइव परीक्षा निगरानी और पुनः प्रवेश</h3>
-            <p class="mt-1 text-xs text-stone-600">यहाँ चालू या लॉक हुए परीक्षा सत्र देखें। टैब तीन बार बदलने पर प्रयास लॉक हो सकता है। Owner ज़रूरत पड़ने पर विद्यार्थी को फिर से प्रवेश दे सकता है।</p>
+            <p class="mt-1 text-xs text-stone-600">परीक्षा के दौरान चल रहे, लॉक हुए या दोबारा प्रवेश माँगने वाले सत्र यहाँ दिखेंगे। ज़रूरत पड़ने पर Owner विद्यार्थी को फिर से प्रवेश दे सकता है।</p>
           </div>
           <button type="button" onclick="loadExamSessionQueue(); loadLiveExamViolations()" class="shrink-0 rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white">↻ दोनों सूचियाँ रिफ्रेश करें</button>
         </div>
         <div>
-          <h4 class="text-sm font-extrabold text-forest">👨‍🎓 परीक्षा सत्र और पुनः प्रवेश अनुरोध</h4>
+          <h4 class="text-sm font-extrabold text-forest">👨‍🎓 परीक्षा सत्र और दोबारा प्रवेश</h4>
           <div id="examSessionQueue" class="mt-2 space-y-2">
             <p class="text-xs text-stone-500">रिफ्रेश दबाकर हाल के परीक्षा सत्र देखें।</p>
           </div>
         </div>
         <div id="ownerExamIntegrityPanel" class="border-t border-stone-200 pt-4 space-y-3">
           <div>
-            <h4 class="text-sm font-extrabold text-forest">🚨 टैब और फुल-स्क्रीन से जुड़े सुरक्षा लॉग</h4>
-            <p class="mt-1 text-xs text-stone-500">सिर्फ टैब बदलने और फुल-स्क्रीन से बाहर आने का रिकॉर्ड रखा जाता है। कैमरा या फोटो नहीं लिया जाता।</p>
+            <h4 class="text-sm font-extrabold text-forest">🚨 टैब और फुल-स्क्रीन रिकॉर्ड</h4>
+            <p class="mt-1 text-xs text-stone-500">यहाँ केवल टैब बदलने और फुल-स्क्रीन से बाहर आने का रिकॉर्ड रखा जाता है। कैमरा या फोटो नहीं लिया जाता।</p>
           </div>
           <p id="liveViolationsStatus" class="text-xs text-stone-500" aria-live="polite">सुरक्षा लॉग देखने के लिए ऊपर “दोनों सूचियाँ रिफ्रेश करें” दबाएँ।</p>
           <div id="liveViolationsList" class="max-h-72 space-y-2 overflow-y-auto" aria-live="polite"></div>
