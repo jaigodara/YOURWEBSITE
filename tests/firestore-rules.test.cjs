@@ -439,7 +439,7 @@ test("Firestore security rules regression suite", async (t) => {
       const publicDb = env.unauthenticatedContext().firestore();
       await assertFails(getDoc(doc(publicDb, "publicAdmitCardVerifications", token)));
     });
-    await t.test("Community post author can publish, reply, and one-time vote while vote count stays protected", async () => {
+    await t.test("Community members can cast only one atomic vote and cannot edit vote counts directly", async () => {
       await reset();
       const db = googleStudentContext(STUDENT).firestore();
       const postRef = doc(db, "posts", "community-post-1");
