@@ -82,7 +82,7 @@ test('Live violation rules restrict student writes to their own bounded exam eve
 
 test('Owner Studio exposes a live violation monitoring table', () => {
   assert.match(owner, /id="liveViolationsList"/);
-  assert.match(owner, /onclick="loadLiveExamViolations\(\)"/);
+  assert.match(owner, /loadExamSessionQueue\(\); loadLiveExamViolations\(\)/);
   assert.match(owner, /window\.loadLiveExamViolations = loadLiveExamViolations/);
 });
 
@@ -129,4 +129,25 @@ test('Owner live session queue offers confirmed force-kick for active attempts',
 test('Option shuffling is skipped when a private answer key is not available in the question record', () => {
   assert.match(script, /if \(!correctKeys\.length\) return/);
   assert.match(script, /Main\/mock answer keys live in a separate private collection/);
+});
+
+
+test('Owner exam monitoring combines live sessions, re-entry actions, and privacy-safe violation logs in one panel', () => {
+  const monitorStart = owner.indexOf('id="ownerExamSessionMonitorPanel"');
+  const monitorEnd = owner.indexOf('id="manualExamReviewSection"', monitorStart);
+  const monitor = owner.slice(monitorStart, monitorEnd);
+  assert.ok(monitorStart >= 0 && monitorEnd > monitorStart);
+  assert.match(monitor, /id="examSessionQueue"/);
+  assert.match(monitor, /id="ownerExamIntegrityPanel"/);
+  assert.match(monitor, /id="liveViolationsList"/);
+  assert.match(monitor, /loadExamSessionQueue\(\); loadLiveExamViolations\(\)/);
+  assert.equal((owner.match(/id="ownerExamIntegrityPanel"/g) || []).length, 1);
+  assert.doesNotMatch(owner, /id="ownerExamIntegrityPanel" data-owner-only/);
+});
+
+test('Exam archive controls use plain Hindi and show the actual failure code and message', () => {
+  assert.match(owner, /किस परीक्षा का रिकॉर्ड सुरक्षित करना है\?/);
+  assert.match(owner, /आर्काइव बनाएँ और सक्रिय सूची साफ करें/);
+  assert.match(owner, /String\(error\.code \|\| 'unknown'\)/);
+  assert.match(owner, /String\(error\.message \|\| error\)\.slice\(0, 220\)/);
 });
