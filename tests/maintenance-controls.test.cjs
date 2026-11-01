@@ -141,6 +141,24 @@ test('Home maintenance replaces invalid placeholder copy with a useful update pa
   assert.match(scriptJs, /डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो/);
 });
 
+test('Home maintenance shows Owner-published YouTube and audio media cards using the shared media library', () => {
+  assert.match(scriptJs, /id="platformMaintenanceMediaList"/);
+  assert.match(scriptJs, /renderMaintenanceFeed\?\.\(byId\('platformMaintenanceMediaList'\)\)/);
+  assert.match(mediaJs, /function renderMaintenanceFeed\(container\)/);
+  assert.match(mediaJs, /platformMaintenanceMediaList/);
+  assert.match(mediaJs, /openMedia\(item\)/);
+});
+
+test('Community includes owner-created polls with one vote per signed-in member and visible like controls', () => {
+  assert.match(indexHtml, /id="communityPollFeed"/);
+  assert.match(ownerHtml, /id="ownerCommunityPollManager"/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.createPoll = async function/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.votePoll = async function/);
+  assert.match(scriptJs, /data-community-like/);
+  assert.match(rules, /match \/communityPolls\/\{pollId\}/);
+  assert.match(rules, /voterUid == request\.auth\.uid/);
+});
+
 test('Home maintenance notice is mounted only inside the Home tab and is excluded from the Home lock pass', () => {
   assert.match(scriptJs, /const homeSection = byId\('tab-home'\)/);
   assert.match(scriptJs, /homeSection\.prepend\(platformNotice\)/);
