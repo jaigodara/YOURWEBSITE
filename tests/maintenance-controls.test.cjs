@@ -137,8 +137,20 @@ test('Fixed bottom navigation leaves enough scroll room for the result verificat
 
 test('Home maintenance replaces invalid placeholder copy with a useful update panel and uploaded bhajan list', () => {
   assert.match(scriptJs, /function cleanMaintenanceMessage\(value, fallback\)/);
-  assert.match(scriptJs, /homeMaintenanceAudioList/);
+  assert.match(scriptJs, /platformMaintenanceAudioList/);
   assert.match(scriptJs, /डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो/);
+});
+
+test('Home maintenance notice is mounted only inside the Home tab and is excluded from the Home lock pass', () => {
+  assert.match(scriptJs, /const homeSection = byId\('tab-home'\)/);
+  assert.match(scriptJs, /homeSection\.prepend\(platformNotice\)/);
+  assert.match(scriptJs, /let notice = key === 'home' \? platformNotice/);
+  assert.doesNotMatch(scriptJs, /mainContent\.insertBefore\(platformNotice/);
+});
+
+test('Maintenance bhajan buttons use the correct host styling and render the current uploaded audio list', () => {
+  assert.match(scriptJs, /const maintenanceHost = host\.id === 'platformMaintenanceAudioList'/);
+  assert.match(scriptJs, /window\.renderAudioList\(state\.audioItems \|\| \[\]\)/);
 });
 
 test('Daily quiz results CTA opens the signed-in student result panel separately from winner rankings', () => {
