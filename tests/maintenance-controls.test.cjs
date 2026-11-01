@@ -8,6 +8,7 @@ const ownerHtml = readFileSync(path.join(root, 'owner-studio.html'), 'utf8');
 const indexHtml = readFileSync(path.join(root, 'index.html'), 'utf8');
 const portalHtml = readFileSync(path.join(root, 'exam-portal.html'), 'utf8');
 const scriptJs = readFileSync(path.join(root, 'script.js'), 'utf8');
+const mediaJs = readFileSync(path.join(root, 'mediaEngine.js'), 'utf8');
 const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
 test('Owner Studio exposes separate maintenance status, message, and access controls for the four requested sections', () => {
