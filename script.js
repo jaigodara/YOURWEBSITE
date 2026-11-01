@@ -3074,6 +3074,29 @@ window.renderExamVisibility = function renderExamVisibility() {
     // Community chat: keep the current HTML IDs and Firestore rules in sync.
   let communityPostsCache = [];
   let communityTopicFilter = 'all';
+  const communityReadMarked = new Set();
+
+  async function markCommunityPostRead(post) {
+    if (!post?.id || !state.user?.uid || post.uid === state.user.uid) return;
+    const key = post.id + ':' + state.user.uid;
+    if (communityReadMarked.has(key)) return;
+    communityReadMarked.add(key);
+    try {
+      const postRef = collection('posts').doc(post.id);
+      const readRef = postRef.collection('reads').doc(state.user.uid);
+      await state.db.runTransaction(async transaction => {
+        const existing = await transaction.get(readRef);
+        if (existing.exists) return;
+        const currentPost = await transaction.get(postRef);
+        if (!currentPost.exists) return;
+        transaction.set(readRef, { uid: state.user.uid, readAt: serverTimestamp() });
+        transaction.update(postRef, { readCount: firebase.firestore.FieldValue.increment(1) });
+      });
+    } catch (error) {
+      communityReadMarked.delete(key);
+      console.warn('Community read receipt unavailable:', error);
+    }
+  }
 
   window.renderCommunity = function renderCommunity(posts) {
     communityPostsCache = Array.isArray(posts) ? posts : [];
@@ -3083,6 +3106,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     const filtered = communityTopicFilter === 'all'
       ? communityPostsCache
       : communityPostsCache.filter(post => (post.topic || 'सामान्य चर्चा') === communityTopicFilter);
+    if (state.user?.uid) communityPostsCache.forEach(post => { void markCommunityPostRead(post); });
 
     if (!filtered.length) {
       host.innerHTML = '<div class="rounded-xl bg-white p-4 text-center text-xs text-stone-500">अभी कोई संदेश नहीं है। चर्चा की शुरुआत आप कर सकते हैं।</div>';
@@ -3120,7 +3144,7 @@ window.renderExamVisibility = function renderExamVisibility() {
             </form>
           </section>
           <div class="flex items-center justify-between gap-2">
-            <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)}</div>
+            <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)} · 👁 ${Number(post.readCount || 0)} ने पढ़ा</div>
             ${(isMine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-white/20 bg-black/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="संदेश हटाएँ">हटाएँ</button>` : ''}
             ${state.isOwner && !isMine && post.uid ? `<button type="button" data-block-community-user="${escapeHtml(post.uid)}" class="rounded-lg border border-amber-200/30 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="सदस्य ब्लॉक करें">ब्लॉक करें</button>` : ''}
           </div>
