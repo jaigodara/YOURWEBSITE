@@ -3130,8 +3130,11 @@ window.renderExamVisibility = function renderExamVisibility() {
           </div>
           ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
           <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
-          <div class="flex items-center justify-end border-t border-stone-100 pt-2">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-2">
             <button type="button" data-community-like="${escapeHtml(post.id || '')}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-900">👍 पसंद करें · ${Number(post.upvotes || 0)}</button>
+            <div class="flex flex-wrap items-center gap-1.5" data-community-reaction-bar="${escapeHtml(post.id || '')}" aria-label="संदेश पर प्रतिक्रिया दें">
+              ${['❤️', '🙏', '🙂', '👏'].map(emoji => `<button type="button" data-community-reaction="${emoji}" aria-pressed="false" class="rounded-full border border-stone-200 bg-white px-2.5 py-1.5 text-xs hover:bg-amber-50">${emoji} <span data-reaction-count>0</span></button>`).join('')}
+            </div>
           </div>
           <section class="space-y-2 border-t border-stone-100 pt-2" aria-label="संदेश के जवाब">
             <div data-community-replies="${escapeHtml(post.id || '')}" class="space-y-1.5">
@@ -3153,6 +3156,13 @@ window.renderExamVisibility = function renderExamVisibility() {
     }).join('');
     host.querySelectorAll('[data-community-like]').forEach(button => {
       button.addEventListener('click', () => window.upvoteCommunityPost(button.dataset.communityLike));
+    });
+    host.querySelectorAll('[data-community-reaction-bar]').forEach(bar => {
+      const postId = bar.dataset.communityReactionBar;
+      void window.BishnoiCommunity.loadReactions(postId, bar);
+      bar.querySelectorAll('[data-community-reaction]').forEach(button => {
+        button.addEventListener('click', () => window.BishnoiCommunity.toggleReaction(postId, button.dataset.communityReaction, bar));
+      });
     });
     host.querySelectorAll('[data-delete-community-post]').forEach(button => {
       button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost));
@@ -3302,6 +3312,58 @@ window.renderExamVisibility = function renderExamVisibility() {
     communityTopicFilter = topic || 'all';
     window.renderCommunity(communityPostsCache);
   };
+  window.BishnoiCommunity.loadReactions = async function (postId, host) {
+    if (!postId || !host || !state.user) return;
+    try {
+      const snapshot = await collection('posts').doc(postId).collection('reactions').get();
+      const counts = new Map();
+      let ownEmoji = '';
+      snapshot.docs.forEach(doc => {
+        const data = doc.data() || {};
+        if (['❤️', '🙏', '🙂', '👏'].includes(data.emoji)) {
+          counts.set(data.emoji, (counts.get(data.emoji) || 0) + 1);
+          if (doc.id === state.user.uid) ownEmoji = data.emoji;
+        }
+      });
+      host.querySelectorAll('[data-community-reaction]').forEach(button => {
+        const emoji = button.dataset.communityReaction;
+        const count = button.querySelector('[data-reaction-count]');
+        if (count) count.textContent = String(counts.get(emoji) || 0);
+        const selected = ownEmoji === emoji;
+        button.setAttribute('aria-pressed', String(selected));
+        button.classList.toggle('border-emerald-500', selected);
+        button.classList.toggle('bg-emerald-50', selected);
+      });
+    } catch (error) {
+      console.warn('Community reactions unavailable:', error);
+    }
+  };
+  window.BishnoiCommunity.toggleReaction = async function (postId, emoji, host) {
+    const activeUser = state.auth?.currentUser ||
+      (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (state.user?.uid !== (activeUser?.uid || null)) state.user = activeUser || null;
+    if (!requireUser() || !postId || !['❤️', '🙏', '🙂', '👏'].includes(emoji)) return;
+    try {
+      const reactionRef = collection('posts').doc(postId).collection('reactions').doc(state.user.uid);
+      const current = await reactionRef.get();
+      if (current.exists && current.data()?.emoji === emoji) {
+        await reactionRef.delete();
+      } else {
+        const payload = {
+          uid: state.user.uid,
+          emoji,
+          ...(current.exists ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() })
+        };
+        if (current.exists) await reactionRef.update(payload);
+        else await reactionRef.set(payload);
+      }
+      if (host) await window.BishnoiCommunity.loadReactions(postId, host);
+    } catch (error) {
+      console.error('Community reaction failed:', error);
+      notify('प्रतिक्रिया दर्ज नहीं हुई। लॉगिन और Firestore अनुमति जाँचें।', 'error');
+    }
+  };
+  
   window.BishnoiCommunity.loadReplies = async function (postId, host) {
     if (!postId || !host) return;
     try {
