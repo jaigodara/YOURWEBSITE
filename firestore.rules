@@ -799,6 +799,30 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      match /reactions/{reactorUid} {
+        allow read: if signedIn() && sectionMaintenanceAllows('community');
+        allow create: if signedIn()
+          && reactorUid == request.auth.uid
+          && communityPostingAllowed()
+          && communityUserNotBlocked(request.auth.uid)
+          && request.resource.data.keys().hasOnly(['uid', 'emoji', 'createdAt'])
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('emoji', '') in ['❤️', '🙏', '🙂', '👏']
+          && request.resource.data.get('createdAt', null) is timestamp;
+        allow update: if signedIn()
+          && reactorUid == request.auth.uid
+          && communityPostingAllowed()
+          && communityUserNotBlocked(request.auth.uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emoji', 'updatedAt'])
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('emoji', '') in ['❤️', '🙏', '🙂', '👏']
+          && request.resource.data.get('updatedAt', null) is timestamp;
+        allow delete: if signedIn()
+          && reactorUid == request.auth.uid
+          && communityPostingAllowed()
+          && communityUserNotBlocked(request.auth.uid);
+      }
+
       match /votes/{voterUid} {
         allow read: if owner() || (signedIn() && request.auth.uid == voterUid);
         allow create: if signedIn()
