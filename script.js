@@ -1081,13 +1081,18 @@ notify(
       setText('maintenanceModeLabel', mode === 'both' ? 'पूरे मंच पर रखरखाव' : mode === 'web_only' ? 'वेबसाइट रखरखाव' : mode === 'phone_only' ? 'मोबाइल/ऐप रखरखाव' : '');
     }
     const homeMaintenanceActive = (m.sections || {}).home === 'both' && !(m.vipBypass !== false && state.isOwner);
-    const mainContent = document.querySelector('main');
+    // Keep the home-only update panel inside the Home tab. Placing it directly
+    // under <main> makes it visible while Literature, Exams or Community is open.
+    const homeSection = byId('tab-home');
     let platformNotice = byId('platformHomeMaintenanceNotice');
-    if (mainContent && !platformNotice) {
+    if (platformNotice && homeSection && platformNotice.parentElement !== homeSection) {
+      homeSection.prepend(platformNotice);
+    }
+    if (homeSection && !platformNotice) {
       platformNotice = document.createElement('section');
       platformNotice.id = 'platformHomeMaintenanceNotice';
       platformNotice.className = 'mb-6 w-full rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 shadow-md sm:p-6';
-      mainContent.insertBefore(platformNotice, mainContent.firstElementChild);
+      homeSection.prepend(platformNotice);
     }
     if (platformNotice) {
       platformNotice.hidden = !homeMaintenanceActive;
@@ -1140,7 +1145,7 @@ notify(
       const allowAccess = sectionAllow[key] === true;
       const locked = maintenanceActive && !allowAccess;
       const sectionMessage = cleanMaintenanceMessage(sectionMessages[key], message);
-      let notice = key === 'home' ? null : byId(`maintenance-notice-${key}`);
+      let notice = key === 'home' ? platformNotice : byId(`maintenance-notice-${key}`);
       if (key !== 'home') {
         if (!notice) {
           notice = document.createElement('div');
@@ -3004,7 +3009,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!hosts.length) return;
     const tracks = Array.isArray(items) ? items : [];
     hosts.forEach(host => {
-      const maintenanceHost = host.id === 'homeMaintenanceAudioList';
+      const maintenanceHost = host.id === 'platformMaintenanceAudioList';
       host.innerHTML = tracks.length ? tracks.map(track => {
         const audioUrl = track.audioUrl || track.link || track.url || '';
         return `
