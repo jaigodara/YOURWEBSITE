@@ -3230,6 +3230,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       await collection('communityPolls').add({
         title,
         options: labels.map((text, index) => ({ id: 'option_' + (index + 1), text })),
+        optionIds: labels.map((text, index) => 'option_' + (index + 1)),
         active: true,
         createdBy: state.user.uid,
         createdAt: serverTimestamp()
