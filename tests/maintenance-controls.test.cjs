@@ -154,7 +154,7 @@ test('Community read receipts count one first read per signed-in member without 
   assert.match(scriptJs, /async function markCommunityPostRead\(post\)/);
   assert.match(scriptJs, /transaction\.set\(readRef/);
   assert.match(scriptJs, /readCount: firebase\.firestore\.FieldValue\.increment\(1\)/);
-  assert.match(scriptJs, /match \/reads\/\{readerUid\}/);
+  assert.match(rules, /match \/reads\/\{readerUid\}/);
   assert.match(rules, /readerUid == request\.auth\.uid/);
 });
 
