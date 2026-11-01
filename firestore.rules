@@ -805,6 +805,37 @@ service cloud.firestore {
       }
     }
 
+    match /communityPolls/{pollId} {
+      allow read: if sectionMaintenanceAllows('community');
+      allow create: if owner()
+        && request.resource.data.get('createdBy', '') == request.auth.uid
+        && request.resource.data.get('title', null) is string
+        && request.resource.data.title.size() >= 4
+        && request.resource.data.title.size() <= 180
+        && request.resource.data.get('options', null) is list
+        && request.resource.data.options.size() >= 2
+        && request.resource.data.options.size() <= 6
+        && request.resource.data.get('active', false) == true;
+      allow update: if owner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'closedAt'])
+        && request.resource.data.get('active', true) == false;
+      allow delete: if owner();
+
+      match /votes/{voterUid} {
+        allow read: if signedIn() && sectionMaintenanceAllows('community');
+        allow create: if signedIn()
+          && voterUid == request.auth.uid
+          && communityPostingAllowed()
+          && communityUserNotBlocked(request.auth.uid)
+          && get(/databases/$(database)/documents/communityPolls/$(pollId)).data.get('active', false) == true
+          && request.resource.data.keys().hasOnly(['uid', 'optionId', 'createdAt'])
+          && request.resource.data.get('uid', '') == request.auth.uid
+          && request.resource.data.get('optionId', null) is string
+          && request.resource.data.get('createdAt', null) is timestamp;
+        allow update, delete: if false;
+      }
+    }
+
     match /audios/{id} {
       allow read: if sectionMaintenanceAllows('library');
       allow write: if canManageMedia();
