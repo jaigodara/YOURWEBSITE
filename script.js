@@ -3287,7 +3287,13 @@ window.renderExamVisibility = function renderExamVisibility() {
       notify('आपका संदेश प्रकाशित हो गया।', 'success');
     } catch (e) {
       console.error('Community post failed:', e);
-      notify('संदेश नहीं भेजा जा सका। Firestore permissions जाँचें।', 'error');
+      const errorCode = String(e?.code || 'unknown');
+      const safeMessage = errorCode === 'permission-denied'
+        ? 'Firestore ने संदेश लिखने की अनुमति नहीं दी। लॉगिन, Community maintenance और Firestore Rules जाँचें।'
+        : errorCode === 'unavailable'
+          ? 'इंटरनेट या Firestore सेवा उपलब्ध नहीं है। कनेक्शन जाँचकर फिर प्रयास करें।'
+          : 'संदेश प्रकाशित नहीं हो सका। कृपया फिर प्रयास करें।';
+      notify(safeMessage + ' (' + errorCode + ')', 'error');
     }
   };
 

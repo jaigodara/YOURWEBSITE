@@ -119,3 +119,18 @@ test('Community actions use the current Firebase Auth session instead of waiting
   assert.match(scriptJs, /state\.user = activeUser/);
   assert.match(scriptJs, /const signedInUser = state\.auth \? state\.auth\.currentUser : state\.user/);
 });
+
+
+test('Daily quiz results CTA opens the public daily-winner area, not the private exam-results identity form', () => {
+  assert.match(indexHtml, /id="mainDailyQuizResultsCta"[^>]*onclick="document\.getElementById\('dailyWinnerDateLabel'\)/);
+  assert.doesNotMatch(indexHtml.match(/id="mainDailyQuizResultsCta"[\s\S]{0,300}/)?.[0] || '', /openDailyQuizResults/);
+  assert.match(indexHtml, /आज के विजेता अभी प्रकाशित नहीं हुए हैं।/);
+});
+
+test('Fixed bottom navigation leaves enough scroll room for the result verification form and maintenance view', () => {
+  const css = readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(css, /padding-bottom:\s*calc\(132px \+ env\(safe-area-inset-bottom/);
+  assert.match(css, /#myResultsPanel[^{]*\{[^}]*scroll-margin-bottom/);
+  assert.match(css, /#globalMaintenanceOverlay[^{]*\{[^}]*top:\s*100px/);
+  assert.match(css, /#globalMaintenanceOverlay[^{]*\{[^}]*bottom:/);
+});

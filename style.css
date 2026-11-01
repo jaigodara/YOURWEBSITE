@@ -1393,3 +1393,31 @@ body > header.sticky > div { flex-wrap: nowrap; }
 @media(prefers-reduced-motion:reduce){
   #dailyQuizSection .grid.grid-cols-3 > div{transition:none}
 }
+
+
+/* Fixed navigation must not cover the final controls or result-verification form. */
+body { padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important; }
+#myResultsPanel, #resultLookupRoll, #resultLookupName, #resultLookupDob { scroll-margin-bottom: calc(144px + env(safe-area-inset-bottom, 0px)); }
+#globalMaintenanceOverlay {
+  top: 100px !important;
+  bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 90 !important;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: radial-gradient(ellipse at 12% 8%, rgba(221,161,94,.16), transparent 42%), #FAF6EE !important;
+  animation: bx-maintenance-enter .35s ease-out both;
+}
+#globalMaintenanceOverlay > div {
+  width: min(100%, 1120px);
+  min-height: 100%;
+  margin-inline: auto;
+  border-radius: 24px;
+  box-shadow: 0 18px 50px rgba(20,54,34,.10);
+}
+@keyframes bx-maintenance-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 640px) {
+  body { padding-bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important; }
+  #globalMaintenanceOverlay { top: 68px !important; bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; padding: 10px !important; }
+  #globalMaintenanceOverlay > div { padding: 20px 16px !important; border-radius: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { #globalMaintenanceOverlay { animation: none; } }
