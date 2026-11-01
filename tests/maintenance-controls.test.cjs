@@ -142,6 +142,13 @@ test('Home maintenance replaces invalid placeholder copy with a useful update pa
   assert.match(scriptJs, /डिजिटल साहित्य में Owner द्वारा अपलोड किए गए ऑडियो/);
 });
 
+test('Maintenance media playback does not expose the floating mini-player', () => {
+  assert.match(mediaJs, /function openMedia\(item, options = \{\}\)/);
+  assert.match(mediaJs, /const allowMiniPlayer = options\.allowMiniPlayer !== false/);
+  assert.match(mediaJs, /openMedia\(item, \{ allowMiniPlayer: false \}\)/);
+  assert.match(mediaJs, /mini\.hidden = !allowMiniPlayer/);
+});
+
 test('Home maintenance shows Owner-published YouTube and audio media cards using the shared media library', () => {
   assert.match(scriptJs, /id="platformMaintenanceMediaList"/);
   assert.match(scriptJs, /renderMaintenanceFeed\?\.\(byId\('platformMaintenanceMediaList'\)\)/);
