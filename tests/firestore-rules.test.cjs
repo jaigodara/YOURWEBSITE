@@ -8,7 +8,7 @@ const {
   assertFails,
 } = require("@firebase/rules-unit-testing");
 const {
-  doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, collection, query, where, serverTimestamp, Timestamp,
+  doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, collection, query, where, serverTimestamp, Timestamp, writeBatch,
 } = require("firebase/firestore");
 
 const PROJECT_ID = "bishnoi-platform-rules-test";
@@ -439,6 +439,36 @@ test("Firestore security rules regression suite", async (t) => {
       const publicDb = env.unauthenticatedContext().firestore();
       await assertFails(getDoc(doc(publicDb, "publicAdmitCardVerifications", token)));
     });
+    await t.test("Community post author can publish, reply, and one-time vote while vote count stays protected", async () => {
+      await reset();
+      const db = googleStudentContext(STUDENT).firestore();
+      const postRef = doc(db, "posts", "community-post-1");
+      await env.withSecurityRulesDisabled(async ctx => {
+        await setDoc(doc(ctx.firestore(), "posts/community-post-1"), {
+          uid: "another-member", body: "समुदाय संदेश", upvotes: 0,
+        });
+      });
+
+      const batch = writeBatch(db);
+      batch.set(doc(db, "posts/community-post-1/votes", STUDENT), {
+        uid: STUDENT, createdAt: serverTimestamp(),
+      });
+      batch.update(postRef, { upvotes: 1 });
+      await assertSucceeds(batch.commit());
+
+      await assertFails(updateDoc(postRef, { upvotes: 50 }));
+      await assertFails(setDoc(doc(db, "posts/community-post-1/votes", "another-user"), {
+        uid: "another-user", createdAt: serverTimestamp(),
+      }));
+
+      const duplicate = writeBatch(db);
+      duplicate.set(doc(db, "posts/community-post-1/votes", STUDENT), {
+        uid: STUDENT, createdAt: serverTimestamp(),
+      });
+      duplicate.update(postRef, { upvotes: 2 });
+      await assertFails(duplicate.commit());
+    });
+
   } finally {
     await env.cleanup();
   }
