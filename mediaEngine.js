@@ -122,7 +122,8 @@
     }
   }
 
-  function openMedia(item) {
+  function openMedia(item, options = {}) {
+    const allowMiniPlayer = options.allowMiniPlayer !== false;
     const modal = ensureReader();
     const body = document.getElementById('bishnoiMediaBody');
     const title = document.getElementById('bishnoiMediaTitle');
@@ -131,6 +132,8 @@
     title.textContent = String(item.title || 'साहित्य व मीडिया');
     modal.classList.remove('is-mini');
     modal.hidden = false;
+    mini.hidden = !allowMiniPlayer;
+    delete modal.dataset.canMinimize;
     const type = String(item.type || item.category || '').toLowerCase();
     const videoId = item.videoId || extractYouTubeId(item.url || item.rawUrl || item.embedUrl || '');
     const driveUrl = item.previewUrl || drivePreviewUrl(item.url || item.rawUrl || item.embedUrl || '');
@@ -138,14 +141,14 @@
       if (!videoId) { body.append(node('p', { className: 'bishnoi-media-error' }, 'यह YouTube लिंक मान्य नहीं है।')); return; }
       const frame = node('iframe', {
         title: item.title || 'YouTube video',
-        src: 'https://www.youtube-nocookie.com/embed/' + videoId + '?autoplay=1&playsinline=1&rel=0',
+        src: 'https://www.youtube-nocookie.com/embed/' + videoId + '?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3',
         allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
         allowfullscreen: '',
         referrerpolicy: 'strict-origin-when-cross-origin'
       });
       body.append(frame);
-      modal.dataset.canMinimize = 'true';
-      mini.hidden = false;
+      if (allowMiniPlayer) modal.dataset.canMinimize = 'true';
+      mini.hidden = !allowMiniPlayer;
     } else if (type.includes('audio') || /\.(mp3|m4a|ogg|wav)(\?|#|$)/i.test(item.url || item.rawUrl || '')) {
       const audio = node('audio', { controls: '', autoplay: '', preload: 'metadata', className: 'bishnoi-media-audio' });
       audio.src = item.url || item.rawUrl || '';
@@ -223,7 +226,8 @@
       card.append(node('h4', { className: 'bishnoi-media-card-title' }, item.title || 'भजन / सबदवाणी'));
       const button = node('button', { type: 'button', className: 'bishnoi-media-open' },
         videoId ? '▶ ऐप में देखें' : '♫ ऐप में सुनें');
-      button.addEventListener('click', () => openMedia(item));
+      // Maintenance playback stays in its own reader; do not expose the floating mini-player here.
+      button.addEventListener('click', () => openMedia(item, { allowMiniPlayer: false }));
       card.append(button);
       container.append(card);
     });
