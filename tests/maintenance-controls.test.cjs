@@ -146,7 +146,7 @@ test('Home maintenance shows Owner-published YouTube and audio media cards using
   assert.match(scriptJs, /id="platformMaintenanceMediaList"/);
   assert.match(scriptJs, /renderMaintenanceFeed\?\.\(byId\('platformMaintenanceMediaList'\)\)/);
   assert.match(mediaJs, /function renderMaintenanceFeed\(container\)/);
-  assert.match(mediaJs, /platformMaintenanceMediaList/);
+  assert.match(scriptJs, /platformMaintenanceMediaList/);
   assert.match(mediaJs, /openMedia\(item\)/);
 });
 
