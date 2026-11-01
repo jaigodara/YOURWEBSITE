@@ -1011,7 +1011,10 @@ notify(
 
     subscribe(
       collection('audios').orderBy('order', 'asc'),
-      snap => window.renderAudioList(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      snap => {
+        state.audioItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        window.renderAudioList(state.audioItems);
+      },
       'Audio library'
     );
 
@@ -1213,6 +1216,12 @@ notify(
       globalOverlay.hidden = !blockWebsite;
       globalOverlay.classList.toggle('hidden', !blockWebsite);
       setText('globalMaintenanceMessage', message);
+    }
+    // The audio listener and maintenance listener may finish in either order.
+    // Re-render after creating the maintenance audio host so uploaded bhajans
+    // are always available there, without adding a separate mini-player.
+    if (homeMaintenanceActive && typeof window.renderAudioList === 'function') {
+      window.renderAudioList(state.audioItems || []);
     }
   }
 

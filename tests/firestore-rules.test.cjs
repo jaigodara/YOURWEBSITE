@@ -439,6 +439,35 @@ test("Firestore security rules regression suite", async (t) => {
       const publicDb = env.unauthenticatedContext().firestore();
       await assertFails(getDoc(doc(publicDb, "publicAdmitCardVerifications", token)));
     });
+    await t.test("Community members can publish messages when posting is enabled, while impersonation and maintenance writes are blocked", async () => {
+      await reset();
+      const db = googleStudentContext(STUDENT).firestore();
+      const validPost = {
+        uid: STUDENT,
+        body: "नमस्कार, यह समुदाय संदेश है।",
+        topic: "सामान्य चर्चा",
+        displayName: "परीक्षण सदस्य",
+        createdAt: serverTimestamp(),
+      };
+      await assertSucceeds(setDoc(doc(db, "posts/community-create-test"), validPost));
+      await assertFails(setDoc(doc(db, "posts/community-impersonation-test"), {
+        ...validPost, uid: "another-member",
+      }));
+
+      await env.withSecurityRulesDisabled(async ctx => {
+        await setDoc(doc(ctx.firestore(), "settings/maintenance"), {
+          globalMode: "off",
+          sections: { community: "posting_only" },
+          sectionMessages: {},
+          sectionAllow: {},
+          vipBypass: true,
+        });
+      });
+      await assertFails(setDoc(doc(db, "posts/community-maintenance-test"), {
+        ...validPost, body: "मेंटेनेंस के दौरान संदेश नहीं जाना चाहिए।",
+      }));
+    });
+
     await t.test("Community members can cast only one atomic vote and cannot edit vote counts directly", async () => {
       await reset();
       const db = googleStudentContext(STUDENT).firestore();
