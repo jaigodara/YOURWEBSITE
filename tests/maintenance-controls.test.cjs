@@ -150,6 +150,15 @@ test('Home maintenance shows Owner-published YouTube and audio media cards using
   assert.match(mediaJs, /openMedia\(item\)/);
 });
 
+test('Community supports one private per-member emoji reaction with server-side validation', () => {
+  assert.match(scriptJs, /window\.BishnoiCommunity\.loadReactions = async function/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.toggleReaction = async function/);
+  assert.match(scriptJs, /data-community-reaction-bar/);
+  assert.match(rules, /match \/reactions\/\{reactorUid\}/);
+  assert.match(rules, /reactorUid == request\.auth\.uid/);
+  assert.match(rules, /'❤️', '🙏', '🙂', '👏'/);
+});
+
 test('Community read receipts count one first read per signed-in member without exposing reader identities', () => {
   assert.match(scriptJs, /async function markCommunityPostRead\(post\)/);
   assert.match(scriptJs, /transaction\.set\(readRef/);
