@@ -815,6 +815,8 @@ service cloud.firestore {
         && request.resource.data.get('options', null) is list
         && request.resource.data.options.size() >= 2
         && request.resource.data.options.size() <= 6
+        && request.resource.data.get('optionIds', null) is list
+        && request.resource.data.optionIds.size() == request.resource.data.options.size()
         && request.resource.data.get('active', false) == true;
       allow update: if owner()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'closedAt'])
@@ -831,6 +833,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['uid', 'optionId', 'createdAt'])
           && request.resource.data.get('uid', '') == request.auth.uid
           && request.resource.data.get('optionId', null) is string
+          && request.resource.data.optionId in get(/databases/$(database)/documents/communityPolls/$(pollId)).data.get('optionIds', [])
           && request.resource.data.get('createdAt', null) is timestamp;
         allow update, delete: if false;
       }
