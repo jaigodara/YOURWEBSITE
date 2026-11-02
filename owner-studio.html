@@ -1014,10 +1014,27 @@ Ans: B"></textarea>
         <button onclick="saveMaintenanceSettings()" class="w-full py-2.5 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl shadow transition">
           💾 मेंटेनेंस सेटिंग्स लागू करें
         </button>
+        <section id="ownerMaintenanceLivePreview" class="rounded-2xl border border-emerald-900/30 bg-[#0b141a] p-4 text-[#e9edef] space-y-3" aria-live="polite">
+          <div class="flex items-center justify-between gap-2">
+            <div><p class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Bishnoism • Platform Update</p><h4 class="text-sm font-bold">यूज़र स्क्रीन लाइव प्रीव्यू</h4></div>
+            <span id="maintenancePreviewStatus" class="rounded-full bg-emerald-900/60 px-2.5 py-1 text-[10px] font-bold text-emerald-200">चालू</span>
+          </div>
+          <p id="maintenancePreviewMessage" class="text-xs leading-relaxed text-[#cbd5d1]">मेंटेनेंस संदेश यहाँ दिखाई देगा।</p>
+          <div class="flex items-center gap-3 rounded-xl border border-[#2d5a4c] bg-[#112A21] p-3">
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600/20 text-emerald-300">♫</span>
+            <div class="min-w-0"><p class="text-xs font-bold">भजन और सबदवाणी</p><p class="text-[10px] text-[#9aa9a2]">उपलब्ध ऑडियो सुनने के लिए मुख्य साहित्य सेक्शन खोलें।</p></div>
+          </div>
+          <p class="text-[10px] text-[#9aa9a2]">यह प्रीव्यू आपके ऊपर चुने गए मेंटेनेंस मोड और संदेश को दिखाता है; यह अलग से कोई ऑडियो नहीं चलाता।</p>
+        </section>
       </div>
 
       <!-- TRUSTED EDITORS ROLE MANAGER -->
      
+
+<section id="ownerCommunityFeedbackPanel" class="bg-white p-5 rounded-3xl border border-emerald-200 shadow-sm space-y-3">
+  <div class="flex items-center justify-between gap-2"><div><h3 class="font-yatra text-base text-forest">💬 समाज सुझाव / Feedback Inbox</h3><p class="text-xs text-stone-500">सदस्यों द्वारा भेजे गए सुझाव केवल Owner देख सकता है।</p></div><button type="button" onclick="loadCommunityFeedback()" class="rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-xs font-bold">↻ रिफ्रेश</button></div>
+  <div id="ownerCommunityFeedbackList" class="space-y-2 text-xs" aria-live="polite">सुझाव देखने के लिए रिफ्रेश दबाएँ।</div>
+</section>
 
 <!-- TRUSTED EDITORS ROLE MANAGER -->
 <div id="ownerTrustedEditorsPanel" class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-4">
@@ -1683,6 +1700,7 @@ const OWNER_STUDIO_ROUTES = {
     panels: [
       'ownerExamVisibilitySettingsPanel',
       'ownerMaintenanceSettingsPanel',
+      'ownerCommunityFeedbackPanel',
       'ownerTrustedEditorsPanel',
       'ownerProctoringPanel'
     ]
@@ -1714,6 +1732,7 @@ const OWNER_STUDIO_ROUTE_PANELS = [
   'ownerAdmitCardSettingsPanel',
   'ownerNotificationCard',
   'ownerMaintenanceSettingsPanel',
+  'ownerCommunityFeedbackPanel',
   'ownerTrustedEditorsPanel',
   'ownerDataDashboard',
   'ownerDataExportPanel',
@@ -5935,6 +5954,7 @@ return review ? {
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: auth.currentUser?.uid || null
         }, { merge: true });
+        updateMaintenanceLivePreview();
         showToast('मेंटेनेंस सेटिंग्स लागू कर दी गईं। मुख्य वेबसाइट पर रिफ्रेश करके जाँचें।');
       } catch (e) { showToast('त्रुटि: ' + e.message); }
     }
@@ -7378,6 +7398,71 @@ pre,code{overflow-wrap:anywhere}
 </style>
 
 <script>
+  function updateMaintenanceLivePreview() {
+    const mode = document.getElementById('adminGlobalMaintMode')?.value || 'off';
+    const message = document.getElementById('adminMaintMessage')?.value.trim() || 'नए अपडेट जोड़े जा रहे हैं!';
+    const communityMode = document.getElementById('lock_samvad')?.value || 'open';
+    const previewMessage = document.getElementById('maintenancePreviewMessage');
+    const previewStatus = document.getElementById('maintenancePreviewStatus');
+    const locked = mode === 'both' || mode === 'web_only' || communityMode === 'maintenance';
+    if (previewMessage) previewMessage.textContent = communityMode === 'maintenance'
+      ? (document.getElementById('msg_samvad')?.value.trim() || 'संवाद मंच पर नए संदेश अस्थायी रूप से बंद हैं।')
+      : message;
+    if (previewStatus) {
+      previewStatus.textContent = locked ? 'मेंटेनेंस / अपडेट' : 'चालू';
+      previewStatus.className = locked
+        ? 'rounded-full bg-amber-500/20 px-2.5 py-1 text-[10px] font-bold text-amber-200'
+        : 'rounded-full bg-emerald-900/60 px-2.5 py-1 text-[10px] font-bold text-emerald-200';
+    }
+  }
+
+  async function loadCommunityFeedback() {
+    const host = document.getElementById('ownerCommunityFeedbackList');
+    if (!host) return;
+    if (typeof isPrimaryOwner !== 'function' || !isPrimaryOwner()) {
+      host.textContent = 'Feedback Inbox केवल Primary Owner के लिए उपलब्ध है।';
+      return;
+    }
+    host.textContent = 'सुझाव लोड हो रहे हैं…';
+    try {
+      const snapshot = await db.collection('communityFeedback').orderBy('createdAt', 'desc').limit(50).get();
+      host.replaceChildren();
+      if (snapshot.empty) { host.textContent = 'अभी कोई सुझाव प्राप्त नहीं हुआ।'; return; }
+      snapshot.forEach(doc => {
+        const data = doc.data() || {};
+        const card = document.createElement('article');
+        card.className = 'rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-2';
+        const author = document.createElement('p');
+        author.className = 'font-bold text-forest';
+        author.textContent = String(data.displayName || 'समाज का सदस्य') + ' · ' + (data.status === 'reviewed' ? 'देख लिया गया' : 'नया');
+        const body = document.createElement('p');
+        body.className = 'whitespace-pre-wrap break-words text-stone-700';
+        body.textContent = String(data.body || '');
+        card.append(author, body);
+        if (data.status !== 'reviewed') {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white';
+          button.textContent = 'देख लिया';
+          button.addEventListener('click', async () => {
+            try { await doc.ref.update({ status: 'reviewed' }); await loadCommunityFeedback(); }
+            catch (error) { showToast('Feedback स्थिति अपडेट नहीं हुई: ' + error.message); }
+          });
+          card.append(button);
+        }
+        host.append(card);
+      });
+    } catch (error) {
+      host.textContent = 'Feedback लोड नहीं हुआ: ' + (error.code || error.message);
+    }
+  }
+
+  document.querySelectorAll('#ownerMaintenanceSettingsPanel input, #ownerMaintenanceSettingsPanel select').forEach(control => {
+    control.addEventListener('input', updateMaintenanceLivePreview);
+    control.addEventListener('change', updateMaintenanceLivePreview);
+  });
+  updateMaintenanceLivePreview();
+
   window.createCommunityPoll = function createCommunityPoll() {
     if (window.BishnoiCommunity && typeof window.BishnoiCommunity.createPoll === 'function') {
       return window.BishnoiCommunity.createPoll();

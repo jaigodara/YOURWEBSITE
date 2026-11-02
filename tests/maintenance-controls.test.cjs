@@ -216,3 +216,22 @@ test('Owner Community poll manager is available only from its dedicated Owner St
   assert.match(ownerHtml, /const OWNER_STUDIO_ROUTE_PANELS = \[[\s\S]*?'ownerCommunityPollManager'/);
   assert.match(ownerHtml, /'ownerCommunityPollManager'\s*\]\.forEach/);
 });
+
+test('Community reference controls use the existing Firebase conversation and owner moderation', () => {
+  assert.match(indexHtml, /id="postLinkUrl"/);
+  assert.match(indexHtml, /submitFeedback\(\)/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.insertEmoji/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.togglePinned/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.submitFeedback/);
+  assert.match(scriptJs, /data-pin-community-post/);
+  assert.match(rules, /match \/communityFeedback\/\{feedbackId\}/);
+  assert.match(rules, /request\.resource\.data\.linkUrl\.matches\('https:\/\/\.\*'\)/);
+});
+
+test('Maintenance reference preview is live-bound to existing controls and does not fake audio playback', () => {
+  assert.match(ownerHtml, /id="ownerMaintenanceLivePreview"/);
+  assert.match(ownerHtml, /updateMaintenanceLivePreview/);
+  assert.match(ownerHtml, /यह प्रीव्यू आपके ऊपर चुने गए मेंटेनेंस मोड/);
+  assert.match(ownerHtml, /id="ownerCommunityFeedbackPanel"/);
+  assert.match(ownerHtml, /function loadCommunityFeedback/);
+});
