@@ -235,3 +235,7 @@ test('Maintenance reference preview is live-bound to existing controls and does 
   assert.match(ownerHtml, /id="ownerCommunityFeedbackPanel"/);
   assert.match(ownerHtml, /function loadCommunityFeedback/);
 });
+test('Community feedback writes obey the same posting maintenance lock as messages', () => {
+  const feedbackRule = rules.slice(rules.indexOf('match /communityFeedback/'), rules.indexOf('match /communityPolls/'));
+  assert.match(feedbackRule, /communityPostingAllowed\(\)/);
+});

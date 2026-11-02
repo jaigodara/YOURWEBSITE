@@ -858,6 +858,7 @@ service cloud.firestore {
 
     match /communityFeedback/{feedbackId} {
       allow create: if signedIn()
+        && communityPostingAllowed()
         && communityUserNotBlocked(request.auth.uid)
         && request.resource.data.keys().hasOnly(['uid', 'displayName', 'body', 'status', 'createdAt'])
         && request.resource.data.get('uid', '') == request.auth.uid
