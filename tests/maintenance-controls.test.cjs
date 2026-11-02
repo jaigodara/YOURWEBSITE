@@ -207,3 +207,12 @@ test('Community uses one unfiltered conversation instead of the removed topic pi
   assert.match(indexHtml, /id="communityFeed"/);
   assert.match(indexHtml, /id="postEditor"/);
 });
+
+test('Owner Community poll manager is available only from its dedicated Owner Studio route', () => {
+  assert.equal((ownerHtml.match(/id="ownerCommunityPollManager"/g) || []).length, 1);
+  assert.match(ownerHtml, /data-studio-page="polls"/);
+  assert.match(ownerHtml, /id="ownerCommunityPollManager" class="hidden /);
+  assert.match(ownerHtml, /polls:\s*\{\s*pane: 'pane_system',[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
+  assert.match(ownerHtml, /const OWNER_STUDIO_ROUTE_PANELS = \[[\s\S]*?'ownerCommunityPollManager'/);
+  assert.match(ownerHtml, /'ownerCommunityPollManager'\s*\]\.forEach/);
+});

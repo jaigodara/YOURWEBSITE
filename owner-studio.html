@@ -253,6 +253,7 @@
   data-studio-page="media">
   📚 साहित्य / मीडिया संपादन
 </button>
+          <button type="button" data-studio-page="polls" class="studio-nav-item">📊 समाज मतदान प्रबंधन</button>
         </nav>
       </aside>
       <div id="ownerStudioPageContent" class="min-w-0 space-y-6">
@@ -1128,9 +1129,9 @@ Ans: B"></textarea>
       </div>
     </div>
   
-        <section id="ownerCommunityPollManager" class="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm space-y-3">
+        <section id="ownerCommunityPollManager" class="hidden rounded-2xl border border-amber-200 bg-white p-4 shadow-sm space-y-3" aria-labelledby="ownerCommunityPollHeading">
           <div>
-            <h3 class="font-yatra text-base font-bold text-forest">📊 समाज संवाद मतदान बनाएँ</h3>
+            <h3 id="ownerCommunityPollHeading" class="font-yatra text-base font-bold text-forest">📊 समाज संवाद मतदान बनाएँ</h3>
             <p class="mt-1 text-xs text-stone-600">यहाँ बनाया गया मतदान Community में सभी सदस्यों को दिखेगा। सदस्य एक बार वोट दे सकेंगे।</p>
           </div>
           <input id="ownerCommunityPollTitle" maxlength="180" class="w-full rounded-xl border border-stone-300 p-3 text-sm" placeholder="मतदान का प्रश्न लिखें">
@@ -1694,6 +1695,11 @@ const OWNER_STUDIO_ROUTES = {
       'ownerDataExportPanel',
       'ownerExportPanel'
     ]
+  },
+  polls: {
+    pane: 'pane_system',
+    permission: null,
+    panels: ['ownerCommunityPollManager']
   }
 };
 
@@ -1711,7 +1717,8 @@ const OWNER_STUDIO_ROUTE_PANELS = [
   'ownerTrustedEditorsPanel',
   'ownerDataDashboard',
   'ownerDataExportPanel',
-  'ownerExportPanel'
+  'ownerExportPanel',
+  'ownerCommunityPollManager'
 ];
 
 function moveOwnerStudioPanels() {
@@ -1722,7 +1729,8 @@ function moveOwnerStudioPanels() {
     'ownerDataDashboard',
     'ownerDataExportPanel',
     'ownerExamVisibilitySettingsPanel',
-    'ownerProctoringPanel'
+    'ownerProctoringPanel',
+    'ownerCommunityPollManager'
   ].forEach(id => {
     const panel = document.getElementById(id);
     if (panel && !systemPane.contains(panel)) {
