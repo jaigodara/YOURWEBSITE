@@ -1113,10 +1113,19 @@ notify(
                 <p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p>
                 <h2 class="mt-1 font-yatra text-xl text-forest sm:text-2xl">नए फीचर आ रहे हैं</h2>
                 <p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(homeMessage)}</p>
-                <p class="mt-2 text-xs font-semibold text-forest">मुख्य पृष्ठ पर काम चल रहा है। तब तक यहाँ उपलब्ध भजन और सबदवाणी सुनें।</p>
+                <p class="mt-2 text-xs font-semibold text-forest">मुख्य पृष्ठ पर काम चल रहा है। तब तक यहाँ उपलब्ध भजन और सबदवाणी सुनें तथा आज का दैनिक क्विज़ दें।</p>
               </div>
               <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span>
             </div>
+            <section id="platformMaintenanceQuizCta" class="rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-white to-emerald-50 p-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                  <h3 class="font-yatra text-lg text-forest">🧠 आज का दैनिक क्विज़</h3>
+                  <p class="mt-1 text-xs leading-relaxed text-stone-600">आज का ज्ञान क्विज़ यहीं से शुरू करें। आपकी पात्रता और Owner द्वारा पुष्टि किया गया पंजीकरण पहले की तरह जाँचा जाएगा।</p>
+                </div>
+                <button type="button" onclick="window.startQuiz()" class="min-h-11 shrink-0 rounded-xl bg-forest px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-emerald-950">▶ आज का क्विज़ दें</button>
+              </div>
+            </section>
             <div class="rounded-2xl border border-emerald-200 bg-white p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1138,6 +1147,12 @@ notify(
           </div>`;
       }
       if (homeMaintenanceActive) {
+        const maintenanceQuizCta = byId('platformMaintenanceQuizCta');
+        if (maintenanceQuizCta) {
+          const quizHidden = state.examConfig?.dailyQuizVisible === false;
+          maintenanceQuizCta.hidden = quizHidden;
+          maintenanceQuizCta.classList.toggle('hidden', quizHidden);
+        }
         window.BishnoiMedia?.renderMaintenanceFeed?.(byId('platformMaintenanceMediaList'));
         window.renderAudioList?.(state.audioItems || []);
       }
@@ -3108,6 +3123,13 @@ window.renderExamVisibility = function renderExamVisibility() {
       : communityPostsCache.filter(post => (post.topic || 'सामान्य चर्चा') === communityTopicFilter);
     if (state.user?.uid) communityPostsCache.forEach(post => { void markCommunityPostRead(post); });
 
+    const pinnedHost = byId('pinnedChatBanner');
+    const pinnedText = byId('pinnedChatText');
+    const pinnedPost = communityPostsCache.find(post => post.pinnedByOwner === true);
+    if (pinnedHost && pinnedText) {
+      pinnedText.textContent = pinnedPost ? String(pinnedPost.body || pinnedPost.text || '') : '';
+      pinnedHost.classList.toggle('hidden', !pinnedPost);
+    }
     if (!filtered.length) {
       host.innerHTML = '<div class="rounded-xl bg-white p-4 text-center text-xs text-stone-500">अभी कोई संदेश नहीं है। चर्चा की शुरुआत आप कर सकते हैं।</div>';
       return;
@@ -3130,6 +3152,7 @@ window.renderExamVisibility = function renderExamVisibility() {
           </div>
           ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
           <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
+          ${post.linkUrl && /^https?:\/\//i.test(String(post.linkUrl)) ? '<a class="inline-flex max-w-full items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
           <div class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-2">
             <button type="button" data-community-like="${escapeHtml(post.id || '')}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-900">👍 पसंद करें · ${Number(post.upvotes || 0)}</button>
             <div class="flex flex-wrap items-center gap-1.5" data-community-reaction-bar="${escapeHtml(post.id || '')}" aria-label="संदेश पर प्रतिक्रिया दें">
@@ -3148,6 +3171,7 @@ window.renderExamVisibility = function renderExamVisibility() {
           </section>
           <div class="flex items-center justify-between gap-2">
             <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)} · 👁 ${Number(post.readCount || 0)} ने पढ़ा</div>
+            ${state.isOwner && post.id ? `<button type="button" data-pin-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">${isPinned ? '📌 पिन हटाएँ' : '📌 घोषणा पिन करें'}</button>` : ''}
             ${(isMine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-white/20 bg-black/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="संदेश हटाएँ">हटाएँ</button>` : ''}
             ${state.isOwner && !isMine && post.uid ? `<button type="button" data-block-community-user="${escapeHtml(post.uid)}" class="rounded-lg border border-amber-200/30 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="सदस्य ब्लॉक करें">ब्लॉक करें</button>` : ''}
           </div>
@@ -3163,6 +3187,9 @@ window.renderExamVisibility = function renderExamVisibility() {
       bar.querySelectorAll('[data-community-reaction]').forEach(button => {
         button.addEventListener('click', () => window.BishnoiCommunity.toggleReaction(postId, button.dataset.communityReaction, bar));
       });
+    });
+    host.querySelectorAll('[data-pin-community-post]').forEach(button => {
+      button.addEventListener('click', () => window.BishnoiCommunity.togglePinned(button.dataset.pinCommunityPost));
     });
     host.querySelectorAll('[data-delete-community-post]').forEach(button => {
       button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost));
@@ -3308,6 +3335,54 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   };
 
+  window.BishnoiCommunity.insertEmoji = function (emoji) {
+    const input = byId('postText');
+    if (!input || !['🙏', '❤️', '🌿'].includes(emoji)) return;
+    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : input.value.length;
+    input.setRangeText(emoji, start, end, 'end');
+    input.focus();
+  };
+  window.BishnoiCommunity.togglePinned = async function (postId) {
+    if (!requireUser() || !state.isOwner || !postId) return notify('यह सुविधा केवल Owner के लिए है।', 'error');
+    const post = communityPostsCache.find(item => item.id === postId);
+    if (!post) return notify('संदेश फिर से लोड करें और प्रयास करें।', 'error');
+    try {
+      const nextPinned = post.pinnedByOwner !== true;
+      const batch = state.db.batch();
+      if (nextPinned) {
+        communityPostsCache.filter(item => item.pinnedByOwner === true && item.id !== postId).forEach(item => {
+          batch.update(collection('posts').doc(item.id), { pinnedByOwner: false });
+        });
+      }
+      batch.update(collection('posts').doc(postId), { pinnedByOwner: nextPinned });
+      await batch.commit();
+      notify(nextPinned ? 'घोषणा ऊपर पिन कर दी गई।' : 'पिन हटाया गया।', 'success');
+    } catch (error) {
+      console.error('Community pin update failed:', error);
+      notify('घोषणा पिन नहीं हो सकी। Firestore अनुमति जाँचें।', 'error');
+    }
+  };
+  window.BishnoiCommunity.submitFeedback = async function () {
+    if (!requireUser()) return;
+    const input = byId('communityFeedbackText');
+    const body = String(input?.value || '').trim();
+    if (!body || body.length > 1000) return notify('कृपया 1 से 1000 अक्षरों में सुझाव लिखें।', 'error');
+    try {
+      await collection('communityFeedback').add({
+        uid: state.user.uid,
+        displayName: state.profile?.displayName || state.user.displayName || 'समाज का सदस्य',
+        body,
+        status: 'new',
+        createdAt: serverTimestamp()
+      });
+      input.value = '';
+      notify('आपका सुझाव Owner तक भेज दिया गया।', 'success');
+    } catch (error) {
+      console.error('Community feedback failed:', error);
+      notify('सुझाव नहीं भेजा जा सका। कृपया फिर प्रयास करें।', 'error');
+    }
+  };
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
     window.renderCommunity(communityPostsCache);
@@ -3552,6 +3627,18 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
 
     const topic = byId('chatTopicFilter')?.value || 'सामान्य चर्चा';
+    const linkInput = byId('postLinkUrl');
+    const linkUrl = String(linkInput?.value || '').trim();
+    if (linkUrl) {
+      try {
+        const parsedLink = new URL(linkUrl);
+        if (!['https:', 'http:'].includes(parsedLink.protocol) || linkUrl.length > 2000) throw new Error('invalid-link');
+      } catch (_) {
+        notify('साझा करने के लिए सही http या https लिंक लिखें।', 'error');
+        linkInput?.focus();
+        return;
+      }
+    }
     try {
       const blockSnapshot = await collection('communityBlocks').doc(state.user.uid).get();
       if (blockSnapshot.exists && blockSnapshot.data()?.blocked === true) {
@@ -3564,10 +3651,12 @@ window.renderExamVisibility = function renderExamVisibility() {
         uid: state.user.uid,
         body,
         topic,
+        ...(linkUrl ? { linkUrl } : {}),
         displayName: state.profile?.displayName || state.user.displayName || 'समाज का सदस्य',
         createdAt: serverTimestamp()
       });
       if (input) input.value = '';
+      if (linkInput) linkInput.value = '';
       notify('आपका संदेश प्रकाशित हो गया।', 'success');
     } catch (e) {
       console.error('Community post failed:', e);

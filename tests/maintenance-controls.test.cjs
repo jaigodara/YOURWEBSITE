@@ -216,3 +216,41 @@ test('Owner Community poll manager is available only from its dedicated Owner St
   assert.match(ownerHtml, /const OWNER_STUDIO_ROUTE_PANELS = \[[\s\S]*?'ownerCommunityPollManager'/);
   assert.match(ownerHtml, /'ownerCommunityPollManager'\s*\]\.forEach/);
 });
+
+test('Community reference controls use the existing Firebase conversation and owner moderation', () => {
+  assert.match(indexHtml, /id="postLinkUrl"/);
+  assert.match(indexHtml, /submitFeedback\(\)/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.insertEmoji/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.togglePinned/);
+  assert.match(scriptJs, /window\.BishnoiCommunity\.submitFeedback/);
+  assert.match(scriptJs, /data-pin-community-post/);
+  assert.match(rules, /match \/communityFeedback\/\{feedbackId\}/);
+  assert.match(rules, /request\.resource\.data\.linkUrl\.matches\('https:\/\/\.\*'\)/);
+});
+
+test('Maintenance reference preview is live-bound to existing controls and does not fake audio playback', () => {
+  assert.match(ownerHtml, /id="ownerMaintenanceLivePreview"/);
+  assert.match(ownerHtml, /updateMaintenanceLivePreview/);
+  assert.match(ownerHtml, /यह प्रीव्यू आपके ऊपर चुने गए मेंटेनेंस मोड/);
+  assert.match(ownerHtml, /id="ownerCommunityFeedbackPanel"/);
+  assert.match(ownerHtml, /function loadCommunityFeedback/);
+});
+test('Community feedback writes obey the same posting maintenance lock as messages', () => {
+  const feedbackRule = rules.slice(rules.indexOf('match /communityFeedback/'), rules.indexOf('match /communityPolls/'));
+  assert.match(feedbackRule, /communityPostingAllowed\(\)/);
+});
+
+test('Home maintenance includes a Daily Quiz action beside the existing bhajan and video content', () => {
+  assert.match(scriptJs, /id="platformMaintenanceQuizCta"/);
+  assert.match(scriptJs, /onclick="window\.startQuiz\(\)"/);
+  assert.match(scriptJs, /state\.examConfig\?\.dailyQuizVisible === false/);
+  assert.match(scriptJs, /renderMaintenanceFeed\?\.\(byId\('platformMaintenanceMediaList'\)\)/);
+  assert.match(scriptJs, /renderAudioList\?\.\(state\.audioItems \|\| \[\]\)/);
+});
+
+test('Owner Studio starts with only the Dashboard route panels visible', () => {
+  assert.match(ownerHtml, /function initializeOwnerStudioRouteVisibility\(\)/);
+  assert.match(ownerHtml, /OWNER_STUDIO_ROUTE_PANELS\.forEach\(id => \{/);
+  assert.match(ownerHtml, /OWNER_STUDIO_ROUTES\.dashboard\.panels/);
+  assert.match(ownerHtml, /initializeOwnerStudioRouteVisibility\(\);/);
+});
