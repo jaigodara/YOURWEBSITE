@@ -1911,6 +1911,33 @@ function switchStudioPane(paneId) {
   }
 }
 
+// Establish a clean Dashboard state before the first navigation click. Without
+// this, route-managed panels that lack an initial .hidden class can leak into
+// the first visible Owner Studio pane on desktop and mobile.
+function initializeOwnerStudioRouteVisibility() {
+  OWNER_STUDIO_ROUTE_PANELS.forEach(id => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    panel.dataset.studioRouteHidden = 'true';
+    panel.classList.add('hidden');
+  });
+
+  (OWNER_STUDIO_ROUTES.dashboard.panels || []).forEach(id => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    delete panel.dataset.studioRouteHidden;
+    panel.classList.remove('hidden');
+  });
+
+  document.querySelectorAll('[data-studio-page]').forEach(button => {
+    const active = button.dataset.studioPage === 'dashboard';
+    button.classList.toggle('studio-nav-active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+}
+
+initializeOwnerStudioRouteVisibility();
+
          async function refreshStudioAnalytics() {
       try {
         if (!isPrimaryOwner()) {

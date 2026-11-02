@@ -1113,10 +1113,19 @@ notify(
                 <p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p>
                 <h2 class="mt-1 font-yatra text-xl text-forest sm:text-2xl">नए फीचर आ रहे हैं</h2>
                 <p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(homeMessage)}</p>
-                <p class="mt-2 text-xs font-semibold text-forest">मुख्य पृष्ठ पर काम चल रहा है। तब तक यहाँ उपलब्ध भजन और सबदवाणी सुनें।</p>
+                <p class="mt-2 text-xs font-semibold text-forest">मुख्य पृष्ठ पर काम चल रहा है। तब तक यहाँ उपलब्ध भजन और सबदवाणी सुनें तथा आज का दैनिक क्विज़ दें।</p>
               </div>
               <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span>
             </div>
+            <section id="platformMaintenanceQuizCta" class="rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-white to-emerald-50 p-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                  <h3 class="font-yatra text-lg text-forest">🧠 आज का दैनिक क्विज़</h3>
+                  <p class="mt-1 text-xs leading-relaxed text-stone-600">आज का ज्ञान क्विज़ यहीं से शुरू करें। आपकी पात्रता और Owner द्वारा पुष्टि किया गया पंजीकरण पहले की तरह जाँचा जाएगा।</p>
+                </div>
+                <button type="button" onclick="window.startQuiz()" class="min-h-11 shrink-0 rounded-xl bg-forest px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-emerald-950">▶ आज का क्विज़ दें</button>
+              </div>
+            </section>
             <div class="rounded-2xl border border-emerald-200 bg-white p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1138,6 +1147,12 @@ notify(
           </div>`;
       }
       if (homeMaintenanceActive) {
+        const maintenanceQuizCta = byId('platformMaintenanceQuizCta');
+        if (maintenanceQuizCta) {
+          const quizHidden = state.examConfig?.dailyQuizVisible === false;
+          maintenanceQuizCta.hidden = quizHidden;
+          maintenanceQuizCta.classList.toggle('hidden', quizHidden);
+        }
         window.BishnoiMedia?.renderMaintenanceFeed?.(byId('platformMaintenanceMediaList'));
         window.renderAudioList?.(state.audioItems || []);
       }

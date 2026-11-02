@@ -239,3 +239,18 @@ test('Community feedback writes obey the same posting maintenance lock as messag
   const feedbackRule = rules.slice(rules.indexOf('match /communityFeedback/'), rules.indexOf('match /communityPolls/'));
   assert.match(feedbackRule, /communityPostingAllowed\(\)/);
 });
+
+test('Home maintenance includes a Daily Quiz action beside the existing bhajan and video content', () => {
+  assert.match(scriptJs, /id="platformMaintenanceQuizCta"/);
+  assert.match(scriptJs, /onclick="window\.startQuiz\(\)"/);
+  assert.match(scriptJs, /state\.examConfig\?\.dailyQuizVisible === false/);
+  assert.match(scriptJs, /renderMaintenanceFeed\?\.\(byId\('platformMaintenanceMediaList'\)\)/);
+  assert.match(scriptJs, /renderAudioList\?\.\(state\.audioItems \|\| \[\]\)/);
+});
+
+test('Owner Studio starts with only the Dashboard route panels visible', () => {
+  assert.match(ownerHtml, /function initializeOwnerStudioRouteVisibility\(\)/);
+  assert.match(ownerHtml, /OWNER_STUDIO_ROUTE_PANELS\.forEach\(id => \{/);
+  assert.match(ownerHtml, /OWNER_STUDIO_ROUTES\.dashboard\.panels/);
+  assert.match(ownerHtml, /initializeOwnerStudioRouteVisibility\(\);/);
+});
