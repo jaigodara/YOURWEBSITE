@@ -402,7 +402,7 @@
         const title=document.createElement("h3");title.textContent=String(e.title||"कस्टम परीक्षा");
         const meta=document.createElement("span");meta.className="exam-meta";meta.textContent="अवधि: "+(Number(e.durationMinutes)||60)+" मिनट · कुल अंक: "+(Number(e.totalMarks)||100);
         const scheduleLabel = scheduled ? " · शुरू: " + startAt.toLocaleString("hi-IN") : (endAt ? " · समाप्ति: " + endAt.toLocaleString("hi-IN") : "");
-        const detail=document.createElement("p");detail.textContent="उत्तीर्ण अंक: "+(Number(e.passingMarks)||0)+" · गलत उत्तर: −"+(Number(e.negativeMarks)||0)+" · "+(scheduled ? "निर्धारित परीक्षा" : "प्रकाशित परीक्षा")+scheduleLabel;
+        const detail=document.createElement("p");detail.className="exam-meta exam-publishing-meta";detail.textContent="उत्तीर्ण अंक: "+(Number(e.passingMarks)||0)+" · गलत उत्तर: −"+(Number(e.negativeMarks)||0)+" · "+(scheduled ? "निर्धारित परीक्षा" : "प्रकाशित परीक्षा")+scheduleLabel;
         const actions=document.createElement("div");actions.className="card-actions";
         const btn=document.createElement("button");btn.type="button";btn.className="button gold";btn.textContent=scheduled ? "निर्धारित समय पर खुलेगी" : "यह परीक्षा खोलें";btn.disabled=scheduled;
         btn.addEventListener("click",()=>{
@@ -647,9 +647,8 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
     }
 
     loadPublishedCustomExams(db);
-    const mockGroupVisible = config.mockVisible !== false;
-    const mock1Visible = mockGroupVisible && config.mock1Visible !== false;
-    const mock2Visible = mockGroupVisible && config.mock2Visible !== false;
+    const mock1Visible = config.mock1Visible !== false;
+    const mock2Visible = config.mock2Visible !== false;
 
     setCard("mock1Card", mock1Visible);
     setCard("mock2Card", mock2Visible);
