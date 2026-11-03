@@ -1421,3 +1421,16 @@ body { padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important
   #globalMaintenanceOverlay > div { padding: 20px 16px !important; border-radius: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { #globalMaintenanceOverlay { animation: none; } }
+
+
+/* Community composer inspired by the supplied chat reference. */
+#tab-community #postEditor { position:relative; }
+#tab-community #postText { min-height:2.5rem; max-height:7.5rem; }
+#tab-community #communityEmojiPicker button,#tab-community #communityAttachMenu button { min-height:42px; }
+#tab-community #communityPollFeed > p { border-radius:1rem; background:#fffdf8; }
+#tab-community #communityFeed .bx-chat-message { width:fit-content; max-width:min(88%,42rem); }
+@media(max-width:640px){
+  #tab-community #communityFeed { padding:.65rem; }
+  #tab-community #communityFeed .bx-chat-message { max-width:94%; padding:.85rem; }
+  #tab-community #postEditor { padding:.7rem; }
+}
