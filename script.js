@@ -367,6 +367,12 @@ try {
     if (!firebase.apps.length) firebase.initializeApp(CONFIG.firebase);
 
     state.auth = firebase.auth();
+    // Explicitly keep Google login on this device across browser reloads/app restarts.
+    window.__bishnoiAuthPersistenceReady = state.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch(error => {
+        console.warn('Firebase local persistence unavailable; using browser default.', error);
+        return null;
+      });
     state.db = firebase.firestore();
 
     try {
@@ -760,7 +766,6 @@ notify(
         if (user) window.BishnoiApp?.openProfileOrAuth?.();
         else window.BishnoiAuth?.openAuthModal?.();
       }
-      state.resultsIdentityVerified = false;
       window.initPersonalNotificationsForUser();
       window.initPublicNotifications();
       window.renderNotificationCenter();
@@ -891,6 +896,7 @@ notify(
     if (!password) return;
 
     try {
+      await window.__bishnoiAuthPersistenceReady;
       await state.auth.signInWithEmailAndPassword(email.trim(), password);
       notify('Signed in successfully.', 'success');
     } catch (e) {
@@ -2475,7 +2481,8 @@ moreButton.textContent =
     if (intro) intro.textContent = 'नीचे केवल आपके लिए जारी किए गए परिणाम हैं। लंबित या जाँचाधीन प्रयासों के अंक यहाँ नहीं दिखाए जाते।';
     const modeNames = { quiz: 'दैनिक ज्ञान परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा' };
     host.innerHTML = rows.map(row => {
-      const scoreVisible = row.mode === 'quiz' || state.resultsIdentityVerified === true;
+      // The live query is already restricted to this signed-in user's UID.
+      const scoreVisible = true;
       const score = Number(row.score);
       const total = Number(row.total);
       const validScore = scoreVisible && row.score !== null && row.score !== '' && Number.isFinite(score) &&
@@ -2483,7 +2490,7 @@ moreButton.textContent =
       const percentage = validScore ? Math.max(0, Math.min(100, Math.round((score / total) * 100))) : 0;
       const scoreText = validScore
         ? '<div class="results-score"><span class="results-score-value">' + escapeHtml(score) + '</span><span class="results-score-total">/ ' + escapeHtml(total) + ' अंक</span></div>'
-        : '<p class="text-xs leading-relaxed text-stone-600">' + (scoreVisible ? 'अंक उपलब्ध नहीं हैं। कृपया परीक्षक से संपर्क करें।' : 'अंक देखने के लिए ऊपर रोल नंबर, पूरा नाम और जन्म तिथि सत्यापित करें।') + '</p>';
+        : '<p class="text-xs leading-relaxed text-stone-600">अंक उपलब्ध नहीं हैं। कृपया परीक्षक से संपर्क करें।</p>';
       const feedback = scoreVisible && row.feedback
         ? '<div class="results-feedback"><span aria-hidden="true">💬</span><p><strong>परीक्षक की टिप्पणी</strong><br>' + escapeHtml(row.feedback) + '</p></div>'
         : '';
@@ -6180,131 +6187,7 @@ const digits = String(value || '').replace(/\D/g, '');
   const app = window.BishnoiApp;
 
   
-window.BishnoiApp.verifyMyResultIdentity = async function () {
-  const status = byId('resultLookupStatus');
 
-  if (!requireUser() || !state.db) {
-    if (status) status.textContent = 'पहले लॉगिन करें।';
-    return;
-  }
-
-  const uid = state.user.uid;
-  const normalizeName = value =>
-    String(value || '')
-      .normalize('NFC')
-      .trim()
-      .toLocaleLowerCase()
-      .replace(/\s+/g, ' ');
-
-  const normalizeDob = value => {
-    if (!value) return '';
-    if (typeof value.toDate === 'function') {
-      const date = value.toDate();
-      return [
-        date.getFullYear(),
-        String(date.getMonth() + 1).padStart(2, '0'),
-        String(date.getDate()).padStart(2, '0')
-      ].join('-');
-    }
-    if (value instanceof Date && !Number.isNaN(value.getTime())) {
-      return [
-        value.getFullYear(),
-        String(value.getMonth() + 1).padStart(2, '0'),
-        String(value.getDate()).padStart(2, '0')
-      ].join('-');
-    }
-    return String(value).trim().slice(0, 10);
-  };
-
-  const roll = String(byId('resultLookupRoll')?.value || '')
-    .trim()
-    .toUpperCase();
-  const name = normalizeName(byId('resultLookupName')?.value);
-  const dob = normalizeDob(byId('resultLookupDob')?.value);
-
-  state.resultsIdentityVerified = false;
-  window.renderMyResults();
-
-  if (!roll || !name || !dob) {
-    if (status) {
-      status.textContent = 'रोल नंबर, पूरा नाम और जन्म तिथि तीनों भरें।';
-    }
-    return;
-  }
-
-  if (status) status.textContent = 'पंजीकरण रिकॉर्ड जाँचा जा रहा है…';
-
-  try {
-    const snap = await state.db
-      .collection('examEnrolledStudents')
-      .doc(uid)
-      .get();
-
-    // Do not apply verification to a different account after an async read.
-    if (state.user?.uid !== uid) return;
-
-    if (!snap.exists) {
-      if (status) {
-        status.textContent = 'इस लॉगिन खाते से जुड़ा पंजीकरण रिकॉर्ड नहीं मिला।';
-      }
-      return;
-    }
-
-    const record = snap.data() || {};
-
-    const expectedRoll = String(record.rollNumber || '')
-      .trim()
-      .toUpperCase();
-
-    const expectedName = normalizeName(
-      record.fullName || record.name || record.displayName
-    );
-
-    const expectedDob = normalizeDob(
-      record.dateOfBirth || record.dob || record.birthDate
-    );
-
-    const matches =
-      expectedRoll !== '' &&
-      expectedName !== '' &&
-      expectedDob !== '' &&
-      roll === expectedRoll &&
-      name === expectedName &&
-      dob === expectedDob &&
-      (!record.uid || record.uid === uid);
-
-    if (!matches) {
-      if (status) {
-        status.textContent =
-          'दर्ज विवरण पंजीकरण रिकॉर्ड से मेल नहीं खाते। नाम, रोल नंबर और जन्म तिथि जाँचें।';
-      }
-      return;
-    }
-
-    state.resultsIdentityVerified = true;
-    window.renderMyResults();
-
-    if (status) {
-      status.textContent =
-        'पहचान सत्यापित। आपके प्रकाशित परिणाम नीचे उपलब्ध हैं।';
-    }
-
-    byId('myResultsList')?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
-  } catch (error) {
-    state.resultsIdentityVerified = false;
-    window.renderMyResults();
-
-    if (status) {
-      status.textContent =
-        'पहचान सत्यापित नहीं हो सकी। लॉगिन और Firestore permissions जाँचें।';
-    }
-
-    console.warn('Result identity verification failed:', error);
-  }
-};
 
 
   app.switchTab = window.switchTab;
@@ -6907,6 +6790,7 @@ window.BishnoiApp.verifyMyResultIdentity = async function () {
     });
   }
   async function signInWithGoogleCredential() {
+    await window.__bishnoiAuthPersistenceReady;
     if (window.BishnoismAndroidAuth && typeof window.BishnoismAndroidAuth.requestGoogleIdToken === 'function') {
       const idToken = await requestNativeGoogleIdToken();
       const credential = firebase.auth.GoogleAuthProvider.credential(idToken);

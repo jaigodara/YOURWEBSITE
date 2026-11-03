@@ -503,18 +503,10 @@ document.addEventListener('DOMContentLoaded', () => {
       <section id="myResultsPanel" class="results-panel rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5 shadow-sm space-y-4" aria-labelledby="myResultsHeading">
         <div class="results-heading flex items-start gap-3">
           <div class="results-icon" aria-hidden="true">🏆</div>
-          <div class="min-w-0 flex-1"><h3 id="myResultsHeading" class="font-yatra text-base sm:text-lg text-forest">मेरे परीक्षा परिणाम</h3><p id="myResultsIntro" class="mt-1 text-xs leading-relaxed text-stone-500">आपके घोषित परिणाम यहाँ सुरक्षित रूप से दिखाई देंगे।</p></div>
+          <div class="min-w-0 flex-1"><h3 id="myResultsHeading" class="font-yatra text-base sm:text-lg text-forest">मेरे परीक्षा परिणाम</h3><p id="myResultsIntro" class="mt-1 text-xs leading-relaxed text-stone-500">आपके Google लॉगिन खाते से जुड़े प्रकाशित परिणाम यहाँ अपने आप दिखाई देंगे।</p></div>
           <span class="results-lock" aria-hidden="true">🔐</span>
         </div>
         <div id="myResultsList" class="results-list space-y-3" aria-live="polite"><p class="text-xs text-stone-500">लॉगिन करने पर आपके प्रयास यहाँ दिखाई देंगे।</p></div>
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
-          <h4 class="text-xs font-extrabold text-forest">🔐 घोषित परिणाम देखने के लिए पहचान सत्यापित करें</h4>
-          <p class="text-[11px] text-stone-600">लॉगिन खाते के साथ अपना रोल नंबर, पंजीकरण वाला पूरा नाम और जन्म तिथि भरें। यह जाँच केवल आपके अपने परिणाम खोलेगी।</p>
-          <input id="resultLookupRoll" maxlength="40" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="रोल नंबर">
-          <input id="resultLookupName" maxlength="100" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" placeholder="पंजीकरण वाला पूरा नाम">
-          <input id="resultLookupDob" type="date" class="w-full rounded-lg border border-stone-300 bg-white p-2.5 text-xs" aria-label="जन्म तिथि">
-          <button type="button" onclick="window.BishnoiApp.verifyMyResultIdentity()" class="w-full rounded-lg bg-forest px-3 py-2.5 text-xs font-bold text-white">परिणाम खोलें</button>
-         <p id="resultLookupStatus" class="text-[11px] text-stone-600" role="status" aria-live="polite"></p>
         </div>
       </section>
       <section id="dailyQuizResultsFeature" data-owner-visibility="dailyQuizResultsVisible" class="space-y-4">
