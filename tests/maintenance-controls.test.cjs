@@ -107,10 +107,13 @@ test('Exam archive copies and verifies records before deleting active records, w
 });
 
 
-test('Daily quiz result CTA reveals the existing published-results panel', () => {
-  assert.match(indexHtml, /id="mainDailyQuizResultsCta"/);
-  assert.match(indexHtml, /show-daily-results/);
-  assert.match(scriptJs, /window\.openDailyQuizResults = async function openDailyQuizResults/);
+test('Daily Quiz results CTA opens the public winner leaderboard, separately from personal exam results', () => {
+  assert.match(indexHtml, /<section id="dailyQuizResultsPanel" data-owner-visibility="dailyQuizResultsVisible"/);
+  const cta = indexHtml.match(/id="openMyDailyQuizResultsCta"[\s\S]{0,300}/)?.[0] || '';
+  assert.match(cta, /window\.openDailyQuizResults\(\)/);
+  assert.match(indexHtml, /id="dailyWinnerDateLabel"/);
+  assert.match(indexHtml, /id="rank1Name"/);
+  assert.match(scriptJs, /window\.openDailyQuizResults = function openDailyQuizResults\(\)[\s\S]*dailyQuizResultsPanel[\s\S]*scrollIntoView/);
   assert.match(scriptJs, /collection\('publishedResults'\)/);
   assert.match(scriptJs, /state\.myResults/);
 });
@@ -122,9 +125,15 @@ test('Community actions use the current Firebase Auth session instead of waiting
 });
 
 
-test('Daily quiz results CTA opens the public daily-winner area, not the private exam-results identity form', () => {
-  assert.match(indexHtml, /id="mainDailyQuizResultsCta"[^>]*onclick="document\.getElementById\('dailyWinnerDateLabel'\)/);
-  assert.doesNotMatch(indexHtml.match(/id="mainDailyQuizResultsCta"[\s\S]{0,300}/)?.[0] || '', /openDailyQuizResults/);
+test('Owner daily-results toggle controls the complete winners panel and not the Main/Mock results desk', () => {
+  assert.match(indexHtml, /id="dailyQuizResultsPanel" data-owner-visibility="dailyQuizResultsVisible"/);
+  assert.match(indexHtml, /id="openMyDailyQuizResultsCta"[^>]*onclick="window\.openDailyQuizResults\(\)"/);
+  const visibilityStart = scriptJs.indexOf('window.renderExamVisibility = function renderExamVisibility()');
+  const visibilityEnd = scriptJs.indexOf('const EXAM_SCHEDULES', visibilityStart);
+  const visibility = scriptJs.slice(visibilityStart, visibilityEnd);
+  assert.match(visibility, /dailyQuizResultsVisible: c\.dailyQuizResultsVisible !== false/);
+  assert.match(visibility, /\['myResultsPanel', c\.resultsVisible !== false\]/);
+  assert.doesNotMatch(visibility, /c\.resultsVisible !== false \|\| c\.dailyQuizResultsVisible/);
   assert.match(indexHtml, /आज के विजेता अभी प्रकाशित नहीं हुए हैं।/);
 });
 
@@ -196,10 +205,11 @@ test('Maintenance bhajan buttons use the correct host styling and render the cur
   assert.match(scriptJs, /window\.renderAudioList\(state\.audioItems \|\| \[\]\)/);
 });
 
-test('Daily quiz results CTA opens the signed-in student result panel separately from winner rankings', () => {
-  assert.match(indexHtml, /id="openMyDailyQuizResultsCta"/);
-  assert.match(indexHtml, /onclick="window\.openDailyQuizResults\(\)"/);
-  assert.match(scriptJs, /window\.openDailyQuizResults = async function/);
+test('Personal published results remain available only through the separate My Results panel', () => {
+  assert.match(indexHtml, /id="myResultsPanel"/);
+  assert.match(indexHtml, /window\.BishnoiApp\.verifyMyResultIdentity\(\)/);
+  assert.match(scriptJs, /window\.renderMyResults = function renderMyResults/);
+  assert.match(scriptJs, /state\.resultsIdentityVerified === true/);
 });
 
 test('Community uses one unfiltered conversation instead of the removed topic picker', () => {

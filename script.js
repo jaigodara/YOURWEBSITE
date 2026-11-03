@@ -2443,42 +2443,14 @@ moreButton.textContent =
     renderEnrollmentStatus(state.user ? undefined : null);
   }
 
-  window.openDailyQuizResults = async function openDailyQuizResults() {
-    // Read from the same Firebase Auth session and result collection as the
-    // rest of the website. This also covers a click arriving just before the
-    // onAuthStateChanged UI callback has finished.
-    const activeFirebaseUser = state.auth?.currentUser ||
-      (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
-    if (state.user?.uid !== (activeFirebaseUser?.uid || null)) {
-      state.user = activeFirebaseUser || null;
-      state.profile = null;
+  window.openDailyQuizResults = function openDailyQuizResults() {
+    // Public daily winners are separate from each student's private exam results.
+    const panel = byId('dailyQuizResultsPanel');
+    if (!panel || panel.hidden || panel.classList.contains('hidden')) {
+      notify('दैनिक क्विज़ परिणाम अभी Owner द्वारा बंद हैं।', 'info');
+      return;
     }
-    if (!requireUser()) return;
-    const quizTab = byId('tab-quiz');
-    if (quizTab) quizTab.classList.add('show-daily-results');
-    const resultsPanel = byId('myResultsPanel');
-    if (resultsPanel) {
-      resultsPanel.hidden = false;
-      resultsPanel.classList.remove('hidden');
-    }
-    const intro = byId('myResultsIntro');
-    if (intro) intro.textContent = 'आपके प्रकाशित दैनिक क्विज़ परिणाम लोड हो रहे हैं…';
-    try {
-      const snapshot = await collection('publishedResults')
-        .where('uid', '==', state.user.uid)
-        .limit(100)
-        .get();
-      state.myResults = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(row => row.status === 'published')
-        .sort((a, b) => timestampMillis(b.publishedAt) - timestampMillis(a.publishedAt));
-      window.renderMyResults();
-    } catch (error) {
-      console.error('Daily quiz result lookup failed:', error);
-      if (intro) intro.textContent = 'आपके परिणाम लोड नहीं हो सके। कृपया इंटरनेट कनेक्शन और Firestore permissions जाँचें।';
-      notify('दैनिक क्विज़ परिणाम अभी लोड नहीं हो सके।', 'error');
-    }
-    byId('myResultsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   window.renderMyResults = function renderMyResults() {
@@ -2663,9 +2635,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['mainExamSection', c.mainExamVisible !== false],
     ['dailyQuizSection', c.dailyQuizVisible !== false],
     ['mainDailyQuizCta', c.dailyQuizVisible !== false],
-    ['mainDailyQuizResultsCta', c.dailyQuizResultsVisible !== false],
     ['examPortalCard', c.separateExamPortalVisible !== false && c.examPortalVisible !== false],
-    ['myResultsPanel', c.resultsVisible !== false || c.dailyQuizResultsVisible !== false]
+    ['myResultsPanel', c.resultsVisible !== false]
   ];
 
   // Apply the Owner Studio visibility settings to the main-site CTA cards as

@@ -517,15 +517,10 @@ document.addEventListener('DOMContentLoaded', () => {
          <p id="resultLookupStatus" class="text-[11px] text-stone-600" role="status" aria-live="polite"></p>
         </div>
       </section>
-      <div id="dailyQuizSection" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button id="mainDailyQuizResultsCta" type="button" onclick="document.getElementById('dailyWinnerDateLabel')?.scrollIntoView({behavior:'smooth',block:'center'})" class="w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 text-sm font-extrabold text-forest shadow-sm hover:bg-emerald-50">
-            🏆 आज के विजेता देखें
-          </button>
-          <button id="openMyDailyQuizResultsCta" type="button" onclick="window.openDailyQuizResults()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-950">
-            📊 दैनिक क्विज़ परिणाम दिखाएँ
-          </button>
-        </div>
+      <section id="dailyQuizResultsPanel" data-owner-visibility="dailyQuizResultsVisible" class="space-y-4" aria-label="दैनिक क्विज़ विजेता परिणाम">
+        <button id="openMyDailyQuizResultsCta" type="button" onclick="window.openDailyQuizResults()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-950">
+          📊 दैनिक क्विज़ परिणाम दिखाएँ
+        </button>
         <p id="dailyWinnerDateLabel" class="text-center text-xs font-bold text-stone-600" aria-live="polite">आज के विजेता अभी प्रकाशित नहीं हुए हैं।</p>
         <div class="grid grid-cols-3 gap-2 pt-2">
           <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col items-center">
@@ -547,7 +542,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="text-[10px] text-terracotta font-semibold" id="rank3Score">-</span>
           </div>
         </div>
+      </section>
 
+      <div id="dailyQuizSection" class="space-y-4">
         <div class="pt-4 border-t border-amber-200/60">
           <div id="quizCountdown" class="mb-3 rounded-xl bg-white/90 border border-amber-200 p-3 text-xs font-bold text-forest" aria-live="polite">परीक्षा समय जाँचा जा रहा है…</div>   
 <button type="button" onclick="document.getElementById('mainDailyQuizCta')?.scrollIntoView({behavior:'smooth',block:'start'})" id="mainStartQuizBtn" class="min-h-12 px-6 py-2.5 bg-forest hover:bg-emerald-950 text-white rounded-xl text-sm font-bold shadow-md transition">
