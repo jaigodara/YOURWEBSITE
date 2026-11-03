@@ -253,7 +253,6 @@
   data-studio-page="media">
   📚 साहित्य / मीडिया संपादन
 </button>
-          <button type="button" data-studio-page="polls" class="studio-nav-item">📊 समाज मतदान प्रबंधन</button>
         </nav>
       </aside>
       <div id="ownerStudioPageContent" class="min-w-0 space-y-6">
@@ -312,41 +311,6 @@
 
     <!-- PANE 1: DRAFTS, DAILY QUOTE & AMAVASYA MANAGER -->
     <div id="pane_overview" class="space-y-4">
-
-      <!-- COMPACT STUDENT, LOGIN AND EXAM RESULTS DASHBOARD -->
-      <section id="ownerDataDashboard" data-owner-only="true" class="rounded-2xl border-2 border-emerald-200 bg-white p-4 space-y-3">
-        <div class="flex items-center justify-between gap-2">
-          <div>
-            <h3 class="font-yatra text-base text-forest">📊 विद्यार्थी, लॉगिन और परीक्षा रिपोर्ट</h3>
-            <p class="text-[11px] text-stone-500">नामांकित विद्यार्थी, हाल के लॉगिन और क्विज़/मॉक/मुख्य परीक्षा परिणाम एक जगह।</p>
-          </div>
-          <button type="button" onclick="loadOwnerDataDashboard()" class="shrink-0 rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">↻ अपडेट</button>
-        </div>
-        <div id="ownerDataDashboardSummary" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <p class="col-span-full text-xs text-stone-500">रिपोर्ट लोड करने के लिए अपडेट दबाएँ।</p>
-        </div>
-        <details class="rounded-xl border border-stone-200 p-3">
-          <summary class="cursor-pointer text-xs font-bold text-forest">🎟️ परीक्षा में नामांकित विद्यार्थी</summary>
-          <div id="ownerEnrolledStudentsList" class="mt-2 space-y-2 text-xs"></div>
-        </details>
-        <details class="rounded-xl border border-stone-200 p-3">
-          <summary class="cursor-pointer text-xs font-bold text-forest">🟢 हाल में लॉगिन हुए खाते</summary>
-          <div id="ownerRecentLoginList" class="mt-2 space-y-2 text-xs"></div>
-        </details>
-        <details class="rounded-xl border border-stone-200 p-3">
-          <summary class="cursor-pointer text-xs font-bold text-forest">🏆 दैनिक क्विज़ परिणाम</summary>
-          <div id="ownerQuizResultsList" class="mt-2 space-y-2 text-xs"></div>
-        </details>
-        <details class="rounded-xl border border-stone-200 p-3">
-          <summary class="cursor-pointer text-xs font-bold text-forest">📝 मॉक परीक्षा परिणाम</summary>
-          <div id="ownerMockResultsList" class="mt-2 space-y-2 text-xs"></div>
-        </details>
-        <details class="rounded-xl border border-stone-200 p-3">
-          <summary class="cursor-pointer text-xs font-bold text-forest">🎓 मुख्य परीक्षा परिणाम</summary>
-          <div id="ownerMainResultsList" class="mt-2 space-y-2 text-xs"></div>
-        </details>
-        <p id="ownerDataDashboardStatus" class="text-[10px] text-stone-500" aria-live="polite">डेटा अपडेट होने की प्रतीक्षा में।</p>
-      </section>
 
       <section id="ownerDataExportPanel" data-editor-permission="reports" class="bg-white p-5 rounded-3xl border-2 border-amber-200 shadow-sm space-y-3">
         <h3 class="font-yatra text-base text-forest">⬇️ सुरक्षित डेटा डाउनलोड</h3>
@@ -1611,7 +1575,6 @@ if (environmentEl) {
           }
           if (isPrimaryOwner()) {
             listenTrustedEditors();
-            loadOwnerDataDashboard();
             loadExistingSettings();
             loadMaintenanceSettings();
             loadExamVisibilitySettings();
@@ -1660,7 +1623,7 @@ const OWNER_STUDIO_ROUTES = {
   media: {
     pane: 'pane_media',
     permission: 'media',
-    panels: []
+    panels: ['ownerCommunityPollManager']
   },
   questions: {
     pane: 'pane_quiz',
@@ -1708,15 +1671,10 @@ const OWNER_STUDIO_ROUTES = {
     pane: 'pane_system',
     permission: 'reports',
     panels: [
-      'ownerDataDashboard',
       'ownerDataExportPanel',
       'ownerExportPanel'
     ]
   },
-  polls: {
-    pane: 'pane_system',
-    permission: null,
-    panels: ['ownerCommunityPollManager']
   }
 };
 
@@ -1744,17 +1702,19 @@ function moveOwnerStudioPanels() {
   if (!systemPane) return;
 
   [
-    'ownerDataDashboard',
     'ownerDataExportPanel',
     'ownerExamVisibilitySettingsPanel',
-    'ownerProctoringPanel',
-    'ownerCommunityPollManager'
+    'ownerProctoringPanel'
   ].forEach(id => {
     const panel = document.getElementById(id);
     if (panel && !systemPane.contains(panel)) {
       systemPane.appendChild(panel);
     }
   });
+
+  const mediaPane = document.getElementById('pane_media');
+  const pollManager = document.getElementById('ownerCommunityPollManager');
+  if (pollManager && mediaPane && !mediaPane.contains(pollManager)) mediaPane.appendChild(pollManager);
 
   const questionPane = document.getElementById('pane_quiz');
   ['ownerExamSessionMonitorPanel', 'manualExamReviewSection'].forEach(id => {
@@ -1906,7 +1866,6 @@ function switchStudioPane(paneId) {
   }
 
   if (paneId === 'pane_overview' && isPrimaryOwner()) {
-    window.setTimeout(() => loadOwnerDataDashboard(), 0);
   }
 }
 
@@ -5086,116 +5045,6 @@ async function loadExamSessionQueue() {
       }
     }
     window.loadExamSessionQueue = loadExamSessionQueue;
-
-    function ownerDashboardMillis(value) {
-      if (!value) return 0;
-      if (typeof value.toMillis === 'function') return value.toMillis();
-      if (typeof value.toDate === 'function') return value.toDate().getTime();
-      const parsed = new Date(value).getTime();
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    function ownerDashboardText(id, message) {
-      const host = document.getElementById(id);
-      if (host) host.textContent = message;
-    }
-
-    function renderOwnerDashboardRows(hostId, rows, formatter, emptyText) {
-      const host = document.getElementById(hostId);
-      if (!host) return;
-      host.replaceChildren();
-      if (!rows.length) {
-        const empty = document.createElement('p');
-        empty.className = 'rounded-lg bg-stone-50 p-2 text-stone-500';
-        empty.textContent = emptyText;
-        host.appendChild(empty);
-        return;
-      }
-      rows.forEach(row => {
-        const line = document.createElement('div');
-        line.className = 'rounded-lg border border-stone-100 bg-stone-50 p-2 break-words';
-        line.textContent = formatter(row);
-        host.appendChild(line);
-      });
-    }
-
-    async function loadOwnerDataDashboard() {
-      if (!isPrimaryOwner()) {
-        ownerDashboardText('ownerDataDashboardStatus', 'यह रिपोर्ट केवल Owner के लिए है।');
-        return;
-      }
-      const status = document.getElementById('ownerDataDashboardStatus');
-      if (status) status.textContent = 'डेटा लोड हो रहा है…';
-      try {
-        const names = ['examEnrolledStudents', 'users', 'quizAttempts', 'mockExamSubmissions', 'mainExamSubmissions', 'publishedResults', 'reviews'];
-        const fetched = await Promise.all(names.map(async name => {
-          try {
-            const snap = await db.collection(name).limit(300).get();
-            return [name, { rows: snap.docs.map(doc => ({ id: doc.id, ...doc.data() })), error: null }];
-          } catch (error) {
-            return [name, { rows: [], error: error.message || String(error) }];
-          }
-        }));
-        const data = Object.fromEntries(fetched.map(([name, value]) => [name, value.rows]));
-        const errors = fetched.filter(([, value]) => value.error).map(([name, value]) => name + ': ' + value.error);
-        const publishedResults = data.publishedResults.filter(row => row.status === 'published');
-        const allSubmissions = [
-          ...data.quizAttempts.map(row => ({ ...row, _sourceCollection: 'quizAttempts' })),
-          ...data.mockExamSubmissions.map(row => ({ ...row, _sourceCollection: 'mockExamSubmissions' })),
-          ...data.mainExamSubmissions.map(row => ({ ...row, _sourceCollection: 'mainExamSubmissions' }))
-        ];
-        const reviewedKeys = new Set(data.reviews.map(row => row.sourceCollection + '_' + row.submissionId));
-        const awaitingReview = allSubmissions.filter(row => !reviewedKeys.has(row._sourceCollection + '_' + row.id)).length;
-        const enrolled = data.examEnrolledStudents.sort((a,b) => String(a.rollNumber || '').localeCompare(String(b.rollNumber || ''), undefined, { numeric:true }));
-        const recent = data.users.sort((a,b) => ownerDashboardMillis(b.lastSeenAt || b.lastLoginAt) - ownerDashboardMillis(a.lastSeenAt || a.lastLoginAt));
-        const onlineCutoff = Date.now() - 3 * 60 * 1000;
-        const online = recent.filter(row => row.presenceStatus === 'online' && ownerDashboardMillis(row.lastSeenAt) >= onlineCutoff);
-        const publishedCount = rows => rows.filter(row => row.resultPublished === true || row.manualReviewStatus === 'published' || row.mode === 'quiz').length;
-        const summary = document.getElementById('ownerDataDashboardSummary');
-        if (summary) {
-          summary.replaceChildren();
-          [
-            ['नामांकित', enrolled.length],
-            ['हाल में ऑनलाइन', online.length],
-            ['क्विज़ प्रयास', data.quizAttempts.length],
-            ['मॉक / मुख्य', data.mockExamSubmissions.length + ' / ' + data.mainExamSubmissions.length],
-            ['प्रकाशित परिणाम', publishedResults.length],
-            ['जाँच बाकी', awaitingReview]
-          ].forEach(([label, value]) => {
-            const tile = document.createElement('div');
-            tile.className = 'rounded-xl border border-stone-200 bg-stone-50 p-3';
-            const number = document.createElement('strong');
-            number.className = 'block text-lg text-forest';
-            number.textContent = String(value);
-            const caption = document.createElement('span');
-            caption.className = 'text-[10px] text-stone-500';
-            caption.textContent = label;
-            tile.append(number, caption);
-            summary.appendChild(tile);
-          });
-        }
-        renderOwnerDashboardRows('ownerEnrolledStudentsList', enrolled.slice(0,10), row =>
-          (row.fullName || row.name || row.displayName || 'विद्यार्थी') + ' · रोल: ' + (row.rollNumber || 'रोल नंबर जारी नहीं हुआ') + ' · स्थिति: ' + (row.verificationStatus || 'pending'), 'अभी नामांकन रिकॉर्ड नहीं मिले।');
-        renderOwnerDashboardRows('ownerRecentLoginList', recent.slice(0,10), row =>
-          (row.displayName || row.name || row.email || row.uid || row.id) + ' · ' + (row.email || 'ईमेल नहीं') + ' · ' +
-          (row.presenceStatus === 'online' && ownerDashboardMillis(row.lastSeenAt) >= onlineCutoff ? 'हाल में ऑनलाइन' : 'अंतिम गतिविधि: ' +
-          (ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt) ? new Date(ownerDashboardMillis(row.lastSeenAt || row.lastLoginAt)).toLocaleString('hi-IN') : 'समय उपलब्ध नहीं')), 'users collection में खाते नहीं मिले।');
-        const resultLine = row => (row.name || row.fullName || row.email || row.uid || row.id) + ' · ' +
-          (row.rollNumber || 'बिना रोल नंबर') + ' · अंक: ' +
-          (row.score ?? '—') + '/' + (row.total ?? '—') + ' · प्रकाशित';
-        const byMode = mode => publishedResults
-          .filter(row => mode === 'mock' ? ['mock1', 'mock2'].includes(row.mode) : row.mode === mode)
-          .sort((a,b) => ownerDashboardMillis(b.publishedAt) - ownerDashboardMillis(a.publishedAt))
-          .slice(0,100);
-        renderOwnerDashboardRows('ownerQuizResultsList', byMode('quiz').slice(0,10), resultLine, 'अभी कोई क्विज़ परिणाम प्रकाशित नहीं हुआ।');
-        renderOwnerDashboardRows('ownerMockResultsList', byMode('mock').slice(0,10), resultLine, 'अभी कोई मॉक परिणाम प्रकाशित नहीं हुआ।');
-        renderOwnerDashboardRows('ownerMainResultsList', byMode('main').slice(0,10), resultLine, 'अभी कोई मुख्य परीक्षा परिणाम प्रकाशित नहीं हुआ।');
-        if (status) status.textContent = 'अपडेट: ' + new Date().toLocaleString('hi-IN') + ' · हर सूची में अधिकतम 10 रिकॉर्ड दिखते हैं; अभी हर संग्रह से अधिकतम 300 रिकॉर्ड गिने गए हैं।' + (errors.length ? ' · Firebase अनुमति बाकी: ' + errors.join(' | ') + ' · publishedResults/reviews rules ठीक किए बिना परिणाम-जाँच उपलब्ध नहीं होगी।' : '');
-      } catch (error) {
-        if (status) status.textContent = 'रिपोर्ट लोड नहीं हुई: ' + error.message + ' · Firestore rules और collection access जाँचें।';
-      }
-    }
-    window.loadOwnerDataDashboard = loadOwnerDataDashboard;
 
     async function exportOwnerData(format) {
       if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('डेटा डाउनलोड के लिए Reports permission आवश्यक है।');
