@@ -725,6 +725,7 @@ notify(
     if (loginBtn) loginBtn.textContent = state.profile.displayName || 'Profile';
 
     await writeAccessLog();
+    window.renderCommunityPolls?.(window.__communityPollsCache || []);
   }
 
   async function writeAccessLog() {
@@ -3188,6 +3189,7 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   window.BishnoiCommunity = window.BishnoiCommunity || {};
   window.renderCommunityPolls = function renderCommunityPolls(polls) {
+    window.__communityPollsCache = Array.isArray(polls) ? polls : [];
     const host = byId('communityPollFeed');
     if (!host) return;
     host.replaceChildren();
@@ -3312,9 +3314,78 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   };
 
+  window.BishnoiCommunity.openAttachment = async function (type) {
+    ['communityEmojiPicker', 'communityAttachMenu'].forEach(id => byId(id)?.classList.add('hidden'));
+    if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।', 'error');
+    if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।', 'error');
+    if (type !== 'poll') return;
+    const title = String(window.prompt('पोल का प्रश्न लिखें (4–180 अक्षर):') || '').trim();
+    if (!title) return;
+    const labels = String(window.prompt('पोल के विकल्प अलग-अलग पंक्तियों में लिखें (2–6 विकल्प):') || '')
+      .split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+    if (title.length < 4 || title.length > 180 || labels.length < 2 || labels.length > 6 || labels.some(label => label.length > 80)) {
+      return notify('प्रश्न 4–180 अक्षरों में और 2–6 विकल्प (हर विकल्प अधिकतम 80 अक्षर) लिखें।', 'error');
+    }
+    try {
+      await collection('communityPolls').add({
+        title,
+        options: labels.map((text, index) => ({ id: 'option_' + (index + 1), text })),
+        optionIds: labels.map((text, index) => 'option_' + (index + 1)),
+        active: true,
+        createdBy: state.user.uid,
+        createdAt: serverTimestamp()
+      });
+      notify('पोल प्रकाशित हो गया।', 'success');
+    } catch (error) {
+      console.error('Community poll create failed:', error);
+      notify('पोल प्रकाशित नहीं हो सका। Owner अनुमति और इंटरनेट जाँचें।', 'error');
+    }
+  };
+  window.BishnoiCommunity.autoResize = function (textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  };
+  function bindCommunityComposerControls() {
+    const emojiToggle = byId('communityEmojiToggle');
+    const attachToggle = byId('communityAttachToggle');
+    const emojiPicker = byId('communityEmojiPicker');
+    const attachMenu = byId('communityAttachMenu');
+    if (emojiToggle && !emojiToggle.dataset.bound) {
+      emojiToggle.dataset.bound = '1';
+      emojiToggle.addEventListener('click', () => { attachMenu?.classList.add('hidden'); emojiPicker?.classList.toggle('hidden'); });
+    }
+    if (attachToggle && !attachToggle.dataset.bound) {
+      attachToggle.dataset.bound = '1';
+      attachToggle.addEventListener('click', () => { emojiPicker?.classList.add('hidden'); attachMenu?.classList.toggle('hidden'); });
+    }
+    if (emojiPicker && !emojiPicker.dataset.bound) {
+      emojiPicker.dataset.bound = '1';
+      emojiPicker.addEventListener('click', event => {
+        const button = event.target.closest('[data-community-emoji]');
+        if (!button) return;
+        window.BishnoiCommunity.insertEmoji(button.dataset.communityEmoji);
+        emojiPicker.classList.add('hidden');
+      });
+    }
+    if (attachMenu && !attachMenu.dataset.bound) {
+      attachMenu.dataset.bound = '1';
+      attachMenu.addEventListener('click', event => {
+        const button = event.target.closest('[data-community-attachment]');
+        if (button) void window.BishnoiCommunity.openAttachment(button.dataset.communityAttachment);
+      });
+    }
+  }
+  bindCommunityComposerControls();
+  document.addEventListener('click', event => {
+    if (event.target.closest('#communityEmojiToggle,#communityAttachToggle,#communityEmojiPicker,#communityAttachMenu')) return;
+    byId('communityEmojiPicker')?.classList.add('hidden');
+    byId('communityAttachMenu')?.classList.add('hidden');
+  });
+
   window.BishnoiCommunity.insertEmoji = function (emoji) {
     const input = byId('postText');
-    if (!input || !['🙏', '❤️', '🌿'].includes(emoji)) return;
+    if (!input || !['😀', '😂', '❤️', '🙏', '👍', '🎉', '🌿', '🔥', '✅', '💡', '📚', '🏆'].includes(emoji)) return;
     const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
     const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : input.value.length;
     input.setRangeText(emoji, start, end, 'end');

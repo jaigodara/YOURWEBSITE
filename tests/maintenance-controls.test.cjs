@@ -207,11 +207,13 @@ test('Maintenance bhajan buttons use the correct host styling and render the cur
   assert.match(scriptJs, /window\.renderAudioList\(state\.audioItems \|\| \[\]\)/);
 });
 
-test('Personal published results remain available only through the separate My Results panel', () => {
+test('Personal published results stay in My Results and are scoped to the signed-in UID without a second identity form', () => {
   assert.match(indexHtml, /id="myResultsPanel"/);
-  assert.match(indexHtml, /window\.BishnoiApp\.verifyMyResultIdentity\(\)/);
-  assert.match(scriptJs, /window\.renderMyResults = function renderMyResults/);
-  assert.match(scriptJs, /state\.resultsIdentityVerified === true/);
+  assert.doesNotMatch(indexHtml, /resultLookupRoll|resultLookupName|resultLookupDob|verifyMyResultIdentity/);
+  assert.match(scriptJs, /collection\('publishedResults'\)\.where\('uid', '==', state\.user\.uid\)/);
+  assert.match(scriptJs, /filter\(row => row\.status === 'published'\)/);
+  assert.match(scriptJs, /const resultsReleased = state\.examConfig\?\.resultsPublished === true/);
+  assert.match(scriptJs, /const rows = allRows\.filter\(row => row\.mode === 'quiz' \|\| resultsReleased\)/);
 });
 
 test('Community uses one unfiltered conversation instead of the removed topic picker', () => {
@@ -227,6 +229,17 @@ test('Owner Community poll manager is available only from its dedicated Owner St
   assert.match(ownerHtml, /polls:\s*\{\s*pane: 'pane_system',[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
   assert.match(ownerHtml, /const OWNER_STUDIO_ROUTE_PANELS = \[[\s\S]*?'ownerCommunityPollManager'/);
   assert.match(ownerHtml, /'ownerCommunityPollManager'\s*\]\.forEach/);
+});
+
+test('Community Poll and Event attachments show a neutral unavailable message to non-owners', () => {
+  assert.match(indexHtml, /data-community-attachment="poll"/);
+  assert.match(indexHtml, /data-community-attachment="event"/);
+  assert.doesNotMatch(indexHtml, /सामान्य सदस्यों के लिए उपलब्ध नहीं हैं/);
+  const start = scriptJs.indexOf('window.BishnoiCommunity.openAttachment = async function (type)');
+  const end = scriptJs.indexOf('window.BishnoiCommunity.autoResize', start);
+  const handler = scriptJs.slice(start, end);
+  assert.ok(handler.includes("if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।'"));
+  assert.ok(handler.includes("if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।'"));
 });
 
 test('Community reference controls use the existing Firebase conversation and owner moderation', () => {
