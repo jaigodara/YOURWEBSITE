@@ -2499,7 +2499,7 @@ moreButton.textContent =
       const publishedAt = dateValue?.toDate ? dateValue.toDate().toLocaleString('hi-IN') : (dateValue ? new Date(dateValue).toLocaleString('hi-IN') : '');
       const safeDate = publishedAt && publishedAt !== 'Invalid Date' ? escapeHtml(publishedAt) : '';
       const roll = row.rollNumber ? escapeHtml(row.rollNumber) : '';
-      const mode = escapeHtml(modeNames[row.mode] || row.mode || 'परीक्षा');
+      const mode = escapeHtml(row.examTitle || modeNames[row.mode] || row.mode || 'परीक्षा');
       return '<article class="results-card"><div class="results-card-top"><div class="min-w-0"><p class="results-eyebrow">परीक्षा परिणाम</p><h4 class="results-exam-name">' + mode + '</h4></div><span class="results-published"><span class="results-status-dot" aria-hidden="true"></span> परिणाम घोषित</span></div>' +
         (validScore ? '<div class="results-score-row">' + scoreText + '<div class="results-score-side"><span>प्राप्तांक</span><strong>' + percentage + '%</strong></div></div><div class="results-progress" role="progressbar" aria-label="प्राप्त अंक प्रतिशत" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + percentage + '"><span style="width:' + percentage + '%"></span></div>' : '<div class="results-score-locked">' + scoreText + '</div>') +
         feedback + '<div class="results-meta">' + (roll ? '<span><span aria-hidden="true">🎫</span> रोल नंबर: <strong>' + roll + '</strong></span>' : '') + (safeDate ? '<span><span aria-hidden="true">🕒</span> ' + safeDate + '</span>' : '') + '</div></article>';
@@ -2557,6 +2557,9 @@ window.toggleExamResultsRelease = async function toggleExamResultsRelease() {
 
 window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
+  const fixedTitles = { mock1: c.mock1DisplayName || 'मॉक परीक्षा 1', mock2: c.mock2DisplayName || 'मॉक परीक्षा 2', main: c.mainDisplayName || 'मुख्य परीक्षा' };
+  const titleTargets = [['#mockExam1Card h4', fixedTitles.mock1], ['#startMock1Btn', '🚀 ' + fixedTitles.mock1 + ' शुरू करें'], ['#mockExam2Card h4', fixedTitles.mock2], ['#startMock2Btn', '🚀 ' + fixedTitles.mock2 + ' शुरू करें'], ['#mainExamSection h3', fixedTitles.main], ['#startMainExamBtn', '🏁 ' + fixedTitles.main + ' शुरू करें']];
+  titleTargets.forEach(([selector, value]) => { const el = document.querySelector(selector); if (el) el.textContent = value; });
 
   // Keep the profile focused on account settings; no Owner message or exam shortcut is injected here.
   document.getElementById('profileOwnerNotice')?.remove();
@@ -3837,7 +3840,7 @@ window.renderExamVisibility = function renderExamVisibility() {
               <option value="mockExam_1">मॉक परीक्षा 1</option>
               <option value="mockExam_2">मॉक परीक्षा 2</option>
               <option value="mainExamQuestions">मुख्य परीक्षा</option>
-              <option value="customExamQuestions">कस्टम परीक्षा</option>
+              <option value="customExamQuestions">कस्टम परीक्षा (पुराने रिकॉर्ड)</option>
             </select>
           </label>
           <label class="text-sm font-semibold text-stone-700" data-custom-exam-target-wrap hidden>कस्टम परीक्षा चुनें
@@ -4631,6 +4634,8 @@ if (
 
               const resultRef = collection('publishedResults')
                 .doc('manual_' + mode + '_' + submissionId);
+              const submissionSnapshot = await submissionRef.get();
+              const submissionData = submissionSnapshot.exists ? submissionSnapshot.data() || {} : {};
 
               const batch = state.db.batch();
 
@@ -4651,8 +4656,12 @@ rollNumber: button.dataset.roll || null,
 fatherName: button.dataset.fatherName || '',
 email: button.dataset.email || '',
 mode,
+                examTitle: submissionData.examTitle || ({ main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2' }[mode] || mode),
                 score,
                 total,
+                ...(submissionData.passingMarks !== null && submissionData.passingMarks !== undefined && Number.isFinite(Number(submissionData.passingMarks)) ? { passingMarks: Number(submissionData.passingMarks), passed: score >= Number(submissionData.passingMarks) } : {}),
+                ...(submissionData.configuredTotalMarks !== null && submissionData.configuredTotalMarks !== undefined && Number.isFinite(Number(submissionData.configuredTotalMarks)) ? { configuredTotalMarks: Number(submissionData.configuredTotalMarks) } : {}),
+                ...(submissionData.configuredNegativeMarks !== null && submissionData.configuredNegativeMarks !== undefined && Number.isFinite(Number(submissionData.configuredNegativeMarks)) ? { configuredNegativeMarks: Number(submissionData.configuredNegativeMarks) } : {}),
                 status: 'published',
                 feedback,
                 sourceCollection,
@@ -5636,7 +5645,8 @@ const digits = String(value || '').replace(/\D/g, '');
       return;
     }
 
-    const durationMinutes = Math.max(1, Number(customExamRecord?.durationMinutes ?? (mode === 'quiz' ? (state.examConfig?.quizDurationMinutes ?? state.examConfig?.durationMinutes) : state.examConfig?.durationMinutes)) || CONFIG.defaultExamMinutes);
+    const modeDurationKey = ({ quiz: 'quizDurationMinutes', mock1: 'mock1DurationMinutes', mock2: 'mock2DurationMinutes', main: 'mainDurationMinutes' })[mode];
+    const durationMinutes = Math.max(1, Number(customExamRecord?.durationMinutes ?? (state.examConfig?.[modeDurationKey] ?? state.examConfig?.durationMinutes)) || CONFIG.defaultExamMinutes);
     const scheduledEndAt = (mode === 'quiz' ? Date.now() : scheduledStart) + durationMinutes * 60 * 1000;
     let lateEntryGranted = false;
     let ownerGrantedEndAt = null;
@@ -5710,6 +5720,18 @@ const digits = String(value || '').replace(/\D/g, '');
           question.marks = Math.round((Number.isFinite(value) && value > 0 ? value : 1) * scale * 10000) / 10000;
           question.negativeMarks = Number(customExamRecord.negativeMarks) >= 0 ? Number(customExamRecord.negativeMarks) : 0;
         });
+      }
+
+      if (!customExamId && ['mock1', 'mock2', 'main'].includes(mode) && questions.length) {
+        const config = state.examConfig || {};
+        const configuredTotal = Number(config[mode + 'TotalMarks']);
+        const configuredNegative = Number(config[mode + 'NegativeMarks']);
+        if (Number.isFinite(configuredTotal) && configuredTotal > 0) {
+          const baseTotal = questions.reduce((sum, question) => { const value = Number(question.marks ?? question.points ?? 1); return sum + (Number.isFinite(value) && value > 0 ? value : 1); }, 0);
+          const scale = configuredTotal / (baseTotal || questions.length);
+          questions.forEach(question => { const value = Number(question.marks ?? question.points ?? 1); question.marks = Math.round((Number.isFinite(value) && value > 0 ? value : 1) * scale * 10000) / 10000; });
+        }
+        if (Number.isFinite(configuredNegative) && configuredNegative >= 0) questions.forEach(question => { question.negativeMarks = configuredNegative; });
       }
 
       // Randomize question and option order only when the Owner enables it.
@@ -5797,10 +5819,10 @@ const digits = String(value || '').replace(/\D/g, '');
         sessionUnsubscribe: null,
         sessionId: null,
         customExamId: customExamId || null,
-        examTitle: customExamRecord?.title || null,
-        totalMarksConfigured: customExamRecord?.totalMarks ?? null,
-        passingMarksConfigured: customExamRecord?.passingMarks ?? null,
-        negativeMarksConfigured: customExamRecord?.negativeMarks ?? null
+        examTitle: customExamRecord?.title || state.examConfig?.[mode + 'DisplayName'] || ({ mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', main: 'मुख्य परीक्षा', quiz: 'दैनिक ज्ञान क्विज़' }[mode] || mode),
+        totalMarksConfigured: customExamRecord?.totalMarks ?? (Number(state.examConfig?.[mode + 'TotalMarks']) > 0 ? Number(state.examConfig?.[mode + 'TotalMarks']) : null),
+        passingMarksConfigured: customExamRecord?.passingMarks ?? (Number(state.examConfig?.[mode + 'PassingMarks']) >= 0 ? Number(state.examConfig?.[mode + 'PassingMarks']) : null),
+        negativeMarksConfigured: customExamRecord?.negativeMarks ?? (Number(state.examConfig?.[mode + 'NegativeMarks']) >= 0 ? Number(state.examConfig?.[mode + 'NegativeMarks']) : null)
       };
       persistActiveExam();
       if (!customExamId) {
@@ -5995,7 +6017,11 @@ const digits = String(value || '').replace(/\D/g, '');
       answers: { ...exam.answers },
       review: { ...exam.review },
       questionCollection: exam.customExamId ? 'customExamQuestions' : (CONFIG.examCollections[exam.mode] || exam.mode),
-      ...(exam.customExamId ? { customExamId: exam.customExamId, examTitle: exam.examTitle || 'कस्टम परीक्षा', configuredTotalMarks: Number(exam.totalMarksConfigured || maxMarks), passingMarks: Number(exam.passingMarksConfigured || 0), configuredNegativeMarks: Number(exam.negativeMarksConfigured || 0) } : {}),
+      ...(exam.customExamId ? { customExamId: exam.customExamId } : {}),
+      examTitle: exam.examTitle || exam.mode,
+      ...(Number.isFinite(Number(exam.totalMarksConfigured)) && Number(exam.totalMarksConfigured) > 0 ? { configuredTotalMarks: Number(exam.totalMarksConfigured) } : {}),
+      ...(exam.passingMarksConfigured !== null && exam.passingMarksConfigured !== undefined && Number.isFinite(Number(exam.passingMarksConfigured)) && Number(exam.passingMarksConfigured) >= 0 ? { passingMarks: Number(exam.passingMarksConfigured), passed: score >= Number(exam.passingMarksConfigured) } : {}),
+      ...(exam.negativeMarksConfigured !== null && exam.negativeMarksConfigured !== undefined && Number.isFinite(Number(exam.negativeMarksConfigured)) && Number(exam.negativeMarksConfigured) >= 0 ? { configuredNegativeMarks: Number(exam.negativeMarksConfigured) } : {}),
       questionOrder: exam.questions.map((question, index) => String(question.id || index)),
       questionSnapshots: exam.questions.map((question, index) => ({
         id: String(question.id || index),

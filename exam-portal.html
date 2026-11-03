@@ -623,6 +623,8 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
   db.collection("examConfig").doc("current").onSnapshot(snapshot => {
     const config = snapshot.exists ? snapshot.data() : {};
     window.__bishnoismExamConfig = config;
+    const slotTitles = { mock1: String(config.mock1DisplayName || 'मॉक परीक्षा 1'), mock2: String(config.mock2DisplayName || 'मॉक परीक्षा 2'), main: String(config.mainDisplayName || 'मुख्य परीक्षा') };
+    Object.entries(slotTitles).forEach(([mode, title]) => { const card = byId(mode === 'main' ? 'mainExamCard' : mode + 'Card'); if (!card) return; const heading = card.querySelector('h3'); const button = card.querySelector('[data-launch-exam]'); if (heading) heading.textContent = title; if (button) button.textContent = title + ' खोलें'; });
     const portalEnabled = config.examPortalVisible !== false &&
       config.separateExamPortalVisible !== false &&
       config.separateExamPortalActive !== false;
@@ -646,7 +648,9 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
       return;
     }
 
-    loadPublishedCustomExams(db);
+    const legacyHeading = byId('customExamsHeading'); const legacyCards = byId('customExamCards');
+    if (legacyHeading) legacyHeading.classList.add('hide');
+    if (legacyCards) { legacyCards.replaceChildren(); legacyCards.classList.add('hide'); }
     const mock1Visible = config.mock1Visible !== false;
     const mock2Visible = config.mock2Visible !== false;
 
@@ -664,7 +668,7 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
       config.mainExamVisible !== false,
       config.enrollmentVisible !== false,
       config.resultsVisible !== false,
-      (byId("customExamCards")?.children.length || 0) > 0
+      false
     ].filter(Boolean).length;
 
     setPortalStatus(
