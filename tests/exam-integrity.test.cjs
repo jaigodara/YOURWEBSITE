@@ -152,3 +152,35 @@ test('Exam archive controls use plain Hindi and show the actual failure code and
   assert.match(owner, /String\(error\.code \|\| 'unknown'\)/);
   assert.match(owner, /String\(error\.message \|\| error\)\.slice\(0, 220\)/);
 });
+
+test('fixed exam slots expose editable names and per-slot scoring settings', () => {
+  for (const id of ['ownerMock1DisplayName','ownerMock2DisplayName','ownerMainDisplayName','ownerMock1TotalMarks','ownerMock2TotalMarks','ownerMainTotalMarks','ownerMock1PassingMarks','ownerMock2PassingMarks','ownerMainPassingMarks']) assert.ok(owner.includes(id));
+  assert.ok(/class="[^"]*hidden[^"]*"[^>]*id="ownerCustomExamBuilder"/.test(owner));
+  assert.ok(script.includes("config[mode + 'TotalMarks']"));
+  assert.ok(script.includes("config[mode + 'NegativeMarks']"));
+  assert.ok(script.includes("state.examConfig?.[mode + 'PassingMarks']"));
+  assert.ok(owner.includes('customExamQuestions'), 'legacy archive compatibility must remain');
+});
+test('exam portal synchronizes fixed slot names and hides legacy custom cards without deleting records', () => {
+  const portal = readFileSync(path.join(root, 'exam-portal.html'), 'utf8');
+  for (const key of ['mock1DisplayName','mock2DisplayName','mainDisplayName']) assert.ok(portal.includes('config.' + key));
+  assert.ok(portal.includes('legacyCards.replaceChildren()'));
+});
+test('community Event uses neutral unavailable copy while public poll voting remains enabled', () => {
+  assert.ok(script.includes("if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।', 'error');"));
+  assert.ok(script.includes('window.BishnoiCommunity.votePoll'));
+  assert.ok(script.includes('transaction.set(voteRef'));
+});
+
+test('manually published exam results carry the configured exam title and passing threshold to the student result feed', () => {
+  assert.ok(script.includes('submissionData.examTitle'));
+  assert.ok(script.includes('submissionData.passingMarks'));
+  assert.ok(script.includes('passed: score >= Number(submissionData.passingMarks)'));
+  assert.ok(script.includes('row.examTitle || modeNames[row.mode]'));
+});
+
+test('fixed exam schedule end timestamps use each slot duration rather than the global default', () => {
+  assert.ok(owner.includes('mock1EndAt: asEndTimestamp(mock1StartAtMs, fixedExamSettings.mock1DurationMinutes)'));
+  assert.ok(owner.includes('mock2EndAt: asEndTimestamp(mock2StartAtMs, fixedExamSettings.mock2DurationMinutes)'));
+  assert.ok(owner.includes('mainEndAt: asEndTimestamp(mainStartAtMs, fixedExamSettings.mainDurationMinutes)'));
+});
