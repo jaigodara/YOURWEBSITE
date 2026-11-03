@@ -3193,13 +3193,6 @@ window.renderExamVisibility = function renderExamVisibility() {
     const host = byId('communityPollFeed');
     if (!host) return;
     host.replaceChildren();
-    if (!state.isOwner) {
-      const unavailable = document.createElement('p');
-      unavailable.className = 'rounded-xl border border-stone-200 bg-white p-4 text-center text-xs text-stone-500';
-      unavailable.textContent = 'यह सुविधा अभी उपलब्ध नहीं है।';
-      host.append(unavailable);
-      return;
-    }
     const activePolls = (Array.isArray(polls) ? polls : []).filter(poll => poll.active !== false);
     if (!activePolls.length) {
       const empty = document.createElement('p');
