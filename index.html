@@ -592,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
-      <section class="space-y-2">
+      <section id="communityPollSection" class="space-y-2">
         <h3 class="font-bold text-sm text-forest">📊 समाज का मतदान</h3>
         <div id="communityPollFeed" class="grid grid-cols-1 md:grid-cols-2 gap-3" aria-live="polite">
           <p class="text-xs text-stone-500">मतदान लोड हो रहा है…</p>
@@ -606,15 +606,26 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <div id="postEditor" class="hidden bg-white p-3.5 rounded-2xl border-2 border-emerald-800/20 shadow-md space-y-2.5">
-        <div class="flex flex-wrap items-center gap-2">
-          <button type="button" onclick="window.BishnoiCommunity.insertEmoji('🙏')" class="min-h-10 rounded-lg border border-stone-200 bg-stone-50 px-3 text-lg" aria-label="संदेश में 🙏 जोड़ें">🙏</button>
-          <button type="button" onclick="window.BishnoiCommunity.insertEmoji('❤️')" class="min-h-10 rounded-lg border border-stone-200 bg-stone-50 px-3 text-lg" aria-label="संदेश में ❤️ जोड़ें">❤️</button>
-          <button type="button" onclick="window.BishnoiCommunity.insertEmoji('🌿')" class="min-h-10 rounded-lg border border-stone-200 bg-stone-50 px-3 text-lg" aria-label="संदेश में 🌿 जोड़ें">🌿</button>
-          <span class="text-[10px] text-stone-500">त्वरित इमोजी</span>
+        <div id="communityEmojiPicker" class="hidden rounded-xl border border-stone-200 bg-white p-3 shadow-sm" aria-label="इमोजी चुनें">
+          <p class="mb-2 px-1 text-[10px] font-bold text-stone-500">त्वरित इमोजी</p>
+          <div class="grid grid-cols-6 gap-2 text-xl">
+            <button type="button" data-community-emoji="😀" class="rounded-lg p-1 hover:bg-amber-50">😀</button><button type="button" data-community-emoji="😂" class="rounded-lg p-1 hover:bg-amber-50">😂</button><button type="button" data-community-emoji="❤️" class="rounded-lg p-1 hover:bg-amber-50">❤️</button><button type="button" data-community-emoji="🙏" class="rounded-lg p-1 hover:bg-amber-50">🙏</button><button type="button" data-community-emoji="👍" class="rounded-lg p-1 hover:bg-amber-50">👍</button><button type="button" data-community-emoji="🎉" class="rounded-lg p-1 hover:bg-amber-50">🎉</button><button type="button" data-community-emoji="🌿" class="rounded-lg p-1 hover:bg-amber-50">🌿</button><button type="button" data-community-emoji="🔥" class="rounded-lg p-1 hover:bg-amber-50">🔥</button><button type="button" data-community-emoji="✅" class="rounded-lg p-1 hover:bg-amber-50">✅</button><button type="button" data-community-emoji="💡" class="rounded-lg p-1 hover:bg-amber-50">💡</button><button type="button" data-community-emoji="📚" class="rounded-lg p-1 hover:bg-amber-50">📚</button><button type="button" data-community-emoji="🏆" class="rounded-lg p-1 hover:bg-amber-50">🏆</button>
+          </div>
         </div>
-        <div class="flex flex-col sm:flex-row gap-2">
-          <textarea id="postText" rows="2" maxlength="300" placeholder="संदेश लिखें… (अधिकतम ३०० अक्षर)" class="min-w-0 flex-1 p-2.5 text-xs rounded-xl border border-stone-300 focus:outline-none resize-y"></textarea>
-          <button onclick="window.BishnoiCommunity.submitPost()" class="px-4 bg-forest text-white font-bold text-xs rounded-xl shadow">भेजें ➤</button>
+        <div id="communityAttachMenu" class="hidden rounded-xl border border-stone-200 bg-white p-2 shadow-sm">
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" data-community-attachment="poll" class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-left text-xs font-bold text-forest">📊 पोल (Poll)</button>
+            <button type="button" data-community-attachment="event" class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-left text-xs font-bold text-forest">📅 इवेंट (Event)</button>
+          </div>
+          <p class="mt-2 px-1 text-[10px] text-stone-500">ये सुविधाएँ अभी सामान्य सदस्यों के लिए उपलब्ध नहीं हैं।</p>
+        </div>
+        <div class="flex items-end gap-2">
+          <button type="button" id="communityEmojiToggle" class="h-10 w-10 shrink-0 rounded-full border border-stone-200 bg-stone-50 text-xl" aria-label="इमोजी खोलें">☺</button>
+          <button type="button" id="communityAttachToggle" class="h-10 w-10 shrink-0 rounded-full border border-stone-200 bg-stone-50 text-xl" aria-label="अटैचमेंट विकल्प खोलें">＋</button>
+          <div class="min-w-0 flex-1 rounded-2xl border border-stone-200 bg-stone-100 px-3 py-2">
+            <textarea id="postText" rows="1" maxlength="300" placeholder="संदेश लिखें…" class="w-full resize-none bg-transparent text-sm leading-relaxed outline-none" oninput="window.BishnoiCommunity.autoResize?.(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.BishnoiCommunity.submitPost();}"></textarea>
+          </div>
+          <button type="button" onclick="window.BishnoiCommunity.submitPost()" class="h-10 w-10 shrink-0 rounded-full bg-forest text-white text-lg shadow" aria-label="संदेश भेजें">➤</button>
         </div>
         <label class="block space-y-1">
           <span class="text-[10px] font-bold text-stone-600">📎 PDF / वेबसाइट लिंक (वैकल्पिक)</span>
