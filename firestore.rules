@@ -893,8 +893,8 @@ service cloud.firestore {
       allow delete: if examOwner();
 
       match /votes/{voterUid} {
-        allow read: if examOwner();
-        allow create: if examOwner()
+        allow read: if signedIn() && sectionMaintenanceAllows('community');
+        allow create: if signedIn()
           && voterUid == request.auth.uid
           && communityPostingAllowed()
           && communityUserNotBlocked(request.auth.uid)
