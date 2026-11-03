@@ -2566,7 +2566,6 @@ window.renderExamVisibility = function renderExamVisibility() {
     ['ownerShowDailyQuiz', 'dailyQuizVisible'],
     ['ownerShowDailyQuizResults', 'dailyQuizResultsVisible'],
     ['ownerShowExamPortal', 'separateExamPortalVisible'],
-    ['ownerShowMock', 'mockVisible'],
     ['ownerShowMock1', 'mock1Visible'],
     ['ownerShowMock2', 'mock2Visible'],
     ['ownerShowMainExam', 'mainExamVisible'],
@@ -2637,7 +2636,6 @@ window.renderExamVisibility = function renderExamVisibility() {
   // its introduction and active attempt UI; results have their own panel.
   const features = [
     ['enrollmentSection', c.enrollmentVisible !== false],
-    ['mockHub', c.mockVisible !== false],
     ['mockExam1Card', c.mock1Visible !== false],
     ['mockExam2Card', c.mock2Visible !== false],
     ['mainExamSection', c.mainExamVisible !== false],
