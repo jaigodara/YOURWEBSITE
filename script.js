@@ -2445,8 +2445,9 @@ moreButton.textContent =
 
   window.openDailyQuizResults = function openDailyQuizResults() {
     // Public daily winners are separate from each student's private exam results.
+    const feature = byId('dailyQuizResultsFeature');
     const panel = byId('dailyQuizResultsPanel');
-    if (!panel || panel.hidden || panel.classList.contains('hidden')) {
+    if (!feature || feature.hidden || feature.classList.contains('hidden') || !panel) {
       notify('दैनिक क्विज़ परिणाम अभी Owner द्वारा बंद हैं।', 'info');
       return;
     }

@@ -108,7 +108,8 @@ test('Exam archive copies and verifies records before deleting active records, w
 
 
 test('Daily Quiz results CTA opens the public winner leaderboard, separately from personal exam results', () => {
-  assert.match(indexHtml, /<section id="dailyQuizResultsPanel" data-owner-visibility="dailyQuizResultsVisible"/);
+  assert.match(indexHtml, /<section id="dailyQuizResultsFeature" data-owner-visibility="dailyQuizResultsVisible"/);
+  assert.match(indexHtml, /<section id="dailyQuizResultsPanel" class="space-y-4"/);
   const cta = indexHtml.match(/id="openMyDailyQuizResultsCta"[\s\S]{0,300}/)?.[0] || '';
   assert.match(cta, /window\.openDailyQuizResults\(\)/);
   assert.match(indexHtml, /id="dailyWinnerDateLabel"/);
@@ -126,7 +127,8 @@ test('Community actions use the current Firebase Auth session instead of waiting
 
 
 test('Owner daily-results toggle controls the complete winners panel and not the Main/Mock results desk', () => {
-  assert.match(indexHtml, /id="dailyQuizResultsPanel" data-owner-visibility="dailyQuizResultsVisible"/);
+  assert.match(indexHtml, /id="dailyQuizResultsFeature" data-owner-visibility="dailyQuizResultsVisible"/);
+  assert.match(indexHtml, /id="dailyQuizResultsPanel" class="space-y-4"/);
   assert.match(indexHtml, /id="openMyDailyQuizResultsCta"[^>]*onclick="window\.openDailyQuizResults\(\)"/);
   const visibilityStart = scriptJs.indexOf('window.renderExamVisibility = function renderExamVisibility()');
   const visibilityEnd = scriptJs.indexOf('const EXAM_SCHEDULES', visibilityStart);

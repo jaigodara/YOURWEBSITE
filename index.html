@@ -517,10 +517,11 @@ document.addEventListener('DOMContentLoaded', () => {
          <p id="resultLookupStatus" class="text-[11px] text-stone-600" role="status" aria-live="polite"></p>
         </div>
       </section>
-      <section id="dailyQuizResultsPanel" data-owner-visibility="dailyQuizResultsVisible" class="space-y-4" aria-label="दैनिक क्विज़ विजेता परिणाम">
+      <section id="dailyQuizResultsFeature" data-owner-visibility="dailyQuizResultsVisible" class="space-y-4">
         <button id="openMyDailyQuizResultsCta" type="button" onclick="window.openDailyQuizResults()" class="w-full rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-950">
           📊 दैनिक क्विज़ परिणाम दिखाएँ
         </button>
+        <section id="dailyQuizResultsPanel" class="space-y-4" aria-label="दैनिक क्विज़ विजेता परिणाम">
         <p id="dailyWinnerDateLabel" class="text-center text-xs font-bold text-stone-600" aria-live="polite">आज के विजेता अभी प्रकाशित नहीं हुए हैं।</p>
         <div class="grid grid-cols-3 gap-2 pt-2">
           <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-sm flex flex-col items-center">
@@ -542,6 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="text-[10px] text-terracotta font-semibold" id="rank3Score">-</span>
           </div>
         </div>
+        </section>
       </section>
 
       <div id="dailyQuizSection" class="space-y-4">
