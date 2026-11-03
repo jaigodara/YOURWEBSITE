@@ -3392,7 +3392,7 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   window.BishnoiCommunity.insertEmoji = function (emoji) {
     const input = byId('postText');
-    if (!input || !['🙏', '❤️', '🌿'].includes(emoji)) return;
+    if (!input || !['😀', '😂', '❤️', '🙏', '👍', '🎉', '🌿', '🔥', '✅', '💡', '📚', '🏆'].includes(emoji)) return;
     const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
     const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : input.value.length;
     input.setRangeText(emoji, start, end, 'end');
