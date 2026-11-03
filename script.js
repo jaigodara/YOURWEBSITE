@@ -725,6 +725,7 @@ notify(
     if (loginBtn) loginBtn.textContent = state.profile.displayName || 'Profile';
 
     await writeAccessLog();
+    window.renderCommunityPolls?.(window.__communityPollsCache || []);
   }
 
   async function writeAccessLog() {
@@ -3188,6 +3189,7 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   window.BishnoiCommunity = window.BishnoiCommunity || {};
   window.renderCommunityPolls = function renderCommunityPolls(polls) {
+    window.__communityPollsCache = Array.isArray(polls) ? polls : [];
     const host = byId('communityPollFeed');
     if (!host) return;
     host.replaceChildren();
