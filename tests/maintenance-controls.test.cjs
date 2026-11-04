@@ -191,7 +191,8 @@ test('Community includes owner-created polls with one vote per signed-in member 
   assert.match(ownerHtml, /id="ownerCommunityPollManager"/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.createPoll = async function/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.votePoll = async function/);
-  assert.match(scriptJs, /data-community-like/);
+  assert.match(scriptJs, /data-community-reaction="like"/);
+  assert.match(scriptJs, /data-community-reaction="dislike"/);
   assert.match(rules, /match \/communityPolls\/\{pollId\}/);
   assert.match(rules, /voterUid == request\.auth\.uid/);
 });
