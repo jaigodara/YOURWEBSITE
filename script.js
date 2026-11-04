@@ -3448,7 +3448,13 @@ window.renderExamVisibility = function renderExamVisibility() {
       input.value = '';
       notify('जवाब प्रकाशित हो गया।', 'success');
       const host = form?.parentElement?.querySelector('[data-community-replies]');
-      if (host) await window.BishnoiCommunity.loadReplies(postId, host);
+      if (host) {
+        host.dataset.expanded = 'true';
+        host.classList.remove('hidden');
+        const toggle = host.closest('article')?.querySelector('[data-community-replies-toggle]');
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        await window.BishnoiCommunity.loadReplies(postId, host);
+      }
     } catch (error) {
       console.error('Community reply failed:', error);
       notify('जवाब प्रकाशित नहीं हुआ। Firestore permissions जाँचें।', 'error');
