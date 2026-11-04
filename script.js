@@ -3096,6 +3096,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   }
 
+  window.BishnoiCommunity = window.BishnoiCommunity || {};
+
   window.renderCommunity = function renderCommunity(posts) {
     communityPostsCache = Array.isArray(posts) ? posts : [];
     const host = byId('communityFeed') || byId('communityPosts') || byId('postsList');
