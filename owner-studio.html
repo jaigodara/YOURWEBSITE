@@ -5572,8 +5572,14 @@ window.clearExamReviewFilters = clearExamReviewFilters;
         modeFilter.options[2].textContent = modeNames.mock2;
       }
       const selectedMode = modeFilter?.value || 'all';
-      const reviewLabel = examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all'
-        ? modeNames[selectedMode] : (collectionLabels[examReviewCollection] || examReviewCollection);
+      const selectedCustomExamId = document.getElementById('reviewCustomExamFilter')?.value || '';
+      const customExamLabel = selectedCustomExamId
+        ? (document.getElementById('reviewCustomExamFilter')?.selectedOptions?.[0]?.textContent?.split(' · ')[0] || 'कस्टम परीक्षा')
+        : '';
+      const reviewLabel = selectedCustomExamId
+        ? customExamLabel
+        : (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all'
+          ? modeNames[selectedMode] : (collectionLabels[examReviewCollection] || examReviewCollection));
       const reportButton = document.getElementById('printAllExamReviewButton');
       if (reportButton) reportButton.textContent = '📄 ' + reviewLabel + ' की सभी उत्तर-पत्र / जाँच रिपोर्ट PDF';
       if (queueStatus) queueStatus.textContent = reviewLabel + ' के उत्तर-पत्र लोड हो रहे हैं…';
@@ -5623,7 +5629,6 @@ return review ? {
         });
                const selectedDate =
           document.getElementById('reviewSubmissionDate')?.value || '';
-        const selectedCustomExamId = document.getElementById('reviewCustomExamFilter')?.value || '';
 
         const selectedStatus =
           document.getElementById('reviewSubmissionStatus')?.value || 'all';
@@ -5635,10 +5640,14 @@ return review ? {
           } else if (recordExamId) {
             return false;
           }
-          if (examReviewCollection === 'mainExamSubmissions' && d.mode && d.mode !== 'main') return false;
-          if (examReviewCollection === 'mockExamSubmissions' && d.mode && !['mock1', 'mock2'].includes(d.mode)) return false;
-          if (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all' && d.mode !== selectedMode) return false;
-          if (examReviewCollection === 'quizAttempts' && d.mode && d.mode !== 'quiz') return false;
+          // A selected custom exam is identified by its examId, not by the
+          // fixed main/mock/quiz mode field. Never discard it via a fixed-mode filter.
+          if (!selectedCustomExamId) {
+            if (examReviewCollection === 'mainExamSubmissions' && d.mode && d.mode !== 'main') return false;
+            if (examReviewCollection === 'mockExamSubmissions' && d.mode && !['mock1', 'mock2'].includes(d.mode)) return false;
+            if (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all' && d.mode !== selectedMode) return false;
+            if (examReviewCollection === 'quizAttempts' && d.mode && d.mode !== 'quiz') return false;
+          }
           const haystack = [
             d.name,
             d.fullName,
@@ -5733,7 +5742,7 @@ return review ? {
         }
         examReviewIndex = 0;
         renderCurrentExamReview();
-        if (queueStatus) queueStatus.textContent = (collectionLabels[examReviewCollection] || examReviewCollection) + ': ' + examReviewQueue.length + ' रिकॉर्ड मिले' + (queryText ? ' · खोज फ़िल्टर लागू' : '') + '।';
+        if (queueStatus) queueStatus.textContent = reviewLabel + ': ' + examReviewQueue.length + ' रिकॉर्ड मिले' + (queryText ? ' · खोज फ़िल्टर लागू' : '') + '।';
       } catch (e) {
         if (queueStatus) queueStatus.textContent = 'लोड असफल: ' + e.message + ' · Firestore rules/collection जाँचें।';
         list.innerHTML = '';
@@ -7073,7 +7082,12 @@ async function removeTrustedEditor(uid) {
       if (custom) loadCustomExamArchiveOptions();
     };
     document.getElementById('archiveCustomExamId')?.addEventListener('change', () => window.handleArchiveExamModeChange());
+    ['ownerMainDisplayName', 'ownerMock1DisplayName', 'ownerMock2DisplayName'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => window.handleArchiveExamModeChange());
+      document.getElementById(id)?.addEventListener('change', () => window.handleArchiveExamModeChange());
+    });
     loadCustomExamArchiveOptions();
+    window.handleArchiveExamModeChange();
 
     async function loadExamArchives() {
       if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट देखने की अनुमति नहीं है।');
@@ -7270,16 +7284,30 @@ async function removeTrustedEditor(uid) {
         if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड, ' + reviews.length + ' समीक्षा रिकॉर्ड, ' + customQuestions.length + ' कस्टम प्रश्न और ' + customAnswerKeys.length + ' निजी उत्तर-कुंजी रिकॉर्ड सत्यापित आर्काइव में सुरक्षित किए गए। प्रकाशित परिणाम विद्यार्थी इतिहास में सुरक्षित हैं।';
         await Promise.all([
           loadExamArchives(),
+          typeof loadExamVisibilitySettings === 'function' ? loadExamVisibilitySettings() : Promise.resolve(),
           typeof loadExamSubmissions === 'function' ? loadExamSubmissions() : Promise.resolve(),
           typeof loadExamSessionQueue === 'function' ? loadExamSessionQueue() : Promise.resolve(),
           typeof loadCustomExamArchiveOptions === 'function' ? loadCustomExamArchiveOptions() : Promise.resolve(),
-          typeof loadCustomExamRegistry === 'function' ? loadCustomExamRegistry() : Promise.resolve()
+          typeof loadCustomExamRegistry === 'function' ? loadCustomExamRegistry() : Promise.resolve(),
+          typeof refreshStudioAnalytics === 'function' ? refreshStudioAnalytics() : Promise.resolve()
         ]);
         const reviewSelect = document.getElementById('reviewSubmissionCollection');
         if (reviewSelect && reviewSelect.value === config.submissions) {
+          if (config.submissions === 'mockExamSubmissions' && !config.isCustom) {
+            const mockFilter = document.getElementById('reviewExamModeFilter');
+            if (mockFilter) mockFilter.value = mode;
+          }
+          const customFilter = document.getElementById('reviewCustomExamFilter');
+          if (customFilter) customFilter.value = config.isCustom ? customExamId : '';
+          const dateFilter = document.getElementById('reviewSubmissionDate');
+          if (dateFilter) dateFilter.value = '';
+          const statusFilter = document.getElementById('reviewSubmissionStatus');
+          if (statusFilter) statusFilter.value = 'all';
           resetExamSubmissionQueue();
           const list = document.getElementById('examSubmissionsList');
-          if (list) list.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">' + config.title + ' आर्काइव हो चुकी है। सक्रिय उत्तर-पत्र सूची रिफ्रेश की गई है।</p>';
+          if (list) list.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">' + config.title + ' का आर्काइव पूरा हुआ। इसी परीक्षा की सक्रिय उत्तर-पत्र सूची खाली करके रिफ्रेश की गई है; प्रकाशित परिणाम सुरक्षित हैं।</p>';
+          const queueStatus = document.getElementById('examReviewQueueStatus');
+          if (queueStatus) queueStatus.textContent = config.title + ': आर्काइव पूरा · सक्रिय समीक्षा सूची रिफ्रेश।';
         }
         showToast(config.title + ' आर्काइव हो गई और संबंधित सूचियाँ रिफ्रेश कर दी गईं।');
       } catch (error) {
