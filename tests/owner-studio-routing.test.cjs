@@ -54,7 +54,8 @@ test('Exam visibility settings do not read a missing mock master toggle or write
 });
 
 test('Exam portal shows each four-stage action once and removes the duplicate legacy cards', () => {
-  const portalMarkup = portalHtml.split('<script')[0];\n  for (const id of ['journeyRegistration', 'journeyAdmit', 'journeyLiveExam', 'journeyResults']) {
+  const portalMarkup = portalHtml.split('<script')[0];
+  for (const id of ['journeyRegistration', 'journeyAdmit', 'journeyLiveExam', 'journeyResults']) {
     assert.equal((portalMarkup.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id + ' should appear once');
   }
   for (const id of ['mainExamCard', 'enrollmentCard', 'resultsCard']) {
