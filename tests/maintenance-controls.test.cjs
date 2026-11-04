@@ -303,3 +303,10 @@ test('Completed exams can be archived with zero remaining records and refresh ow
   assert.match(ownerHtml, /खाली आर्काइव दर्ज करके परीक्षा की स्थिति और सूची भी रिफ्रेश की जाएगी/);
   assert.match(ownerHtml, /loadExamArchives\(\)[\s\S]*loadExamSessionQueue\(\)/);
 });
+
+test('Every locked section uses the same branded update-panel design as Home with section-specific copy', () => {
+  assert.match(scriptJs, /BISHNOISM • PLATFORM UPDATE/);
+  assert.match(scriptJs, /\$\{escapeHtml\(label\)\} — नए फीचर आ रहे हैं/);
+  assert.match(scriptJs, /bg-gradient-to-br from-amber-50 via-white to-emerald-50/);
+  assert.match(scriptJs, /अपडेट जारी/);
+});
