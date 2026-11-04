@@ -101,3 +101,12 @@ test("successful exam archive refreshes saved visibility, selected queue, sessio
   assert.match(workflow, /reviewCustomExamFilter/);
   assert.match(workflow, /सक्रिय समीक्षा सूची खाली करके रिफ्रेश की गई है/);
 });
+
+test('Saved exam display names update the archive action after Firestore settings load', () => {
+  const start = ownerStudio.indexOf('function loadExamVisibilitySettings');
+  const end = ownerStudio.indexOf('async function createManualEnrollment', start);
+  assert.ok(start >= 0 && end > start);
+  const loader = ownerStudio.slice(start, end);
+  assert.match(loader, /ownerMainStartLabel/);
+  assert.match(loader, /window\.handleArchiveExamModeChange\?\.\(\)/);
+});
