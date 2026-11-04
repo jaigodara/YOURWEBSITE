@@ -4301,6 +4301,10 @@ async function changeCustomExamStatus(nextStatus) {
         const previousSnap = await configRef.get();
         const previous = previousSnap.exists ? previousSnap.data() || {} : {};
         await configRef.set(config, { merge: true });
+        document.getElementById('ownerMock1StartLabel').textContent = config.mock1DisplayName + ' शुरू';
+        document.getElementById('ownerMock2StartLabel').textContent = config.mock2DisplayName + ' शुरू';
+        document.getElementById('ownerMainStartLabel').textContent = config.mainDisplayName + ' शुरू';
+        window.handleArchiveExamModeChange?.();
 
         const publishNotifications = document.getElementById('ownerPublishExamNotifications')?.checked === true;
         const scheduledText = ms => ms ? new Date(ms).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय Owner Studio में निर्धारित किया जाएगा';
@@ -4314,13 +4318,13 @@ async function changeCustomExamStatus(nextStatus) {
           notices.push(['दैनिक ज्ञान क्विज़ की सूचना', 'दैनिक ज्ञान क्विज़ की निर्धारित शुरुआत: ' + scheduledText(config.quizStartAtMs) + '। पंजीकरण की पुष्टि और निर्धारित समय के बाद प्रवेश करें।']);
         }
         if (config.mock1Visible && (previous.mock1Visible !== true || previous.mock1StartAtMs !== config.mock1StartAtMs)) {
-          notices.push(['मॉक परीक्षा 1 की सूचना', 'मॉक परीक्षा 1 की निर्धारित शुरुआत: ' + scheduledText(config.mock1StartAtMs) + '।']);
+          notices.push([config.mock1DisplayName + ' की सूचना', config.mock1DisplayName + ' की निर्धारित शुरुआत: ' + scheduledText(config.mock1StartAtMs) + '।']);
         }
         if (config.mock2Visible && (previous.mock2Visible !== true || previous.mock2StartAtMs !== config.mock2StartAtMs)) {
-          notices.push(['मॉक परीक्षा 2 की सूचना', 'मॉक परीक्षा 2 की निर्धारित शुरुआत: ' + scheduledText(config.mock2StartAtMs) + '।']);
+          notices.push([config.mock2DisplayName + ' की सूचना', config.mock2DisplayName + ' की निर्धारित शुरुआत: ' + scheduledText(config.mock2StartAtMs) + '।']);
         }
         if (config.mainExamVisible && (previous.mainExamVisible !== true || previous.mainStartAtMs !== config.mainStartAtMs)) {
-          notices.push(['मुख्य परीक्षा की सूचना', 'मुख्य परीक्षा की निर्धारित शुरुआत: ' + scheduledText(config.mainStartAtMs) + '। प्रवेश के लिए पंजीकरण की Owner द्वारा पुष्टि आवश्यक है।']);
+          notices.push([config.mainDisplayName + ' की सूचना', config.mainDisplayName + ' की निर्धारित शुरुआत: ' + scheduledText(config.mainStartAtMs) + '। प्रवेश के लिए पंजीकरण की Owner द्वारा पुष्टि आवश्यक है।']);
         }
         if (publishNotifications) for (const [title, message] of notices) {
           try {
@@ -4339,9 +4343,9 @@ async function changeCustomExamStatus(nextStatus) {
         }
         const startEvents = [
           ['quiz', config.quizStartAtMs, previous.quizStartAtMs, 'दैनिक ज्ञान परीक्षा शुरू हो गई', 'दैनिक ज्ञान परीक्षा का निर्धारित समय शुरू हो गया है।'],
-          ['mock1', config.mock1StartAtMs, previous.mock1StartAtMs, 'मॉक परीक्षा 1 शुरू हो गई', 'मॉक परीक्षा 1 का निर्धारित समय शुरू हो गया है।'],
-          ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, 'मॉक परीक्षा 2 शुरू हो गई', 'मॉक परीक्षा 2 का निर्धारित समय शुरू हो गया है।'],
-          ['main', config.mainStartAtMs, previous.mainStartAtMs, 'मुख्य परीक्षा शुरू हो गई', 'मुख्य परीक्षा का निर्धारित समय शुरू हो गया है।']
+          ['mock1', config.mock1StartAtMs, previous.mock1StartAtMs, config.mock1DisplayName + ' शुरू हो गई', config.mock1DisplayName + ' का निर्धारित समय शुरू हो गया है।'],
+          ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, config.mock2DisplayName + ' शुरू हो गई', config.mock2DisplayName + ' का निर्धारित समय शुरू हो गया है।'],
+          ['main', config.mainStartAtMs, previous.mainStartAtMs, config.mainDisplayName + ' शुरू हो गई', config.mainDisplayName + ' का निर्धारित समय शुरू हो गया है।']
         ];
         if (publishNotifications) for (const [mode, startAt, oldStartAt, title, body] of startEvents) {
           if (startAt && startAt <= Date.now() && (!oldStartAt || oldStartAt > Date.now())) {
