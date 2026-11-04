@@ -7147,10 +7147,7 @@ async function removeTrustedEditor(uid) {
             : (!data.customExamId && !data.examId && data.mode === mode);
         });
         const total = submissions.length + sessions.length + violations.length + reviews.length + reviewHistory.length + results.length + customQuestions.length + customAnswerKeys.length;
-        if (!total) {
-          if (status) status.textContent = 'इस परीक्षा मोड के लिए कोई सक्रिय या ऐतिहासिक रिकॉर्ड नहीं मिला।';
-          return;
-        }
+        if (!total && status) status.textContent = config.title + ' के लिए कोई सक्रिय रिकॉर्ड नहीं मिला। खाली आर्काइव दर्ज करके परीक्षा की स्थिति और सूची भी रिफ्रेश की जाएगी।';
         archiveRef = db.collection('examArchives').doc();
         await archiveRef.set({
           mode, title: config.title, ...(config.isCustom ? { customExamId } : {}), status: 'in_progress',
