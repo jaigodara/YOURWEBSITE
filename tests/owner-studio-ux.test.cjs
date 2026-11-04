@@ -54,3 +54,9 @@ test("manual exam review can print a complete batch report with identity and rev
   assert.match(ownerStudio, /जाँच का कारण/);
   assert.match(ownerStudio, /window\.print\(\)/);
 });
+
+test("Owner Studio groups poll management with Literature and Media and removes its separate route", () => {
+  assert.match(ownerStudio, /साहित्य \/ मीडिया एवं मतदान प्रबंधन/);
+  assert.doesNotMatch(ownerStudio, /data-studio-page="polls"/);
+  assert.match(ownerStudio, /media:\s*\{[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
+});

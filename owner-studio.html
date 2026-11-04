@@ -247,13 +247,7 @@
           <button type="button" data-studio-page="notifications" class="studio-nav-item">🔔 Notifications</button>
           <button type="button" data-studio-page="settings" class="studio-nav-item">⚙️ Settings</button>
           <button type="button" data-studio-page="exports" class="studio-nav-item">📊 Reports &amp; Exports</button>
-          <button
-  type="button"
-  class="studio-nav-item"
-  data-studio-page="media">
-  📚 साहित्य / मीडिया संपादन
-</button>
-          <button type="button" data-studio-page="polls" class="studio-nav-item">📊 समाज मतदान प्रबंधन</button>
+          <button<button type="button" data-studio-page="media" class="studio-nav-item">📚 साहित्य / मीडिया एवं मतदान प्रबंधन</button>
         </nav>
       </aside>
       <div id="ownerStudioPageContent" class="min-w-0 space-y-6">
@@ -1681,7 +1675,7 @@ const OWNER_STUDIO_ROUTES = {
   media: {
     pane: 'pane_media',
     permission: 'media',
-    panels: []
+    panels: ['ownerCommunityPollManager']
   },
   questions: {
     pane: 'pane_quiz',
@@ -1725,11 +1719,6 @@ const OWNER_STUDIO_ROUTES = {
       'ownerProctoringPanel'
     ]
   },
-  polls: {
-    pane: 'pane_system',
-    permission: null,
-    panels: ['ownerCommunityPollManager']
-  },
   exports: {
     pane: 'pane_system',
     permission: 'reports',
@@ -1768,8 +1757,7 @@ function moveOwnerStudioPanels() {
     'ownerDataDashboard',
     'ownerDataExportPanel',
     'ownerExamVisibilitySettingsPanel',
-    'ownerProctoringPanel',
-    'ownerCommunityPollManager'
+    'ownerProctoringPanel'
   ].forEach(id => {
     const panel = document.getElementById(id);
     if (panel && !systemPane.contains(panel)) {
@@ -1782,6 +1770,10 @@ function moveOwnerStudioPanels() {
     const panel = document.getElementById(id);
     if (panel && questionPane && !questionPane.contains(panel)) questionPane.appendChild(panel);
   });
+  const mediaPane = document.getElementById('pane_media');
+  const pollPanel = document.getElementById('ownerCommunityPollManager');
+  if (pollPanel && mediaPane && !mediaPane.contains(pollPanel)) mediaPane.appendChild(pollPanel);
+  if (pollPanel) pollPanel.setAttribute('data-owner-only', 'true');
 }
 
 function openStudioPage(page) {
@@ -4977,8 +4969,13 @@ next.addEventListener('click', async () => {
         const sessionRef = db.collection('examSessions').doc(sessionId);
         const sessionSnap = await sessionRef.get();
         const currentSession = sessionSnap.exists ? sessionSnap.data() || {} : {};
+        if (!sessionSnap.exists) return showToast('परीक्षा सत्र अब उपलब्ध नहीं है। सूची रिफ्रेश करें।');
+        if (currentSession.status !== 'late_request' && status !== 'kicked') return showToast('यह पुनः प्रवेश अनुरोध पहले ही संसाधित हो चुका है।');
         const update = {
           status,
+          lateEntryRequested: false,
+          reentryDecision: status === 'active' ? 'approved' : status === 'denied' ? 'denied' : (currentSession.reentryDecision || ''),
+          reentryDecidedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: auth.currentUser?.uid || null
         };
@@ -5062,7 +5059,7 @@ async function loadExamSessionQueue() {
         const snap = await db.collection('examSessions').orderBy('updatedAt', 'desc').limit(100).get();
         const now = Date.now();
         const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(row => ['active', 'kicked', 'denied', 'late_request'].includes(row.status))
+          .filter(row => ['active', 'kicked', 'late_request'].includes(row.status))
           // Expired active records are completed attempts, not live monitoring work.
           .filter(row => !(row.status === 'active' && Number(row.endAtMs) > 0 && Number(row.endAtMs) <= now));
         if (!rows.length) {
@@ -5087,7 +5084,7 @@ async function loadExamSessionQueue() {
           card.append(title, detail);
           const actions = document.createElement('div');
           actions.className = 'flex flex-wrap gap-2';
-          if (row.status !== 'active') {
+          if (row.status === 'late_request') {
             const allow = document.createElement('button');
             allow.type = 'button';
             allow.className = 'rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white';
@@ -5106,7 +5103,7 @@ async function loadExamSessionQueue() {
             });
             actions.appendChild(kick);
           }
-          if (row.status !== 'denied') {
+          if (row.status === 'late_request') {
             const deny = document.createElement('button');
             deny.type = 'button';
             deny.className = 'rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-bold text-red-700';
@@ -6994,14 +6991,18 @@ async function removeTrustedEditor(uid) {
     }
 
     window.handleArchiveExamModeChange = function handleArchiveExamModeChange() {
-      const custom = document.getElementById('archiveExamMode')?.value === 'custom';
+      const mode = document.getElementById('archiveExamMode')?.value || '', custom = mode === 'custom';
       document.getElementById('archiveCustomExamWrap')?.classList.toggle('hidden', !custom);
+      const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
+      const labels = { main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', quiz: 'दैनिक क्विज़', custom: 'कस्टम परीक्षा' };
+      const selected = document.getElementById('archiveCustomExamId');
+      const label = custom ? (selected?.selectedOptions?.[0]?.textContent?.split(' · ')[0] || labels.custom) : (labels[mode] || 'परीक्षा');
+      if (button) button.textContent = '🗄️ ' + label + ' का रिकॉर्ड सुरक्षित करें और सक्रिय सूची साफ करें';
+      const status = document.getElementById('examArchiveActionStatus');
+      if (status) status.textContent = label + ' के रिकॉर्ड ही आर्काइव होंगे। सभी प्रयास जमा या समाप्त होने चाहिए।';
       if (custom) loadCustomExamArchiveOptions();
     };
-    document.getElementById('archiveCustomExamId')?.addEventListener('change', () => {
-      const status = document.getElementById('examArchiveActionStatus');
-      if (status) status.textContent = 'चुनी गई कस्टम परीक्षा के सक्रिय रिकॉर्ड आर्काइव किए जाएँगे।';
-    });
+    document.getElementById('archiveCustomExamId')?.addEventListener('change', () => window.handleArchiveExamModeChange());
     loadCustomExamArchiveOptions();
 
     async function loadExamArchives() {
@@ -7054,6 +7055,7 @@ async function removeTrustedEditor(uid) {
         }
       }
       if (!config) return showToast('परीक्षा मोड चुनें।');
+      if (status) status.textContent = config.title + ' के रिकॉर्ड चुने गए हैं। आर्काइव से पहले सभी लंबित प्रयासों की जाँच होगी।';
       if (!window.confirm(config.title + ' के सक्रिय उत्तर-पत्र/सत्र आर्काइव करके सक्रिय समीक्षा कतार साफ करें? प्रकाशित परिणाम सुरक्षित रहेंगे।')) return;
       const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
       if (button) button.disabled = true;
@@ -7199,9 +7201,20 @@ async function removeTrustedEditor(uid) {
         }
         await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
         if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड, ' + reviews.length + ' समीक्षा रिकॉर्ड, ' + customQuestions.length + ' कस्टम प्रश्न और ' + customAnswerKeys.length + ' निजी उत्तर-कुंजी रिकॉर्ड सत्यापित आर्काइव में सुरक्षित किए गए। प्रकाशित परिणाम विद्यार्थी इतिहास में सुरक्षित हैं।';
-        await loadExamArchives();
-        if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
-        showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');
+        await Promise.all([
+          loadExamArchives(),
+          typeof loadExamSubmissions === 'function' ? loadExamSubmissions() : Promise.resolve(),
+          typeof loadExamSessionQueue === 'function' ? loadExamSessionQueue() : Promise.resolve(),
+          typeof loadCustomExamArchiveOptions === 'function' ? loadCustomExamArchiveOptions() : Promise.resolve(),
+          typeof loadCustomExamRegistry === 'function' ? loadCustomExamRegistry() : Promise.resolve()
+        ]);
+        const reviewSelect = document.getElementById('reviewSubmissionCollection');
+        if (reviewSelect && reviewSelect.value === config.submissions) {
+          resetExamSubmissionQueue();
+          const list = document.getElementById('examSubmissionsList');
+          if (list) list.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">' + config.title + ' आर्काइव हो चुकी है। सक्रिय उत्तर-पत्र सूची रिफ्रेश की गई है।</p>';
+        }
+        showToast(config.title + ' आर्काइव हो गई और संबंधित सूचियाँ रिफ्रेश कर दी गईं।');
       } catch (error) {
         console.error('Exam archive failed:', error);
         if (archiveRef) {

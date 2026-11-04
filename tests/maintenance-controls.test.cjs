@@ -168,13 +168,14 @@ test('Home maintenance shows Owner-published YouTube and audio media cards using
   assert.match(mediaJs, /openMedia\(item\)/);
 });
 
-test('Community supports one private per-member emoji reaction with server-side validation', () => {
+test('Community uses private per-member like/dislike reactions with server-side validation', () => {
   assert.match(scriptJs, /window\.BishnoiCommunity\.loadReactions = async function/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.toggleReaction = async function/);
-  assert.match(scriptJs, /data-community-reaction-bar/);
+  assert.match(scriptJs, /data-community-reaction="like"/);
+  assert.match(scriptJs, /data-community-reaction="dislike"/);
   assert.match(rules, /match \/reactions\/\{reactorUid\}/);
   assert.match(rules, /reactorUid == request\.auth\.uid/);
-  assert.match(rules, /'❤️', '🙏', '🙂', '👏'/);
+  assert.match(rules, /'like', 'dislike'/);
 });
 
 test('Community read receipts count one first read per signed-in member without exposing reader identities', () => {
@@ -222,13 +223,12 @@ test('Community uses one unfiltered conversation instead of the removed topic pi
   assert.match(indexHtml, /id="postEditor"/);
 });
 
-test('Owner Community poll manager is available only from its dedicated Owner Studio route', () => {
+test('Owner Community poll manager is grouped under Literature and Media management', () => {
   assert.equal((ownerHtml.match(/id="ownerCommunityPollManager"/g) || []).length, 1);
-  assert.match(ownerHtml, /data-studio-page="polls"/);
-  assert.match(ownerHtml, /id="ownerCommunityPollManager" class="hidden /);
-  assert.match(ownerHtml, /polls:\s*\{\s*pane: 'pane_system',[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
+  assert.match(ownerHtml, /data-studio-page="media"/);
+  assert.doesNotMatch(ownerHtml, /data-studio-page="polls"/);
+  assert.match(ownerHtml, /media:\s*\{\s*pane: 'pane_media',[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
   assert.match(ownerHtml, /const OWNER_STUDIO_ROUTE_PANELS = \[[\s\S]*?'ownerCommunityPollManager'/);
-  assert.match(ownerHtml, /'ownerCommunityPollManager'\s*\]\.forEach/);
 });
 
 test('Community Poll and Event attachments show a neutral unavailable message to non-owners', () => {

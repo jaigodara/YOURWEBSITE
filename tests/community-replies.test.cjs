@@ -27,3 +27,13 @@ test('Community replies obey global and section maintenance locks', () => {
   assert.match(replyHandler, /globalBlocked/);
   assert.match(replyHandler, /mode === 'posting_only' \|\| mode === 'both'/);
 });
+
+test('Community renders like/dislike controls and expandable response counts inside one conversation stream', () => {
+  assert.match(script, /data-community-reaction="like"/);
+  assert.match(script, /data-community-reaction="dislike"/);
+  assert.match(script, /data-community-replies-toggle/);
+  assert.match(script, /data-reply-count/);
+  assert.match(script, /window\.renderCommunityPolls\?\.\(window\.__communityPollsCache/);
+  assert.match(index, /id="communityPollFeed"/);
+  assert.doesNotMatch(index, /id="communityPollSection"/);
+});
