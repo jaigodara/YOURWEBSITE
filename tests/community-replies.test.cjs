@@ -47,7 +47,7 @@ test('Community renders like/dislike controls and expandable response counts ins
 test('Community feedback uses an accessible modern composer and reports submission state', () => {
   assert.match(index, /id="communityFeedbackComposer"/);
   assert.match(index, /id="communityFeedbackCount"/);
-  assert.match(index, /id="communityFeedbackStatus" role="status"/);
+  assert.match(index, /id="communityFeedbackStatus"[^>]*role="status"/);
   assert.match(index, /प्रतिक्रिया भेजें/);
   assert.match(script, /window\.BishnoiCommunity\.submitFeedback = async function/);
   assert.match(script, /धन्यवाद! आपका सुझाव मंच प्रबंधन टीम तक पहुँच गया है।/);
