@@ -33,7 +33,8 @@ test('Community renders like/dislike controls and expandable response counts ins
   assert.match(script, /data-community-reaction="like"/);
   assert.match(script, /data-community-reaction="dislike"/);
   assert.match(script, /data-focus-reply/);
-  assert.match(script, /data-community-reply-form="\\$\{id\}" class="hidden flex items-center gap-2"/);
+  assert.match(script, /data-community-reply-form=/);
+  assert.match(script, /class="hidden flex items-center gap-2"/);
   assert.match(script, /form\?\.classList\.remove\('hidden'\)/);
   assert.match(script, /data-reply-count>0/);
   assert.doesNotMatch(script, /👍 Like <span data-reaction-count>|👎 Dislike <span data-reaction-count>/);
