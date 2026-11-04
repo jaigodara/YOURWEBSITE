@@ -3113,8 +3113,9 @@ window.renderExamVisibility = function renderExamVisibility() {
       const body = post.body || post.text || post.content || '', author = post.displayName || post.authorName || 'समाज का सदस्य';
       const when = post.createdAt && typeof post.createdAt.toDate === 'function' ? post.createdAt.toDate().toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
       const mine = !!state.user && post.uid === state.user.uid, pinned = post.pinnedByOwner === true, id = escapeHtml(post.id || '');
+      const topic = post.topic || 'सामान्य चर्चा';
       return `<article class="bx-chat-message rounded-xl border p-3.5 shadow-sm space-y-2 ${mine ? 'bx-chat-message-mine' : 'bx-chat-message-other'}" data-post-id="${id}">
-        <div class="flex items-center justify-between gap-2"><strong class="truncate text-xs text-[#143622]">${escapeHtml(author)}</strong><span class="text-[10px] text-stone-500">${escapeHtml(when)}</span></div>
+        <div class="flex items-center justify-between gap-2"><div class="flex min-w-0 items-center gap-2"><strong class="truncate text-xs text-[#143622]">${escapeHtml(author)}</strong><span class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800">${escapeHtml(topic)}</span></div><span class="text-[10px] text-stone-500">${escapeHtml(when)}</span></div>
         ${pinned ? '<div class="text-[10px] font-bold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
         <p class="text-sm leading-relaxed text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
         ${post.linkUrl && /^https?:\/\//i.test(String(post.linkUrl)) ? '<a class="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
