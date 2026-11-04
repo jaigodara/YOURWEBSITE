@@ -3120,9 +3120,9 @@ window.renderExamVisibility = function renderExamVisibility() {
         <p class="text-sm leading-relaxed text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
         ${post.linkUrl && /^https?:\/\//i.test(String(post.linkUrl)) ? '<a class="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
         <div class="flex items-center gap-5 border-t border-stone-100 pt-2"><div class="flex items-center gap-4" data-community-reaction-bar="${id}">
-          <button type="button" data-community-reaction="like" aria-pressed="false" class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600">👍 Like <span data-reaction-count>0</span></button>
-          <button type="button" data-community-reaction="dislike" aria-pressed="false" class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600">👎 Dislike <span data-reaction-count>0</span></button>
-        </div><button type="button" data-community-replies-toggle="${id}" class="text-xs font-semibold text-stone-600"><span data-reply-count>0</span> Responses</button></div>
+          <button type="button" data-community-reaction="like" aria-label="Like" aria-pressed="false" class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 text-xs font-semibold text-[#5f6b63] transition hover:bg-[#f0f5ef]">👍 <span data-reaction-count>0</span></button>
+          <button type="button" data-community-reaction="dislike" aria-label="Dislike" aria-pressed="false" class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 text-xs font-semibold text-[#5f6b63] transition hover:bg-[#f0f5ef]">👎 <span data-reaction-count>0</span></button>
+        </div><div class="flex items-center gap-4"><button type="button" class="min-h-8 rounded-full px-2 text-xs font-semibold text-[#5f6b63] hover:bg-[#f0f5ef]" data-focus-reply="${id}">Reply</button><button type="button" data-community-replies-toggle="${id}" aria-expanded="false" class="min-h-8 rounded-full px-2 text-xs font-semibold text-[#315c40] hover:bg-[#f0f5ef]"><span data-reply-count>0</span> Responses</button></div></div>
         <section class="space-y-2 border-t border-stone-100 pt-2"><div data-community-replies="${id}" class="hidden space-y-2 pl-3"></div>
           <form data-community-reply-form="${id}" class="flex items-center gap-2"><label class="sr-only" for="community-reply-${id}">जवाब लिखें</label><input id="community-reply-${id}" data-community-reply-input maxlength="500" class="min-w-0 flex-1 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-xs text-stone-800" placeholder="Reply…" autocomplete="off"><button type="submit" class="rounded-full px-3 py-2 text-xs font-bold text-[#143622]">Reply</button></form>
         </section><div class="flex flex-wrap items-center justify-between gap-2"><span class="text-[10px] text-stone-500">${mine ? 'आप' : escapeHtml(author)} · 👁 ${Number(post.readCount || 0)} ने पढ़ा</span>
@@ -3132,6 +3132,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     }).join('');
     host.querySelectorAll('[data-community-reaction-bar]').forEach(bar => { const id = bar.dataset.communityReactionBar; void window.BishnoiCommunity.loadReactions(id, bar); bar.querySelectorAll('[data-community-reaction]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.toggleReaction(id, button.dataset.communityReaction, bar))); });
     host.querySelectorAll('[data-community-replies-toggle]').forEach(button => button.addEventListener('click', () => { const replies = button.closest('article')?.querySelector('[data-community-replies]'); if (!replies) return; const opening = replies.classList.contains('hidden'); replies.classList.toggle('hidden', !opening); replies.dataset.expanded = String(opening); button.setAttribute('aria-expanded', String(opening)); }));
+    host.querySelectorAll('[data-focus-reply]').forEach(button => button.addEventListener('click', () => { const input = button.closest('article')?.querySelector('[data-community-reply-input]'); input?.focus(); }));
     host.querySelectorAll('[data-pin-community-post]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.togglePinned(button.dataset.pinCommunityPost)));
     host.querySelectorAll('[data-delete-community-post]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost)));
     host.querySelectorAll('[data-block-community-user]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.blockUser(button.dataset.blockCommunityUser, button)));
@@ -3359,8 +3360,15 @@ window.renderExamVisibility = function renderExamVisibility() {
   window.BishnoiCommunity.submitFeedback = async function () {
     if (!requireUser()) return;
     const input = byId('communityFeedbackText');
+    const status = byId('communityFeedbackStatus');
+    const button = byId('communityFeedbackSubmit');
     const body = String(input?.value || '').trim();
-    if (!body || body.length > 1000) return notify('कृपया 1 से 1000 अक्षरों में सुझाव लिखें।', 'error');
+    if (!body || body.length > 1000) {
+      if (status) status.textContent = 'कृपया 1 से 1000 अक्षरों में अपना सुझाव लिखें।';
+      return notify('कृपया 1 से 1000 अक्षरों में सुझाव लिखें।', 'error');
+    }
+    if (button) { button.disabled = true; button.textContent = 'भेजा जा रहा है…'; }
+    if (status) status.textContent = 'आपका सुझाव सुरक्षित रूप से भेजा जा रहा है…';
     try {
       await collection('communityFeedback').add({
         uid: state.user.uid,
@@ -3370,10 +3378,16 @@ window.renderExamVisibility = function renderExamVisibility() {
         createdAt: serverTimestamp()
       });
       input.value = '';
+      const counter = byId('communityFeedbackCount');
+      if (counter) counter.textContent = '0 / 1000';
+      if (status) status.textContent = 'धन्यवाद! आपका सुझाव मंच प्रबंधन टीम तक पहुँच गया है।';
       notify('आपका सुझाव Owner तक भेज दिया गया।', 'success');
     } catch (error) {
       console.error('Community feedback failed:', error);
+      if (status) status.textContent = 'सुझाव नहीं भेजा जा सका। कृपया इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।';
       notify('सुझाव नहीं भेजा जा सका। कृपया फिर प्रयास करें।', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.innerHTML = 'प्रतिक्रिया भेजें <span aria-hidden="true">→</span>'; }
     }
   };
   window.BishnoiCommunity.filterTopic = function (topic) {
