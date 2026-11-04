@@ -759,7 +759,7 @@ service cloud.firestore {
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('body', null) is string
         && request.resource.data.body.size() <= 2000
-        && (!('linkUrl' in request.resource.data) || owner())
+        && (!('linkUrl' in request.resource.data) || examOwner())
         && (!('linkUrl' in request.resource.data)
           || (request.resource.data.linkUrl is string
             && request.resource.data.linkUrl.size() <= 2000
