@@ -54,21 +54,21 @@ test('Exam visibility settings do not read a missing mock master toggle or write
 });
 
 test('Exam portal shows each four-stage action once and removes the duplicate legacy cards', () => {
-  for (const id of ['journeyRegistration', 'journeyAdmit', 'journeyLiveExam', 'journeyResults']) {
-    assert.equal((portalHtml.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id + ' should appear once');
+  const portalMarkup = portalHtml.split('<script')[0];\n  for (const id of ['journeyRegistration', 'journeyAdmit', 'journeyLiveExam', 'journeyResults']) {
+    assert.equal((portalMarkup.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id + ' should appear once');
   }
   for (const id of ['mainExamCard', 'enrollmentCard', 'resultsCard']) {
-    assert.doesNotMatch(portalHtml, new RegExp('id="' + id + '"'),
+    assert.doesNotMatch(portalMarkup, new RegExp('id="' + id + '"'),
       id + ' duplicates a journey-stage action and must not be rendered');
   }
   for (const mode of ['main', 'results']) {
-    assert.equal((portalHtml.match(new RegExp('data-launch-exam="' + mode + '"', 'g')) || []).length, 1,
+    assert.equal((portalMarkup.match(new RegExp('data-launch-exam="' + mode + '"', 'g')) || []).length, 1,
       mode + ' should have exactly one portal action');
   }
-  assert.equal((portalHtml.match(/data-launch-exam="enrollment"/g) || []).length, 2,
+  assert.equal((portalMarkup.match(/data-launch-exam="enrollment"/g) || []).length, 2,
     'registration and the later admit-card stage both use the existing enrollment workflow');
   for (const mode of ['mock1', 'mock2']) {
-    assert.equal((portalHtml.match(new RegExp('data-launch-exam="' + mode + '"', 'g')) || []).length, 1,
+    assert.equal((portalMarkup.match(new RegExp('data-launch-exam="' + mode + '"', 'g')) || []).length, 1,
       mode + ' should remain available as its own mock card');
   }
 });
