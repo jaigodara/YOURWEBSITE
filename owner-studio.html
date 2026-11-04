@@ -844,9 +844,9 @@ Ans: B"></textarea>
           <div><h4 class="font-yatra text-sm text-forest">⏳ परीक्षा शुरू होने का समय तय करें</h4><p class="text-[11px] text-stone-600 mt-1">दैनिक क्विज़ हर दिन पूरे दिन उपलब्ध रहता है—इसके लिए समय या late-entry अनुमति की जरूरत नहीं है। नीचे का समय केवल मॉक परीक्षा 1/2 और मुख्य परीक्षा के लिए लागू है; समय आपके डिवाइस के स्थानीय समय क्षेत्र के अनुसार सहेजा जाता है।</p></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <label class="font-bold text-stone-500">दैनिक क्विज़ — पूरे दिन उपलब्ध<input id="ownerQuizStartAt" type="datetime-local" disabled title="दैनिक क्विज़ के लिए समय लागू नहीं है" class="mt-1 w-full p-2.5 rounded-xl border border-stone-200 bg-stone-100 font-normal cursor-not-allowed"></label>
-            <label class="font-bold text-stone-700">मॉक परीक्षा 1 शुरू<input id="ownerMock1StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
-            <label class="font-bold text-stone-700">मॉक परीक्षा 2 शुरू<input id="ownerMock2StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
-            <label class="font-bold text-stone-700">मुख्य परीक्षा शुरू<input id="ownerMainStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700"><span id="ownerMock1StartLabel">मॉक परीक्षा 1 शुरू</span><input id="ownerMock1StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700"><span id="ownerMock2StartLabel">मॉक परीक्षा 2 शुरू</span><input id="ownerMock2StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700"><span id="ownerMainStartLabel">मुख्य परीक्षा शुरू</span><input id="ownerMainStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
           </div>
         </div>
         <label class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-stone-700">
@@ -3277,6 +3277,14 @@ async function saveBulkQuestionDrafts() {
           if (el.type === 'checkbox') el.checked = value;
           else el.value = value;
         });
+        const examDisplayNames = {
+          mock1: String(data.mock1DisplayName || 'मॉक परीक्षा 1'),
+          mock2: String(data.mock2DisplayName || 'मॉक परीक्षा 2'),
+          main: String(data.mainDisplayName || 'मुख्य परीक्षा')
+        };
+        document.getElementById('ownerMock1StartLabel').textContent = examDisplayNames.mock1 + ' शुरू';
+        document.getElementById('ownerMock2StartLabel').textContent = examDisplayNames.mock2 + ' शुरू';
+        document.getElementById('ownerMainStartLabel').textContent = examDisplayNames.main + ' शुरू';
         const resultsReleased = data.resultsPublished === true;
         const releaseStatus = document.getElementById('ownerResultsReleaseStatus');
         const releaseButton = document.getElementById('ownerResultsReleaseButton');
@@ -5074,7 +5082,13 @@ async function loadExamSessionQueue() {
           card.className = 'rounded-xl border p-3 space-y-2 ' + (row.status === 'kicked' ? 'border-red-300 bg-red-50' : 'border-stone-200 bg-stone-50');
           const title = document.createElement('strong');
           title.className = 'block text-xs text-forest';
-          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (row.mode || 'exam');
+          const modeNames = {
+            main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+            mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+            mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2',
+            quiz: 'दैनिक क्विज़'
+          };
+          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (modeNames[row.mode] || row.examTitle || row.mode || 'परीक्षा');
           const detail = document.createElement('p');
           detail.className = 'text-[11px] text-stone-600 break-all';
           detail.textContent = 'UID: ' + (row.uid || '—') + ' · स्थिति: ' + row.status +
@@ -6994,7 +7008,13 @@ async function removeTrustedEditor(uid) {
       const mode = document.getElementById('archiveExamMode')?.value || '', custom = mode === 'custom';
       document.getElementById('archiveCustomExamWrap')?.classList.toggle('hidden', !custom);
       const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
-      const labels = { main: 'मुख्य परीक्षा', mock1: 'मॉक परीक्षा 1', mock2: 'मॉक परीक्षा 2', quiz: 'दैनिक क्विज़', custom: 'कस्टम परीक्षा' };
+      const labels = {
+        main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+        mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+        mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2',
+        quiz: 'दैनिक क्विज़',
+        custom: 'कस्टम परीक्षा'
+      };
       const selected = document.getElementById('archiveCustomExamId');
       const label = custom ? (selected?.selectedOptions?.[0]?.textContent?.split(' · ')[0] || labels.custom) : (labels[mode] || 'परीक्षा');
       if (button) button.textContent = '🗄️ ' + label + ' का रिकॉर्ड सुरक्षित करें और सक्रिय सूची साफ करें';
@@ -7035,9 +7055,9 @@ async function removeTrustedEditor(uid) {
       const status = document.getElementById('examArchiveActionStatus');
       const customExamId = mode === 'custom' ? (document.getElementById('archiveCustomExamId')?.value || '') : '';
       let config = {
-        main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions', closeField: 'mainExamVisible' },
-        mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions', closeField: 'mock1Visible' },
-        mock2: { title: 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions', closeField: 'mock2Visible' },
+        main: { title: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा', submissions: 'mainExamSubmissions', closeField: 'mainExamVisible' },
+        mock1: { title: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions', closeField: 'mock1Visible' },
+        mock2: { title: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions', closeField: 'mock2Visible' },
         quiz: { title: 'दैनिक क्विज़', submissions: 'quizAttempts', closeField: 'dailyQuizVisible' }
       }[mode];
       if (mode === 'custom') {
