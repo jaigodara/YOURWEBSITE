@@ -60,3 +60,11 @@ test("Owner Studio groups poll management with Literature and Media and removes 
   assert.doesNotMatch(ownerStudio, /data-studio-page="polls"/);
   assert.match(ownerStudio, /media:\s*\{[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
 });
+
+test("Re-entry decisions are one-time, persisted, and removed from the pending-request queue", () => {
+  assert.match(ownerStudio, /lateEntryRequested: false/);
+  assert.match(ownerStudio, /reentryDecision: status === 'active' \? 'approved' : status === 'denied' \? 'denied'/);
+  assert.match(ownerStudio, /filter\(row => \['active', 'kicked', 'late_request'\]\.includes\(row\.status\)\)/);
+  assert.match(ownerStudio, /if \(row\.status === 'late_request'\)/);
+  assert.doesNotMatch(ownerStudio, /\['active', 'kicked', 'denied', 'late_request'\]/);
+});
