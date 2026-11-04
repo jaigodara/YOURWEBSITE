@@ -3130,7 +3130,7 @@ window.renderExamVisibility = function renderExamVisibility() {
       const when = post.createdAt && typeof post.createdAt.toDate === 'function' ? post.createdAt.toDate().toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
       const mine = !!state.user && post.uid === state.user.uid, pinned = post.pinnedByOwner === true, id = escapeHtml(post.id || '');
       const topic = post.topic || 'सामान्य चर्चा';
-      return `<article class="bx-chat-message rounded-xl border p-3.5 shadow-sm space-y-2 ${mine ? 'bx-chat-message-mine' : 'bx-chat-message-other'}" data-post-id="${id}">
+      return `<article class="bx-chat-message rounded-xl border p-3.5 shadow-sm space-y-2 ${mine ? 'bx-chat-message-mine' : 'bx-chat-message-other'}" data-post-id="${id}" data-avatar="${escapeHtml(String(author || "ब").trim().slice(0, 1) || "ब")}">
         <div class="flex items-center justify-between gap-2"><div class="flex min-w-0 items-center gap-2"><strong class="truncate text-xs text-[#143622]">${escapeHtml(author)}</strong><span class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800">${escapeHtml(topic)}</span></div><span class="text-[10px] text-stone-500">${escapeHtml(when)}</span></div>
         ${pinned ? '<div class="text-[10px] font-bold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
         <p class="text-sm leading-relaxed text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
