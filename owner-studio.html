@@ -3297,6 +3297,8 @@ async function saveBulkQuestionDrafts() {
         document.getElementById('ownerMock1StartLabel').textContent = examDisplayNames.mock1 + ' शुरू';
         document.getElementById('ownerMock2StartLabel').textContent = examDisplayNames.mock2 + ' शुरू';
         document.getElementById('ownerMainStartLabel').textContent = examDisplayNames.main + ' शुरू';
+        // Keep the archive action title in sync with names restored from Firestore.
+        window.handleArchiveExamModeChange?.();
         const resultsReleased = data.resultsPublished === true;
         const releaseStatus = document.getElementById('ownerResultsReleaseStatus');
         const releaseButton = document.getElementById('ownerResultsReleaseButton');
