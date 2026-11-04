@@ -5,6 +5,7 @@ const { test } = require('node:test');
 
 const root = path.join(__dirname, '..');
 const script = readFileSync(path.join(root, 'script.js'), 'utf8');
+const index = readFileSync(path.join(root, 'index.html'), 'utf8');
 const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
 test('Community supports authenticated replies with owner-or-author deletion', () => {
