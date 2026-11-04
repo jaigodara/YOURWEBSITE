@@ -224,6 +224,22 @@
       .panel, .exam { padding: 14px; }
       .actions .button { flex: 1 1 145px; }
     }
+
+    /* Four-stage candidate dashboard: compact, touch-friendly and aligned with Bishnoism. */
+    .candidate-journey{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 22px}
+    .journey-card{display:flex;align-items:center;gap:12px;min-width:0;padding:16px;border:1.5px solid var(--border);border-radius:17px;background:#fff;box-shadow:0 4px 14px #1436220a;transition:border-color .18s,transform .18s,box-shadow .18s}
+    .journey-card:focus-within,.journey-card:hover{border-color:#9db8a1;box-shadow:0 8px 20px #14362212}
+    .journey-card.is-locked{background:#f7f8f6;opacity:.72}
+    .journey-card.is-done{border-color:#9bd3b2;background:#f2fbf5}
+    .journey-number{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:50%;background:#edf3ee;color:var(--forest);font-weight:900;font-size:17px}
+    .journey-copy{min-width:0;flex:1}.journey-copy strong{display:block;color:var(--forest);font-size:14px}.journey-copy small{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.45}
+    .journey-state{display:block;margin-top:6px;color:#55705d;font-size:10px;font-weight:800}
+    .journey-action{flex:0 0 auto;min-height:38px;padding:8px 11px;border:0;border-radius:10px;background:var(--forest);color:white;font-size:11px;font-weight:800;cursor:pointer}
+    .journey-action:disabled{background:#d9dfd9;color:#667168;cursor:not-allowed}
+    .journey-heading{margin:0;color:var(--forest);font-size:17px;font-weight:900}
+    .journey-subtitle{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+    #mainExamCard,#enrollmentCard,#resultsCard{display:none!important}
+    @media(max-width:600px){.candidate-journey{grid-template-columns:1fr;gap:9px}.journey-card{padding:13px}.journey-action{min-width:76px}}
   </style>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -284,6 +300,28 @@
 
   <section id="examArea" class="hide">
     <h2 class="section-heading">📝 अभ्यास और परीक्षाएँ</h2>
+    <section aria-labelledby="journeyHeading">
+      <h2 id="journeyHeading" class="journey-heading">🎓 विद्यार्थी डैशबोर्ड</h2>
+      <p class="journey-subtitle">पंजीकरण से परिणाम तक अपने सभी परीक्षा चरण एक ही जगह देखें। यह पोर्टल आपके मौजूदा वेबसाइट लॉगिन और सुरक्षित परीक्षा रिकॉर्ड का उपयोग करता है।</p>
+      <div class="candidate-journey">
+        <article class="journey-card" id="journeyRegistration">
+          <span class="journey-number">1</span><div class="journey-copy"><strong>परीक्षा पंजीकरण</strong><small>अपनी जानकारी दर्ज करें और आवेदन की स्थिति देखें</small><span class="journey-state" id="journeyRegistrationState">स्थिति जाँची जा रही है…</span></div>
+          <button class="journey-action" type="button" data-launch-exam="enrollment" id="journeyRegistrationButton">खोलें</button>
+        </article>
+        <article class="journey-card is-locked" id="journeyAdmit">
+          <span class="journey-number">2</span><div class="journey-copy"><strong>प्रवेश पत्र</strong><small>स्वीकृति और जारी होने के बाद अपना प्रवेश पत्र देखें</small><span class="journey-state" id="journeyAdmitState">पंजीकरण के बाद उपलब्ध</span></div>
+          <button class="journey-action" type="button" data-launch-exam="enrollment" id="journeyAdmitButton">लॉक</button>
+        </article>
+        <article class="journey-card is-locked" id="journeyLiveExam">
+          <span class="journey-number">3</span><div class="journey-copy"><strong>लाइव परीक्षा (CBT)</strong><small>निर्धारित समय पर मुख्य परीक्षा में शामिल हों</small><span class="journey-state" id="journeyExamState">प्रवेश पत्र के बाद उपलब्ध</span></div>
+          <button class="journey-action" type="button" data-launch-exam="main" id="journeyExamButton">लॉक</button>
+        </article>
+        <article class="journey-card is-locked" id="journeyResults">
+          <span class="journey-number">4</span><div class="journey-copy"><strong>परिणाम और स्कोरकार्ड</strong><small>जारी होने पर अपना आधिकारिक परिणाम देखें</small><span class="journey-state" id="journeyResultsState">परिणाम की प्रतीक्षा करें</span></div>
+          <button class="journey-action" type="button" data-launch-exam="results" id="journeyResultsButton">लॉक</button>
+        </article>
+      </div>
+    </section>
     <div class="grid">
       <article id="mock1Card" class="exam hide">
         <div class="exam-icon" aria-hidden="true">📝</div>
@@ -458,8 +496,64 @@ function toScheduleDate(value) {
   const PRIMARY_OWNER_UIDS = new Set(['8YRBWWMKG2OUW6cmzZkGbFgOqyp2', 'rdP0ZXzSP9fGzmJshEVvbOfb31g2']);
 
   let pendingResultLookup = null;
+  let currentEnrollmentRecord = null;
+  let enrollmentListener = null;
+  let currentPortalUser = null;
+
+  function setJourneyStep(cardId, stateId, buttonId, available, stateText, buttonText, done = false) {
+    const card = byId(cardId), stateNode = byId(stateId), button = byId(buttonId);
+    if (!card || !stateNode || !button) return;
+    card.classList.toggle("is-locked", !available);
+    card.classList.toggle("is-done", done);
+    stateNode.textContent = stateText;
+    button.disabled = !available;
+    button.textContent = buttonText;
+  }
+
+  function updateCandidateJourney() {
+    const config = window.__bishnoismExamConfig || {};
+    const record = currentEnrollmentRecord || {};
+    const registered = !!currentEnrollmentRecord;
+    const approved = record.verificationStatus === "confirmed";
+    const admitReleased = approved && (record.admitCardReleased === true || (config.admitCardReleased === true && !record.admitCardExamType));
+    const registrationOpen = config.registrationOpen !== false && config.enrollmentVisible !== false;
+    const mainStart = toScheduleDate(config.mainStartAtMs || config.mainStartAt);
+    const examTimeReached = !mainStart || mainStart.getTime() <= Date.now();
+    const examVisible = config.mainExamVisible !== false && config.examPortalVisible !== false;
+    const examAvailable = admitReleased && examTimeReached && examVisible;
+    const resultsReleased = config.resultsPublished === true && config.resultsVisible !== false;
+    setJourneyStep("journeyRegistration","journeyRegistrationState","journeyRegistrationButton",!registered && registrationOpen,
+      registered ? (approved ? "पंजीकरण स्वीकृत" : "आवेदन समीक्षा में") : (registrationOpen ? "नया आवेदन स्वीकार हो रहा है" : "नया पंजीकरण बंद है"),
+      registered ? "जमा" : (registrationOpen ? "पंजीकरण" : "बंद"), registered);
+    setJourneyStep("journeyAdmit","journeyAdmitState","journeyAdmitButton",registered,
+      admitReleased ? "प्रवेश पत्र जारी — डाउनलोड के लिए खोलें" : (approved ? "प्रवेश पत्र जारी होने की प्रतीक्षा" : "पहले पंजीकरण स्वीकृत होना आवश्यक"),
+      admitReleased ? "देखें" : "लॉक", admitReleased);
+    setJourneyStep("journeyLiveExam","journeyExamState","journeyExamButton",examAvailable,
+      !admitReleased ? "प्रवेश पत्र जारी होने के बाद खुलेगा" : (!examTimeReached ? "निर्धारित समय: "+mainStart.toLocaleString("hi-IN") : (examVisible ? "परीक्षा प्रवेश उपलब्ध — पात्रता जाँची जाएगी" : "मुख्य परीक्षा Owner द्वारा बंद है")),
+      examAvailable ? "परीक्षा खोलें" : "लॉक", false);
+    setJourneyStep("journeyResults","journeyResultsState","journeyResultsButton",resultsReleased,
+      resultsReleased ? "परिणाम प्रकाशित — अपना स्कोरकार्ड देखें" : "परिणाम अभी प्रकाशित नहीं हुए हैं",
+      resultsReleased ? "परिणाम देखें" : "लॉक", false);
+  }
 
   auth.onAuthStateChanged(async user => {
+    currentPortalUser = user || null;
+    currentEnrollmentRecord = null;
+    if (typeof enrollmentListener === "function") enrollmentListener();
+    enrollmentListener = null;
+    updateCandidateJourney();
+    if (user) {
+      enrollmentListener = db.collection("examEnrolledStudents").doc(user.uid).onSnapshot(snapshot => {
+        if (auth.currentUser?.uid !== user.uid) return;
+        currentEnrollmentRecord = snapshot.exists ? snapshot.data() || {} : null;
+        updateCandidateJourney();
+      }, error => {
+        console.warn("Candidate enrollment status could not be loaded:", error.code || error.message);
+        currentEnrollmentRecord = null;
+        updateCandidateJourney();
+        byId("journeyRegistrationState").textContent = "स्थिति लोड नहीं हुई — पुनः प्रयास करें";
+      });
+    }
     setPortalStatus(user
       ? "मुख्य वेबसाइट का लॉगिन सत्र मिल गया। परीक्षा शुरू होने पर पात्रता फिर जाँची जाएगी।"
       : "मुख्य वेबसाइट का लॉगिन सत्र नहीं मिला। परीक्षा देने से पहले मुख्य वेबसाइट पर लॉगिन करें।");
@@ -646,6 +740,7 @@ const date = toScheduleDate(value);if(date&&!Number.isNaN(date.getTime())&&date.
   db.collection("examConfig").doc("current").onSnapshot(snapshot => {
     const config = snapshot.exists ? snapshot.data() : {};
     window.__bishnoismExamConfig = config;
+    updateCandidateJourney();
     const slotTitles = { mock1: String(config.mock1DisplayName || 'मॉक परीक्षा 1'), mock2: String(config.mock2DisplayName || 'मॉक परीक्षा 2'), main: String(config.mainDisplayName || 'मुख्य परीक्षा') };
     Object.entries(slotTitles).forEach(([mode, title]) => { const card = byId(mode === 'main' ? 'mainExamCard' : mode + 'Card'); if (!card) return; const heading = card.querySelector('h3'); const button = card.querySelector('[data-launch-exam]'); if (heading) heading.textContent = title; if (button) button.textContent = title + ' खोलें'; });
     const portalEnabled = config.examPortalVisible !== false &&
