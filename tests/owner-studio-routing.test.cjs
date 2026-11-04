@@ -44,6 +44,25 @@ test('Owner Studio controls the full candidate journey without replacing existin
   assert.match(rules, /allow update: if examOwner\(\) \|\| \(\s*enrollmentRegistrationOpen\(\)/);
 });
 
+test('Owner Studio controls visibility of all four exam-portal journey stages independently of Daily Quiz', () => {
+  const controls = [
+    ['ownerPortalShowRegistrationStep', 'portalRegistrationStepVisible'],
+    ['ownerPortalShowAdmitStep', 'portalAdmitStepVisible'],
+    ['ownerPortalShowLiveExamStep', 'portalLiveExamStepVisible'],
+    ['ownerPortalShowResultsStep', 'portalResultsStepVisible']
+  ];
+  for (const [id, key] of controls) {
+    assert.ok(ownerHtml.includes('id="' + id + '"'), 'Owner toggle exists: ' + id);
+    assert.ok(ownerHtml.includes(key + ': !!document.getElementById(\'' + id + '\')?.checked'), 'Owner saves ' + key);
+    assert.ok(ownerHtml.includes("['" + id + "', data." + key + " !== false]"), 'Owner reloads ' + key);
+    assert.ok(portalHtml.includes('config.' + key + ' !== false'), 'Portal applies ' + key);
+  }
+  assert.match(portalHtml, /setJourneyStep\("journeyAdmit"[^;]*admitReleased/);
+  assert.match(portalHtml, /journey-icon/);
+  assert.match(portalHtml, /@keyframes journey-float/);
+  assert.doesNotMatch(portalHtml, /दैनिक क्विज़.*candidate-journey/);
+});
+
 test('Question importer allows native JSON import when SheetJS is unavailable', () => {
   const start = ownerHtml.indexOf('function importQuestionExcel(event)');
   const end = ownerHtml.indexOf('function ', start + 20);

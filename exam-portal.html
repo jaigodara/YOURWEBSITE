@@ -231,15 +231,20 @@
     .journey-card:focus-within,.journey-card:hover{border-color:#9db8a1;box-shadow:0 8px 20px #14362212}
     .journey-card.is-locked{background:#f7f8f6;opacity:.72}
     .journey-card.is-done{border-color:#9bd3b2;background:#f2fbf5}
-    .journey-number{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:50%;background:#edf3ee;color:var(--forest);font-weight:900;font-size:17px}
+    .journey-icon{position:relative;display:grid;place-items:center;flex:0 0 68px;width:68px;height:68px;border-radius:20px;background:linear-gradient(145deg,#edf5ec,#fff8e8);border:1px solid #dce8d9;color:var(--forest);font-size:36px;box-shadow:0 7px 18px #14362212;animation:journey-float 3.2s ease-in-out infinite}
+    .journey-card:nth-child(2) .journey-icon{animation-delay:.25s}.journey-card:nth-child(3) .journey-icon{animation-delay:.5s}.journey-card:nth-child(4) .journey-icon{animation-delay:.75s}
+    .journey-icon::after{content:attr(data-step);position:absolute;right:-5px;top:-6px;display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--gold);border:2px solid white;color:#263426;font-size:10px;font-weight:900}
     .journey-copy{min-width:0;flex:1}.journey-copy strong{display:block;color:var(--forest);font-size:14px}.journey-copy small{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.45}
-    .journey-state{display:block;margin-top:6px;color:#55705d;font-size:10px;font-weight:800}
-    .journey-action{flex:0 0 auto;min-height:38px;padding:8px 11px;border:0;border-radius:10px;background:var(--forest);color:white;font-size:11px;font-weight:800;cursor:pointer}
+    .journey-state{display:block;margin-top:6px;color:#55705d;font-size:10px;font-weight:800;line-height:1.45}
+    .journey-action{flex:0 0 auto;min-height:40px;padding:9px 12px;border:0;border-radius:10px;background:var(--forest);color:white;font-size:11px;font-weight:800;cursor:pointer;transition:transform .18s,background .18s,box-shadow .18s}
+    .journey-action:not(:disabled):hover{transform:translateY(-2px);background:#24603f;box-shadow:0 6px 14px #14362222}
     .journey-action:disabled{background:#d9dfd9;color:#667168;cursor:not-allowed}
     .journey-heading{margin:0;color:var(--forest);font-size:17px;font-weight:900}
     .journey-subtitle{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
     #mainExamCard,#enrollmentCard,#resultsCard{display:none!important}
-    @media(max-width:600px){.candidate-journey{grid-template-columns:1fr;gap:9px}.journey-card{padding:13px}.journey-action{min-width:76px}}
+    @keyframes journey-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+    @media(max-width:600px){.candidate-journey{grid-template-columns:1fr;gap:9px}.journey-card{padding:13px}.journey-icon{flex-basis:58px;width:58px;height:58px;border-radius:17px;font-size:31px}.journey-action{min-width:76px}}
+    @media(prefers-reduced-motion:reduce){.journey-icon{animation:none}.journey-action{transition:none}}
   </style>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -305,19 +310,19 @@
       <p class="journey-subtitle">पंजीकरण से परिणाम तक अपने सभी परीक्षा चरण एक ही जगह देखें। यह पोर्टल आपके मौजूदा वेबसाइट लॉगिन और सुरक्षित परीक्षा रिकॉर्ड का उपयोग करता है।</p>
       <div class="candidate-journey">
         <article class="journey-card" id="journeyRegistration">
-          <span class="journey-number">1</span><div class="journey-copy"><strong>परीक्षा पंजीकरण</strong><small>अपनी जानकारी दर्ज करें और आवेदन की स्थिति देखें</small><span class="journey-state" id="journeyRegistrationState">स्थिति जाँची जा रही है…</span></div>
+          <span class="journey-icon" data-step="01" aria-hidden="true">📝</span><div class="journey-copy"><strong>परीक्षा पंजीकरण</strong><small>अपनी जानकारी दर्ज करें और आवेदन की स्थिति देखें</small><span class="journey-state" id="journeyRegistrationState">स्थिति जाँची जा रही है…</span></div>
           <button class="journey-action" type="button" data-launch-exam="enrollment" id="journeyRegistrationButton">खोलें</button>
         </article>
         <article class="journey-card is-locked" id="journeyAdmit">
-          <span class="journey-number">2</span><div class="journey-copy"><strong>प्रवेश पत्र</strong><small>स्वीकृति और जारी होने के बाद अपना प्रवेश पत्र देखें</small><span class="journey-state" id="journeyAdmitState">पंजीकरण के बाद उपलब्ध</span></div>
+          <span class="journey-icon" data-step="02" aria-hidden="true">🎟️</span><div class="journey-copy"><strong>प्रवेश पत्र</strong><small>स्वीकृति और जारी होने के बाद अपना प्रवेश पत्र देखें</small><span class="journey-state" id="journeyAdmitState">पंजीकरण के बाद उपलब्ध</span></div>
           <button class="journey-action" type="button" data-launch-exam="enrollment" id="journeyAdmitButton">लॉक</button>
         </article>
         <article class="journey-card is-locked" id="journeyLiveExam">
-          <span class="journey-number">3</span><div class="journey-copy"><strong>लाइव परीक्षा (CBT)</strong><small>निर्धारित समय पर मुख्य परीक्षा में शामिल हों</small><span class="journey-state" id="journeyExamState">प्रवेश पत्र के बाद उपलब्ध</span></div>
+          <span class="journey-icon" data-step="03" aria-hidden="true">💻</span><div class="journey-copy"><strong>लाइव परीक्षा (CBT)</strong><small>निर्धारित समय पर मुख्य परीक्षा में शामिल हों</small><span class="journey-state" id="journeyExamState">प्रवेश पत्र के बाद उपलब्ध</span></div>
           <button class="journey-action" type="button" data-launch-exam="main" id="journeyExamButton">लॉक</button>
         </article>
         <article class="journey-card is-locked" id="journeyResults">
-          <span class="journey-number">4</span><div class="journey-copy"><strong>परिणाम और स्कोरकार्ड</strong><small>जारी होने पर अपना आधिकारिक परिणाम देखें</small><span class="journey-state" id="journeyResultsState">परिणाम की प्रतीक्षा करें</span></div>
+          <span class="journey-icon" data-step="04" aria-hidden="true">🏆</span><div class="journey-copy"><strong>परिणाम और स्कोरकार्ड</strong><small>जारी होने पर अपना आधिकारिक परिणाम देखें</small><span class="journey-state" id="journeyResultsState">परिणाम की प्रतीक्षा करें</span></div>
           <button class="journey-action" type="button" data-launch-exam="results" id="journeyResultsButton">लॉक</button>
         </article>
       </div>
@@ -500,9 +505,11 @@ function toScheduleDate(value) {
   let enrollmentListener = null;
   let currentPortalUser = null;
 
-  function setJourneyStep(cardId, stateId, buttonId, available, stateText, buttonText, done = false) {
+  function setJourneyStep(cardId, stateId, buttonId, available, stateText, buttonText, done = false, visible = true) {
     const card = byId(cardId), stateNode = byId(stateId), button = byId(buttonId);
     if (!card || !stateNode || !button) return;
+    card.hidden = !visible;
+    card.setAttribute("aria-hidden", String(!visible));
     card.classList.toggle("is-locked", !available);
     card.classList.toggle("is-done", done);
     stateNode.textContent = stateText;
@@ -524,16 +531,20 @@ function toScheduleDate(value) {
     const resultsReleased = config.resultsPublished === true && config.resultsVisible !== false;
     setJourneyStep("journeyRegistration","journeyRegistrationState","journeyRegistrationButton",!registered && registrationOpen,
       registered ? (approved ? "पंजीकरण स्वीकृत" : "आवेदन समीक्षा में") : (registrationOpen ? "नया आवेदन स्वीकार हो रहा है" : "नया पंजीकरण बंद है"),
-      registered ? "जमा" : (registrationOpen ? "पंजीकरण" : "बंद"), registered);
-    setJourneyStep("journeyAdmit","journeyAdmitState","journeyAdmitButton",registered,
-      admitReleased ? "प्रवेश पत्र जारी — डाउनलोड के लिए खोलें" : (approved ? "प्रवेश पत्र जारी होने की प्रतीक्षा" : "पहले पंजीकरण स्वीकृत होना आवश्यक"),
-      admitReleased ? "देखें" : "लॉक", admitReleased);
+      registered ? "जमा" : (registrationOpen ? "फॉर्म भरें" : "बंद"), registered,
+      config.portalRegistrationStepVisible !== false);
+    setJourneyStep("journeyAdmit","journeyAdmitState","journeyAdmitButton",admitReleased,
+      admitReleased ? "प्रवेश पत्र जारी — डाउनलोड के लिए खोलें" : (approved ? "प्रवेश पत्र जारी होने की प्रतीक्षा" : "स्वीकृति और रिलीज़ के बाद उपलब्ध"),
+      admitReleased ? "प्रवेश पत्र देखें" : "लॉक", admitReleased,
+      config.portalAdmitStepVisible !== false);
     setJourneyStep("journeyLiveExam","journeyExamState","journeyExamButton",examAvailable,
       !admitReleased ? "प्रवेश पत्र जारी होने के बाद खुलेगा" : (!examTimeReached ? "निर्धारित समय: "+mainStart.toLocaleString("hi-IN") : (examVisible ? "परीक्षा प्रवेश उपलब्ध — पात्रता जाँची जाएगी" : "मुख्य परीक्षा Owner द्वारा बंद है")),
-      examAvailable ? "परीक्षा खोलें" : "लॉक", false);
+      examAvailable ? "परीक्षा खोलें" : "लॉक", false,
+      config.portalLiveExamStepVisible !== false);
     setJourneyStep("journeyResults","journeyResultsState","journeyResultsButton",resultsReleased,
       resultsReleased ? "परिणाम प्रकाशित — अपना स्कोरकार्ड देखें" : "परिणाम अभी प्रकाशित नहीं हुए हैं",
-      resultsReleased ? "परिणाम देखें" : "लॉक", false);
+      resultsReleased ? "परिणाम देखें" : "लॉक", false,
+      config.portalResultsStepVisible !== false);
   }
 
   auth.onAuthStateChanged(async user => {

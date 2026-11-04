@@ -47,14 +47,14 @@ test('Community renders like/dislike controls and expandable response counts ins
 });
 
 
-test('Community feedback uses an accessible modern composer and reports submission state', () => {
-  assert.match(index, /id="communityFeedbackComposer"/);
-  assert.match(index, /id="communityFeedbackCount"/);
-  assert.match(index, /id="communityFeedbackStatus"[^>]*role="status"/);
-  assert.match(index, /प्रतिक्रिया भेजें/);
+test('Community chat does not duplicate the separate feedback/contact workflow', () => {
+  assert.doesNotMatch(index, /id="communityFeedbackComposer"/);
+  assert.doesNotMatch(index, /सुझाव और प्रतिक्रिया/);
+  assert.match(index, /window\.BishnoismSite\.openFeedback\(\)/);
+  assert.match(index, /window\.BishnoismSite\.openContact\(\)/);
+  assert.doesNotMatch(index, /openCommunityChat\(\)/);
+  assert.match(index, /id="communityFeed"/);
   assert.match(script, /window\.BishnoiCommunity\.submitFeedback = async function/);
-  assert.match(script, /धन्यवाद! आपका सुझाव मंच प्रबंधन टीम तक पहुँच गया है।/);
-  assert.match(script, /communityFeedbackCount/);
 });
 
 test('Community polls are rendered inside the shared chat feed as conversation messages, without an empty standalone poll section', () => {

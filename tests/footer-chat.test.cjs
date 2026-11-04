@@ -9,11 +9,11 @@ const html = readFileSync(path.join(root, 'index.html'), 'utf8');
 const script = readFileSync(path.join(root, 'script.js'), 'utf8');
 const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 
-test('Professional site footer includes feedback, contact, community chat and 2026 copyright', () => {
+test('Professional site footer keeps feedback and contact shortcuts without a duplicate community-chat link', () => {
   assert.match(html, /class="bx-site-footer/);
   assert.match(html, /openFeedback\(\)/);
   assert.match(html, /openContact\(\)/);
-  assert.match(html, /openCommunityChat\(\)/);
+  assert.doesNotMatch(html, /openCommunityChat\(\)/);
   assert.match(html, /© 2026 Bishnoism Digital Platform/);
 });
 

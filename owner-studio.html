@@ -765,6 +765,15 @@ Ans: B"></textarea>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowResults" type="checkbox" class="accent-forest"> 📊 परिणाम डेस्क दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerRandomizeSets" type="checkbox" class="accent-forest" checked> प्रश्न और विकल्प शफल करें</label>
         </div>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+          <div><h4 class="text-sm font-extrabold text-forest">🎓 अलग परीक्षा पोर्टल · चार चरण दिखाएँ</h4><p class="mt-1 text-[11px] text-stone-600">यहाँ से तय करें कि विद्यार्थी पोर्टल के चार-चरण डैशबोर्ड में कौन-से कार्ड दिखें। यह दैनिक क्विज़ के डिस्प्ले को नहीं बदलता।</p></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerPortalShowRegistrationStep" type="checkbox" class="accent-forest" checked> 📝 परीक्षा पंजीकरण चरण दिखाएँ</label>
+            <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerPortalShowAdmitStep" type="checkbox" class="accent-forest" checked> 🎟️ प्रवेश पत्र चरण दिखाएँ</label>
+            <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerPortalShowLiveExamStep" type="checkbox" class="accent-forest" checked> 💻 लाइव परीक्षा चरण दिखाएँ</label>
+            <label class="flex items-center gap-2 p-3 min-h-12 rounded-xl bg-white border"><input id="ownerPortalShowResultsStep" type="checkbox" class="accent-forest" checked> 🏆 परिणाम और स्कोरकार्ड चरण दिखाएँ</label>
+          </div>
+        </div>
         <button id="ownerSaveExamVisibilitySettings" type="button" onclick="window.saveExamVisibilitySettings()" class="w-full min-h-12 rounded-xl bg-forest px-4 py-3 text-sm font-extrabold text-white touch-manipulation active:scale-[0.99] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400">💾 परीक्षा सेटिंग सेव करें</button>
         <p id="ownerExamVisibilitySaveStatus" class="text-xs text-stone-500" aria-live="polite">बदलाव करने के बाद सेव बटन दबाएँ।</p>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
@@ -3285,6 +3294,10 @@ async function saveBulkQuestionDrafts() {
           ['ownerShowEnrollment', data.enrollmentVisible !== false],
           ['ownerRegistrationOpen', data.registrationOpen !== false],
           ['ownerShowResults', data.resultsVisible !== false],
+          ['ownerPortalShowRegistrationStep', data.portalRegistrationStepVisible !== false],
+          ['ownerPortalShowAdmitStep', data.portalAdmitStepVisible !== false],
+          ['ownerPortalShowLiveExamStep', data.portalLiveExamStepVisible !== false],
+          ['ownerPortalShowResultsStep', data.portalResultsStepVisible !== false],
           ['ownerRandomizeSets', data.randomizeSets !== false],
           ['ownerProfileShowExamInfo', data.profileExamInfoVisible !== false],
           ['ownerProfileShowFavorites', data.profileFavoritesVisible !== false],
@@ -4339,6 +4352,10 @@ async function changeCustomExamStatus(nextStatus) {
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
         registrationOpen: document.getElementById('ownerRegistrationOpen')?.checked !== false,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
+        portalRegistrationStepVisible: !!document.getElementById('ownerPortalShowRegistrationStep')?.checked,
+        portalAdmitStepVisible: !!document.getElementById('ownerPortalShowAdmitStep')?.checked,
+        portalLiveExamStepVisible: !!document.getElementById('ownerPortalShowLiveExamStep')?.checked,
+        portalResultsStepVisible: !!document.getElementById('ownerPortalShowResultsStep')?.checked,
         randomizeSets: !!document.getElementById('ownerRandomizeSets')?.checked,
         profileExamInfoVisible: !!document.getElementById('ownerProfileShowExamInfo')?.checked,
         profileFavoritesVisible: !!document.getElementById('ownerProfileShowFavorites')?.checked,
