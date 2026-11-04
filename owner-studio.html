@@ -666,6 +666,14 @@ Ans: B"></textarea>
             </select>
           </label>
 
+          <label id="reviewExamModeWrap" class="block text-xs font-bold text-stone-700 hidden">
+            मॉक परीक्षा चुनें
+            <select id="reviewExamModeFilter" onchange="loadExamSubmissions()" class="mt-1 w-full min-h-[48px] rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
+              <option value="all">दोनों मॉक परीक्षाएँ</option>
+              <option value="mock1">मॉक परीक्षा 1</option>
+              <option value="mock2">मॉक परीक्षा 2</option>
+            </select>
+          </label>
           <label class="block text-xs font-bold text-stone-700">
             कस्टम परीक्षा
             <select id="reviewCustomExamFilter" onchange="loadExamSubmissions()"
@@ -718,7 +726,7 @@ Ans: B"></textarea>
         </div>
         <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button type="button" onclick="printAllExamReviewSheets()" class="min-h-[44px] rounded-xl border border-forest bg-white px-4 py-3 text-sm font-bold text-forest hover:bg-stone-50">📄 सभी विद्यार्थियों की उत्तर-पत्र / जाँच रिपोर्ट PDF</button>
+          <button id="printAllExamReviewButton" type="button" onclick="printAllExamReviewSheets()" class="min-h-[44px] rounded-xl border border-forest bg-white px-4 py-3 text-sm font-bold text-forest hover:bg-stone-50">📄 सभी विद्यार्थियों की उत्तर-पत्र / जाँच रिपोर्ट PDF</button>
           <p class="self-center text-[11px] text-stone-500">पहले रिकॉर्ड लाएँ, फिर इस बटन से सभी लोड हुए विद्यार्थियों की रिपोर्ट खोलें और Print में “Save as PDF” चुनें।</p>
         </div>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
@@ -5506,7 +5514,7 @@ window.clearExamReviewFilters = clearExamReviewFilters;
         return '<section class="student"><h2>विद्यार्थी ' + (index + 1) + ' / ' + examReviewQueue.length + '</h2>' +
           '<p><b>नाम:</b> ' + escapeHtml(name) + ' &nbsp; <b>रोल नंबर:</b> ' + escapeHtml(student.rollNumber || student.rollNo || 'उपलब्ध नहीं') + '</p>' +
           '<p><b>जन्म तिथि:</b> ' + escapeHtml(dob) + ' &nbsp; <b>मोबाइल:</b> ' + escapeHtml(student.phone || student.mobile || '—') + '</p>' +
-          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.examTitle || student.mode || examReviewCollection) + '</p>' +
+          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.examTitle || ({ main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा', mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1', mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2', quiz: 'दैनिक क्विज़' }[student.mode]) || examReviewCollection) + '</p>' +
           '<p><b>जमा समय:</b> ' + escapeHtml(submitted) + ' &nbsp; <b>रिकॉर्ड ID:</b> ' + escapeHtml(student.id || '—') + '</p>' +
           '<p><b>स्वचालित अंक:</b> ' + escapeHtml(student.score ?? student.autoScore ?? student.correct ?? '—') + ' / ' + escapeHtml(student.total ?? student.totalQuestions ?? '—') +
           ' &nbsp; <b>सत्यापित अंक:</b> ' + escapeHtml(student.manualScore ?? 'अभी सत्यापित नहीं') + '</p>' +
@@ -5538,8 +5546,28 @@ window.clearExamReviewFilters = clearExamReviewFilters;
       const queryText = (document.getElementById('reviewSubmissionSearch')?.value || '').trim().toLowerCase();
       const queueStatus = document.getElementById('examReviewQueueStatus');
       const loadButton = document.querySelector('#manualExamReviewSection button[onclick="loadExamSubmissions()"]');
-      const collectionLabels = { mainExamSubmissions: 'मुख्य परीक्षा', mockExamSubmissions: 'मॉक परीक्षा 1/2', quizAttempts: 'दैनिक क्विज़' };
-      if (queueStatus) queueStatus.textContent = (collectionLabels[examReviewCollection] || examReviewCollection) + ' के उत्तर-पत्र लोड हो रहे हैं…';
+      const collectionLabels = {
+        mainExamSubmissions: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+        mockExamSubmissions: 'मॉक परीक्षाएँ',
+        quizAttempts: 'दैनिक क्विज़'
+      };
+      const modeFilterWrap = document.getElementById('reviewExamModeWrap');
+      if (modeFilterWrap) modeFilterWrap.classList.toggle('hidden', examReviewCollection !== 'mockExamSubmissions');
+      const modeFilter = document.getElementById('reviewExamModeFilter');
+      const modeNames = {
+        mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+        mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2'
+      };
+      if (modeFilter?.options?.length >= 3) {
+        modeFilter.options[1].textContent = modeNames.mock1;
+        modeFilter.options[2].textContent = modeNames.mock2;
+      }
+      const selectedMode = modeFilter?.value || 'all';
+      const reviewLabel = examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all'
+        ? modeNames[selectedMode] : (collectionLabels[examReviewCollection] || examReviewCollection);
+      const reportButton = document.getElementById('printAllExamReviewButton');
+      if (reportButton) reportButton.textContent = '📄 ' + reviewLabel + ' की सभी उत्तर-पत्र / जाँच रिपोर्ट PDF';
+      if (queueStatus) queueStatus.textContent = reviewLabel + ' के उत्तर-पत्र लोड हो रहे हैं…';
       if (loadButton) loadButton.textContent = 'लोड हो रहा है…';
       list.innerHTML = '<div class="text-stone-400 text-xs">सबमिशन लोड हो रहे हैं...</div>';
 
@@ -5592,6 +5620,7 @@ return review ? {
           document.getElementById('reviewSubmissionStatus')?.value || 'all';
 
         examReviewQueue = rows.filter(d => {
+          if (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all' && d.mode !== selectedMode) return false;
           if (selectedCustomExamId && d.customExamId !== selectedCustomExamId) return false;
           const haystack = [
             d.name,
