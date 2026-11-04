@@ -3406,6 +3406,67 @@ window.renderExamVisibility = function renderExamVisibility() {
       if (button) { button.disabled = false; button.innerHTML = 'प्रतिक्रिया भेजें <span aria-hidden="true">→</span>'; }
     }
   };
+
+  window.BishnoiCommunity.submitContact = async function (event) {
+    event?.preventDefault?.();
+    if (!requireUser()) return;
+    const messageInput = byId('bxContactMessage'), categoryInput = byId('bxContactCategory');
+    const status = byId('bxContactStatus'), button = byId('bxContactSubmit');
+    const message = String(messageInput?.value || '').trim();
+    const category = String(categoryInput?.value || 'सामान्य पूछताछ').trim().slice(0, 40);
+    if (!message || message.length > 900) {
+      if (status) status.textContent = 'कृपया 1 से 900 अक्षरों में संदेश लिखें।';
+      return notify('कृपया अपना संदेश लिखें।', 'error');
+    }
+    if (button) { button.disabled = true; button.textContent = 'भेजा जा रहा है…'; }
+    if (status) status.textContent = 'आपका संदेश सुरक्षित रूप से भेजा जा रहा है…';
+    try {
+      await collection('communityFeedback').add({
+        uid: state.user.uid,
+        displayName: state.profile?.displayName || state.user.displayName || 'समाज का सदस्य',
+        body: '[संपर्क: ' + category + '] ' + message,
+        status: 'new',
+        createdAt: serverTimestamp()
+      });
+      if (messageInput) messageInput.value = '';
+      if (status) status.textContent = 'धन्यवाद! आपका संदेश प्रबंधन टीम तक पहुँच गया है।';
+      notify('आपका संपर्क संदेश भेज दिया गया।', 'success');
+      window.BishnoismSite.closeContact();
+    } catch (error) {
+      console.error('Contact message failed:', error);
+      if (status) status.textContent = 'संदेश नहीं भेजा जा सका। कृपया फिर प्रयास करें।';
+      notify('संदेश नहीं भेजा जा सका।', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'संदेश भेजें →'; }
+    }
+  };
+
+  window.BishnoismSite = window.BishnoismSite || {};
+  window.BishnoismSite.openFeedback = function () {
+    if (!state.user) { window.BishnoiAuth?.openAuthModal?.(); return; }
+    window.switchTab?.('community');
+    window.setTimeout(() => {
+      byId('communityFeedbackComposer')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      byId('communityFeedbackText')?.focus({ preventScroll: true });
+    }, 80);
+  };
+  window.BishnoismSite.openCommunityChat = function () {
+    window.switchTab?.('community');
+    window.setTimeout(() => byId('communityFeed')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+  };
+  window.BishnoismSite.openContact = function () {
+    if (!state.user) { window.BishnoiAuth?.openAuthModal?.(); return; }
+    const modal = byId('bxContactModal');
+    if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); modal.setAttribute('aria-hidden', 'false'); }
+  };
+  window.BishnoismSite.closeContact = function () {
+    const modal = byId('bxContactModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.setAttribute('aria-hidden', 'true'); }
+  };
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') window.BishnoismSite.closeContact();
+  });
+
   window.BishnoiCommunity.filterTopic = function (topic) {
     communityTopicFilter = topic || 'all';
     window.renderCommunity(communityPostsCache);
