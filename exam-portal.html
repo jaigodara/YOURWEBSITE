@@ -258,7 +258,7 @@
     <p id="identityHelp" class="muted">यह जानकारी आपके मुख्य वेबसाइट लॉगिन/पंजीकरण रिकॉर्ड से पढ़ी जाती है।</p>
   </section>
 
-  <section id="resultVerificationDesk" class="panel" aria-labelledby="resultVerificationHeading">
+  <section id="resultVerificationDesk" class="panel hide" aria-labelledby="resultVerificationHeading">
     <div class="eyebrow" style="color:var(--terracotta)">RS · RESULT VERIFICATION</div>
     <h2 id="resultVerificationHeading" class="section-heading" style="margin-top:5px">📊 परिणाम सत्यापन डेस्क</h2>
     <p class="muted">अपना रोल नंबर, पंजीकरण वाला पूरा नाम और जन्म तिथि भरें। सत्यापन मुख्य वेबसाइट के सुरक्षित परिणाम अनुभाग में होगा; यह फॉर्म सार्वजनिक रूप से किसी दूसरे विद्यार्थी का रिकॉर्ड खोजने की अनुमति नहीं देता।</p>
@@ -463,6 +463,7 @@ function toScheduleDate(value) {
       ? "मुख्य वेबसाइट का लॉगिन सत्र मिल गया। परीक्षा शुरू होने पर पात्रता फिर जाँची जाएगी।"
       : "मुख्य वेबसाइट का लॉगिन सत्र नहीं मिला। परीक्षा देने से पहले मुख्य वेबसाइट पर लॉगिन करें।");
     byId("studentIdentityPanel").classList.toggle("hide", !user);
+    byId("resultVerificationDesk").classList.add("hide");
     if (!user) {
       byId("identityStudentName").textContent = "लॉगिन के बाद उपलब्ध";
       byId("identityRollNumber").textContent = "पंजीकरण के बाद उपलब्ध";
@@ -476,6 +477,15 @@ function toScheduleDate(value) {
     try {
       const profileSnap = await db.collection("users").doc(user.uid).get();
       const profile = profileSnap.exists ? profileSnap.data() : {};
+      try {
+        const roleSnap = await db.collection("roles").doc(user.uid).get();
+        const isPrimaryOwner = roleSnap.exists && roleSnap.data()?.role === "owner";
+        byId("resultVerificationDesk").classList.toggle("hide", !isPrimaryOwner);
+        if (!isPrimaryOwner) byId("resultVerificationStatus").textContent = "परिणाम सत्यापन डेस्क केवल Owner के लिए उपलब्ध है।";
+      } catch (roleError) {
+        byId("resultVerificationDesk").classList.add("hide");
+        console.warn("Owner role verification failed:", roleError.code || roleError.message);
+      }
       const name = profile.fullName || profile.name || profile.displayName || authName;
       const phone = profile.phoneNumber || profile.phone || authPhone;
       const roll = profile.rollNumber || profile.roll || profile.admissionRollNumber || "";
@@ -490,12 +500,24 @@ function toScheduleDate(value) {
     }
   });
 
-  byId("resultVerificationForm").addEventListener("submit", event => {
+  byId("resultVerificationForm").addEventListener("submit", async event => {
     event.preventDefault();
     const user = auth.currentUser;
     const resultStatus = byId("resultVerificationStatus");
     if (!user) {
       resultStatus.textContent = "पहले मुख्य वेबसाइट पर लॉगिन करें। लॉगिन के बाद इस पोर्टल पर लौटकर फिर सत्यापन करें।";
+      return;
+    }
+    let roleSnapshot;
+    try {
+      roleSnapshot = await db.collection("roles").doc(user.uid).get();
+    } catch (error) {
+      resultStatus.textContent = "Owner अधिकार सत्यापित नहीं हो सके। कृपया पुनः लॉगिन करें।";
+      return;
+    }
+    if (!roleSnapshot.exists || roleSnapshot.data()?.role !== "owner") {
+      byId("resultVerificationDesk").classList.add("hide");
+      resultStatus.textContent = "यह सुविधा केवल Owner के लिए उपलब्ध है।";
       return;
     }
     pendingResultLookup = {
