@@ -3149,7 +3149,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!activePolls.length) return;
     activePolls.forEach(async poll => {
       const card = document.createElement('article');
-      card.className = 'rounded-2xl border border-amber-200 bg-white p-4 shadow-sm space-y-3';
+      card.className = 'bx-chat-message bx-chat-message-other w-full rounded-xl border border-[#d9e4d8] bg-white p-4 shadow-sm space-y-3';
       const title = document.createElement('h3');
       title.className = 'font-bold text-sm text-forest';
       title.textContent = '📊 ' + String(poll.title || 'समुदाय मतदान');
