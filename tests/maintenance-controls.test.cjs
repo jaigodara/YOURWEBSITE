@@ -168,13 +168,14 @@ test('Home maintenance shows Owner-published YouTube and audio media cards using
   assert.match(mediaJs, /openMedia\(item\)/);
 });
 
-test('Community supports one private per-member emoji reaction with server-side validation', () => {
+test('Community uses private per-member like/dislike reactions with server-side validation', () => {
   assert.match(scriptJs, /window\.BishnoiCommunity\.loadReactions = async function/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.toggleReaction = async function/);
-  assert.match(scriptJs, /data-community-reaction-bar/);
+  assert.match(scriptJs, /data-community-reaction="like"/);
+  assert.match(scriptJs, /data-community-reaction="dislike"/);
   assert.match(rules, /match \/reactions\/\{reactorUid\}/);
   assert.match(rules, /reactorUid == request\.auth\.uid/);
-  assert.match(rules, /'❤️', '🙏', '🙂', '👏'/);
+  assert.match(rules, /'like', 'dislike'/);
 });
 
 test('Community read receipts count one first read per signed-in member without exposing reader identities', () => {
@@ -190,7 +191,8 @@ test('Community includes owner-created polls with one vote per signed-in member 
   assert.match(ownerHtml, /id="ownerCommunityPollManager"/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.createPoll = async function/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.votePoll = async function/);
-  assert.match(scriptJs, /data-community-like/);
+  assert.match(scriptJs, /data-community-reaction="like"/);
+  assert.match(scriptJs, /data-community-reaction="dislike"/);
   assert.match(rules, /match \/communityPolls\/\{pollId\}/);
   assert.match(rules, /voterUid == request\.auth\.uid/);
 });
@@ -222,13 +224,12 @@ test('Community uses one unfiltered conversation instead of the removed topic pi
   assert.match(indexHtml, /id="postEditor"/);
 });
 
-test('Owner Community poll manager is available only from its dedicated Owner Studio route', () => {
+test('Owner Community poll manager is grouped under Literature and Media management', () => {
   assert.equal((ownerHtml.match(/id="ownerCommunityPollManager"/g) || []).length, 1);
-  assert.match(ownerHtml, /data-studio-page="polls"/);
-  assert.match(ownerHtml, /id="ownerCommunityPollManager" class="hidden /);
-  assert.match(ownerHtml, /polls:\s*\{\s*pane: 'pane_system',[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
+  assert.match(ownerHtml, /data-studio-page="media"/);
+  assert.doesNotMatch(ownerHtml, /data-studio-page="polls"/);
+  assert.match(ownerHtml, /media:\s*\{\s*pane: 'pane_media',[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
   assert.match(ownerHtml, /const OWNER_STUDIO_ROUTE_PANELS = \[[\s\S]*?'ownerCommunityPollManager'/);
-  assert.match(ownerHtml, /'ownerCommunityPollManager'\s*\]\.forEach/);
 });
 
 test('Community Poll and Event attachments show a neutral unavailable message to non-owners', () => {
@@ -278,4 +279,34 @@ test('Owner Studio starts with only the Dashboard route panels visible', () => {
   assert.match(ownerHtml, /OWNER_STUDIO_ROUTE_PANELS\.forEach\(id => \{/);
   assert.match(ownerHtml, /OWNER_STUDIO_ROUTES\.dashboard\.panels/);
   assert.match(ownerHtml, /initializeOwnerStudioRouteVisibility\(\);/);
+});
+
+test('Result verification desk is Owner-only in the separate exam portal', () => {
+  assert.match(portalHtml, /id="resultVerificationDesk" class="panel hide"/);
+  assert.match(portalHtml, /roleSnap\.data\(\)\?\.role === "owner"/);
+  assert.match(portalHtml, /roleSnapshot\.data\(\)\?\.role !== "owner"/);
+});
+test('Owner-only community attachments are enforced by primary-owner rules, not editor permissions', () => {
+  assert.match(indexHtml, /id="postLinkField" data-owner-only="true"/);
+  assert.match(scriptJs, /setVisible\('postLinkField', !!state\.isOwner\)/);
+  assert.match(rules, /linkUrl' in request\.resource\.data\) \|\| examOwner\(\)/);
+});
+test('Mock exam report selection and archive actions use saved exam display names', () => {
+  assert.match(ownerHtml, /id="reviewExamModeFilter"/);
+  assert.match(ownerHtml, /d\.mode !== selectedMode/);
+  assert.match(ownerHtml, /ownerMock1StartLabel/);
+  assert.match(ownerHtml, /ownerMock2StartLabel/);
+  assert.match(ownerHtml, /ownerMainStartLabel/);
+  assert.match(ownerHtml, /modeNames\[selectedMode\]/);
+});
+test('Completed exams can be archived with zero remaining records and refresh owner views', () => {
+  assert.match(ownerHtml, /खाली आर्काइव दर्ज करके परीक्षा की स्थिति और सूची भी रिफ्रेश की जाएगी/);
+  assert.match(ownerHtml, /loadExamArchives\(\)[\s\S]*loadExamSessionQueue\(\)/);
+});
+
+test('Every locked section uses the same branded update-panel design as Home with section-specific copy', () => {
+  assert.match(scriptJs, /BISHNOISM • PLATFORM UPDATE/);
+  assert.match(scriptJs, /\$\{escapeHtml\(label\)\} — नए फीचर आ रहे हैं/);
+  assert.match(scriptJs, /bg-gradient-to-br from-amber-50 via-white to-emerald-50/);
+  assert.match(scriptJs, /अपडेट जारी/);
 });

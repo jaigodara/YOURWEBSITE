@@ -592,13 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
-      <section id="communityPollSection" class="space-y-2">
-        <h3 class="font-bold text-sm text-forest">📊 समाज का मतदान</h3>
-        <div id="communityPollFeed" class="grid grid-cols-1 md:grid-cols-2 gap-3" aria-live="polite">
-          <p class="text-xs text-stone-500">मतदान लोड हो रहा है…</p>
-        </div>
-      </section>
-      <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-2xl border border-stone-200 custom-scrollbar"></div>
+      <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-2xl border border-stone-200 custom-scrollbar"><div id="communityPollFeed" class="space-y-3" aria-live="polite"></div></div>
 
       <div id="postAuthPrompt" class="bg-white p-4 rounded-2xl border border-stone-200 text-center space-y-2">
         <p class="text-xs text-stone-600">संवाद मंच में संदेश भेजने के लिए कृपया लॉगिन करें।</p>
@@ -626,17 +620,22 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <button type="button" onclick="window.BishnoiCommunity.submitPost()" class="h-10 w-10 shrink-0 rounded-full bg-forest text-white text-lg shadow" aria-label="संदेश भेजें">➤</button>
         </div>
-        <label class="block space-y-1">
-          <span class="text-[10px] font-bold text-stone-600">📎 PDF / वेबसाइट लिंक (वैकल्पिक)</span>
-          <input id="postLinkUrl" type="url" maxlength="2000" inputmode="url" placeholder="https://…" class="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-xs">
-        </label>
-        <details class="rounded-xl border border-stone-200 bg-stone-50 p-3">
-          <summary class="cursor-pointer text-xs font-bold text-forest">💬 सुझाव / Feedback भेजें</summary>
-          <div class="mt-2 space-y-2">
-            <textarea id="communityFeedbackText" rows="3" maxlength="1000" placeholder="समुदाय के लिए अपना सुझाव लिखें…" class="w-full rounded-xl border border-stone-300 bg-white p-2.5 text-xs"></textarea>
-            <button type="button" onclick="window.BishnoiCommunity.submitFeedback()" class="rounded-lg bg-forest px-4 py-2.5 text-xs font-bold text-white">सुझाव भेजें</button>
+        <label id="postLinkField" data-owner-only="true" class="hidden rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-1"><span class="text-xs font-bold text-forest">📎 Owner attachment · PDF / वेबसाइट लिंक (वैकल्पिक)</span><input id="postLinkUrl" type="url" maxlength="2000" inputmode="url" placeholder="https://…" class="w-full rounded-xl border border-stone-300 bg-white p-3 text-sm text-stone-800"><span class="text-[11px] text-stone-600">यह सुविधा केवल Owner के लिए उपलब्ध है।</span></label>
+        <section id="communityFeedbackComposer" class="overflow-hidden rounded-2xl border border-[#d9e4d8] bg-white shadow-sm" aria-labelledby="communityFeedbackHeading">
+          <div class="flex items-center gap-3 border-b border-[#e8eee7] bg-gradient-to-r from-[#f4f8f2] to-white px-4 py-3.5">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#143622] text-lg text-[#e5af16]">✦</span>
+            <div class="min-w-0"><p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#66806d]">BISHNOISM · COMMUNITY</p><h3 id="communityFeedbackHeading" class="text-sm font-extrabold text-[#143622]">सुझाव और प्रतिक्रिया</h3><p class="mt-0.5 text-xs leading-relaxed text-stone-600">आपकी प्रतिक्रिया मंच को बेहतर बनाने में मदद करती है।</p></div>
           </div>
-        </details>
+          <div class="space-y-3 p-4">
+            <label for="communityFeedbackText" class="block text-xs font-bold text-[#26392c]">आप क्या बेहतर देखना चाहेंगे?</label>
+            <textarea id="communityFeedbackText" rows="4" maxlength="1000" placeholder="अपना सुझाव, समस्या या विचार यहाँ लिखें…" oninput="document.getElementById('communityFeedbackCount').textContent = this.value.length + ' / 1000'" class="min-h-28 w-full resize-y rounded-xl border border-[#dce5dc] bg-[#fbfcfa] p-3.5 text-sm leading-relaxed text-[#26392c] placeholder:text-stone-400 outline-none transition focus:border-[#2d6a4f] focus:ring-2 focus:ring-[#2d6a4f]/10"></textarea>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <span id="communityFeedbackCount" class="text-[11px] font-medium tabular-nums text-stone-500" aria-live="polite">0 / 1000</span>
+              <button id="communityFeedbackSubmit" type="button" onclick="window.BishnoiCommunity.submitFeedback()" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#143622] px-5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#1e4931] focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:ring-offset-2">प्रतिक्रिया भेजें <span aria-hidden="true">→</span></button>
+            </div>
+            <p id="communityFeedbackStatus" class="text-xs text-stone-500" role="status" aria-live="polite">आपका सुझाव केवल मंच प्रबंधन टीम को भेजा जाएगा।</p>
+          </div>
+        </section>
       </div>
     </section>
 

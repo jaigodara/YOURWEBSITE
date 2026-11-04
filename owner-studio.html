@@ -247,13 +247,7 @@
           <button type="button" data-studio-page="notifications" class="studio-nav-item">🔔 Notifications</button>
           <button type="button" data-studio-page="settings" class="studio-nav-item">⚙️ Settings</button>
           <button type="button" data-studio-page="exports" class="studio-nav-item">📊 Reports &amp; Exports</button>
-          <button
-  type="button"
-  class="studio-nav-item"
-  data-studio-page="media">
-  📚 साहित्य / मीडिया संपादन
-</button>
-          <button type="button" data-studio-page="polls" class="studio-nav-item">📊 समाज मतदान प्रबंधन</button>
+          <button type="button" data-studio-page="media" class="studio-nav-item">📚 साहित्य / मीडिया एवं मतदान प्रबंधन</button>
         </nav>
       </aside>
       <div id="ownerStudioPageContent" class="min-w-0 space-y-6">
@@ -672,6 +666,14 @@ Ans: B"></textarea>
             </select>
           </label>
 
+          <label id="reviewExamModeWrap" class="block text-xs font-bold text-stone-700 hidden">
+            मॉक परीक्षा चुनें
+            <select id="reviewExamModeFilter" onchange="loadExamSubmissions()" class="mt-1 w-full min-h-[48px] rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
+              <option value="all">दोनों मॉक परीक्षाएँ</option>
+              <option value="mock1">मॉक परीक्षा 1</option>
+              <option value="mock2">मॉक परीक्षा 2</option>
+            </select>
+          </label>
           <label class="block text-xs font-bold text-stone-700">
             कस्टम परीक्षा
             <select id="reviewCustomExamFilter" onchange="loadExamSubmissions()"
@@ -724,7 +726,7 @@ Ans: B"></textarea>
         </div>
         <p id="examReviewQueueStatus" class="text-[11px] text-stone-500" aria-live="polite">उत्तर-पत्र लाने के लिए परीक्षा चुनें।</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button type="button" onclick="printAllExamReviewSheets()" class="min-h-[44px] rounded-xl border border-forest bg-white px-4 py-3 text-sm font-bold text-forest hover:bg-stone-50">📄 सभी विद्यार्थियों की उत्तर-पत्र / जाँच रिपोर्ट PDF</button>
+          <button id="printAllExamReviewButton" type="button" onclick="printAllExamReviewSheets()" class="min-h-[44px] rounded-xl border border-forest bg-white px-4 py-3 text-sm font-bold text-forest hover:bg-stone-50">📄 सभी विद्यार्थियों की उत्तर-पत्र / जाँच रिपोर्ट PDF</button>
           <p class="self-center text-[11px] text-stone-500">पहले रिकॉर्ड लाएँ, फिर इस बटन से सभी लोड हुए विद्यार्थियों की रिपोर्ट खोलें और Print में “Save as PDF” चुनें।</p>
         </div>
         <div id="examSubmissionsList" class="space-y-2 max-h-[32rem] overflow-y-auto custom-scroll">
@@ -850,9 +852,9 @@ Ans: B"></textarea>
           <div><h4 class="font-yatra text-sm text-forest">⏳ परीक्षा शुरू होने का समय तय करें</h4><p class="text-[11px] text-stone-600 mt-1">दैनिक क्विज़ हर दिन पूरे दिन उपलब्ध रहता है—इसके लिए समय या late-entry अनुमति की जरूरत नहीं है। नीचे का समय केवल मॉक परीक्षा 1/2 और मुख्य परीक्षा के लिए लागू है; समय आपके डिवाइस के स्थानीय समय क्षेत्र के अनुसार सहेजा जाता है।</p></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <label class="font-bold text-stone-500">दैनिक क्विज़ — पूरे दिन उपलब्ध<input id="ownerQuizStartAt" type="datetime-local" disabled title="दैनिक क्विज़ के लिए समय लागू नहीं है" class="mt-1 w-full p-2.5 rounded-xl border border-stone-200 bg-stone-100 font-normal cursor-not-allowed"></label>
-            <label class="font-bold text-stone-700">मॉक परीक्षा 1 शुरू<input id="ownerMock1StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
-            <label class="font-bold text-stone-700">मॉक परीक्षा 2 शुरू<input id="ownerMock2StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
-            <label class="font-bold text-stone-700">मुख्य परीक्षा शुरू<input id="ownerMainStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700"><span id="ownerMock1StartLabel">मॉक परीक्षा 1 शुरू</span><input id="ownerMock1StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700"><span id="ownerMock2StartLabel">मॉक परीक्षा 2 शुरू</span><input id="ownerMock2StartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
+            <label class="font-bold text-stone-700"><span id="ownerMainStartLabel">मुख्य परीक्षा शुरू</span><input id="ownerMainStartAt" type="datetime-local" class="mt-1 w-full p-2.5 rounded-xl border border-stone-300 font-normal"></label>
           </div>
         </div>
         <label class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-stone-700">
@@ -1681,7 +1683,7 @@ const OWNER_STUDIO_ROUTES = {
   media: {
     pane: 'pane_media',
     permission: 'media',
-    panels: []
+    panels: ['ownerCommunityPollManager']
   },
   questions: {
     pane: 'pane_quiz',
@@ -1725,11 +1727,6 @@ const OWNER_STUDIO_ROUTES = {
       'ownerProctoringPanel'
     ]
   },
-  polls: {
-    pane: 'pane_system',
-    permission: null,
-    panels: ['ownerCommunityPollManager']
-  },
   exports: {
     pane: 'pane_system',
     permission: 'reports',
@@ -1768,8 +1765,7 @@ function moveOwnerStudioPanels() {
     'ownerDataDashboard',
     'ownerDataExportPanel',
     'ownerExamVisibilitySettingsPanel',
-    'ownerProctoringPanel',
-    'ownerCommunityPollManager'
+    'ownerProctoringPanel'
   ].forEach(id => {
     const panel = document.getElementById(id);
     if (panel && !systemPane.contains(panel)) {
@@ -1782,6 +1778,10 @@ function moveOwnerStudioPanels() {
     const panel = document.getElementById(id);
     if (panel && questionPane && !questionPane.contains(panel)) questionPane.appendChild(panel);
   });
+  const mediaPane = document.getElementById('pane_media');
+  const pollPanel = document.getElementById('ownerCommunityPollManager');
+  if (pollPanel && mediaPane && !mediaPane.contains(pollPanel)) mediaPane.appendChild(pollPanel);
+  if (pollPanel) pollPanel.setAttribute('data-owner-only', 'true');
 }
 
 function openStudioPage(page) {
@@ -1815,10 +1815,14 @@ function openStudioPage(page) {
 
   route.panels.forEach(id => {
     const panel = document.getElementById(id);
-    if (panel) {
-      delete panel.dataset.studioRouteHidden;
-      panel.classList.remove('hidden');
+    if (!panel) return;
+    if (panel.hasAttribute('data-owner-only') && !owner) {
+      panel.dataset.studioRouteHidden = 'true';
+      panel.classList.add('hidden');
+      return;
     }
+    delete panel.dataset.studioRouteHidden;
+    panel.classList.remove('hidden');
   });
 
   if (page === 'questions' && (owner || hasEditorPermission('examReview'))) window.setTimeout(() => loadExamSessionQueue(), 0);
@@ -3285,6 +3289,16 @@ async function saveBulkQuestionDrafts() {
           if (el.type === 'checkbox') el.checked = value;
           else el.value = value;
         });
+        const examDisplayNames = {
+          mock1: String(data.mock1DisplayName || 'मॉक परीक्षा 1'),
+          mock2: String(data.mock2DisplayName || 'मॉक परीक्षा 2'),
+          main: String(data.mainDisplayName || 'मुख्य परीक्षा')
+        };
+        document.getElementById('ownerMock1StartLabel').textContent = examDisplayNames.mock1 + ' शुरू';
+        document.getElementById('ownerMock2StartLabel').textContent = examDisplayNames.mock2 + ' शुरू';
+        document.getElementById('ownerMainStartLabel').textContent = examDisplayNames.main + ' शुरू';
+        // Keep the archive action title in sync with names restored from Firestore.
+        window.handleArchiveExamModeChange?.();
         const resultsReleased = data.resultsPublished === true;
         const releaseStatus = document.getElementById('ownerResultsReleaseStatus');
         const releaseButton = document.getElementById('ownerResultsReleaseButton');
@@ -4289,6 +4303,10 @@ async function changeCustomExamStatus(nextStatus) {
         const previousSnap = await configRef.get();
         const previous = previousSnap.exists ? previousSnap.data() || {} : {};
         await configRef.set(config, { merge: true });
+        document.getElementById('ownerMock1StartLabel').textContent = config.mock1DisplayName + ' शुरू';
+        document.getElementById('ownerMock2StartLabel').textContent = config.mock2DisplayName + ' शुरू';
+        document.getElementById('ownerMainStartLabel').textContent = config.mainDisplayName + ' शुरू';
+        window.handleArchiveExamModeChange?.();
 
         const publishNotifications = document.getElementById('ownerPublishExamNotifications')?.checked === true;
         const scheduledText = ms => ms ? new Date(ms).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय Owner Studio में निर्धारित किया जाएगा';
@@ -4302,13 +4320,13 @@ async function changeCustomExamStatus(nextStatus) {
           notices.push(['दैनिक ज्ञान क्विज़ की सूचना', 'दैनिक ज्ञान क्विज़ की निर्धारित शुरुआत: ' + scheduledText(config.quizStartAtMs) + '। पंजीकरण की पुष्टि और निर्धारित समय के बाद प्रवेश करें।']);
         }
         if (config.mock1Visible && (previous.mock1Visible !== true || previous.mock1StartAtMs !== config.mock1StartAtMs)) {
-          notices.push(['मॉक परीक्षा 1 की सूचना', 'मॉक परीक्षा 1 की निर्धारित शुरुआत: ' + scheduledText(config.mock1StartAtMs) + '।']);
+          notices.push([config.mock1DisplayName + ' की सूचना', config.mock1DisplayName + ' की निर्धारित शुरुआत: ' + scheduledText(config.mock1StartAtMs) + '।']);
         }
         if (config.mock2Visible && (previous.mock2Visible !== true || previous.mock2StartAtMs !== config.mock2StartAtMs)) {
-          notices.push(['मॉक परीक्षा 2 की सूचना', 'मॉक परीक्षा 2 की निर्धारित शुरुआत: ' + scheduledText(config.mock2StartAtMs) + '।']);
+          notices.push([config.mock2DisplayName + ' की सूचना', config.mock2DisplayName + ' की निर्धारित शुरुआत: ' + scheduledText(config.mock2StartAtMs) + '।']);
         }
         if (config.mainExamVisible && (previous.mainExamVisible !== true || previous.mainStartAtMs !== config.mainStartAtMs)) {
-          notices.push(['मुख्य परीक्षा की सूचना', 'मुख्य परीक्षा की निर्धारित शुरुआत: ' + scheduledText(config.mainStartAtMs) + '। प्रवेश के लिए पंजीकरण की Owner द्वारा पुष्टि आवश्यक है।']);
+          notices.push([config.mainDisplayName + ' की सूचना', config.mainDisplayName + ' की निर्धारित शुरुआत: ' + scheduledText(config.mainStartAtMs) + '। प्रवेश के लिए पंजीकरण की Owner द्वारा पुष्टि आवश्यक है।']);
         }
         if (publishNotifications) for (const [title, message] of notices) {
           try {
@@ -4327,9 +4345,9 @@ async function changeCustomExamStatus(nextStatus) {
         }
         const startEvents = [
           ['quiz', config.quizStartAtMs, previous.quizStartAtMs, 'दैनिक ज्ञान परीक्षा शुरू हो गई', 'दैनिक ज्ञान परीक्षा का निर्धारित समय शुरू हो गया है।'],
-          ['mock1', config.mock1StartAtMs, previous.mock1StartAtMs, 'मॉक परीक्षा 1 शुरू हो गई', 'मॉक परीक्षा 1 का निर्धारित समय शुरू हो गया है।'],
-          ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, 'मॉक परीक्षा 2 शुरू हो गई', 'मॉक परीक्षा 2 का निर्धारित समय शुरू हो गया है।'],
-          ['main', config.mainStartAtMs, previous.mainStartAtMs, 'मुख्य परीक्षा शुरू हो गई', 'मुख्य परीक्षा का निर्धारित समय शुरू हो गया है।']
+          ['mock1', config.mock1StartAtMs, previous.mock1StartAtMs, config.mock1DisplayName + ' शुरू हो गई', config.mock1DisplayName + ' का निर्धारित समय शुरू हो गया है।'],
+          ['mock2', config.mock2StartAtMs, previous.mock2StartAtMs, config.mock2DisplayName + ' शुरू हो गई', config.mock2DisplayName + ' का निर्धारित समय शुरू हो गया है।'],
+          ['main', config.mainStartAtMs, previous.mainStartAtMs, config.mainDisplayName + ' शुरू हो गई', config.mainDisplayName + ' का निर्धारित समय शुरू हो गया है।']
         ];
         if (publishNotifications) for (const [mode, startAt, oldStartAt, title, body] of startEvents) {
           if (startAt && startAt <= Date.now() && (!oldStartAt || oldStartAt > Date.now())) {
@@ -4497,6 +4515,11 @@ async function changeCustomExamStatus(nextStatus) {
       }
     }
 
+    function getReviewExamLabel(row, sourceCollection = examReviewCollection) {
+      const names = { main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा', mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1', mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2', quiz: 'दैनिक क्विज़' };
+      return row?.examTitle || names[row?.mode] || (sourceCollection === 'mainExamSubmissions' ? names.main : sourceCollection === 'mockExamSubmissions' ? 'मॉक परीक्षाएँ' : names.quiz);
+    }
+
     function renderCurrentExamReview() {
       const list = document.getElementById('examSubmissionsList');
       if (!list) return;
@@ -4631,7 +4654,7 @@ async function changeCustomExamStatus(nextStatus) {
         const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'समय अज्ञात';
         option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' +
           (row.name || row.fullName || row.displayName || 'विद्यार्थी') + ' · ' +
-          (row.examTitle || row.mode || examReviewCollection) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
+          getReviewExamLabel(row) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
         option.title = 'सबमिशन ID: ' + row.id + ' · जमा: ' + submittedLabel;
         jump.appendChild(option);
       });
@@ -4654,7 +4677,7 @@ async function changeCustomExamStatus(nextStatus) {
       const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
       const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय अज्ञात';
       meta.textContent = 'मोबाइल: ' + (d.phone || d.mobile || '—') + ' · ईमेल: ' + (d.email || '—') +
-        ' · परीक्षा: ' + (d.examTitle || d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
+        ' · परीक्षा: ' + getReviewExamLabel(d) + ' · स्वचालित अंक: ' +
         (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
         ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी') +
         ' · जमा: ' + submittedLabel + ' · रिकॉर्ड ID: ' + String(d.id).slice(0, 10);
@@ -4977,8 +5000,13 @@ next.addEventListener('click', async () => {
         const sessionRef = db.collection('examSessions').doc(sessionId);
         const sessionSnap = await sessionRef.get();
         const currentSession = sessionSnap.exists ? sessionSnap.data() || {} : {};
+        if (!sessionSnap.exists) return showToast('परीक्षा सत्र अब उपलब्ध नहीं है। सूची रिफ्रेश करें।');
+        if (currentSession.status !== 'late_request' && status !== 'kicked') return showToast('यह पुनः प्रवेश अनुरोध पहले ही संसाधित हो चुका है।');
         const update = {
           status,
+          lateEntryRequested: false,
+          reentryDecision: status === 'active' ? 'approved' : status === 'denied' ? 'denied' : (currentSession.reentryDecision || ''),
+          reentryDecidedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: auth.currentUser?.uid || null
         };
@@ -5062,7 +5090,7 @@ async function loadExamSessionQueue() {
         const snap = await db.collection('examSessions').orderBy('updatedAt', 'desc').limit(100).get();
         const now = Date.now();
         const rows = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(row => ['active', 'kicked', 'denied', 'late_request'].includes(row.status))
+          .filter(row => ['active', 'kicked', 'late_request'].includes(row.status))
           // Expired active records are completed attempts, not live monitoring work.
           .filter(row => !(row.status === 'active' && Number(row.endAtMs) > 0 && Number(row.endAtMs) <= now));
         if (!rows.length) {
@@ -5077,7 +5105,13 @@ async function loadExamSessionQueue() {
           card.className = 'rounded-xl border p-3 space-y-2 ' + (row.status === 'kicked' ? 'border-red-300 bg-red-50' : 'border-stone-200 bg-stone-50');
           const title = document.createElement('strong');
           title.className = 'block text-xs text-forest';
-          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (row.mode || 'exam');
+          const modeNames = {
+            main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+            mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+            mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2',
+            quiz: 'दैनिक क्विज़'
+          };
+          title.textContent = (row.name || 'विद्यार्थी') + ' · ' + (modeNames[row.mode] || row.examTitle || row.mode || 'परीक्षा');
           const detail = document.createElement('p');
           detail.className = 'text-[11px] text-stone-600 break-all';
           detail.textContent = 'UID: ' + (row.uid || '—') + ' · स्थिति: ' + row.status +
@@ -5087,7 +5121,7 @@ async function loadExamSessionQueue() {
           card.append(title, detail);
           const actions = document.createElement('div');
           actions.className = 'flex flex-wrap gap-2';
-          if (row.status !== 'active') {
+          if (row.status === 'late_request') {
             const allow = document.createElement('button');
             allow.type = 'button';
             allow.className = 'rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white';
@@ -5106,7 +5140,7 @@ async function loadExamSessionQueue() {
             });
             actions.appendChild(kick);
           }
-          if (row.status !== 'denied') {
+          if (row.status === 'late_request') {
             const deny = document.createElement('button');
             deny.type = 'button';
             deny.className = 'rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-bold text-red-700';
@@ -5491,7 +5525,7 @@ window.clearExamReviewFilters = clearExamReviewFilters;
         return '<section class="student"><h2>विद्यार्थी ' + (index + 1) + ' / ' + examReviewQueue.length + '</h2>' +
           '<p><b>नाम:</b> ' + escapeHtml(name) + ' &nbsp; <b>रोल नंबर:</b> ' + escapeHtml(student.rollNumber || student.rollNo || 'उपलब्ध नहीं') + '</p>' +
           '<p><b>जन्म तिथि:</b> ' + escapeHtml(dob) + ' &nbsp; <b>मोबाइल:</b> ' + escapeHtml(student.phone || student.mobile || '—') + '</p>' +
-          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.examTitle || student.mode || examReviewCollection) + '</p>' +
+          '<p><b>ईमेल:</b> ' + escapeHtml(student.email || '—') + ' &nbsp; <b>परीक्षा:</b> ' + escapeHtml(student.examTitle || ({ main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा', mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1', mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2', quiz: 'दैनिक क्विज़' }[student.mode]) || examReviewCollection) + '</p>' +
           '<p><b>जमा समय:</b> ' + escapeHtml(submitted) + ' &nbsp; <b>रिकॉर्ड ID:</b> ' + escapeHtml(student.id || '—') + '</p>' +
           '<p><b>स्वचालित अंक:</b> ' + escapeHtml(student.score ?? student.autoScore ?? student.correct ?? '—') + ' / ' + escapeHtml(student.total ?? student.totalQuestions ?? '—') +
           ' &nbsp; <b>सत्यापित अंक:</b> ' + escapeHtml(student.manualScore ?? 'अभी सत्यापित नहीं') + '</p>' +
@@ -5523,8 +5557,34 @@ window.clearExamReviewFilters = clearExamReviewFilters;
       const queryText = (document.getElementById('reviewSubmissionSearch')?.value || '').trim().toLowerCase();
       const queueStatus = document.getElementById('examReviewQueueStatus');
       const loadButton = document.querySelector('#manualExamReviewSection button[onclick="loadExamSubmissions()"]');
-      const collectionLabels = { mainExamSubmissions: 'मुख्य परीक्षा', mockExamSubmissions: 'मॉक परीक्षा 1/2', quizAttempts: 'दैनिक क्विज़' };
-      if (queueStatus) queueStatus.textContent = (collectionLabels[examReviewCollection] || examReviewCollection) + ' के उत्तर-पत्र लोड हो रहे हैं…';
+      const collectionLabels = {
+        mainExamSubmissions: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+        mockExamSubmissions: 'मॉक परीक्षाएँ',
+        quizAttempts: 'दैनिक क्विज़'
+      };
+      const modeFilterWrap = document.getElementById('reviewExamModeWrap');
+      if (modeFilterWrap) modeFilterWrap.classList.toggle('hidden', examReviewCollection !== 'mockExamSubmissions');
+      const modeFilter = document.getElementById('reviewExamModeFilter');
+      const modeNames = {
+        mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+        mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2'
+      };
+      if (modeFilter?.options?.length >= 3) {
+        modeFilter.options[1].textContent = modeNames.mock1;
+        modeFilter.options[2].textContent = modeNames.mock2;
+      }
+      const selectedMode = modeFilter?.value || 'all';
+      const selectedCustomExamId = document.getElementById('reviewCustomExamFilter')?.value || '';
+      const customExamLabel = selectedCustomExamId
+        ? (document.getElementById('reviewCustomExamFilter')?.selectedOptions?.[0]?.textContent?.split(' · ')[0] || 'कस्टम परीक्षा')
+        : '';
+      const reviewLabel = selectedCustomExamId
+        ? customExamLabel
+        : (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all'
+          ? modeNames[selectedMode] : (collectionLabels[examReviewCollection] || examReviewCollection));
+      const reportButton = document.getElementById('printAllExamReviewButton');
+      if (reportButton) reportButton.textContent = '📄 ' + reviewLabel + ' की सभी उत्तर-पत्र / जाँच रिपोर्ट PDF';
+      if (queueStatus) queueStatus.textContent = reviewLabel + ' के उत्तर-पत्र लोड हो रहे हैं…';
       if (loadButton) loadButton.textContent = 'लोड हो रहा है…';
       list.innerHTML = '<div class="text-stone-400 text-xs">सबमिशन लोड हो रहे हैं...</div>';
 
@@ -5571,13 +5631,25 @@ return review ? {
         });
                const selectedDate =
           document.getElementById('reviewSubmissionDate')?.value || '';
-        const selectedCustomExamId = document.getElementById('reviewCustomExamFilter')?.value || '';
 
         const selectedStatus =
           document.getElementById('reviewSubmissionStatus')?.value || 'all';
 
         examReviewQueue = rows.filter(d => {
-          if (selectedCustomExamId && d.customExamId !== selectedCustomExamId) return false;
+          const recordExamId = String(d.customExamId || d.examId || '');
+          if (selectedCustomExamId) {
+            if (recordExamId !== selectedCustomExamId) return false;
+          } else if (recordExamId) {
+            return false;
+          }
+          // A selected custom exam is identified by its examId, not by the
+          // fixed main/mock/quiz mode field. Never discard it via a fixed-mode filter.
+          if (!selectedCustomExamId) {
+            if (examReviewCollection === 'mainExamSubmissions' && d.mode && d.mode !== 'main') return false;
+            if (examReviewCollection === 'mockExamSubmissions' && d.mode && !['mock1', 'mock2'].includes(d.mode)) return false;
+            if (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all' && d.mode !== selectedMode) return false;
+            if (examReviewCollection === 'quizAttempts' && d.mode && d.mode !== 'quiz') return false;
+          }
           const haystack = [
             d.name,
             d.fullName,
@@ -5672,7 +5744,7 @@ return review ? {
         }
         examReviewIndex = 0;
         renderCurrentExamReview();
-        if (queueStatus) queueStatus.textContent = (collectionLabels[examReviewCollection] || examReviewCollection) + ': ' + examReviewQueue.length + ' रिकॉर्ड मिले' + (queryText ? ' · खोज फ़िल्टर लागू' : '') + '।';
+        if (queueStatus) queueStatus.textContent = reviewLabel + ': ' + examReviewQueue.length + ' रिकॉर्ड मिले' + (queryText ? ' · खोज फ़िल्टर लागू' : '') + '।';
       } catch (e) {
         if (queueStatus) queueStatus.textContent = 'लोड असफल: ' + e.message + ' · Firestore rules/collection जाँचें।';
         list.innerHTML = '';
@@ -6994,15 +7066,30 @@ async function removeTrustedEditor(uid) {
     }
 
     window.handleArchiveExamModeChange = function handleArchiveExamModeChange() {
-      const custom = document.getElementById('archiveExamMode')?.value === 'custom';
+      const mode = document.getElementById('archiveExamMode')?.value || '', custom = mode === 'custom';
       document.getElementById('archiveCustomExamWrap')?.classList.toggle('hidden', !custom);
+      const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
+      const labels = {
+        main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+        mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+        mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2',
+        quiz: 'दैनिक क्विज़',
+        custom: 'कस्टम परीक्षा'
+      };
+      const selected = document.getElementById('archiveCustomExamId');
+      const label = custom ? (selected?.selectedOptions?.[0]?.textContent?.split(' · ')[0] || labels.custom) : (labels[mode] || 'परीक्षा');
+      if (button) button.textContent = '🗄️ ' + label + ' का रिकॉर्ड सुरक्षित करें और सक्रिय सूची साफ करें';
+      const status = document.getElementById('examArchiveActionStatus');
+      if (status) status.textContent = label + ' के रिकॉर्ड ही आर्काइव होंगे। सभी प्रयास जमा या समाप्त होने चाहिए।';
       if (custom) loadCustomExamArchiveOptions();
     };
-    document.getElementById('archiveCustomExamId')?.addEventListener('change', () => {
-      const status = document.getElementById('examArchiveActionStatus');
-      if (status) status.textContent = 'चुनी गई कस्टम परीक्षा के सक्रिय रिकॉर्ड आर्काइव किए जाएँगे।';
+    document.getElementById('archiveCustomExamId')?.addEventListener('change', () => window.handleArchiveExamModeChange());
+    ['ownerMainDisplayName', 'ownerMock1DisplayName', 'ownerMock2DisplayName'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => window.handleArchiveExamModeChange());
+      document.getElementById(id)?.addEventListener('change', () => window.handleArchiveExamModeChange());
     });
     loadCustomExamArchiveOptions();
+    window.handleArchiveExamModeChange();
 
     async function loadExamArchives() {
       if (!isPrimaryOwner() && !hasEditorPermission('reports')) return showToast('आर्काइव रिपोर्ट देखने की अनुमति नहीं है।');
@@ -7034,9 +7121,9 @@ async function removeTrustedEditor(uid) {
       const status = document.getElementById('examArchiveActionStatus');
       const customExamId = mode === 'custom' ? (document.getElementById('archiveCustomExamId')?.value || '') : '';
       let config = {
-        main: { title: 'मुख्य परीक्षा', submissions: 'mainExamSubmissions', closeField: 'mainExamVisible' },
-        mock1: { title: 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions', closeField: 'mock1Visible' },
-        mock2: { title: 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions', closeField: 'mock2Visible' },
+        main: { title: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा', submissions: 'mainExamSubmissions', closeField: 'mainExamVisible' },
+        mock1: { title: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1', submissions: 'mockExamSubmissions', closeField: 'mock1Visible' },
+        mock2: { title: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2', submissions: 'mockExamSubmissions', closeField: 'mock2Visible' },
         quiz: { title: 'दैनिक क्विज़', submissions: 'quizAttempts', closeField: 'dailyQuizVisible' }
       }[mode];
       if (mode === 'custom') {
@@ -7054,6 +7141,7 @@ async function removeTrustedEditor(uid) {
         }
       }
       if (!config) return showToast('परीक्षा मोड चुनें।');
+      if (status) status.textContent = config.title + ' के रिकॉर्ड चुने गए हैं। आर्काइव से पहले सभी लंबित प्रयासों की जाँच होगी।';
       if (!window.confirm(config.title + ' के सक्रिय उत्तर-पत्र/सत्र आर्काइव करके सक्रिय समीक्षा कतार साफ करें? प्रकाशित परिणाम सुरक्षित रहेंगे।')) return;
       const button = document.querySelector('#ownerExamArchivePanel button[onclick="archiveCompletedExamWorkflow()"]');
       if (button) button.disabled = true;
@@ -7121,10 +7209,7 @@ async function removeTrustedEditor(uid) {
             : (!data.customExamId && !data.examId && data.mode === mode);
         });
         const total = submissions.length + sessions.length + violations.length + reviews.length + reviewHistory.length + results.length + customQuestions.length + customAnswerKeys.length;
-        if (!total) {
-          if (status) status.textContent = 'इस परीक्षा मोड के लिए कोई सक्रिय या ऐतिहासिक रिकॉर्ड नहीं मिला।';
-          return;
-        }
+        if (!total && status) status.textContent = config.title + ' के लिए कोई सक्रिय रिकॉर्ड नहीं मिला। खाली आर्काइव दर्ज करके परीक्षा की स्थिति और सूची भी रिफ्रेश की जाएगी।';
         archiveRef = db.collection('examArchives').doc();
         await archiveRef.set({
           mode, title: config.title, ...(config.isCustom ? { customExamId } : {}), status: 'in_progress',
@@ -7199,9 +7284,34 @@ async function removeTrustedEditor(uid) {
         }
         await archiveRef.update({ status: 'complete', completedAt: firebase.firestore.FieldValue.serverTimestamp(), recordCount: records.length });
         if (status) status.textContent = config.title + ' आर्काइव हो गई। ' + submissions.length + ' उत्तर-पत्र, ' + sessions.length + ' सत्र, ' + violations.length + ' निगरानी रिकॉर्ड, ' + reviews.length + ' समीक्षा रिकॉर्ड, ' + customQuestions.length + ' कस्टम प्रश्न और ' + customAnswerKeys.length + ' निजी उत्तर-कुंजी रिकॉर्ड सत्यापित आर्काइव में सुरक्षित किए गए। प्रकाशित परिणाम विद्यार्थी इतिहास में सुरक्षित हैं।';
-        await loadExamArchives();
-        if (typeof loadExamSubmissions === 'function') await loadExamSubmissions();
-        showToast('परीक्षा आर्काइव और सक्रिय कतार रीसेट हो गई।');
+        await Promise.all([
+          loadExamArchives(),
+          typeof loadExamVisibilitySettings === 'function' ? loadExamVisibilitySettings() : Promise.resolve(),
+          typeof loadExamSubmissions === 'function' ? loadExamSubmissions() : Promise.resolve(),
+          typeof loadExamSessionQueue === 'function' ? loadExamSessionQueue() : Promise.resolve(),
+          typeof loadCustomExamArchiveOptions === 'function' ? loadCustomExamArchiveOptions() : Promise.resolve(),
+          typeof loadCustomExamRegistry === 'function' ? loadCustomExamRegistry() : Promise.resolve(),
+          typeof refreshStudioAnalytics === 'function' ? refreshStudioAnalytics() : Promise.resolve()
+        ]);
+        const reviewSelect = document.getElementById('reviewSubmissionCollection');
+        if (reviewSelect && reviewSelect.value === config.submissions) {
+          if (config.submissions === 'mockExamSubmissions' && !config.isCustom) {
+            const mockFilter = document.getElementById('reviewExamModeFilter');
+            if (mockFilter) mockFilter.value = mode;
+          }
+          const customFilter = document.getElementById('reviewCustomExamFilter');
+          if (customFilter) customFilter.value = config.isCustom ? customExamId : '';
+          const dateFilter = document.getElementById('reviewSubmissionDate');
+          if (dateFilter) dateFilter.value = '';
+          const statusFilter = document.getElementById('reviewSubmissionStatus');
+          if (statusFilter) statusFilter.value = 'all';
+          resetExamSubmissionQueue();
+          const list = document.getElementById('examSubmissionsList');
+          if (list) list.innerHTML = '<p class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">' + config.title + ' का आर्काइव पूरा हुआ। इसी परीक्षा की सक्रिय उत्तर-पत्र सूची खाली करके रिफ्रेश की गई है; प्रकाशित परिणाम सुरक्षित हैं।</p>';
+          const queueStatus = document.getElementById('examReviewQueueStatus');
+          if (queueStatus) queueStatus.textContent = config.title + ': आर्काइव पूरा · सक्रिय समीक्षा सूची रिफ्रेश।';
+        }
+        showToast(config.title + ' आर्काइव हो गई और संबंधित सूचियाँ रिफ्रेश कर दी गईं।');
       } catch (error) {
         console.error('Exam archive failed:', error);
         if (archiveRef) {

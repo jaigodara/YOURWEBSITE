@@ -872,6 +872,7 @@ notify(
     // Guests see the login prompt; signed-in users see the message composer.
     setVisible('postAuthPrompt', !state.user);
     setVisible('postEditor', !!state.user);
+    setVisible('postLinkField', !!state.isOwner);
     refreshEnrollmentStatus();
 
     setVisible('ownerStudioPortalBtn', !!state.isOwner);
@@ -1182,19 +1183,20 @@ notify(
       const maintenanceActive = sectionMode === 'both' && !ownerBypass;
       const allowAccess = sectionAllow[key] === true;
       const locked = maintenanceActive && !allowAccess;
-      const sectionMessage = cleanMaintenanceMessage(sectionMessages[key], message);
+      const defaults = { home: 'मुख्य पृष्ठ पर नए अपडेट तैयार किए जा रहे हैं। कृपया कुछ समय बाद आएँ।', mala: 'डिजिटल जप माला में सुधार जारी है। कृपया बाद में प्रयास करें।', library: 'साहित्य और मीडिया सामग्री व्यवस्थित की जा रही है। नई सामग्री जल्द उपलब्ध होगी।', quiz: 'परीक्षा सेवाओं और प्रश्नों का रखरखाव चल रहा है। कृपया बाद में प्रयास करें।', community: 'समाज संवाद मंच पर सुधार जारी है। कृपया रखरखाव पूरा होने तक प्रतीक्षा करें।', history: 'इतिहास और संस्कार अनुभाग अपडेट किया जा रहा है। कृपया बाद में आएँ।' };
+      const sectionMessage = cleanMaintenanceMessage(sectionMessages[key], defaults[key] || message);
       let notice = key === 'home' ? platformNotice : byId(`maintenance-notice-${key}`);
       if (key !== 'home') {
         if (!notice) {
           notice = document.createElement('div');
           notice.id = `maintenance-notice-${key}`;
-          notice.className = 'mb-4 rounded-3xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm';
+          notice.className = 'mb-6 w-full rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 text-sm text-stone-800 shadow-md sm:p-6';
           section.prepend(notice);
         }
         notice.hidden = !maintenanceActive;
         notice.classList.toggle('hidden', !maintenanceActive);
         notice.innerHTML = maintenanceActive
-          ? `<strong>${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed">${escapeHtml(sectionMessage)}</p>${allowAccess ? '<p class="mt-1 text-xs font-semibold">मेंटेनेंस के दौरान भी सामग्री उपलब्ध है।</p>' : '<p class="mt-1 text-xs font-semibold">यह सेक्शन कुछ समय के लिए बंद है। कृपया बाद में आएँ।</p>'}`
+          ? `<div class="space-y-3"><div class="flex items-start gap-3"><span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#143622] text-2xl text-amber-300 shadow-sm" aria-hidden="true">🛠️</span><div class="min-w-0 flex-1"><p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p><h2 class="mt-1 font-yatra text-xl text-[#143622] sm:text-2xl">${escapeHtml(label)} — नए फीचर आ रहे हैं</h2><p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(sectionMessage)}</p><p class="mt-2 text-xs font-semibold text-[#143622]">${allowAccess ? 'मेंटेनेंस के दौरान भी इस सेक्शन की सामग्री उपलब्ध है।' : 'यह सेक्शन कुछ समय के लिए बंद है। कृपया बाद में आएँ।'}</p></div><span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span></div></div>`
           : '';
       }
       Array.from(section.children).forEach(child => {
@@ -3094,119 +3096,60 @@ window.renderExamVisibility = function renderExamVisibility() {
     }
   }
 
+  window.BishnoiCommunity = window.BishnoiCommunity || {};
+
   window.renderCommunity = function renderCommunity(posts) {
     communityPostsCache = Array.isArray(posts) ? posts : [];
     const host = byId('communityFeed') || byId('communityPosts') || byId('postsList');
     if (!host) return;
-
-    const filtered = communityTopicFilter === 'all'
-      ? communityPostsCache
-      : communityPostsCache.filter(post => (post.topic || 'सामान्य चर्चा') === communityTopicFilter);
+    const filtered = communityTopicFilter === 'all' ? communityPostsCache : communityPostsCache.filter(post => (post.topic || 'सामान्य चर्चा') === communityTopicFilter);
     if (state.user?.uid) communityPostsCache.forEach(post => { void markCommunityPostRead(post); });
-
-    const pinnedHost = byId('pinnedChatBanner');
-    const pinnedText = byId('pinnedChatText');
-    const pinnedPost = communityPostsCache.find(post => post.pinnedByOwner === true);
-    if (pinnedHost && pinnedText) {
-      pinnedText.textContent = pinnedPost ? String(pinnedPost.body || pinnedPost.text || '') : '';
-      pinnedHost.classList.toggle('hidden', !pinnedPost);
-    }
-    if (!filtered.length) {
-      host.innerHTML = '<div class="rounded-xl bg-white p-4 text-center text-xs text-stone-500">अभी कोई संदेश नहीं है। चर्चा की शुरुआत आप कर सकते हैं।</div>';
-      return;
-    }
-
-    host.innerHTML = filtered.map(post => {
-      const body = post.body || post.text || post.content || '';
-      const author = post.displayName || post.authorName || 'समाज का सदस्य';
+    const pinnedHost = byId('pinnedChatBanner'), pinnedText = byId('pinnedChatText'), pinnedPost = communityPostsCache.find(post => post.pinnedByOwner === true);
+    if (pinnedHost && pinnedText) { pinnedText.textContent = pinnedPost ? String(pinnedPost.body || pinnedPost.text || '') : ''; pinnedHost.classList.toggle('hidden', !pinnedPost); }
+    const pollMount = '<div id="communityPollFeed" class="space-y-3" aria-live="polite"></div>';
+    const empty = '<div class="rounded-xl bg-white p-4 text-center text-xs text-stone-500">अभी कोई संदेश नहीं है। चर्चा की शुरुआत आप कर सकते हैं।</div>';
+    if (!filtered.length) { host.innerHTML = pollMount + empty; window.renderCommunityPolls?.(window.__communityPollsCache || []); return; }
+    host.innerHTML = pollMount + filtered.map(post => {
+      const body = post.body || post.text || post.content || '', author = post.displayName || post.authorName || 'समाज का सदस्य';
+      const when = post.createdAt && typeof post.createdAt.toDate === 'function' ? post.createdAt.toDate().toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+      const mine = !!state.user && post.uid === state.user.uid, pinned = post.pinnedByOwner === true, id = escapeHtml(post.id || '');
       const topic = post.topic || 'सामान्य चर्चा';
-      const when = post.createdAt && typeof post.createdAt.toDate === 'function'
-        ? post.createdAt.toDate().toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' })
-        : '';
-      const isMine = !!state.user && post.uid === state.user.uid;
-      const isPinned = post.pinnedByOwner === true;
-      return `
-        <article class="bx-chat-message ${isMine ? 'bx-chat-message-mine' : 'bx-chat-message-other'} rounded-xl border p-3.5 shadow-sm space-y-2 ${isPinned ? 'bx-chat-message-pinned' : ''}" data-post-id="${escapeHtml(post.id || '')}">
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 rounded-full px-2 py-1">${escapeHtml(topic)}</span>
-            <span class="text-[10px] text-stone-400">${escapeHtml(when)}</span>
-          </div>
-          ${isPinned ? '<div class="text-[10px] font-extrabold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
-          <p class="text-sm text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
-          ${post.linkUrl && /^https?:\/\//i.test(String(post.linkUrl)) ? '<a class="inline-flex max-w-full items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
-          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-2">
-            <button type="button" data-community-like="${escapeHtml(post.id || '')}" class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-900">👍 पसंद करें · ${Number(post.upvotes || 0)}</button>
-            <div class="flex flex-wrap items-center gap-1.5" data-community-reaction-bar="${escapeHtml(post.id || '')}" aria-label="संदेश पर प्रतिक्रिया दें">
-              ${['❤️', '🙏', '🙂', '👏'].map(emoji => `<button type="button" data-community-reaction="${emoji}" aria-pressed="false" class="rounded-full border border-stone-200 bg-white px-2.5 py-1.5 text-xs hover:bg-amber-50">${emoji} <span data-reaction-count>0</span></button>`).join('')}
-            </div>
-          </div>
-          <section class="space-y-2 border-t border-stone-100 pt-2" aria-label="संदेश के जवाब">
-            <div data-community-replies="${escapeHtml(post.id || '')}" class="space-y-1.5">
-              <p class="text-[11px] text-stone-400">जवाब लोड हो रहे हैं…</p>
-            </div>
-            <form data-community-reply-form="${escapeHtml(post.id || '')}" class="flex gap-2">
-              <label class="sr-only" for="community-reply-${escapeHtml(post.id || '')}">जवाब लिखें</label>
-              <input id="community-reply-${escapeHtml(post.id || '')}" data-community-reply-input maxlength="500" class="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs" placeholder="इस संदेश का जवाब लिखें…" autocomplete="off">
-              <button type="submit" class="shrink-0 rounded-lg bg-forest px-3 py-2 text-xs font-bold text-white">जवाब दें</button>
-            </form>
-          </section>
-          <div class="flex items-center justify-between gap-2">
-            <div class="text-[10px] text-stone-500">${isMine ? 'आप' : escapeHtml(author)} · 👁 ${Number(post.readCount || 0)} ने पढ़ा</div>
-            ${state.isOwner && post.id ? `<button type="button" data-pin-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-900">${isPinned ? '📌 पिन हटाएँ' : '📌 घोषणा पिन करें'}</button>` : ''}
-            ${(isMine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${escapeHtml(post.id)}" class="rounded-lg border border-white/20 bg-black/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="संदेश हटाएँ">हटाएँ</button>` : ''}
-            ${state.isOwner && !isMine && post.uid ? `<button type="button" data-block-community-user="${escapeHtml(post.uid)}" class="rounded-lg border border-amber-200/30 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-red-900/40" aria-label="सदस्य ब्लॉक करें">ब्लॉक करें</button>` : ''}
-          </div>
-        </article>
-      `;
+      return `<article class="bx-chat-message rounded-xl border p-3.5 shadow-sm space-y-2 ${mine ? 'bx-chat-message-mine' : 'bx-chat-message-other'}" data-post-id="${id}">
+        <div class="flex items-center justify-between gap-2"><div class="flex min-w-0 items-center gap-2"><strong class="truncate text-xs text-[#143622]">${escapeHtml(author)}</strong><span class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800">${escapeHtml(topic)}</span></div><span class="text-[10px] text-stone-500">${escapeHtml(when)}</span></div>
+        ${pinned ? '<div class="text-[10px] font-bold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
+        <p class="text-sm leading-relaxed text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
+        ${post.linkUrl && /^https?:\/\//i.test(String(post.linkUrl)) ? '<a class="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
+        <div class="flex items-center gap-5 border-t border-stone-100 pt-2"><div class="flex items-center gap-4" data-community-reaction-bar="${id}">
+          <button type="button" data-community-reaction="like" aria-label="Like" aria-pressed="false" class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 text-xs font-semibold text-[#5f6b63] transition hover:bg-[#f0f5ef]">👍 <span data-reaction-count>0</span></button>
+          <button type="button" data-community-reaction="dislike" aria-label="Dislike" aria-pressed="false" class="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 text-xs font-semibold text-[#5f6b63] transition hover:bg-[#f0f5ef]">👎 <span data-reaction-count>0</span></button>
+        </div><div class="flex items-center gap-4"><button type="button" class="min-h-8 rounded-full px-2 text-xs font-semibold text-[#5f6b63] hover:bg-[#f0f5ef]" data-focus-reply="${id}">Reply</button><button type="button" data-community-replies-toggle="${id}" aria-expanded="false" class="min-h-8 rounded-full px-2 text-xs font-semibold text-[#315c40] hover:bg-[#f0f5ef]"><span data-reply-count>0</span> Responses</button></div></div>
+        <section class="space-y-2 border-t border-stone-100 pt-2"><div data-community-replies="${id}" class="hidden space-y-2 pl-3"></div>
+          <form data-community-reply-form="${id}" class="hidden flex items-center gap-2"><label class="sr-only" for="community-reply-${id}">जवाब लिखें</label><input id="community-reply-${id}" data-community-reply-input maxlength="500" class="min-w-0 flex-1 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-xs text-stone-800" placeholder="Reply…" autocomplete="off"><button type="submit" class="rounded-full px-3 py-2 text-xs font-bold text-[#143622]">Reply</button></form>
+        </section><div class="flex flex-wrap items-center justify-between gap-2"><span class="text-[10px] text-stone-500">${mine ? 'आप' : escapeHtml(author)} · 👁 ${Number(post.readCount || 0)} ने पढ़ा</span>
+        ${state.isOwner && post.id ? `<button type="button" data-pin-community-post="${id}" class="text-[11px] font-semibold text-amber-900">${pinned ? '📌 पिन हटाएँ' : '📌 घोषणा पिन करें'}</button>` : ''}
+        ${(mine || state.isOwner) && post.id ? `<button type="button" data-delete-community-post="${id}" class="text-[11px] font-semibold text-stone-600">हटाएँ</button>` : ''}
+        ${state.isOwner && !mine && post.uid ? `<button type="button" data-block-community-user="${escapeHtml(post.uid)}" class="text-[11px] font-semibold text-red-700">ब्लॉक करें</button>` : ''}</div></article>`;
     }).join('');
-    host.querySelectorAll('[data-community-like]').forEach(button => {
-      button.addEventListener('click', () => window.upvoteCommunityPost(button.dataset.communityLike));
-    });
-    host.querySelectorAll('[data-community-reaction-bar]').forEach(bar => {
-      const postId = bar.dataset.communityReactionBar;
-      void window.BishnoiCommunity.loadReactions(postId, bar);
-      bar.querySelectorAll('[data-community-reaction]').forEach(button => {
-        button.addEventListener('click', () => window.BishnoiCommunity.toggleReaction(postId, button.dataset.communityReaction, bar));
-      });
-    });
-    host.querySelectorAll('[data-pin-community-post]').forEach(button => {
-      button.addEventListener('click', () => window.BishnoiCommunity.togglePinned(button.dataset.pinCommunityPost));
-    });
-    host.querySelectorAll('[data-delete-community-post]').forEach(button => {
-      button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost));
-    });
-    host.querySelectorAll('[data-block-community-user]').forEach(button => {
-      button.addEventListener('click', () => window.BishnoiCommunity.blockUser(button.dataset.blockCommunityUser, button));
-    });
-    host.querySelectorAll('[data-community-reply-form]').forEach(form => {
-      form.addEventListener('submit', event => {
-        event.preventDefault();
-        const input = form.querySelector('[data-community-reply-input]');
-        window.BishnoiCommunity.submitReply(form.dataset.communityReplyForm, input, form);
-      });
-    });
-    host.querySelectorAll('[data-community-replies]').forEach(replyHost => {
-      window.BishnoiCommunity.loadReplies(replyHost.dataset.communityReplies, replyHost);
-    });
-  }
-
-  window.BishnoiCommunity = window.BishnoiCommunity || {};
+    host.querySelectorAll('[data-community-reaction-bar]').forEach(bar => { const id = bar.dataset.communityReactionBar; void window.BishnoiCommunity.loadReactions(id, bar); bar.querySelectorAll('[data-community-reaction]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.toggleReaction(id, button.dataset.communityReaction, bar))); });
+    host.querySelectorAll('[data-community-replies-toggle]').forEach(button => button.addEventListener('click', () => { const replies = button.closest('article')?.querySelector('[data-community-replies]'); if (!replies) return; const opening = replies.classList.contains('hidden'); replies.classList.toggle('hidden', !opening); replies.dataset.expanded = String(opening); button.setAttribute('aria-expanded', String(opening)); }));
+    host.querySelectorAll('[data-focus-reply]').forEach(button => button.addEventListener('click', () => { const article = button.closest('article'); const form = article?.querySelector('[data-community-reply-form]'); const input = form?.querySelector('[data-community-reply-input]'); form?.classList.remove('hidden'); input?.focus(); }));
+    host.querySelectorAll('[data-pin-community-post]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.togglePinned(button.dataset.pinCommunityPost)));
+    host.querySelectorAll('[data-delete-community-post]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.deletePost(button.dataset.deleteCommunityPost)));
+    host.querySelectorAll('[data-block-community-user]').forEach(button => button.addEventListener('click', () => window.BishnoiCommunity.blockUser(button.dataset.blockCommunityUser, button)));
+    host.querySelectorAll('[data-community-reply-form]').forEach(form => form.addEventListener('submit', event => { event.preventDefault(); window.BishnoiCommunity.submitReply(form.dataset.communityReplyForm, form.querySelector('[data-community-reply-input]'), form); }));
+    host.querySelectorAll('[data-community-replies]').forEach(el => window.BishnoiCommunity.loadReplies(el.dataset.communityReplies, el));
+    window.renderCommunityPolls?.(window.__communityPollsCache || []);
+  };
   window.renderCommunityPolls = function renderCommunityPolls(polls) {
     window.__communityPollsCache = Array.isArray(polls) ? polls : [];
     const host = byId('communityPollFeed');
     if (!host) return;
     host.replaceChildren();
     const activePolls = (Array.isArray(polls) ? polls : []).filter(poll => poll.active !== false);
-    if (!activePolls.length) {
-      const empty = document.createElement('p');
-      empty.className = 'rounded-xl border border-stone-200 bg-white p-4 text-center text-xs text-stone-500';
-      empty.textContent = 'अभी कोई मतदान उपलब्ध नहीं है।';
-      host.append(empty);
-      return;
-    }
+    if (!activePolls.length) return;
     activePolls.forEach(async poll => {
       const card = document.createElement('article');
-      card.className = 'rounded-2xl border border-amber-200 bg-white p-4 shadow-sm space-y-3';
+      card.className = 'bx-chat-message bx-chat-message-other w-full rounded-xl border border-[#d9e4d8] bg-white p-4 shadow-sm space-y-3';
       const title = document.createElement('h3');
       title.className = 'font-bold text-sm text-forest';
       title.textContent = '📊 ' + String(poll.title || 'समुदाय मतदान');
@@ -3417,8 +3360,15 @@ window.renderExamVisibility = function renderExamVisibility() {
   window.BishnoiCommunity.submitFeedback = async function () {
     if (!requireUser()) return;
     const input = byId('communityFeedbackText');
+    const status = byId('communityFeedbackStatus');
+    const button = byId('communityFeedbackSubmit');
     const body = String(input?.value || '').trim();
-    if (!body || body.length > 1000) return notify('कृपया 1 से 1000 अक्षरों में सुझाव लिखें।', 'error');
+    if (!body || body.length > 1000) {
+      if (status) status.textContent = 'कृपया 1 से 1000 अक्षरों में अपना सुझाव लिखें।';
+      return notify('कृपया 1 से 1000 अक्षरों में सुझाव लिखें।', 'error');
+    }
+    if (button) { button.disabled = true; button.textContent = 'भेजा जा रहा है…'; }
+    if (status) status.textContent = 'आपका सुझाव सुरक्षित रूप से भेजा जा रहा है…';
     try {
       await collection('communityFeedback').add({
         uid: state.user.uid,
@@ -3428,10 +3378,16 @@ window.renderExamVisibility = function renderExamVisibility() {
         createdAt: serverTimestamp()
       });
       input.value = '';
+      const counter = byId('communityFeedbackCount');
+      if (counter) counter.textContent = '0 / 1000';
+      if (status) status.textContent = 'धन्यवाद! आपका सुझाव मंच प्रबंधन टीम तक पहुँच गया है।';
       notify('आपका सुझाव Owner तक भेज दिया गया।', 'success');
     } catch (error) {
       console.error('Community feedback failed:', error);
+      if (status) status.textContent = 'सुझाव नहीं भेजा जा सका। कृपया इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।';
       notify('सुझाव नहीं भेजा जा सका। कृपया फिर प्रयास करें।', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.innerHTML = 'प्रतिक्रिया भेजें <span aria-hidden="true">→</span>'; }
     }
   };
   window.BishnoiCommunity.filterTopic = function (topic) {
@@ -3439,95 +3395,33 @@ window.renderExamVisibility = function renderExamVisibility() {
     window.renderCommunity(communityPostsCache);
   };
   window.BishnoiCommunity.loadReactions = async function (postId, host) {
-    if (!postId || !host || !state.user) return;
-    try {
-      const snapshot = await collection('posts').doc(postId).collection('reactions').get();
-      const counts = new Map();
-      let ownEmoji = '';
-      snapshot.docs.forEach(doc => {
-        const data = doc.data() || {};
-        if (['❤️', '🙏', '🙂', '👏'].includes(data.emoji)) {
-          counts.set(data.emoji, (counts.get(data.emoji) || 0) + 1);
-          if (doc.id === state.user.uid) ownEmoji = data.emoji;
-        }
-      });
-      host.querySelectorAll('[data-community-reaction]').forEach(button => {
-        const emoji = button.dataset.communityReaction;
-        const count = button.querySelector('[data-reaction-count]');
-        if (count) count.textContent = String(counts.get(emoji) || 0);
-        const selected = ownEmoji === emoji;
-        button.setAttribute('aria-pressed', String(selected));
-        button.classList.toggle('border-emerald-500', selected);
-        button.classList.toggle('bg-emerald-50', selected);
-      });
-    } catch (error) {
-      console.warn('Community reactions unavailable:', error);
-    }
-  };
-  window.BishnoiCommunity.toggleReaction = async function (postId, emoji, host) {
-    const activeUser = state.auth?.currentUser ||
-      (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
-    if (state.user?.uid !== (activeUser?.uid || null)) state.user = activeUser || null;
-    if (!requireUser() || !postId || !['❤️', '🙏', '🙂', '👏'].includes(emoji)) return;
-    try {
-      const reactionRef = collection('posts').doc(postId).collection('reactions').doc(state.user.uid);
-      const current = await reactionRef.get();
-      if (current.exists && current.data()?.emoji === emoji) {
-        await reactionRef.delete();
-      } else {
-        const payload = {
-          uid: state.user.uid,
-          emoji,
-          ...(current.exists ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() })
-        };
-        if (current.exists) await reactionRef.update(payload);
-        else await reactionRef.set(payload);
-      }
-      if (host) await window.BishnoiCommunity.loadReactions(postId, host);
-    } catch (error) {
-      console.error('Community reaction failed:', error);
-      notify('प्रतिक्रिया दर्ज नहीं हुई। लॉगिन और Firestore अनुमति जाँचें।', 'error');
-    }
-  };
-  
-  window.BishnoiCommunity.loadReplies = async function (postId, host) {
     if (!postId || !host) return;
     try {
-      const snapshot = await collection('posts').doc(postId).collection('replies').limit(20).get();
-      host.replaceChildren();
-      if (snapshot.empty) {
-        const empty = document.createElement('p');
-        empty.className = 'text-[11px] text-stone-400';
-        empty.textContent = 'अभी कोई जवाब नहीं है।';
-        host.appendChild(empty);
-        return;
-      }
-      snapshot.docs.forEach(replyDoc => {
-        const reply = replyDoc.data() || {};
-        const row = document.createElement('div');
-        row.className = 'flex items-start justify-between gap-2 rounded-lg bg-stone-50 px-3 py-2';
-        const copy = document.createElement('p');
-        copy.className = 'min-w-0 flex-1 whitespace-pre-wrap break-words text-xs text-stone-700';
-        const author = document.createElement('strong');
-        author.className = 'mr-1 text-forest';
-        author.textContent = String(reply.displayName || 'सदस्य') + ':';
-        copy.append(author, document.createTextNode(String(reply.body || '')));
-        row.appendChild(copy);
-        if (state.user && (reply.uid === state.user.uid || state.isOwner)) {
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'shrink-0 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700';
-          remove.textContent = 'हटाएँ';
-          remove.setAttribute('aria-label', 'जवाब हटाएँ');
-          remove.addEventListener('click', () => window.BishnoiCommunity.deleteReply(postId, replyDoc.id));
-          row.appendChild(remove);
-        }
-        host.appendChild(row);
-      });
-    } catch (error) {
-      console.error('Community replies load failed:', error);
-      host.textContent = 'जवाब लोड नहीं हो सके।';
-    }
+      const snapshot = await collection('posts').doc(postId).collection('reactions').get(), counts = new Map([['like', 0], ['dislike', 0]]);
+      let own = ''; snapshot.docs.forEach(doc => { const type = String(doc.data()?.reaction || ''); if (counts.has(type)) counts.set(type, counts.get(type) + 1); if (state.user?.uid === doc.id) own = type; });
+      host.querySelectorAll('[data-community-reaction]').forEach(button => { const type = button.dataset.communityReaction, count = button.querySelector('[data-reaction-count]'); if (count) count.textContent = String(counts.get(type) || 0); const selected = own === type; button.setAttribute('aria-pressed', String(selected)); button.classList.toggle('text-[#143622]', selected); button.classList.toggle('font-extrabold', selected); });
+    } catch (error) { console.warn('Community reactions unavailable:', error); }
+  };
+  window.BishnoiCommunity.toggleReaction = async function (postId, reaction, host) {
+    const activeUser = state.auth?.currentUser || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth().currentUser : null);
+    if (state.user?.uid !== (activeUser?.uid || null)) state.user = activeUser || null;
+    if (!requireUser() || !postId || !['like', 'dislike'].includes(reaction)) return;
+    try {
+      const ref = collection('posts').doc(postId).collection('reactions').doc(state.user.uid), current = await ref.get();
+      if (current.exists && current.data()?.reaction === reaction) await ref.delete();
+      else { const payload = { uid: state.user.uid, reaction, ...(current.exists ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() }) }; if (current.exists) await ref.update(payload); else await ref.set(payload); }
+      if (host) await window.BishnoiCommunity.loadReactions(postId, host);
+    } catch (error) { console.error('Community reaction failed:', error); notify('प्रतिक्रिया दर्ज नहीं हुई। लॉगिन और Firestore अनुमति जाँचें।', 'error'); }
+  };
+    window.BishnoiCommunity.loadReplies = async function (postId, host) {
+    if (!postId || !host) return;
+    try {
+      const snapshot = await collection('posts').doc(postId).collection('replies').limit(50).get(), toggle = host.closest('article')?.querySelector('[data-community-replies-toggle]'), count = toggle?.querySelector('[data-reply-count]');
+      if (count) count.textContent = String(snapshot.size);
+      const expanded = host.dataset.expanded === 'true'; host.replaceChildren(); host.classList.toggle('hidden', !expanded);
+      if (snapshot.empty) { const empty = document.createElement('p'); empty.className = 'text-[11px] text-stone-500'; empty.textContent = 'अभी कोई जवाब नहीं है।'; host.appendChild(empty); }
+      snapshot.docs.forEach(doc => { const reply = doc.data() || {}, row = document.createElement('div'), copy = document.createElement('p'); row.className = 'border-l-2 border-emerald-200 pl-3 py-1'; copy.className = 'text-xs leading-relaxed text-stone-700 whitespace-pre-wrap break-words'; const author = document.createElement('strong'); author.className = 'mr-1 text-[#143622]'; author.textContent = String(reply.displayName || 'सदस्य') + ':'; copy.append(author, document.createTextNode(String(reply.body || ''))); row.appendChild(copy); if (state.user && (reply.uid === state.user.uid || state.isOwner)) { const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'mt-1 text-[10px] font-semibold text-red-700'; remove.textContent = 'हटाएँ'; remove.addEventListener('click', () => window.BishnoiCommunity.deleteReply(postId, doc.id)); row.appendChild(remove); } host.appendChild(row); });
+    } catch (error) { console.error('Community replies load failed:', error); host.textContent = 'जवाब लोड नहीं हो सके।'; }
   };
   window.BishnoiCommunity.submitReply = async function (postId, input, form) {
     const activeUser = state.auth?.currentUser ||
@@ -3568,7 +3462,13 @@ window.renderExamVisibility = function renderExamVisibility() {
       input.value = '';
       notify('जवाब प्रकाशित हो गया।', 'success');
       const host = form?.parentElement?.querySelector('[data-community-replies]');
-      if (host) await window.BishnoiCommunity.loadReplies(postId, host);
+      if (host) {
+        host.dataset.expanded = 'true';
+        host.classList.remove('hidden');
+        const toggle = host.closest('article')?.querySelector('[data-community-replies-toggle]');
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        await window.BishnoiCommunity.loadReplies(postId, host);
+      }
     } catch (error) {
       console.error('Community reply failed:', error);
       notify('जवाब प्रकाशित नहीं हुआ। Firestore permissions जाँचें।', 'error');

@@ -54,3 +54,59 @@ test("manual exam review can print a complete batch report with identity and rev
   assert.match(ownerStudio, /जाँच का कारण/);
   assert.match(ownerStudio, /window\.print\(\)/);
 });
+
+test("Owner Studio groups poll management with Literature and Media and removes its separate route", () => {
+  assert.match(ownerStudio, /साहित्य \/ मीडिया एवं मतदान प्रबंधन/);
+  assert.doesNotMatch(ownerStudio, /data-studio-page="polls"/);
+  assert.match(ownerStudio, /media:\s*\{[\s\S]*?panels: \['ownerCommunityPollManager'\]/);
+});
+
+test("Re-entry decisions are one-time, persisted, and removed from the pending-request queue", () => {
+  assert.match(ownerStudio, /lateEntryRequested: false/);
+  assert.match(ownerStudio, /reentryDecision: status === 'active' \? 'approved' : status === 'denied' \? 'denied'/);
+  assert.match(ownerStudio, /filter\(row => \['active', 'kicked', 'late_request'\]\.includes\(row\.status\)\)/);
+  assert.match(ownerStudio, /if \(row\.status === 'late_request'\)/);
+  assert.doesNotMatch(ownerStudio, /\['active', 'kicked', 'denied', 'late_request'\]/);
+});
+
+
+test("custom-exam answer sheets bypass fixed main/mock mode filters and display the selected custom exam name", () => {
+  const start = ownerStudio.indexOf("async function loadExamSubmissions()");
+  const end = ownerStudio.indexOf("async function printAdmitCard", start);
+  assert.ok(start >= 0 && end > start, "answer-sheet loader should exist");
+  const loader = ownerStudio.slice(start, end);
+  assert.match(loader, /const selectedCustomExamId = document\.getElementById\('reviewCustomExamFilter'\)/);
+  assert.match(loader, /const reviewLabel = selectedCustomExamId[\s\S]*?customExamLabel/);
+  assert.match(loader, /if \(!selectedCustomExamId\) \{[\s\S]*?d\.mode !== 'main'/);
+  assert.match(loader, /if \(queueStatus\) queueStatus\.textContent = reviewLabel/);
+});
+
+test("archive controls refresh their exam-specific label when the selected exam or configured display name changes", () => {
+  assert.match(ownerStudio, /function handleArchiveExamModeChange\(\)/);
+  assert.match(ownerStudio, /window\.handleArchiveExamModeChange\(\);/);
+  assert.match(ownerStudio, /\['ownerMainDisplayName', 'ownerMock1DisplayName', 'ownerMock2DisplayName'\]/);
+  assert.match(ownerStudio, /addEventListener\('input', \(\) => window\.handleArchiveExamModeChange\(\)\)/);
+  assert.match(ownerStudio, /'🗄️ ' \+ label \+ ' का रिकॉर्ड सुरक्षित करें और सक्रिय सूची साफ करें'/);
+});
+
+test("successful exam archive refreshes saved visibility, selected queue, session monitor and analytics", () => {
+  const start = ownerStudio.indexOf("async function archiveCompletedExamWorkflow()");
+  const end = ownerStudio.indexOf("window.archiveCompletedExamWorkflow = archiveCompletedExamWorkflow;", start);
+  assert.ok(start >= 0 && end > start);
+  const workflow = ownerStudio.slice(start, end);
+  assert.match(workflow, /loadExamVisibilitySettings\(\)/);
+  assert.match(workflow, /loadExamSessionQueue\(\)/);
+  assert.match(workflow, /refreshStudioAnalytics\(\)/);
+  assert.match(workflow, /reviewExamModeFilter/);
+  assert.match(workflow, /reviewCustomExamFilter/);
+  assert.match(workflow, /सक्रिय उत्तर-पत्र सूची खाली करके रिफ्रेश की गई है/);
+});
+
+test('Saved exam display names update the archive action after Firestore settings load', () => {
+  const start = ownerStudio.indexOf('function loadExamVisibilitySettings');
+  const end = ownerStudio.indexOf('async function createManualEnrollment', start);
+  assert.ok(start >= 0 && end > start);
+  const loader = ownerStudio.slice(start, end);
+  assert.match(loader, /ownerMainStartLabel/);
+  assert.match(loader, /window\.handleArchiveExamModeChange\?\.\(\)/);
+});

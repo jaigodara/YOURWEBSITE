@@ -144,3 +144,10 @@ test('Student, login and exam report dashboard is routed to Reports & Exports, n
   assert.match(ownerHtml.slice(routeStart, routeEnd), /'ownerDataDashboard'/);
   assert.match(ownerHtml, /'ownerDataDashboard',\s*'ownerDataExportPanel'/);
 });
+
+test('Exam portal labels and launch buttons follow Owner-configured display names', () => {
+  assert.match(portalHtml, /config\.mock1DisplayName/);
+  assert.match(portalHtml, /config\.mock2DisplayName/);
+  assert.match(portalHtml, /config\.mainDisplayName/);
+  assert.match(portalHtml, /button\.textContent = title \+ ' खोलें'/);
+});
