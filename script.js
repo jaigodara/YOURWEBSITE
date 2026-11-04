@@ -3142,13 +3142,7 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (!host) return;
     host.replaceChildren();
     const activePolls = (Array.isArray(polls) ? polls : []).filter(poll => poll.active !== false);
-    if (!activePolls.length) {
-      const empty = document.createElement('p');
-      empty.className = 'rounded-xl border border-stone-200 bg-white p-4 text-center text-xs text-stone-500';
-      empty.textContent = 'अभी कोई मतदान उपलब्ध नहीं है।';
-      host.append(empty);
-      return;
-    }
+    if (!activePolls.length) return;
     activePolls.forEach(async poll => {
       const card = document.createElement('article');
       card.className = 'rounded-2xl border border-amber-200 bg-white p-4 shadow-sm space-y-3';
