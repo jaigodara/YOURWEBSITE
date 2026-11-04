@@ -34,6 +34,7 @@ test('Community renders like/dislike controls and expandable response counts ins
   assert.match(script, /data-community-reaction="dislike"/);
   assert.match(script, /data-community-replies-toggle/);
   assert.match(script, /data-reply-count/);
+  assert.match(script, /host\.dataset\.expanded = 'true'/);
   assert.match(script, /window\.renderCommunityPolls\?\.\(window\.__communityPollsCache/);
   assert.match(index, /id="communityPollFeed"/);
   assert.doesNotMatch(index, /id="communityPollSection"/);
