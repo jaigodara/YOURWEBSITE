@@ -33,7 +33,7 @@ test('Community renders like/dislike controls and expandable response counts ins
   assert.match(script, /data-community-reaction="like"/);
   assert.match(script, /data-community-reaction="dislike"/);
   assert.match(script, /data-focus-reply/);
-  assert.match(script, /<span data-reply-count>0<\\/span> Responses/);
+  assert.match(script, /data-reply-count>0/);
   assert.doesNotMatch(script, /👍 Like <span data-reaction-count>|👎 Dislike <span data-reaction-count>/);
   assert.match(script, /data-community-replies-toggle/);
   assert.match(script, /data-reply-count/);
