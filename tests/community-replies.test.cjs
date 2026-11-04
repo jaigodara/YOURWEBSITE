@@ -32,10 +32,24 @@ test('Community replies obey global and section maintenance locks', () => {
 test('Community renders like/dislike controls and expandable response counts inside one conversation stream', () => {
   assert.match(script, /data-community-reaction="like"/);
   assert.match(script, /data-community-reaction="dislike"/);
+  assert.match(script, /data-focus-reply/);
+  assert.match(script, /<span data-reply-count>0<\\/span> Responses/);
+  assert.doesNotMatch(script, /👍 Like <span data-reaction-count>|👎 Dislike <span data-reaction-count>/);
   assert.match(script, /data-community-replies-toggle/);
   assert.match(script, /data-reply-count/);
   assert.match(script, /host\.dataset\.expanded = 'true'/);
   assert.match(script, /window\.renderCommunityPolls\?\.\(window\.__communityPollsCache/);
   assert.match(index, /id="communityPollFeed"/);
   assert.doesNotMatch(index, /id="communityPollSection"/);
+});
+
+
+test('Community feedback uses an accessible modern composer and reports submission state', () => {
+  assert.match(index, /id="communityFeedbackComposer"/);
+  assert.match(index, /id="communityFeedbackCount"/);
+  assert.match(index, /id="communityFeedbackStatus" role="status"/);
+  assert.match(index, /प्रतिक्रिया भेजें/);
+  assert.match(script, /window\.BishnoiCommunity\.submitFeedback = async function/);
+  assert.match(script, /धन्यवाद! आपका सुझाव मंच प्रबंधन टीम तक पहुँच गया है।/);
+  assert.match(script, /communityFeedbackCount/);
 });
