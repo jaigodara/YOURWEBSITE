@@ -532,7 +532,7 @@ test("Firestore security rules regression suite", async (t) => {
       await assertFails(duplicate.commit());
     });
 
-    await t.test("Community emoji reactions are limited to the signed-in member and approved emoji", async () => {
+    await t.test("Community like/dislike reactions are limited to one per signed-in member", async () => {
       await reset();
       const db = googleStudentContext(STUDENT).firestore();
       await env.withSecurityRulesDisabled(async ctx => {
@@ -542,17 +542,20 @@ test("Firestore security rules regression suite", async (t) => {
       });
       const ownReaction = doc(db, "posts/reaction-post/reactions", STUDENT);
       await assertSucceeds(setDoc(ownReaction, {
-        uid: STUDENT, emoji: "🙏", createdAt: serverTimestamp(),
+        uid: STUDENT, reaction: "like", createdAt: serverTimestamp(),
       }));
       await assertSucceeds(updateDoc(ownReaction, {
-        emoji: "❤️", updatedAt: serverTimestamp(),
+        reaction: "dislike", updatedAt: serverTimestamp(),
       }));
       await assertSucceeds(deleteDoc(ownReaction));
       await assertFails(setDoc(doc(db, "posts/reaction-post/reactions", "another-user"), {
-        uid: "another-user", emoji: "👏", createdAt: serverTimestamp(),
+        uid: "another-user", reaction: "like", createdAt: serverTimestamp(),
       }));
-      await assertFails(setDoc(doc(db, "posts/reaction-post/reactions", "invalid-emoji"), {
-        uid: "invalid-emoji", emoji: "🔥", createdAt: serverTimestamp(),
+      await assertFails(setDoc(doc(db, "posts/reaction-post/reactions", "invalid-reaction"), {
+        uid: "invalid-reaction", reaction: "love", createdAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(db, "posts/reaction-post/reactions", "legacy-emoji"), {
+        uid: "legacy-emoji", emoji: "🙏", createdAt: serverTimestamp(),
       }));
     });
 
