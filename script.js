@@ -3115,7 +3115,7 @@ window.renderExamVisibility = function renderExamVisibility() {
         <div class="flex items-center justify-between gap-2"><strong class="truncate text-xs text-[#143622]">${escapeHtml(author)}</strong><span class="text-[10px] text-stone-500">${escapeHtml(when)}</span></div>
         ${pinned ? '<div class="text-[10px] font-bold text-amber-800">📌 Owner द्वारा पिन किया गया</div>' : ''}
         <p class="text-sm leading-relaxed text-stone-800 whitespace-pre-wrap break-words">${escapeHtml(body)}</p>
-        ${post.linkUrl && /^https?:\\/\\//i.test(String(post.linkUrl)) ? '<a class="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
+        ${post.linkUrl && /^https?:\/\//i.test(String(post.linkUrl)) ? '<a class="inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 break-all" href="' + escapeHtml(post.linkUrl) + '" target="_blank" rel="noopener noreferrer">📎 साझा किया गया PDF / लिंक ↗</a>' : ''}
         <div class="flex items-center gap-5 border-t border-stone-100 pt-2"><div class="flex items-center gap-4" data-community-reaction-bar="${id}">
           <button type="button" data-community-reaction="like" aria-pressed="false" class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600">👍 <span data-reaction-count>0</span></button>
           <button type="button" data-community-reaction="dislike" aria-pressed="false" class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600">👎 <span data-reaction-count>0</span></button>
