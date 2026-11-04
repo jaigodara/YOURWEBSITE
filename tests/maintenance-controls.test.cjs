@@ -243,9 +243,10 @@ test('Community Poll and Event attachments show a neutral unavailable message to
   assert.ok(handler.includes("if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।'"));
 });
 
-test('Community reference controls use the existing Firebase conversation and owner moderation', () => {
+test('Community reference controls use the existing Firebase conversation while feedback stays in its separate section', () => {
   assert.match(indexHtml, /id="postLinkUrl"/);
-  assert.match(indexHtml, /submitFeedback\(\)/);
+  assert.doesNotMatch(indexHtml, /submitFeedback\(\)/);
+  assert.match(indexHtml, /window\.BishnoismSite\.openFeedback\(\)/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.insertEmoji/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.togglePinned/);
   assert.match(scriptJs, /window\.BishnoiCommunity\.submitFeedback/);
