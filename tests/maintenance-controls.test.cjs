@@ -279,3 +279,26 @@ test('Owner Studio starts with only the Dashboard route panels visible', () => {
   assert.match(ownerHtml, /OWNER_STUDIO_ROUTES\.dashboard\.panels/);
   assert.match(ownerHtml, /initializeOwnerStudioRouteVisibility\(\);/);
 });
+
+test('Result verification desk is Owner-only in the separate exam portal', () => {
+  assert.match(portalHtml, /id="resultVerificationDesk" class="panel hide"/);
+  assert.match(portalHtml, /roleSnap\.data\(\)\?\.role === "owner"/);
+  assert.match(portalHtml, /roleSnapshot\.data\(\)\?\.role !== "owner"/);
+});
+test('Owner-only community attachments are enforced by primary-owner rules, not editor permissions', () => {
+  assert.match(indexHtml, /id="postLinkField" data-owner-only="true"/);
+  assert.match(scriptJs, /setVisible\('postLinkField', !!state\.isOwner\)/);
+  assert.match(rules, /linkUrl' in request\.resource\.data\) \|\| examOwner\(\)/);
+});
+test('Mock exam report selection and archive actions use saved exam display names', () => {
+  assert.match(ownerHtml, /id="reviewExamModeFilter"/);
+  assert.match(ownerHtml, /d\.mode !== selectedMode/);
+  assert.match(ownerHtml, /ownerMock1StartLabel/);
+  assert.match(ownerHtml, /ownerMock2StartLabel/);
+  assert.match(ownerHtml, /ownerMainStartLabel/);
+  assert.match(ownerHtml, /modeNames\[selectedMode\]/);
+});
+test('Completed exams can be archived with zero remaining records and refresh owner views', () => {
+  assert.match(ownerHtml, /खाली आर्काइव दर्ज करके परीक्षा की स्थिति और सूची भी रिफ्रेश की जाएगी/);
+  assert.match(ownerHtml, /loadExamArchives\(\)[\s\S]*loadExamSessionQueue\(\)/);
+});
