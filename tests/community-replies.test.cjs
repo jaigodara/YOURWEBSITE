@@ -53,3 +53,10 @@ test('Community feedback uses an accessible modern composer and reports submissi
   assert.match(script, /धन्यवाद! आपका सुझाव मंच प्रबंधन टीम तक पहुँच गया है।/);
   assert.match(script, /communityFeedbackCount/);
 });
+
+test('Community polls are rendered inside the shared chat feed as conversation messages, without an empty standalone poll section', () => {
+  assert.match(script, /const pollMount = '<div id="communityPollFeed"/);
+  assert.match(script, /bx-chat-message bx-chat-message-other w-full rounded-xl border/);
+  assert.match(script, /const activePolls = .*filter\(poll => poll\.active !== false\)/);
+  assert.doesNotMatch(script, /अभी कोई मतदान उपलब्ध नहीं है/);
+});
