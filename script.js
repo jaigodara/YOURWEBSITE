@@ -1190,13 +1190,13 @@ notify(
         if (!notice) {
           notice = document.createElement('div');
           notice.id = `maintenance-notice-${key}`;
-          notice.className = 'mb-4 rounded-3xl border border-[#d9e4d8] bg-gradient-to-br from-[#143622] via-[#1e4931] to-[#102f20] p-4 text-sm text-white shadow-md';
+          notice.className = 'mb-6 w-full rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 text-sm text-stone-800 shadow-md sm:p-6';
           section.prepend(notice);
         }
         notice.hidden = !maintenanceActive;
         notice.classList.toggle('hidden', !maintenanceActive);
         notice.innerHTML = maintenanceActive
-          ? `<div class="flex items-start gap-3"><span class="rounded-xl bg-amber-400/15 px-3 py-2 text-xl text-amber-200">✦</span><div><strong class="text-sm text-amber-200">${escapeHtml(label)} — नए अपडेट आ रहे हैं</strong><p class="mt-1 text-xs leading-relaxed text-stone-100">${escapeHtml(sectionMessage)}</p><p class="mt-2 text-[11px] font-semibold text-amber-100">${allowAccess ? 'मेंटेनेंस के दौरान भी सामग्री उपलब्ध है।' : 'यह सेक्शन कुछ समय के लिए अस्थायी रूप से बंद है। कृपया बाद में आएँ।'}</p></div></div>`
+          ? `<div class="space-y-3"><div class="flex items-start gap-3"><span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#143622] text-2xl text-amber-300 shadow-sm" aria-hidden="true">🛠️</span><div class="min-w-0 flex-1"><p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-800">BISHNOISM • PLATFORM UPDATE</p><h2 class="mt-1 font-yatra text-xl text-[#143622] sm:text-2xl">${escapeHtml(label)} — नए फीचर आ रहे हैं</h2><p class="mt-1 text-sm leading-relaxed text-stone-700">${escapeHtml(sectionMessage)}</p><p class="mt-2 text-xs font-semibold text-[#143622]">${allowAccess ? 'मेंटेनेंस के दौरान भी इस सेक्शन की सामग्री उपलब्ध है।' : 'यह सेक्शन कुछ समय के लिए बंद है। कृपया बाद में आएँ।'}</p></div><span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">अपडेट जारी</span></div></div>`
           : '';
       }
       Array.from(section.children).forEach(child => {
