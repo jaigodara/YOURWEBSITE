@@ -5629,8 +5629,16 @@ return review ? {
           document.getElementById('reviewSubmissionStatus')?.value || 'all';
 
         examReviewQueue = rows.filter(d => {
+          const recordExamId = String(d.customExamId || d.examId || '');
+          if (selectedCustomExamId) {
+            if (recordExamId !== selectedCustomExamId) return false;
+          } else if (recordExamId) {
+            return false;
+          }
+          if (examReviewCollection === 'mainExamSubmissions' && d.mode && d.mode !== 'main') return false;
+          if (examReviewCollection === 'mockExamSubmissions' && d.mode && !['mock1', 'mock2'].includes(d.mode)) return false;
           if (examReviewCollection === 'mockExamSubmissions' && selectedMode !== 'all' && d.mode !== selectedMode) return false;
-          if (selectedCustomExamId && d.customExamId !== selectedCustomExamId) return false;
+          if (examReviewCollection === 'quizAttempts' && d.mode && d.mode !== 'quiz') return false;
           const haystack = [
             d.name,
             d.fullName,
