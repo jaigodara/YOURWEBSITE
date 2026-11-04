@@ -625,6 +625,20 @@ Ans: B"></textarea>
     <!-- PANE 4: EXAM ENGINE, CAMERA PROCTORING & ENROLLMENT REVIEW -->
     <div id="pane_exam" class="hidden space-y-4">
 
+      <section id="ownerExamLifecycleDashboard" data-owner-only="true" class="rounded-3xl border-2 border-emerald-200 bg-white p-5 shadow-sm space-y-3">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div><h3 class="font-yatra text-base text-forest">🎓 विद्यार्थी यात्रा — परीक्षा संचालन</h3><p class="mt-1 text-xs text-stone-600">पंजीकरण से परिणाम तक मुख्य चरणों की स्थिति यहाँ देखें। नीचे दिए गए मौजूदा नियंत्रण ही वास्तविक कार्यवाही करते हैं।</p></div>
+          <button type="button" onclick="refreshOwnerExamLifecycleDashboard()" class="min-h-11 rounded-xl border border-stone-300 bg-stone-50 px-4 py-2 text-xs font-bold text-forest">↻ स्थिति रिफ्रेश करें</button>
+        </div>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <article class="rounded-xl border border-stone-200 bg-stone-50 p-3"><p class="text-[10px] font-black uppercase tracking-wide text-stone-500">01 · पंजीकरण</p><p id="ownerLifecycleRegistrationStatus" class="mt-1 text-sm font-extrabold text-forest">स्थिति लोड हो रही है…</p><p id="ownerLifecycleRegistrationDetail" class="mt-1 text-[11px] text-stone-600">नए आवेदन की स्थिति</p></article>
+          <article class="rounded-xl border border-stone-200 bg-stone-50 p-3"><p class="text-[10px] font-black uppercase tracking-wide text-stone-500">02 · प्रवेश-पत्र</p><p id="ownerLifecycleAdmitStatus" class="mt-1 text-sm font-extrabold text-forest">स्थिति लोड हो रही है…</p><p class="mt-1 text-[11px] text-stone-600">स्वीकृत विद्यार्थियों के लिए रिलीज़</p></article>
+          <article class="rounded-xl border border-stone-200 bg-stone-50 p-3"><p class="text-[10px] font-black uppercase tracking-wide text-stone-500">03 · लाइव परीक्षा</p><p id="ownerLifecycleExamStatus" class="mt-1 text-sm font-extrabold text-forest">स्थिति लोड हो रही है…</p><p id="ownerLifecycleExamDetail" class="mt-1 text-[11px] text-stone-600">निर्धारित परीक्षा समय</p></article>
+          <article class="rounded-xl border border-stone-200 bg-stone-50 p-3"><p class="text-[10px] font-black uppercase tracking-wide text-stone-500">04 · परिणाम</p><p id="ownerLifecycleResultsStatus" class="mt-1 text-sm font-extrabold text-forest">स्थिति लोड हो रही है…</p><p class="mt-1 text-[11px] text-stone-600">जाँच और परिणाम रिलीज़</p></article>
+        </div>
+        <p id="ownerLifecycleDashboardStatus" class="text-[11px] text-stone-500" role="status" aria-live="polite">यह सारांश examConfig/current से पढ़ा जाता है।</p>
+      </section>
+
       <!-- संयुक्त लाइव परीक्षा निगरानी: सत्र, पुनः प्रवेश और सुरक्षा लॉग एक ही जगह -->
       <section id="ownerExamSessionMonitorPanel" data-owner-only="true" class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -746,7 +760,8 @@ Ans: B"></textarea>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock1" type="checkbox" class="accent-forest"> 📝 मॉक परीक्षा 1 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMock2" type="checkbox" class="accent-forest"> 🎯 मॉक परीक्षा 2 दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowMainExam" type="checkbox" class="accent-forest"> 🏅 मुख्य परीक्षा दिखाएँ</label>
-          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowEnrollment" type="checkbox" class="accent-forest"> 🧾 विद्यार्थी पंजीकरण दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowEnrollment" type="checkbox" class="accent-forest"> 🧾 विद्यार्थी पंजीकरण अनुभाग दिखाएँ</label>
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerRegistrationOpen" type="checkbox" class="accent-forest" checked> 🟢 नया विद्यार्थी पंजीकरण स्वीकार करें</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerShowResults" type="checkbox" class="accent-forest"> 📊 परिणाम डेस्क दिखाएँ</label>
           <label class="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border"><input id="ownerRandomizeSets" type="checkbox" class="accent-forest" checked> प्रश्न और विकल्प शफल करें</label>
         </div>
@@ -3259,6 +3274,7 @@ async function saveBulkQuestionDrafts() {
       try {
         const snap = await db.collection('examConfig').doc('current').get();
         const data = snap.exists ? snap.data() : {};
+        renderOwnerExamLifecycleDashboard(data);
         const pairs = [
           ['ownerShowDailyQuiz', data.dailyQuizVisible !== false],
           ['ownerShowDailyQuizResults', data.dailyQuizResultsVisible !== false],
@@ -3267,6 +3283,7 @@ async function saveBulkQuestionDrafts() {
           ['ownerShowMock2', data.mock2Visible !== false],
           ['ownerShowMainExam', data.mainExamVisible !== false],
           ['ownerShowEnrollment', data.enrollmentVisible !== false],
+          ['ownerRegistrationOpen', data.registrationOpen !== false],
           ['ownerShowResults', data.resultsVisible !== false],
           ['ownerRandomizeSets', data.randomizeSets !== false],
           ['ownerProfileShowExamInfo', data.profileExamInfoVisible !== false],
@@ -3300,6 +3317,7 @@ async function saveBulkQuestionDrafts() {
         // Keep the archive action title in sync with names restored from Firestore.
         window.handleArchiveExamModeChange?.();
         const resultsReleased = data.resultsPublished === true;
+        renderOwnerExamLifecycleDashboard(data);
         const releaseStatus = document.getElementById('ownerResultsReleaseStatus');
         const releaseButton = document.getElementById('ownerResultsReleaseButton');
         if (releaseStatus) releaseStatus.textContent = resultsReleased
@@ -3435,10 +3453,56 @@ async function saveBulkQuestionDrafts() {
           ? 'स्थिति: प्रवेश-पत्र रिलीज़ हैं। विद्यार्थी अपने लॉगिन में डाउनलोड कर सकते हैं।'
           : 'स्थिति: प्रवेश-पत्र अभी रिलीज़ नहीं किए गए हैं।';
         window.ownerAdmitCardSettings = data;
+        renderOwnerExamLifecycleDashboard(data);
       } catch (error) {
         showToast('प्रवेश-पत्र सेटिंग्स लोड नहीं हुईं: ' + error.message);
       }
     }
+
+    function renderOwnerExamLifecycleDashboard(config = {}) {
+      window.ownerExamLifecycleConfig = { ...(window.ownerExamLifecycleConfig || {}), ...(config || {}) };
+      const data = window.ownerExamLifecycleConfig;
+      const setText = (id, value) => { const node = document.getElementById(id); if (node) node.textContent = value; };
+      const registrationOpen = data.registrationOpen !== false;
+      setText('ownerLifecycleRegistrationStatus', registrationOpen ? 'नया पंजीकरण खुला है' : 'नया पंजीकरण बंद है');
+      setText('ownerLifecycleRegistrationDetail', registrationOpen ? 'विद्यार्थी आवेदन भेज सकते हैं' : 'नए आवेदन और विद्यार्थी edits Firestore Rules से बंद हैं');
+      setText('ownerLifecycleAdmitStatus', data.admitCardReleased === true ? 'प्रवेश-पत्र जारी हैं' : 'प्रवेश-पत्र अभी लॉक हैं');
+      const examType = String(data.admitCardExamType || 'मुख्य परीक्षा').trim();
+      const mode = ({ 'मुख्य परीक्षा': 'main', main: 'main', 'मॉक परीक्षा 1': 'mock1', mock1: 'mock1', 'मॉक परीक्षा 2': 'mock2', mock2: 'mock2', 'दैनिक ज्ञान क्विज़': 'quiz', quiz: 'quiz' })[examType] || 'main';
+      const startMs = Number(data[mode + 'StartAtMs']) || (data[mode + 'StartAt']?.toDate ? data[mode + 'StartAt'].toDate().getTime() : 0);
+      const duration = Math.max(1, Number(data[mode + 'DurationMinutes'] || data.durationMinutes || 120));
+      let examStatus = 'समय निर्धारित नहीं';
+      let examDetail = mode === 'quiz' ? 'दैनिक क्विज़ का समय पूरे दिन लागू रहता है' : 'Owner Studio में शुरुआत का समय निर्धारित करें';
+      if (mode === 'quiz' && !startMs) examStatus = 'दैनिक क्विज़';
+      else if (startMs > Date.now()) { examStatus = 'परीक्षा निर्धारित है'; examDetail = new Date(startMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }); }
+      else if (startMs > 0 && Date.now() <= startMs + duration * 60000) { examStatus = 'निर्धारित समय के अनुसार LIVE'; examDetail = 'प्रवेश Firestore की समय और अनुमति जाँच से नियंत्रित है'; }
+      else if (startMs > 0) { examStatus = 'निर्धारित समय समाप्त'; examDetail = 'अगली परीक्षा के लिए नया समय निर्धारित करें'; }
+      setText('ownerLifecycleExamStatus', examStatus);
+      setText('ownerLifecycleExamDetail', examDetail);
+      setText('ownerLifecycleResultsStatus', data.resultsPublished === true ? 'मुख्य / मॉक परिणाम जारी' : 'मुख्य / मॉक परिणाम लॉक');
+      setText('ownerLifecycleDashboardStatus', 'अंतिम पढ़ी गई स्थिति: ' + new Date().toLocaleString('hi-IN'));
+    }
+
+    async function refreshOwnerExamLifecycleDashboard() {
+      if (!isPrimaryOwner()) return showToast('परीक्षा स्थिति देखने का अधिकार केवल Owner को है।');
+      const status = document.getElementById('ownerLifecycleDashboardStatus');
+      if (status) status.textContent = 'Firestore से परीक्षा स्थिति पढ़ी जा रही है…';
+      try {
+        const snap = await db.collection('examConfig').doc('current').get();
+        const data = snap.exists ? snap.data() || {} : {};
+        const registrationToggle = document.getElementById('ownerRegistrationOpen');
+        if (registrationToggle) registrationToggle.checked = data.registrationOpen !== false;
+        renderOwnerExamLifecycleDashboard(data);
+        const admitStatus = document.getElementById('ownerAdmitReleaseStatus');
+        if (admitStatus) admitStatus.textContent = data.admitCardReleased === true
+          ? 'स्थिति: प्रवेश-पत्र रिलीज़ हैं। विद्यार्थी अपने लॉगिन में डाउनलोड कर सकते हैं।'
+          : 'स्थिति: प्रवेश-पत्र अभी रिलीज़ नहीं किए गए हैं।';
+      } catch (error) {
+        if (status) status.textContent = 'स्थिति लोड नहीं हुई: ' + (error?.message || error);
+        showToast('परीक्षा स्थिति लोड नहीं हुई: ' + (error?.message || error));
+      }
+    }
+    window.refreshOwnerExamLifecycleDashboard = refreshOwnerExamLifecycleDashboard;
 
     function readAdmitCardSettings(released) {
       return {
@@ -3646,6 +3710,7 @@ async function saveBulkQuestionDrafts() {
           ...(window.ownerAdmitCardSettings || {}),
           ...settings
         };
+        renderOwnerExamLifecycleDashboard({ ...(window.ownerExamLifecycleConfig || {}), ...settings });
 
         if (status) {
           status.textContent = 'पूरा हुआ: ' + released +
@@ -3815,6 +3880,7 @@ async function saveBulkQuestionDrafts() {
           resultsPublishedBy: releasing ? (auth.currentUser?.uid || null) : null,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+        renderOwnerExamLifecycleDashboard({ ...current, resultsPublished: releasing });
         if (status) status.textContent = releasing
           ? 'परिणाम जारी हो गए हैं। विद्यार्थियों का डैशबोर्ड अब मुख्य/मॉक परिणाम दिखा सकता है।'
           : 'परिणाम लॉक कर दिए गए हैं; मुख्य/मॉक परिणाम विद्यार्थियों से छिपे रहेंगे।';
@@ -4271,6 +4337,7 @@ async function changeCustomExamStatus(nextStatus) {
         mock2Visible: !!document.getElementById('ownerShowMock2')?.checked,
         mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
         enrollmentVisible: !!document.getElementById('ownerShowEnrollment')?.checked,
+        registrationOpen: document.getElementById('ownerRegistrationOpen')?.checked !== false,
         resultsVisible: !!document.getElementById('ownerShowResults')?.checked,
         randomizeSets: !!document.getElementById('ownerRandomizeSets')?.checked,
         profileExamInfoVisible: !!document.getElementById('ownerProfileShowExamInfo')?.checked,
@@ -4303,6 +4370,7 @@ async function changeCustomExamStatus(nextStatus) {
         const previousSnap = await configRef.get();
         const previous = previousSnap.exists ? previousSnap.data() || {} : {};
         await configRef.set(config, { merge: true });
+        renderOwnerExamLifecycleDashboard({ ...previous, ...config });
         document.getElementById('ownerMock1StartLabel').textContent = config.mock1DisplayName + ' शुरू';
         document.getElementById('ownerMock2StartLabel').textContent = config.mock2DisplayName + ' शुरू';
         document.getElementById('ownerMainStartLabel').textContent = config.mainDisplayName + ' शुरू';
@@ -4314,7 +4382,12 @@ async function changeCustomExamStatus(nextStatus) {
         if (config.enrollmentVisible && previous.enrollmentVisible !== true) {
           notices.push(['मुख्य परीक्षा पंजीकरण शुरू', 'मुख्य परीक्षा के लिए विद्यार्थी पंजीकरण शुरू हो गया है। लॉगिन करके परीक्षा अनुभाग में अपना पंजीकरण भेजें।']);
         } else if (!config.enrollmentVisible && previous.enrollmentVisible === true) {
-          notices.push(['मुख्य परीक्षा पंजीकरण बंद', 'मुख्य परीक्षा के लिए नया पंजीकरण बंद कर दिया गया है। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।']);
+          notices.push(['मुख्य परीक्षा पंजीकरण अनुभाग छिपाया गया', 'मुख्य परीक्षा पंजीकरण अनुभाग अब वेबसाइट पर दिखाई नहीं देगा।']);
+        }
+        if (typeof previous.registrationOpen === 'boolean' && previous.registrationOpen !== config.registrationOpen) {
+          notices.push(config.registrationOpen
+            ? ['मुख्य परीक्षा पंजीकरण फिर शुरू', 'मुख्य परीक्षा के लिए नया विद्यार्थी पंजीकरण फिर से खोल दिया गया है। लॉगिन करके परीक्षा अनुभाग में आवेदन भेजें।']
+            : ['मुख्य परीक्षा पंजीकरण बंद', 'नए विद्यार्थी आवेदन और विद्यार्थी द्वारा आवेदन में बदलाव रोक दिए गए हैं। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।']);
         }
         if (config.dailyQuizVisible && (previous.dailyQuizVisible !== true || previous.quizStartAtMs !== config.quizStartAtMs)) {
           notices.push(['दैनिक ज्ञान क्विज़ की सूचना', 'दैनिक ज्ञान क्विज़ की निर्धारित शुरुआत: ' + scheduledText(config.quizStartAtMs) + '। पंजीकरण की पुष्टि और निर्धारित समय के बाद प्रवेश करें।']);

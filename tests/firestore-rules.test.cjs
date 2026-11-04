@@ -86,6 +86,27 @@ test("Firestore security rules regression suite", async (t) => {
       }));
     });
 
+    await t.test("Owner registration बंद करे तो विद्यार्थी नया enrollment या अपना आवेदन edit नहीं कर सकता", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), "examConfig/current"), { registrationOpen: false });
+      });
+      const newStudentDb = googleStudentContext("new-student").firestore();
+      await assertFails(setDoc(doc(newStudentDb, "examEnrolledStudents/new-student"), {
+        uid: "new-student", fullName: "नया विद्यार्थी",
+        verificationStatus: "pending", createdAt: serverTimestamp(),
+      }));
+      const existingStudentDb = googleStudentContext(STUDENT).firestore();
+      await assertFails(updateDoc(doc(existingStudentDb, "examEnrolledStudents", STUDENT), {
+        fullName: "बंद अवधि में बदलाव", updatedAt: serverTimestamp(),
+      }));
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(setDoc(doc(ownerDb, "examEnrolledStudents/new-student"), {
+        uid: "new-student", fullName: "Owner द्वारा जोड़ा गया",
+        verificationStatus: "pending",
+      }));
+    });
+
     await t.test("विद्यार्थी enrollment बनाते समय roll number नहीं दे सकता", async () => {
       await reset();
       const db = env.authenticatedContext("spoof-student").firestore();

@@ -63,6 +63,12 @@ service cloud.firestore {
         || (get(p).data.get('vipBypass', true) == true && owner());
     }
 
+    function enrollmentRegistrationOpen() {
+      let p = /databases/$(database)/documents/examConfig/current;
+      // Missing legacy setting defaults to open so existing deployments keep working.
+      return !exists(p) || get(p).data.get('registrationOpen', true) == true;
+    }
+
     function examEnabled(mode) {
       let p = /databases/$(database)/documents/examConfig/current;
       return exists(p)
@@ -426,7 +432,8 @@ service cloud.firestore {
       allow read: if canReviewExam() || (signedIn() && request.auth.uid == uid);
 
       allow create: if examOwner() || (
-        gmailVerifiedStudent()
+        enrollmentRegistrationOpen()
+        && gmailVerifiedStudent()
         && request.auth.uid == uid
         && request.resource.data.get('uid', '') == uid
         && request.resource.data.get('verificationStatus', '') == 'pending'
@@ -434,7 +441,8 @@ service cloud.firestore {
       );
 
       allow update: if examOwner() || (
-        gmailVerifiedStudent()
+        enrollmentRegistrationOpen()
+        && gmailVerifiedStudent()
         && request.auth.uid == uid
         && request.resource.data.get('uid', '') == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([

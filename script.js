@@ -2396,6 +2396,12 @@ moreButton.textContent =
           notify('परीक्षा पंजीकरण के लिए Google सत्यापन पूरा करना ज़रूरी है।', 'error');
           return;
         }
+        if (state.examConfig?.registrationOpen === false) {
+          if (status) status.textContent = 'नया परीक्षा पंजीकरण Owner द्वारा बंद कर दिया गया है। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।';
+          window.renderExamVisibility();
+          notify('नया परीक्षा पंजीकरण अभी बंद है।', 'info');
+          return;
+        }
         const fullName = (byId('enrollmentName')?.value || '').trim();
         const fatherName = String(byId('enrollmentFatherName')?.value || '').trim().slice(0, 100);
         const phone = normalizeStudentPhone(state.user.phoneNumber || state.profile?.verifiedPhone || state.profile?.mobile || '');
@@ -2559,6 +2565,16 @@ window.toggleExamResultsRelease = async function toggleExamResultsRelease() {
 
 window.renderExamVisibility = function renderExamVisibility() {
   const c = state.examConfig || {};
+  const enrollmentOpen = c.registrationOpen !== false;
+  const enrollmentForm = byId('examEnrollmentForm');
+  const enrollmentGateStatus = byId('enrollmentGateStatus');
+  if (enrollmentGateStatus) {
+    enrollmentGateStatus.hidden = enrollmentOpen;
+    enrollmentGateStatus.textContent = enrollmentOpen
+      ? ''
+      : 'नया परीक्षा पंजीकरण अभी बंद है। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।';
+  }
+  if (enrollmentForm) enrollmentForm.hidden = !enrollmentOpen;
   const fixedTitles = { mock1: c.mock1DisplayName || 'मॉक परीक्षा 1', mock2: c.mock2DisplayName || 'मॉक परीक्षा 2', main: c.mainDisplayName || 'मुख्य परीक्षा' };
   const titleTargets = [['#mockExam1Card h4', fixedTitles.mock1], ['#startMock1Btn', '🚀 ' + fixedTitles.mock1 + ' शुरू करें'], ['#mockExam2Card h4', fixedTitles.mock2], ['#startMock2Btn', '🚀 ' + fixedTitles.mock2 + ' शुरू करें'], ['#mainExamSection h3', fixedTitles.main], ['#startMainExamBtn', '🏁 ' + fixedTitles.main + ' शुरू करें']];
   titleTargets.forEach(([selector, value]) => { const el = document.querySelector(selector); if (el) el.textContent = value; });
@@ -7623,7 +7639,7 @@ window.BishnoiApp.importExamQuestions = async function (
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('अमान्य सेटिंग डेटा।');
     const allowed = [
       'dailyQuizVisible','dailyQuizResultsVisible','mockVisible','mock1Visible','mock2Visible',
-      'mainExamVisible','resultsVisible','enrollmentVisible','separateExamPortalVisible','examPortalVisible',
+      'mainExamVisible','resultsVisible','enrollmentVisible','registrationOpen','separateExamPortalVisible','examPortalVisible',
       'quizStartAtMs','mock1StartAtMs','mock2StartAtMs','mainStartAtMs',
       'quizDurationMinutes','mock1DurationMinutes','mock2DurationMinutes','mainDurationMinutes',
       'broadcastEnabled','broadcastMessage','maintenanceMode','maintenanceMessage'

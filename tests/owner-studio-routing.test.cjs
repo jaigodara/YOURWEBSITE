@@ -27,6 +27,23 @@ test('Owner Studio navigation points to real panels and supports Admit Cards and
   }
 });
 
+test('Owner Studio controls the full candidate journey without replacing existing exam workflows', () => {
+  assert.match(ownerHtml, /id="ownerExamLifecycleDashboard"/);
+  assert.match(ownerHtml, /id="ownerRegistrationOpen" type="checkbox"/);
+  assert.match(ownerHtml, /registrationOpen:\s*document\.getElementById\('ownerRegistrationOpen'\)\?\.checked !== false/);
+  assert.match(ownerHtml, /\['ownerRegistrationOpen', data\.registrationOpen !== false\]/);
+  assert.match(ownerHtml, /renderOwnerExamLifecycleDashboard/);
+  assert.match(ownerHtml, /releaseAdmitCards\(\)/);
+  assert.match(ownerHtml, /toggleExamResultsRelease\(\)/);
+  assert.match(scriptJs, /state\.examConfig\?\.registrationOpen === false/);
+  assert.match(scriptJs, /enrollmentGateStatus/);
+  assert.match(scriptJs, /enrollmentForm\.hidden = !enrollmentOpen/);
+  const rules = readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+  assert.match(rules, /function enrollmentRegistrationOpen\(\)/);
+  assert.match(rules, /allow create: if examOwner\(\) \|\| \(\s*enrollmentRegistrationOpen\(\)/);
+  assert.match(rules, /allow update: if examOwner\(\) \|\| \(\s*enrollmentRegistrationOpen\(\)/);
+});
+
 test('Question importer allows native JSON import when SheetJS is unavailable', () => {
   const start = ownerHtml.indexOf('function importQuestionExcel(event)');
   const end = ownerHtml.indexOf('function ', start + 20);

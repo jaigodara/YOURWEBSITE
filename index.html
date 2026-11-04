@@ -475,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
           पंजीकरण करने के लिए पहले वेबसाइट में अपने खाते से लॉगिन करें।
           <button id="enrollmentLoginButton" type="button" class="ml-1 underline font-bold text-emerald-800">लॉगिन करें</button>
         </div>
+        <p id="enrollmentGateStatus" hidden class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900" role="status" aria-live="polite">नया परीक्षा पंजीकरण अभी बंद है। पहले से पंजीकृत विद्यार्थी अपनी स्थिति देख सकते हैं।</p>
         <form id="examEnrollmentForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label class="block text-xs font-semibold text-stone-700">पूरा नाम
             <input id="enrollmentName" name="name" type="text" maxlength="100" autocomplete="name" required placeholder="अपना पूरा नाम" class="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
