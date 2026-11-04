@@ -99,7 +99,7 @@ test("successful exam archive refreshes saved visibility, selected queue, sessio
   assert.match(workflow, /refreshStudioAnalytics\(\)/);
   assert.match(workflow, /reviewExamModeFilter/);
   assert.match(workflow, /reviewCustomExamFilter/);
-  assert.match(workflow, /सक्रिय समीक्षा सूची खाली करके रिफ्रेश की गई है/);
+  assert.match(workflow, /सक्रिय उत्तर-पत्र सूची खाली करके रिफ्रेश की गई है/);
 });
 
 test('Saved exam display names update the archive action after Firestore settings load', () => {
