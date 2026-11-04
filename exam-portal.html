@@ -228,6 +228,7 @@
     /* Four-stage candidate dashboard: compact, touch-friendly and aligned with Bishnoism. */
     .candidate-journey{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 22px}
     .journey-card{display:flex;align-items:center;gap:12px;min-width:0;padding:16px;border:1.5px solid var(--border);border-radius:17px;background:#fff;box-shadow:0 4px 14px #1436220a;transition:border-color .18s,transform .18s,box-shadow .18s}
+    .journey-card[hidden]{display:none!important}
     .journey-card:focus-within,.journey-card:hover{border-color:#9db8a1;box-shadow:0 8px 20px #14362212}
     .journey-card.is-locked{background:#f7f8f6;opacity:.72}
     .journey-card.is-done{border-color:#9bd3b2;background:#f2fbf5}
