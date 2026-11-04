@@ -1807,10 +1807,14 @@ function openStudioPage(page) {
 
   route.panels.forEach(id => {
     const panel = document.getElementById(id);
-    if (panel) {
-      delete panel.dataset.studioRouteHidden;
-      panel.classList.remove('hidden');
+    if (!panel) return;
+    if (panel.hasAttribute('data-owner-only') && !owner) {
+      panel.dataset.studioRouteHidden = 'true';
+      panel.classList.add('hidden');
+      return;
     }
+    delete panel.dataset.studioRouteHidden;
+    panel.classList.remove('hidden');
   });
 
   if (page === 'questions' && (owner || hasEditorPermission('examReview'))) window.setTimeout(() => loadExamSessionQueue(), 0);
