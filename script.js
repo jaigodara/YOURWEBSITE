@@ -2607,42 +2607,8 @@ window.renderExamVisibility = function renderExamVisibility() {
     if (input) input.checked = c[key] !== false;
   });
 
-  const saveVisibilityButton = byId('ownerSaveExamVisibilitySettings');
-  if (saveVisibilityButton && saveVisibilityButton.dataset.bound !== 'true') {
-    saveVisibilityButton.dataset.bound = 'true';
-    saveVisibilityButton.addEventListener('click', async () => {
-      if (!state.user || !state.isOwner || !state.db) {
-        notify('सेटिंग सेव करने के लिए Owner खाते से लॉगिन करें।', 'error');
-        return;
-      }
-      if (saveVisibilityButton.dataset.saving === 'true') return;
-      saveVisibilityButton.dataset.saving = 'true';
-      saveVisibilityButton.disabled = true;
-      const status = byId('ownerExamVisibilitySaveStatus');
-      const update = {};
-      visibilityInputs.forEach(([id, key]) => {
-        const input = byId(id);
-        if (input) update[key] = Boolean(input.checked);
-      });
-      update.updatedAt = serverTimestamp();
-      update.updatedBy = state.user.uid;
-      if (status) status.textContent = 'सेटिंग Firestore में सेव हो रही हैं…';
-      try {
-        await collection('examConfig').doc('current').set(update, { merge: true });
-        state.examConfig = { ...state.examConfig, ...update };
-        window.renderExamVisibility();
-        if (status) status.textContent = '✅ परीक्षा सेटिंग सफलतापूर्वक सेव हो गईं। पेज रीफ़्रेश करके भी जाँचें।';
-        notify('परीक्षा अनुभाग सेटिंग सेव हो गईं।', 'success');
-      } catch (error) {
-        console.error('Owner exam visibility settings save failed:', error);
-        if (status) status.textContent = '❌ सेव नहीं हुआ। Firestore rules / Owner permission जाँचें।';
-        notify(error?.message || 'परीक्षा सेटिंग सेव नहीं हुईं।', 'error');
-      } finally {
-        saveVisibilityButton.dataset.saving = 'false';
-        saveVisibilityButton.disabled = false;
-      }
-    });
-  }
+  // Owner Studio's full exam-config handler is the single save action.
+  // Avoid a second partial Firestore write on the same button.
 
   const releaseButton = byId('ownerResultsReleaseButton');
   const releaseStatus = byId('ownerResultsReleaseStatus');

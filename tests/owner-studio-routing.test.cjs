@@ -44,6 +44,35 @@ test('Owner Studio controls the full candidate journey without replacing existin
   assert.match(rules, /allow update: if examOwner\(\) \|\| \(\s*enrollmentRegistrationOpen\(\)/);
 });
 
+test('Exam visibility settings do not read a missing mock master toggle or write twice', () => {
+  assert.doesNotMatch(ownerHtml, /getElementById\(['"]ownerShowMock['"]\)/);
+  assert.match(ownerHtml, /mockVisible:\s*!!document\.getElementById\('ownerShowMock1'\)\?\.checked\s*\|\|\s*!!document\.getElementById\('ownerShowMock2'\)\?\.checked/);
+  assert.equal((ownerHtml.match(/onclick="(?:window\.)?saveExamVisibilitySettings\(\)"/g) || []).length, 1,
+    'one full-settings save action should remain');
+  assert.doesNotMatch(scriptJs, /saveVisibilityButton\.addEventListener\('click'/,
+    'script.js must not attach a second partial save to the same button');
+});
+
+test('Exam portal shows each four-stage action once and removes the duplicate legacy cards', () => {
+  for (const id of ['journeyRegistration', 'journeyAdmit', 'journeyLiveExam', 'journeyResults']) {
+    assert.equal((portalHtml.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id + ' should appear once');
+  }
+  for (const id of ['mainExamCard', 'enrollmentCard', 'resultsCard']) {
+    assert.doesNotMatch(portalHtml, new RegExp('id="' + id + '"'),
+      id + ' duplicates a journey-stage action and must not be rendered');
+  }
+  for (const mode of ['main', 'results']) {
+    assert.equal((portalHtml.match(new RegExp('data-launch-exam="' + mode + '"', 'g')) || []).length, 1,
+      mode + ' should have exactly one portal action');
+  }
+  assert.equal((portalHtml.match(/data-launch-exam="enrollment"/g) || []).length, 2,
+    'registration and the later admit-card stage both use the existing enrollment workflow');
+  for (const mode of ['mock1', 'mock2']) {
+    assert.equal((portalHtml.match(new RegExp('data-launch-exam="' + mode + '"', 'g')) || []).length, 1,
+      mode + ' should remain available as its own mock card');
+  }
+});
+
 test('Owner Studio controls visibility of all four exam-portal journey stages independently of Daily Quiz', () => {
   const controls = [
     ['ownerPortalShowRegistrationStep', 'portalRegistrationStepVisible'],

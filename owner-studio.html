@@ -885,7 +885,6 @@ Ans: B"></textarea>
           <input id="ownerPublishExamNotifications" type="checkbox" class="mt-0.5 accent-forest">
           <span><strong>विद्यार्थियों को सूचना भी भेजें</strong><br>बंद रहने पर सेटिंग्स केवल सहेजी जाएँगी—परीक्षण के दौरान किसी विद्यार्थी को सूचना नहीं जाएगी।</span>
         </label>
-        <button onclick="saveExamVisibilitySettings()" class="w-full py-2.5 bg-forest hover:bg-emerald-950 text-white font-bold text-xs rounded-xl shadow transition">💾 परीक्षा सेटिंग्स सहेजें</button>
       </div>
 
       <!-- STUDENT / ADMIT-CARD CONFIRMATION -->
@@ -4342,10 +4341,9 @@ async function changeCustomExamStatus(nextStatus) {
         separateExamPortalVisible: !!document.getElementById('ownerShowExamPortal')?.checked,
         // Keep the legacy key synchronized for existing portal code and deployments.
         examPortalVisible: !!document.getElementById('ownerShowExamPortal')?.checked,
-        // The master toggle controls the whole mock section; individual toggles
-        // decide which cards are visible when the master toggle is enabled.
-        mockVisible: !!document.getElementById('ownerShowMock')?.checked &&
-          (!!document.getElementById('ownerShowMock1')?.checked || !!document.getElementById('ownerShowMock2')?.checked),
+        // There is no separate master checkbox: enabled mock cards control this flag.
+        mockVisible: !!document.getElementById('ownerShowMock1')?.checked ||
+          !!document.getElementById('ownerShowMock2')?.checked,
         mock1Visible: !!document.getElementById('ownerShowMock1')?.checked,
         mock2Visible: !!document.getElementById('ownerShowMock2')?.checked,
         mainExamVisible: !!document.getElementById('ownerShowMainExam')?.checked,
