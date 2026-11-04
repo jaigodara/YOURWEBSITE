@@ -4647,7 +4647,7 @@ async function changeCustomExamStatus(nextStatus) {
         const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'समय अज्ञात';
         option.textContent = (row.rollNumber || 'बिना रोल') + ' — ' +
           (row.name || row.fullName || row.displayName || 'विद्यार्थी') + ' · ' +
-          (row.examTitle || row.mode || examReviewCollection) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
+          getReviewExamLabel(row) + ' · ' + submittedLabel + ' · ID ' + String(row.id).slice(0, 6);
         option.title = 'सबमिशन ID: ' + row.id + ' · जमा: ' + submittedLabel;
         jump.appendChild(option);
       });
@@ -4670,7 +4670,7 @@ async function changeCustomExamStatus(nextStatus) {
       const submittedMs = submittedAt ? timestampMillis(submittedAt) : 0;
       const submittedLabel = submittedMs ? new Date(submittedMs).toLocaleString('hi-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'समय अज्ञात';
       meta.textContent = 'मोबाइल: ' + (d.phone || d.mobile || '—') + ' · ईमेल: ' + (d.email || '—') +
-        ' · परीक्षा: ' + (d.examTitle || d.mode || examReviewCollection) + ' · स्वचालित अंक: ' +
+        ' · परीक्षा: ' + getReviewExamLabel(d) + ' · स्वचालित अंक: ' +
         (d.score ?? d.autoScore ?? '—') + '/' + (d.total ?? d.totalQuestions ?? '—') +
         ' · स्थिति: ' + (d.manualReviewStatus || 'जाँच बाकी') +
         ' · जमा: ' + submittedLabel + ' · रिकॉर्ड ID: ' + String(d.id).slice(0, 10);
@@ -5547,6 +5547,15 @@ window.clearExamReviewFilters = clearExamReviewFilters;
       const list = document.getElementById('examSubmissionsList');
       if (!list) return;
       examReviewCollection = document.getElementById('reviewSubmissionCollection')?.value || 'mainExamSubmissions';
+      const reviewExamNames = {
+        main: document.getElementById('ownerMainDisplayName')?.value || 'मुख्य परीक्षा',
+        mock1: document.getElementById('ownerMock1DisplayName')?.value || 'मॉक परीक्षा 1',
+        mock2: document.getElementById('ownerMock2DisplayName')?.value || 'मॉक परीक्षा 2',
+        quiz: 'दैनिक क्विज़'
+      };
+      const getReviewExamLabel = row => row.examTitle || reviewExamNames[row.mode] ||
+        (examReviewCollection === 'mainExamSubmissions' ? reviewExamNames.main :
+          examReviewCollection === 'mockExamSubmissions' ? 'मॉक परीक्षाएँ' : 'दैनिक क्विज़');
       const queryText = (document.getElementById('reviewSubmissionSearch')?.value || '').trim().toLowerCase();
       const queueStatus = document.getElementById('examReviewQueueStatus');
       const loadButton = document.querySelector('#manualExamReviewSection button[onclick="loadExamSubmissions()"]');
