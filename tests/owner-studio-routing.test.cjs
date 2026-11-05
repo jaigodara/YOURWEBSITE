@@ -217,3 +217,16 @@ test('Exam portal labels and launch buttons follow Owner-configured display name
   assert.match(portalHtml, /config\.mainDisplayName/);
   assert.match(portalHtml, /button\.textContent = title \+ ' खोलें'/);
 });
+
+test('Active exam workspace opens as a full-screen experience instead of rendering below the launch card', () => {
+  assert.match(readFileSync(path.join(root, 'index.html'), 'utf8'), /body:has\(#portalExamWorkspace:not\(\.hidden\):not\(\[hidden\]\)\)/);
+  assert.match(readFileSync(path.join(root, 'index.html'), 'utf8'), /#tab-quiz:has\(#portalExamWorkspace:not\(\.hidden\):not\(\[hidden\]\)\) > :not\(#portalExamWorkspace\)/);
+  assert.match(readFileSync(path.join(root, 'index.html'), 'utf8'), /#portalExamWorkspace:not\(\.hidden\):not\(\[hidden\]\)\s*\{[\s\S]*?position:\s*fixed/);
+});
+
+test('Result verification uses the same complete results-and-scorecard title as the student journey', () => {
+  const portalMarkup = portalHtml.split('<script')[0];
+  assert.match(portalMarkup, /id="resultVerificationHeading"[^>]*>🏆 परिणाम और स्कोरकार्ड<\/h2>/);
+  assert.match(portalHtml, /#resultVerificationHeading\s*\{[\s\S]*?font-size:\s*clamp\(25px,\s*4vw,\s*34px\)/);
+  assert.match(portalMarkup, /id="journeyResults"[\s\S]*?परिणाम और स्कोरकार्ड/);
+});
