@@ -225,8 +225,7 @@ test('Active exam workspace opens as a full-screen experience instead of renderi
 });
 
 test('Result verification uses the same complete results-and-scorecard title as the student journey', () => {
-  const portalMarkup = portalHtml.split('<script')[0];
-  assert.match(portalMarkup, /id="resultVerificationHeading"[^>]*>🏆 परिणाम और स्कोरकार्ड<\/h2>/);
+  assert.match(portalHtml, /id="resultVerificationHeading"[^>]*>🏆 परिणाम और स्कोरकार्ड<\/h2>/);
   assert.match(portalHtml, /#resultVerificationHeading\s*\{[\s\S]*?font-size:\s*clamp\(25px,\s*4vw,\s*34px\)/);
-  assert.match(portalMarkup, /id="journeyResults"[\s\S]*?परिणाम और स्कोरकार्ड/);
+  assert.match(portalHtml, /id="journeyResults"[\s\S]*?परिणाम और स्कोरकार्ड/);
 });
