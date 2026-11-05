@@ -217,6 +217,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   </style>
 
+
+  <style id="bishnoism-community-chat-experience">
+    /* Community chat refresh: preserve existing Firestore components and global site navigation. */
+    #tab-community:not(.hidden){display:flex;flex-direction:column;gap:14px;min-height:min(78vh,900px)}
+    #tab-community>.bg-white:first-child{align-items:center;padding:18px 20px;border:1px solid #e5e9df;border-radius:22px;background:linear-gradient(135deg,#fff 0%,#fffdf7 70%,#f0f6ee 100%);box-shadow:0 8px 24px rgba(19,46,27,.06)}
+    #tab-community>.bg-white:first-child h2{color:#132e1b;font-size:clamp(19px,2.6vw,25px);line-height:1.25;font-weight:900}
+    #tab-community>.bg-white:first-child p{margin-top:5px;color:#667267;font-size:12px;line-height:1.6}
+    #tab-community #pinnedChatBanner{border-radius:14px}
+    #tab-community #communityFeed{display:flex;flex:1 1 auto;flex-direction:column;gap:14px;min-height:320px;max-height:min(68vh,760px);overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;padding:18px 16px;border:1px solid #e5e9e1;border-radius:22px;background:#FCF9F0}
+    #tab-community #communityFeed [data-post-id].bx-chat-message{position:relative;align-self:flex-start;box-sizing:border-box;width:min(78%,680px);max-width:calc(100% - 54px);margin:0 0 0 42px!important;padding:14px 16px!important;border:1px solid #e1e7de!important;border-radius:18px 18px 18px 5px!important;background:#fff!important;color:#26352a!important;box-shadow:0 4px 14px rgba(19,46,27,.07)!important;overflow-wrap:anywhere}
+    #tab-community #communityFeed [data-post-id].bx-chat-message::before{content:attr(data-avatar)!important;position:absolute;left:-42px;right:auto;top:10px;display:grid;place-items:center;width:32px;height:32px;margin:0!important;border:2px solid #fff;border-radius:50%;background:#e5af16;color:#132e1b;box-shadow:0 2px 7px rgba(19,46,27,.14);font-size:12px;font-weight:900}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine{align-self:flex-end;margin:0 42px 0 0!important;border:1px solid #234c31!important;border-radius:18px 18px 5px 18px!important;background:#132e1b!important;color:#fff!important}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine::before{left:auto;right:-42px;background:#e5af16;color:#132e1b}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine strong,#tab-community #communityFeed [data-post-id].bx-chat-message-mine p,#tab-community #communityFeed [data-post-id].bx-chat-message-mine span{color:#fff}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine .text-stone-500,#tab-community #communityFeed [data-post-id].bx-chat-message-mine .text-stone-600{color:#d9e5d9!important}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine button{color:inherit}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-community-reaction-bar],#tab-community #communityFeed [data-post-id].bx-chat-message-mine section{border-color:#ffffff30!important}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-community-reaction],#tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-focus-reply],#tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-community-replies-toggle],#tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-pin-community-post],#tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-delete-community-post]{color:#f5d77b!important}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine [data-community-reply-input]{color:#26352a!important;background:#fff!important}
+    #tab-community #communityFeed [data-post-id].bx-chat-message-mine a{background:#ffffff18!important;border-color:#ffffff38!important;color:#fff!important}
+    #tab-community #communityFeed [data-community-replies]{border-left:2px solid #d4af37}
+    #tab-community #communityPollFeed{display:grid;gap:12px}
+    #tab-community #communityPollFeed:empty{display:none}
+    #tab-community #communityPollFeed>article{width:100%;max-width:100%;margin:0!important;border-radius:18px!important;border:1px solid #e4e8de!important;background:#fff!important;color:#26352a!important;box-shadow:0 4px 14px rgba(19,46,27,.06)!important}
+    #tab-community #postAuthPrompt{border:1px solid #e1e8dc;border-radius:18px;background:#fff}
+    #tab-community #postEditor{position:sticky;bottom:8px;z-index:8;display:flex;flex-direction:column;gap:10px;border:1px solid #dce5d9;border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(19,46,27,.12);padding:12px}
+    #tab-community #postEditor textarea{min-height:44px;max-height:120px;font-size:16px;line-height:1.5}
+    #tab-community #postEditor button{min-height:44px;touch-action:manipulation}
+    #tab-community #postEditor button:disabled{opacity:.55;cursor:not-allowed}
+    #tab-community #postLinkField{display:block}
+    #tab-community #postLinkField.hidden{display:none}
+    #tab-community .maintenance-posting-locked{opacity:.78}
+    @media(max-width:640px){
+      #tab-community:not(.hidden){min-height:65dvh}
+      #tab-community>.bg-white:first-child{align-items:flex-start;padding:15px;border-radius:17px}
+      #tab-community #communityFeed{min-height:280px;max-height:62dvh;padding:14px 10px;gap:12px;border-radius:17px}
+      #tab-community #communityFeed [data-post-id].bx-chat-message{width:calc(100% - 40px);max-width:calc(100% - 40px);margin-left:32px!important;padding:12px 13px!important}
+      #tab-community #communityFeed [data-post-id].bx-chat-message-mine{margin-left:0!important;margin-right:32px!important}
+      #tab-community #communityFeed [data-post-id].bx-chat-message::before{left:-33px;width:27px;height:27px}
+      #tab-community #communityFeed [data-post-id].bx-chat-message-mine::before{left:auto;right:-33px}
+      #tab-community #postEditor{bottom:4px;padding:10px;border-radius:17px}
+    }
+    @media(prefers-reduced-motion:reduce){#tab-community #communityFeed{scroll-behavior:auto}#tab-community #communityFeed [data-post-id].bx-chat-message{transition:none!important}}
+  </style>
+
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
@@ -656,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <h2 class="font-yatra text-xl text-forest">💬 समाज संवाद मंच (Live Community Chat)</h2>
           <p class="text-xs text-stone-500">विचार, नियम चर्चा एवं समाज संवाद (सुरक्षित एवं मर्यादित)</p>
         </div>
-        <span class="text-xs text-stone-500">सदस्यों के संदेश और जवाब</span>
+        <span class="inline-flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-800 sm:self-center"><span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true"></span> Live Chat · सदस्यों के संदेश और जवाब</span>
       </div>
 
       <div id="pinnedChatBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm flex items-start justify-between gap-3">
@@ -666,6 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
+      <div class="flex justify-center py-1"><span class="rounded-full border border-amber-200 bg-amber-100/70 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-900">आज</span></div>
       <div id="communityFeed" class="space-y-3 max-h-[60vh] overflow-y-auto p-2 bg-stone-100/70 rounded-2xl border border-stone-200 custom-scrollbar"><div id="communityPollFeed" class="space-y-3" aria-live="polite"></div></div>
 
       <div id="postAuthPrompt" class="bg-white p-4 rounded-2xl border border-stone-200 text-center space-y-2">
