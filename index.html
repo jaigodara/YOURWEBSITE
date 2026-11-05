@@ -178,6 +178,45 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 @media(prefers-reduced-motion:reduce){#tab-community #communityFeed [data-post-id].bx-chat-message{transition:none!important}}
 </style>
+
+  <style id="bishnoism-fullscreen-exam-experience">
+    /* The existing exam workspace becomes the exam screen, not content appended below its launch card. */
+    body:has(#portalExamWorkspace:not(.hidden):not([hidden])) { overflow: hidden !important; }
+    #tab-quiz:has(#portalExamWorkspace:not(.hidden):not([hidden])) > :not(#portalExamWorkspace) {
+      display: none !important;
+    }
+    #portalExamWorkspace:not(.hidden):not([hidden]) {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 100000 !important;
+      width: 100vw !important;
+      max-width: none !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: #FAF7EE !important;
+      box-shadow: none !important;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    #portalExamWorkspace:not(.hidden):not([hidden]) > :first-child {
+      top: 0 !important;
+      border-radius: 0 0 18px 18px !important;
+    }
+    @media (max-width: 640px) {
+      #portalExamWorkspace:not(.hidden):not([hidden]) { padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #portalExamWorkspace { scroll-behavior: auto !important; }
+    }
+  </style>
+
 </head>
 
 <body class="min-h-screen flex flex-col antialiased text-[#231B15]">
