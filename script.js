@@ -253,7 +253,8 @@ try {
     notificationVisibleLimit: 20,
     notificationToastInitialized: { personal: false, flatOwn: false, flatBroadcast: false, global: false },
     notificationToastTimer: null,
-    notificationToastLastKey: ''
+    notificationToastLastKey: '',
+    notificationToastLastShownAt: 0
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -1843,8 +1844,11 @@ pdf.addImage(
     const panel = byId('publicNotificationsSection');
     if (panel && !panel.hidden && !panel.classList.contains('hidden')) return;
     const key = String(sourceKey || '') + ':' + String(item.id);
-    if (state.notificationToastLastKey === key) return;
+    const now = Date.now();
+    // Coalesce rapid Firestore updates into one brief toast; the badge still counts every item.
+    if (state.notificationToastLastKey === key || now - (state.notificationToastLastShownAt || 0) < 8000) return;
     state.notificationToastLastKey = key;
+    state.notificationToastLastShownAt = now;
     const host = byId('notificationToastContainer');
     if (!host) return;
     host.replaceChildren();
