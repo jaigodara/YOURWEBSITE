@@ -3244,8 +3244,43 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   window.BishnoiCommunity.openAttachment = async function (type) {
     ['communityEmojiPicker', 'communityAttachMenu'].forEach(id => byId(id)?.classList.add('hidden'));
-    if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।', 'error');
-    if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।', 'error');
+    if (!requireUser() || !state.isOwner) return notify('यह सुविधा केवल Owner के लिए उपलब्ध है।', 'error');
+    if (type === 'event') {
+      const maintenance = state.maintenance || {};
+      const sectionMode = (maintenance.sections || {}).community || 'off';
+      const globalMode = maintenance.globalMode || 'off';
+      const ownerBypass = maintenance.vipBypass !== false && state.isOwner;
+      const ua = String(window.navigator?.userAgent || '');
+      const isNativeApp = ua.includes(' wv') || ua.includes('WebView') || ua.includes('BishnoismAndroid');
+      const globalBlocked = globalMode === 'both' || (globalMode === 'web_only' && !isNativeApp) || (globalMode === 'phone_only' && isNativeApp);
+      if (sectionMode === 'posting_only' || sectionMode === 'both' || (!ownerBypass && globalBlocked)) {
+        return notify((maintenance.sectionMessages || {}).community || maintenance.message || 'संवाद मंच पर पोस्ट करना अभी बंद है।', 'error');
+      }
+      const title = String(window.prompt('इवेंट का नाम लिखें (4–120 अक्षर):') || '').trim();
+      if (!title) return;
+      const date = String(window.prompt('इवेंट की तारीख लिखें (YYYY-MM-DD):') || '').trim();
+      const dateParts = date.split('-');
+      const validDate = date.length === 10 && dateParts.length === 3 && dateParts[0].length === 4 && dateParts[1].length === 2 && dateParts[2].length === 2 && !Number.isNaN(Date.parse(date + 'T00:00:00'));
+      if (!validDate) return notify('तारीख YYYY-MM-DD प्रारूप में लिखें।', 'error');
+      const location = String(window.prompt('इवेंट का स्थान लिखें (वैकल्पिक, अधिकतम 120 अक्षर):') || '').trim().slice(0,120);
+      const details = String(window.prompt('इवेंट का विवरण लिखें (वैकल्पिक, अधिकतम 500 अक्षर):') || '').trim().slice(0,500);
+      if (title.length < 4 || title.length > 120) return notify('इवेंट का नाम 4–120 अक्षरों में लिखें।', 'error');
+      const body = ['📅 ' + title, '🗓️ तारीख: ' + date, location ? '📍 स्थान: ' + location : '', details].filter(Boolean).join(String.fromCharCode(10));
+      try {
+        const blocked = await collection('communityBlocks').doc(state.user.uid).get();
+        if (blocked.exists && blocked.data()?.blocked === true) return notify('आपको संवाद मंच पर पोस्ट करने से रोका गया है।', 'error');
+        await collection('posts').add({
+          uid: state.user.uid, body, topic: 'इवेंट',
+          displayName: state.profile?.displayName || state.user.displayName || 'समाज का सदस्य',
+          createdAt: serverTimestamp()
+        });
+        notify('इवेंट संवाद मंच पर प्रकाशित हो गया।', 'success');
+      } catch (error) {
+        console.error('Community event publish failed:', error);
+        notify('इवेंट प्रकाशित नहीं हो सका। Owner अनुमति और इंटरनेट जाँचें।', 'error');
+      }
+      return;
+    }
     if (type !== 'poll') return;
     const title = String(window.prompt('पोल का प्रश्न लिखें (4–180 अक्षर):') || '').trim();
     if (!title) return;
@@ -3633,6 +3668,10 @@ window.renderExamVisibility = function renderExamVisibility() {
         return;
       }
     }
+    const sendButton = byId('postEditor')?.querySelector('button[onclick*="submitPost"]');
+    if (window.__communityPostSubmitting) return;
+    window.__communityPostSubmitting = true;
+    if (sendButton) { sendButton.disabled = true; sendButton.setAttribute('aria-busy', 'true'); }
     try {
       const blockSnapshot = await collection('communityBlocks').doc(state.user.uid).get();
       if (blockSnapshot.exists && blockSnapshot.data()?.blocked === true) {
@@ -3661,6 +3700,9 @@ window.renderExamVisibility = function renderExamVisibility() {
           ? 'इंटरनेट या Firestore सेवा उपलब्ध नहीं है। कनेक्शन जाँचकर फिर प्रयास करें।'
           : 'संदेश प्रकाशित नहीं हो सका। कृपया फिर प्रयास करें।';
       notify(safeMessage + ' (' + errorCode + ')', 'error');
+    } finally {
+      window.__communityPostSubmitting = false;
+      if (sendButton) { sendButton.disabled = false; sendButton.removeAttribute('aria-busy'); }
     }
   };
 
