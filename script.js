@@ -250,7 +250,10 @@ try {
     notificationReadKeys: [],
     notifications: [],
     personalNotifications: [],
-    notificationVisibleLimit: 20
+    notificationVisibleLimit: 20,
+    notificationToastInitialized: { personal: false, flatOwn: false, flatBroadcast: false, global: false },
+    notificationToastTimer: null,
+    notificationToastLastKey: ''
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -1835,6 +1838,64 @@ pdf.addImage(
     return timestampMillis(item?.createdAt) || Number(item?.createdAtMs) || 0;
   }
 
+  function showNotificationToast(item, sourceKey) {
+    if (!state.user || !item || !item.id) return;
+    const panel = byId('publicNotificationsSection');
+    if (panel && !panel.hidden && !panel.classList.contains('hidden')) return;
+    const key = String(sourceKey || '') + ':' + String(item.id);
+    if (state.notificationToastLastKey === key) return;
+    state.notificationToastLastKey = key;
+    const host = byId('notificationToastContainer');
+    if (!host) return;
+    host.replaceChildren();
+    const toast = document.createElement('button');
+    toast.type = 'button';
+    toast.className = 'notification-toast';
+    toast.setAttribute('aria-label', 'नई सूचना खोलें: ' + String(item.title || 'नई सूचना'));
+    const icon = document.createElement('span');
+    icon.className = 'notification-toast-icon';
+    icon.textContent = item.type === 'admit-card' ? '🎫'
+      : item.type === 'exam-result' || item.type === 'quiz-result' ? '📊'
+      : item.type === 'editor-invitation' ? '✉️'
+      : item.type === 'quiz' ? '📝' : '🔔';
+    const content = document.createElement('span');
+    content.className = 'notification-toast-content';
+    const title = document.createElement('strong');
+    title.textContent = String(item.title || 'नई सूचना');
+    const message = document.createElement('span');
+    message.textContent = String(item.message || item.body || 'आपके खाते के लिए नई सूचना आई है।');
+    content.append(title, message);
+    const close = document.createElement('span');
+    close.className = 'notification-toast-close';
+    close.textContent = '✕';
+    close.setAttribute('aria-hidden', 'true');
+    toast.append(icon, content, close);
+    toast.addEventListener('click', () => {
+      window.toggleNotificationPanel(true);
+      host.replaceChildren();
+    });
+    host.appendChild(toast);
+    if (state.notificationToastTimer) clearTimeout(state.notificationToastTimer);
+    state.notificationToastTimer = setTimeout(() => {
+      if (toast.isConnected) toast.classList.add('notification-toast-leaving');
+      setTimeout(() => { if (toast.isConnected) toast.remove(); }, 250);
+    }, 4800);
+  }
+
+  function toastNewSnapshotItems(snapshot, feedKey, sourceKey) {
+    if (!snapshot || !state.notificationToastInitialized) return;
+    if (!state.notificationToastInitialized[feedKey]) {
+      state.notificationToastInitialized[feedKey] = true;
+      return;
+    }
+    const added = typeof snapshot.docChanges === 'function'
+      ? snapshot.docChanges().filter(change => change.type === 'added') : [];
+    if (!added.length) return;
+    const newest = added.map(change => ({ id: change.doc.id, ...change.doc.data() }))
+      .sort((a, b) => notificationTime(b) - notificationTime(a))[0];
+    if (newest) showNotificationToast(newest, sourceKey);
+  }
+
   // Apply expiry consistently to public, personal and legacy/flat notification feeds.
   // Permanent notices have no expiresAt (or explicitly use lifetime: "permanent").
   function notificationIsExpired(item, now = Date.now()) {
@@ -2140,9 +2201,8 @@ const notificationsForThisAccount =
   const predatesRegistration = isBroadcast && registrationTime > 0 &&
     notificationTime > 0 && notificationTime < registrationTime;
 
-  // Read notices clear from the user's inbox; broadcasts created before this
-  // account registered are not shown to new users.
-  return !expired && !predatesRegistration && !seen.includes(item._key);
+  // Keep read notices visible as dimmed history; old broadcasts remain excluded.
+  return !expired && !predatesRegistration;
 });
 
 const unseen = inboxItems.filter(item => !seen.includes(item._key));
@@ -2255,6 +2315,7 @@ moreButton.textContent =
       ? forceOpen
       : section.hidden || section.classList.contains('hidden');
     setVisible('publicNotificationsSection', shouldOpen);
+    section.classList.toggle('notification-panel-open', shouldOpen);
     // Opening the center does not silently mark messages read; use Mark all as read.
   };
 
@@ -2275,6 +2336,9 @@ moreButton.textContent =
     if (state.flatNotificationsUnsubscribe) { state.flatNotificationsUnsubscribe(); state.flatNotificationsUnsubscribe = null; }
     if (state.flatNotificationReadsUnsubscribe) { state.flatNotificationReadsUnsubscribe(); state.flatNotificationReadsUnsubscribe = null; }
     state.personalNotifications = []; state.flatNotifications = []; state.notificationReadKeys = [];
+    state.notificationToastInitialized.personal = false;
+    state.notificationToastInitialized.flatOwn = false;
+    state.notificationToastInitialized.flatBroadcast = false;
     if (!state.user || !state.db) { window.renderNotificationCenter(); return; }
     const uid = state.user.uid;
     state.notificationReadsUnsubscribe = state.db.collection('userNotificationReads').doc(uid).collection('items').onSnapshot(snapshot => {
@@ -2297,6 +2361,7 @@ moreButton.textContent =
     }));
     state.personalNotificationsUnsubscribe = state.db.collection('userNotifications').doc(uid).collection('items').onSnapshot(snapshot => {
       if (state.user?.uid !== uid) return;
+      toastNewSnapshotItems(snapshot, 'personal', 'private');
       state.personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'private' }));
       window.renderNotificationCenter();
     }, error => { console.error('Legacy private notification listener failed:', error.code || error.message, error); state.personalNotifications = []; window.renderNotificationCenter(); });
@@ -2328,6 +2393,7 @@ moreButton.textContent =
     const ownFlatUnsubscribe = state.db.collection('userNotifications')
       .where('uid', '==', uid)
       .onSnapshot(snapshot => {
+        toastNewSnapshotItems(snapshot, 'flatOwn', 'flat');
         ownFlatDocs = snapshot.docs;
         publishFlatNotifications();
       }, onFlatQueryError('Own flat notification listener'));
@@ -2341,6 +2407,7 @@ moreButton.textContent =
       );
     }
     const broadcastFlatUnsubscribe = broadcastQuery.onSnapshot(snapshot => {
+        toastNewSnapshotItems(snapshot, 'flatBroadcast', 'flat');
         broadcastFlatDocs = snapshot.docs;
         publishFlatNotifications();
       }, onFlatQueryError('Broadcast notification listener'));
@@ -2354,6 +2421,7 @@ moreButton.textContent =
     if (!state.db || state.publicNotificationsUnsubscribe) return;
     state.publicNotificationsUnsubscribe = state.db.collection('notifications')
       .onSnapshot(snapshot => {
+        toastNewSnapshotItems(snapshot, 'global', 'global');
         state.notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _scope: 'global' }));
         window.renderNotificationCenter();
       }, error => {
