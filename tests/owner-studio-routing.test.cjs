@@ -229,3 +229,27 @@ test('Result verification uses the same complete results-and-scorecard title as 
   assert.match(portalHtml, /#resultVerificationHeading\s*\{[\s\S]*?font-size:\s*clamp\(25px,\s*4vw,\s*34px\)/);
   assert.match(portalHtml, /id="journeyResults"[\s\S]*?परिणाम और स्कोरकार्ड/);
 });
+
+test('Community chat keeps the live Firebase composer and gains the reference chat layout', () => {
+  const indexHtml = readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(indexHtml, /id="communityFeed"/);
+  assert.match(indexHtml, /id="postEditor"/);
+  assert.match(indexHtml, /id="communityEmojiToggle"/);
+  assert.match(indexHtml, /id="communityAttachToggle"/);
+  assert.match(indexHtml, /id="bishnoism-community-chat-experience"/);
+  assert.match(indexHtml, /#tab-community #communityFeed \[data-post-id\]\.bx-chat-message-mine/);
+  assert.match(indexHtml, /#tab-community #postEditor/);
+});
+
+test('Community event attachment publishes through the existing moderated posts collection', () => {
+  assert.match(scriptJs, /if \(type === 'event'\)/);
+  assert.match(scriptJs, /collection\('posts'\)\.add\(\{[\s\S]*?topic: 'इवेंट'/);
+  assert.match(scriptJs, /इवेंट प्रकाशित नहीं हो सका/);
+  assert.match(scriptJs, /communityBlocks/);
+});
+
+test('Community message sending prevents duplicate rapid submissions and always unlocks the send button', () => {
+  assert.match(scriptJs, /if \(window\.__communityPostSubmitting\) return/);
+  assert.match(scriptJs, /window\.__communityPostSubmitting = true/);
+  assert.match(scriptJs, /finally \{[\s\S]*?window\.__communityPostSubmitting = false/);
+});
