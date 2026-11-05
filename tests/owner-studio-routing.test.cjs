@@ -253,3 +253,21 @@ test('Community message sending prevents duplicate rapid submissions and always 
   assert.match(scriptJs, /window\.__communityPostSubmitting = true/);
   assert.match(scriptJs, /finally \{[\s\S]*?window\.__communityPostSubmitting = false/);
 });
+
+
+test('notification center keeps Firebase feeds, read history, unread badge, and non-blocking toast behavior', () => {
+  assert.match(scriptJs, /function showNotificationToast\\(item, sourceKey\\)/);
+  assert.match(scriptJs, /function toastNewSnapshotItems\\(snapshot, feedKey, sourceKey\\)/);
+  assert.match(scriptJs, /toastNewSnapshotItems\\(snapshot, 'personal', 'private'\\)/);
+  assert.match(scriptJs, /toastNewSnapshotItems\\(snapshot, 'global', 'global'\\)/);
+  assert.match(scriptJs, /bishnoi_seen_notifications_v2_/);
+  assert.match(scriptJs, /userNotificationReads/);
+  assert.match(scriptJs, /notificationReads/);
+  assert.match(scriptJs, /return !expired && !predatesRegistration;/);
+  assert.match(scriptJs, /unseen\\.length > 99 \\? '99\\+'/);
+  assert.match(scriptJs, /section\\.classList\\.toggle\\('notification-panel-open', shouldOpen\\)/);
+  const indexHtml = readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(indexHtml, /id="notificationToastContainer"/);
+  assert.match(indexHtml, /id="publicNotificationsList"/);
+  assert.match(indexHtml, /bishnoism-notification-experience/);
+});
