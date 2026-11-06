@@ -8,7 +8,7 @@ const {
   assertFails,
 } = require("@firebase/rules-unit-testing");
 const {
-  doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, collection, query, where, serverTimestamp, Timestamp, writeBatch,
+  doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, collection, collectionGroup, query, where, serverTimestamp, Timestamp, writeBatch,
 } = require("firebase/firestore");
 
 const PROJECT_ID = "bishnoi-platform-rules-test";
@@ -254,6 +254,61 @@ test("Firestore security rules regression suite", async (t) => {
       await reset();
       const db = env.authenticatedContext(STUDENT).firestore();
       await assertFails(getDoc(doc(db, "examAnswerKeys/main/items/q1")));
+    });
+
+    await t.test("स्थायी global सूचना केवल Owner बना, बदल और हटा सकता है", async () => {
+      await reset();
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const permanentRef = doc(ownerDb, "notifications", "permanent-global");
+      await assertSucceeds(setDoc(permanentRef, {
+        title: "महत्वपूर्ण स्थायी सूचना", message: "Owner द्वारा प्रकाशित",
+        audience: "all", active: true, lifetime: "permanent", createdBy: OWNER,
+        createdAt: serverTimestamp(),
+      }));
+      await env.withSecurityRulesDisabled(async ctx => {
+        await setDoc(doc(ctx.firestore(), "roles/notification-editor"), {
+          role: "editor", permissions: { notifications: true },
+        });
+      });
+      const editorDb = env.authenticatedContext("notification-editor").firestore();
+      await assertFails(setDoc(doc(editorDb, "notifications/editor-permanent"), {
+        title: "अनधिकृत स्थायी सूचना", message: "नहीं",
+        audience: "all", active: true, lifetime: "permanent", createdBy: "notification-editor",
+      }));
+      await assertFails(updateDoc(doc(editorDb, "notifications", "permanent-global"), { title: "बदला" }));
+      await assertFails(deleteDoc(doc(editorDb, "notifications", "permanent-global")));
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      await assertFails(deleteDoc(doc(studentDb, "notifications", "permanent-global")));
+      await assertSucceeds(updateDoc(permanentRef, { title: "Owner ने बदला" }));
+      await assertSucceeds(deleteDoc(permanentRef));
+    });
+
+    await t.test("स्थायी निजी सूचना केवल Owner प्रकाशित और हटा सकता है; विद्यार्थी केवल अपना read marker लिख सकता है", async () => {
+      await reset();
+      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const privateRef = doc(ownerDb, "userNotifications", STUDENT, "items", "private-permanent");
+      await assertSucceeds(setDoc(privateRef, {
+        recipientUid: STUDENT, title: "निजी स्थायी सूचना", message: "महत्वपूर्ण",
+        type: "announcement", audience: "private", active: true, lifetime: "permanent",
+        createdBy: OWNER, createdAt: serverTimestamp(),
+      }));
+      const ownerPermanentQuery = query(collectionGroup(ownerDb, "items"), where("lifetime", "==", "permanent"));
+      const ownerPermanentSnapshot = await assertSucceeds(getDocs(ownerPermanentQuery));
+      assert.ok(ownerPermanentSnapshot.docs.some(item => item.ref.path === "userNotifications/" + STUDENT + "/items/private-permanent"));
+      const studentDb = env.authenticatedContext(STUDENT).firestore();
+      await assertSucceeds(getDoc(doc(studentDb, "userNotifications", STUDENT, "items", "private-permanent")));
+      await assertFails(deleteDoc(doc(studentDb, "userNotifications", STUDENT, "items", "private-permanent")));
+      await assertSucceeds(setDoc(doc(studentDb, "userNotificationReads", STUDENT, "items", "private-permanent"), {
+        key: "private:private-permanent", readAt: serverTimestamp(),
+      }));
+      await assertFails(setDoc(doc(studentDb, "userNotifications", STUDENT, "items", "student-forged-permanent"), {
+        recipientUid: STUDENT, title: "नकली स्थायी सूचना", message: "नहीं",
+        type: "quiz-result", audience: "private", active: true, lifetime: "permanent",
+      }));
+      await assertFails(updateDoc(doc(studentDb, "userNotifications", STUDENT, "items", "private-permanent"), {
+        lifetime: "temporary",
+      }));
+      await assertSucceeds(deleteDoc(privateRef));
     });
 
     await t.test("विद्यार्थी notification पढ़ सकता है लेकिन उसे मिटा नहीं सकता", async () => {
