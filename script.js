@@ -1822,12 +1822,20 @@ pdf.addImage(
     }
     const recipientUid = uid || state.user?.uid;
     if (!recipientUid) throw new Error('सूचना पाने वाला खाता निर्धारित नहीं है।');
+    const lifetime = data.lifetime === 'permanent' ? 'permanent' : 'temporary';
+    if (lifetime === 'permanent' && !isOwnerForNotification) {
+      throw new Error('स्थायी सूचना प्रकाशित करने का अधिकार केवल Owner को है।');
+    }
     return state.db.collection('userNotifications').doc(recipientUid).collection('items').add({
       title: String(data.title || 'नई सूचना'),
       message: String(data.body || data.message || ''),
       type: String(data.type || 'announcement'),
       important: data.important === true,
       pinnedByOwner: data.pinnedByOwner === true,
+      lifetime,
+      ...(lifetime === 'temporary' ? {
+        expiresAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+      } : {}),
       recipientUid, audience: 'private', active: true,
       createdBy: state.user?.uid || null,
       ...(typeof data.invitationId === 'string' && data.invitationId ? { invitationId: data.invitationId } : {}),
@@ -1900,8 +1908,14 @@ pdf.addImage(
     if (newest) showNotificationToast(newest, sourceKey);
   }
 
+  // Permanent status is explicit and Owner-controlled. Legacy notices without
+  // a lifetime remain ordinary notices; new publications always store a type.
+  function notificationIsPermanent(item) {
+    return !!item && item.lifetime === 'permanent';
+  }
+
   // Apply expiry consistently to public, personal and legacy/flat notification feeds.
-  // Permanent notices have no expiresAt (or explicitly use lifetime: "permanent").
+  // Permanent notices are never expired by this client-side policy.
   function notificationIsExpired(item, now = Date.now()) {
     if (!item || item.lifetime === 'permanent' || !item.expiresAt) return false;
     const expiry = timestampMillis(item.expiresAt) || Number(item.expiresAtMs) || 0;
@@ -1930,6 +1944,12 @@ pdf.addImage(
       body.className = 'text-xs leading-relaxed text-stone-700 whitespace-pre-wrap';
       body.textContent = item.message || '';
       card.append(title, body);
+      if (notificationIsPermanent(item)) {
+        const permanentLabel = document.createElement('span');
+        permanentLabel.className = 'inline-flex w-fit rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-extrabold text-amber-900';
+        permanentLabel.textContent = 'स्थायी सूचना';
+        card.appendChild(permanentLabel);
+      }
       if (item.type === 'editor-invitation' && typeof item.invitationId === 'string' && item.invitationId) {
         const acceptEditorButton = document.createElement('button');
         acceptEditorButton.type = 'button';
@@ -2205,8 +2225,10 @@ const notificationsForThisAccount =
   const predatesRegistration = isBroadcast && registrationTime > 0 &&
     notificationTime > 0 && notificationTime < registrationTime;
 
-  // Keep read notices visible as dimmed history; old broadcasts remain excluded.
-  return !expired && !predatesRegistration;
+  // Normal notifications disappear from this user's inbox once read.
+  // Permanent notifications remain visible as read history until the Owner removes them.
+  const wasRead = seen.includes(item._key);
+  return !expired && !predatesRegistration && (notificationIsPermanent(item) || !wasRead);
 });
 
 const unseen = inboxItems.filter(item => !seen.includes(item._key));
@@ -2226,7 +2248,8 @@ const unseen = inboxItems.filter(item => !seen.includes(item._key));
       list,
       inboxItems.slice(0, visibleLimit).map(item => ({
         ...item,
-        _isRead: seen.includes(item._key)
+        _isRead: seen.includes(item._key),
+        _isPermanent: notificationIsPermanent(item)
       }))
     );
 
