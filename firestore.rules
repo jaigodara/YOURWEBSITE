@@ -656,13 +656,21 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if canSendNotifications()
+        && (request.resource.data.get('lifetime', 'temporary') != 'permanent' || examOwner())
         && request.resource.data.get('title', null) is string
         && request.resource.data.get('message', null) is string
         && request.resource.data.get('audience', '') == 'all'
         && request.resource.data.get('active', false) == true
         && request.resource.data.get('createdBy', '') == request.auth.uid;
 
-      allow update, delete: if canSendNotifications();
+      // Editors may manage ordinary notices, but cannot promote, edit or delete
+      // a permanent notice. Permanent lifecycle changes belong to the Owner.
+      allow update: if examOwner()
+        || (canSendNotifications()
+          && resource.data.get('lifetime', 'temporary') != 'permanent'
+          && request.resource.data.get('lifetime', 'temporary') != 'permanent');
+      allow delete: if examOwner()
+        || (canSendNotifications() && resource.data.get('lifetime', 'temporary') != 'permanent');
     }
 
     match /userNotifications/{notificationId} {
@@ -700,32 +708,46 @@ service cloud.firestore {
     }
 
     match /userNotifications/{uid}/items/{notificationId} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if examOwner() || (signedIn() && request.auth.uid == uid);
 
       allow create: if (
         canSendNotifications()
         && request.resource.data.get('recipientUid', '') == uid
+        && (request.resource.data.get('lifetime', 'temporary') != 'permanent' || examOwner())
       ) || (
         canReviewExam()
         && request.resource.data.get('type', '') == 'exam-result'
         && request.resource.data.get('recipientUid', '') == uid
+        && (request.resource.data.get('lifetime', 'temporary') != 'permanent' || examOwner())
       ) || (
         signedIn()
         && request.auth.uid == uid
         && request.resource.data.get('recipientUid', '') == uid
         && request.resource.data.get('type', '') in ['quiz-result', 'exam-start']
         && request.resource.data.get('active', false) == true
+        && request.resource.data.get('lifetime', 'temporary') != 'permanent'
       );
 
-      allow update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'isRead']);
+      allow update: if examOwner()
+        || (signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'isRead']));
 
       allow delete: if examOwner();
     }
 
     match /userNotificationReads/{uid}/items/{notificationId} {
-      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+      // Owner reads these markers for the Owner Studio's permanent-notice manager.
+      allow read: if examOwner() || (signedIn() && request.auth.uid == uid);
+      allow create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Firestore collection-group queries need an explicit collection-group rule.
+    // The Owner Studio queries only permanent "items" records, then narrows the
+    // results to userNotifications/{uid}/items/{notificationId} before rendering.
+    match /{path=**}/items/{notificationId} {
+      allow read: if examOwner()
+        && resource.data.get('lifetime', '') == 'permanent';
     }
 
     // Enforce the Community section's posting lock at the database boundary.
