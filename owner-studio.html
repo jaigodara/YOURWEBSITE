@@ -975,10 +975,10 @@ Ans: B"></textarea>
         <textarea id="notificationMessage" maxlength="2000" rows="3" class="w-full p-3 rounded-xl border border-stone-300 text-sm" placeholder="पूरी जानकारी लिखें…"></textarea>
         <label class="block text-xs font-bold text-stone-700">सूचना कितने समय तक दिखे?
           <select id="notificationLifetime" class="mt-1 w-full min-h-11 rounded-xl border border-stone-300 bg-white p-3 text-sm font-normal">
-            <option value="permanent">स्थायी — जब तक Owner हटाए</option>
-            <option value="1">1 दिन</option>
-            <option value="7">7 दिन</option>
-            <option value="30">30 दिन</option>
+            <option value="7" selected>सामान्य — 7 दिन (पढ़ने के बाद हटेगी)</option>
+            <option value="1">सामान्य — 1 दिन</option>
+            <option value="30">सामान्य — 30 दिन</option>
+            <option value="permanent">🔒 स्थायी — केवल Owner हटा सकता है</option>
           </select>
         </label>
         <label class="block text-xs font-bold text-stone-700">किसे भेजना है? (खाली छोड़ें = सभी लॉगिन उपयोगकर्ता)
@@ -997,6 +997,14 @@ Ans: B"></textarea>
           </div>
           <p class="text-[11px] text-stone-500">यहाँ से सभी उपयोगकर्ताओं की broadcast सूचनाएँ हटाई जा सकती हैं। हटाना सभी inbox feeds से लागू होगा।</p>
           <div id="ownerBroadcastManagementList" class="space-y-2 text-xs" aria-live="polite">सूची देखने के लिए “सूची ताज़ा करें” दबाएँ।</div>
+          <div class="mt-3 border-t border-stone-200 pt-3 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="text-xs font-extrabold text-forest">🔒 व्यक्तिगत स्थायी सूचनाएँ</h4>
+              <button type="button" id="refreshOwnerPermanentPersonalNotifications" onclick="loadOwnerPermanentPersonalNotifications()" class="min-h-9 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold">सूची ताज़ा करें</button>
+            </div>
+            <p class="text-[11px] text-stone-500">केवल Owner यहाँ व्यक्तिगत स्थायी सूचनाएँ देख और हटा सकता है। विद्यार्थी इन्हें पढ़ने के बाद भी देख पाएँगे।</p>
+            <div id="ownerPermanentPersonalNotificationsList" class="space-y-2 text-xs" aria-live="polite">सूची देखने के लिए “सूची ताज़ा करें” दबाएँ।</div>
+          </div>
         </div>
       </div>
 
@@ -6847,7 +6855,10 @@ async function removeTrustedEditor(uid) {
           fileType = file.type;
         }
 
-        const lifetimeValue = document.getElementById('notificationLifetime')?.value || 'permanent';
+        const lifetimeValue = document.getElementById('notificationLifetime')?.value || '7';
+        if (lifetimeValue === 'permanent' && !isPrimaryOwner()) {
+          throw new Error('स्थायी सूचना प्रकाशित करने का अधिकार केवल Primary Owner को है।');
+        }
         const notification = {
           title,
           message,
@@ -6886,7 +6897,7 @@ async function removeTrustedEditor(uid) {
         if (recipientInput) recipientInput.value = '';
         if (attachmentInput) attachmentInput.value = '';
         const lifetimeInput = document.getElementById('notificationLifetime');
-        if (lifetimeInput) lifetimeInput.value = 'permanent';
+        if (lifetimeInput) lifetimeInput.value = '7';
         if (status) status.textContent = recipientUid
           ? 'व्यक्तिगत सूचना उस मोबाइल नंबर से जुड़े खाते को भेज दी गई।'
           : 'सूचना प्रकाशित हो गई। यह केवल लॉगिन किए हुए उपयोगकर्ताओं को दिखाई जाएगी।';
@@ -6900,6 +6911,72 @@ async function removeTrustedEditor(uid) {
       }
     }
     window.publishPortalNotification = publishPortalNotification;
+
+    async function loadOwnerPermanentPersonalNotifications() {
+      if (!isPrimaryOwner()) return showToast('व्यक्तिगत स्थायी सूचनाएँ केवल Owner प्रबंधित कर सकता है।');
+      const host = document.getElementById('ownerPermanentPersonalNotificationsList');
+      const button = document.getElementById('refreshOwnerPermanentPersonalNotifications');
+      if (!host) return;
+      if (button) { button.disabled = true; button.textContent = 'लोड हो रहा है…'; }
+      host.textContent = 'व्यक्तिगत स्थायी सूचनाएँ लोड हो रही हैं…';
+      try {
+        const snapshot = await db.collectionGroup('items').where('lifetime', '==', 'permanent').get();
+        const rows = snapshot.docs.filter(doc => {
+          const parts = doc.ref.path.split('/');
+          return parts.length === 4 && parts[0] === 'userNotifications' && parts[2] === 'items';
+        }).sort((a, b) => timestampMillis(b.data()?.createdAt) - timestampMillis(a.data()?.createdAt));
+        host.replaceChildren();
+        if (!rows.length) {
+          host.textContent = 'कोई व्यक्तिगत स्थायी सूचना नहीं मिली।';
+          return;
+        }
+        rows.forEach(doc => {
+          const item = doc.data() || {};
+          const row = document.createElement('article');
+          row.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white p-3';
+          const info = document.createElement('div');
+          info.className = 'min-w-0 flex-1';
+          const title = document.createElement('div');
+          title.className = 'font-bold text-stone-800 break-words';
+          title.textContent = item.title || 'शीर्षक रहित व्यक्तिगत सूचना';
+          const meta = document.createElement('div');
+          meta.className = 'mt-1 text-[11px] text-stone-500';
+          meta.textContent = 'स्थायी · व्यक्तिगत सूचना · ' + (item.active === false ? 'निष्क्रिय' : 'सक्रिय');
+          info.append(title, meta);
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'min-h-10 shrink-0 rounded-lg border border-red-300 bg-red-50 px-3 py-2 font-bold text-red-800';
+          remove.textContent = 'सूचना हटाएँ';
+          remove.addEventListener('click', async () => {
+            if (!isPrimaryOwner()) return showToast('स्थायी सूचना हटाने का अधिकार केवल Owner को है।');
+            if (!confirm('यह व्यक्तिगत स्थायी सूचना संबंधित विद्यार्थी के inbox से हट जाएगी। क्या आप इसे हटाना चाहते हैं?')) return;
+            remove.disabled = true;
+            remove.textContent = 'हटाई जा रही है…';
+            try {
+              await doc.ref.delete();
+              if (item.filePath && firebase.storage) {
+                try { await firebase.storage().ref().child(String(item.filePath)).delete(); }
+                catch (storageError) { console.warn('Private notification attachment cleanup skipped:', storageError); }
+              }
+              row.remove();
+              if (!host.children.length) host.textContent = 'कोई व्यक्तिगत स्थायी सूचना नहीं मिली।';
+              showToast('व्यक्तिगत स्थायी सूचना हटा दी गई।');
+            } catch (error) {
+              remove.disabled = false;
+              remove.textContent = 'सूचना हटाएँ';
+              showToast('सूचना नहीं हट सकी: ' + (error.message || error) + ' · Firestore rules जाँचें।');
+            }
+          });
+          row.append(info, remove);
+          host.appendChild(row);
+        });
+      } catch (error) {
+        host.textContent = 'व्यक्तिगत स्थायी सूचनाएँ लोड नहीं हुईं: ' + (error.message || error);
+      } finally {
+        if (button) { button.disabled = false; button.textContent = 'सूची ताज़ा करें'; }
+      }
+    }
+    window.loadOwnerPermanentPersonalNotifications = loadOwnerPermanentPersonalNotifications;
 
     async function loadOwnerBroadcastNotifications() {
       if (!isPrimaryOwner()) return showToast('Global सूचनाएँ केवल Owner प्रबंधित कर सकता है।');
@@ -6928,7 +7005,7 @@ async function removeTrustedEditor(uid) {
           const meta = document.createElement('div');
           meta.className = 'mt-1 text-[11px] text-stone-500 break-words';
           const expiry = timestampMillis(item.expiresAt);
-          meta.textContent = (item.lifetime === 'permanent' || !item.expiresAt ? 'स्थायी' : expiry && expiry <= Date.now() ? 'समय समाप्त' : 'अस्थायी') +
+          meta.textContent = (item.lifetime === 'permanent' ? '🔒 स्थायी · Owner ही हटा सकता है' : expiry && expiry <= Date.now() ? 'समय समाप्त' : 'सामान्य / अस्थायी') +
             ' · ' + (item.active === false ? 'निष्क्रिय' : 'सक्रिय') + ' · ID: ' + item.id;
           info.append(title, meta);
           const remove = document.createElement('button');
