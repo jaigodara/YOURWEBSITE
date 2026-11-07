@@ -6,13 +6,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function superOwner() {
+    function googleSignedIn() {
       return signedIn()
+        && request.auth.token.firebase.get('sign_in_provider', '') == 'google.com'
+        && request.auth.token.firebase.identities['google.com'] != null;
+    }
+
+    function superOwner() {
+      return googleSignedIn()
         && request.auth.uid == '8YRBWWMKG2OUW6cmzZkGbFgOqyp2';
     }
 
     function examOwner() {
-      return signedIn() && (
+      return googleSignedIn() && (
         superOwner()
         || request.auth.uid == 'rdP0ZXzSP9fGzmJshEVvbOfb31g2'
         || (
@@ -22,18 +28,14 @@ service cloud.firestore {
       );
     }
 
+    // Owner-only operations must never treat an Assistant Editor as Owner.
     function owner() {
-      return examOwner()
-        || (
-          signedIn()
-          && exists(/databases/$(database)/documents/roles/$(request.auth.uid))
-          && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.get('role', '') in ['owner', 'editor']
-        );
+      return examOwner();
     }
 
     function editorHasPermission(permission) {
       let rolePath = /databases/$(database)/documents/roles/$(request.auth.uid);
-      return signedIn()
+      return googleSignedIn()
         && exists(rolePath)
         && get(rolePath).data.get('role', '') == 'editor'
         && get(rolePath).data.get('permissions', {}).get(permission, false) == true;
@@ -91,10 +93,10 @@ service cloud.firestore {
 
     function gmailVerifiedStudent() {
       let p = /databases/$(database)/documents/users/$(request.auth.uid);
-      return signedIn()
+      return googleSignedIn()
+        && request.auth.token.email_verified == true
         && exists(p)
-        && get(p).data.get('gmailVerified', false) == true
-        && request.auth.token.firebase.identities['google.com'] != null;
+        && get(p).data.get('gmailVerified', false) == true;
     }
 
     function confirmedExamStudent() {
@@ -230,7 +232,8 @@ service cloud.firestore {
         )
         && (
           request.resource.data.get('gmailVerified', false) != true
-          || request.auth.token.firebase.identities['google.com'] != null
+          || (googleSignedIn() && request.auth.token.email_verified == true
+            && request.resource.data.get('email', '') == request.auth.token.email)
         )
         && (
           !request.resource.data.keys().hasAny(['mobile'])
@@ -263,10 +266,18 @@ service cloud.firestore {
             )
           )
         )
-        // Students cannot set, clear, or otherwise change their own
-        // gmailVerified flag. Verification must be established by trusted code
-        // or an owner; a Google sign-in token alone is not permission to edit it.
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+        // Google Auth may establish verification only from a verified Google
+        // token whose email exactly matches the profile being updated. A user
+        // may never clear or downgrade this flag.
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
+          || (
+            googleSignedIn()
+            && request.auth.token.email_verified == true
+            && request.resource.data.get('gmailVerified', false) == true
+            && request.resource.data.get('email', '') == request.auth.token.email
+          )
+        )
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'phone', 'phoneVerified', 'phoneAuthVerifiedAt'

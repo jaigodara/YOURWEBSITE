@@ -678,29 +678,16 @@ notify(
       console.warn('Owner role could not be read; owner-only access remains disabled.', roleError);
     }
     // Roles are read from Firestore, never from browser storage or URL parameters.
-    state.roles = [
-      ...asArray(state.profile.roles),
-      ...(typeof roleData.role === 'string' ? [roleData.role] : []),
-      ...(Array.isArray(roleData.roles) ? roleData.roles : [])
-    ];
-        state.editorPermissions = roleData.role === 'editor'
-      ? (roleData.permissions || {})
+    // Only the protected roles/{uid} record or the two fixed owner UIDs grant
+    // administrative roles. Public profile fields, cached role arrays and email
+    // addresses are never authorization sources.
+    state.roles = typeof roleData.role === 'string' ? [roleData.role] : [];
+    state.editorPermissions = roleData.role === 'editor' && roleData.permissions && typeof roleData.permissions === 'object'
+      ? roleData.permissions
       : {};
-   state.isOwner = user.uid === CONFIG.ownerUid ||
-  user.uid === CONFIG.legacyOwnerUid ||
-  state.profile.role === 'owner' ||
-  state.profile.isOwner === true ||
-  state.roles.includes('owner') ||
-  roleData.role === 'owner';
-
-    if (CONFIG.ownerEmailAllowlist.length &&
-        CONFIG.ownerEmailAllowlist.includes((user.email || '').toLowerCase())) {
-      state.isOwner = true;
-    }
-
-    if (state.profile.role === 'owner' && !state.profile.isOwner) {
-      console.warn('Owner UI enabled by Firestore role; protect all writes in rules/backend.');
-    }
+    state.isOwner = user.uid === CONFIG.ownerUid ||
+      user.uid === CONFIG.legacyOwnerUid ||
+      roleData.role === 'owner';
 
     const profileName = state.profile.displayName || state.profile.fullName || user.displayName || 'सदस्य';
     setText('userDisplayName', profileName);
@@ -717,7 +704,9 @@ notify(
       profileMobile.readOnly = true;
       profileMobile.setAttribute('aria-readonly', 'true');
     }
-    const canOpenOwnerStudio = state.isOwner || state.roles.includes('admin') || state.roles.includes('editor');
+    const hasEditorStudioPermission = state.roles.includes('editor') &&
+      ['media', 'quizDrafts', 'examReview', 'notifications', 'reports'].some(key => state.editorPermissions[key] === true);
+    const canOpenOwnerStudio = state.isOwner || hasEditorStudioPermission;
     setVisible('tab-admin', state.isOwner || state.roles.includes('admin'));
     // Accepted assistant editors need a visible entry point to the exact tools
     // granted in roles/{uid}. Owner Studio applies the permission gates itself.
@@ -763,6 +752,21 @@ notify(
       }
       state.user = user;
       state.profile = null;
+      if (user) {
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          const signInProvider = tokenResult?.claims?.firebase?.sign_in_provider || '';
+          if (signInProvider !== 'google.com') {
+            console.warn('Bishnoism requires Google sign-in; ending a non-Google session.');
+            await state.auth.signOut();
+            return;
+          }
+        } catch (authCheckError) {
+          console.error('Could not verify the Google sign-in session:', authCheckError);
+          await state.auth.signOut();
+          return;
+        }
+      }
       if (shouldOpenAuthFromQuery) {
         shouldOpenAuthFromQuery = false;
         try {

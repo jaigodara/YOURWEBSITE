@@ -21,7 +21,20 @@ test("Firestore security rules regression suite", async (t) => {
   });
 
   const googleStudentContext = (uid) => env.authenticatedContext(uid, {
-    firebase: { identities: { "google.com": ["student-test@example.com"] } },
+    email: "student-test@example.com",
+    email_verified: true,
+    firebase: {
+      sign_in_provider: "google.com",
+      identities: { "google.com": ["student-test@example.com"] },
+    },
+  });
+  const googleOwnerContext = () => env.authenticatedContext(OWNER, {
+    email: "owner-test@example.com",
+    email_verified: true,
+    firebase: {
+      sign_in_provider: "google.com",
+      identities: { "google.com": ["owner-test@example.com"] },
+    },
   });
 
   async function reset() {
@@ -77,6 +90,29 @@ test("Firestore security rules regression suite", async (t) => {
       assert.doesNotMatch(body, /deleteDoc\s*\(/);
     });
 
+    await t.test("verified Google sign-in can establish gmailVerified but cannot downgrade it", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), "users", STUDENT), { gmailVerified: false });
+      });
+      const db = googleStudentContext(STUDENT).firestore();
+      await assertSucceeds(updateDoc(doc(db, "users", STUDENT), {
+        gmailVerified: true, email: "student-test@example.com",
+      }));
+      await assertFails(updateDoc(doc(db, "users", STUDENT), { gmailVerified: false }));
+    });
+
+    await t.test("non-Google sessions cannot establish Gmail verification", async () => {
+      await reset();
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), "users", "new-student"), { gmailVerified: false });
+      });
+      const db = env.authenticatedContext("new-student").firestore();
+      await assertFails(updateDoc(doc(db, "users", "new-student"), {
+        gmailVerified: true, email: "student-test@example.com",
+      }));
+    });
+
     await t.test("विद्यार्थी बिना रोल नंबर के pending enrollment बना सकता है", async () => {
       await reset();
       const db = googleStudentContext("new-student").firestore();
@@ -100,7 +136,7 @@ test("Firestore security rules regression suite", async (t) => {
       await assertFails(updateDoc(doc(existingStudentDb, "examEnrolledStudents", STUDENT), {
         fullName: "बंद अवधि में बदलाव", updatedAt: serverTimestamp(),
       }));
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       await assertSucceeds(setDoc(doc(ownerDb, "examEnrolledStudents/new-student"), {
         uid: "new-student", fullName: "Owner द्वारा जोड़ा गया",
         verificationStatus: "pending",
@@ -140,7 +176,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("Owner विद्यार्थी के लिए प्रवेश-पत्र रिलीज़ स्थिति सहेज सकता है", async () => {
       await reset();
-      const db = env.authenticatedContext(OWNER).firestore();
+      const db = googleOwnerContext().firestore();
       await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
         admitCardReleased: true, admitCardReleasedAt: serverTimestamp(),
       }));
@@ -148,7 +184,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("Owner पिन की गई निजी प्रवेश-पत्र सूचना बना सकता है", async () => {
       await reset();
-      const db = env.authenticatedContext(OWNER).firestore();
+      const db = googleOwnerContext().firestore();
       await assertSucceeds(setDoc(doc(db, "userNotifications", STUDENT, "items", "admit-card-main"), {
         recipientUid: STUDENT, title: "🎟️ प्रवेश-पत्र जारी हो गया",
         message: "JAMBH-2026-00001 का प्रवेश-पत्र उपलब्ध है।",
@@ -197,7 +233,14 @@ test("Firestore security rules regression suite", async (t) => {
           q: "समीक्षा प्रश्न", published: false,
         });
       });
-      const reviewerDb = env.authenticatedContext("reviewer-test").firestore();
+      const reviewerDb = env.authenticatedContext("reviewer-test", {
+        email: "reviewer-test@example.com",
+        email_verified: true,
+        firebase: {
+          sign_in_provider: "google.com",
+          identities: { "google.com": ["reviewer-test@example.com"] },
+        },
+      }).firestore();
       await assertSucceeds(getDoc(doc(reviewerDb, "mainExamQuestions/q1")));
       await assertSucceeds(getDoc(doc(reviewerDb, "examAnswerKeys/main/items/q1")));
       const studentDb = env.authenticatedContext(STUDENT).firestore();
@@ -337,7 +380,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("स्थायी global सूचना केवल Owner बना, बदल और हटा सकता है", async () => {
       await reset();
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       const permanentRef = doc(ownerDb, "notifications", "permanent-global");
       await assertSucceeds(setDoc(permanentRef, {
         title: "महत्वपूर्ण स्थायी सूचना", message: "Owner द्वारा प्रकाशित",
@@ -364,7 +407,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("स्थायी निजी सूचना केवल Owner प्रकाशित और हटा सकता है; विद्यार्थी केवल अपना read marker लिख सकता है", async () => {
       await reset();
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       const privateRef = doc(ownerDb, "userNotifications", STUDENT, "items", "private-permanent");
       await assertSucceeds(setDoc(privateRef, {
         recipientUid: STUDENT, title: "निजी स्थायी सूचना", message: "महत्वपूर्ण",
@@ -469,7 +512,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("flat ALL notification is readable but student cannot delete it", async () => {
       await reset();
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       await assertSucceeds(setDoc(doc(ownerDb, "userNotifications/flat-all"), {
         uid: "ALL", type: "announcement", title: "सार्वजनिक सूचना", body: "सभी के लिए",
         important: true, pinnedByOwner: true, fileUrl: "", createdAt: serverTimestamp(),
@@ -489,7 +532,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("Owner प्रवेश-पत्र रिलीज़ flag और pinned per-student notification लिख सकता है", async () => {
       await reset();
-      const db = env.authenticatedContext(OWNER).firestore();
+      const db = googleOwnerContext().firestore();
       await assertSucceeds(updateDoc(doc(db, "examEnrolledStudents", STUDENT), {
         admitCardReleased: true,
         admitCardReleasedAt: serverTimestamp(),
@@ -520,7 +563,7 @@ test("Firestore security rules regression suite", async (t) => {
     await t.test("admit-card QR verification is public get-only and exposes minimal fields", async () => {
       await reset();
       const token = "a".repeat(48);
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       await assertSucceeds(setDoc(doc(ownerDb, "publicAdmitCardVerifications", token), {
         rollNumber: "JAMBH-2026-0001",
         examTitle: "मुख्य परीक्षा",
@@ -552,7 +595,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("editor permission audit logs are immutable and owner-only", async () => {
       await reset();
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       const auditRef = doc(ownerDb, "roleAuditLogs", "audit-event-1");
       await assertSucceeds(setDoc(auditRef, {
         action: "invitation_created",
@@ -625,7 +668,7 @@ test("Firestore security rules regression suite", async (t) => {
 
     await t.test("Owner-only Community polls allow one valid vote per member and reject closed or invalid votes", async () => {
       await reset();
-      const ownerDb = env.authenticatedContext(OWNER).firestore();
+      const ownerDb = googleOwnerContext().firestore();
       const pollRef = doc(ownerDb, "communityPolls", "owner-poll-1");
       await assertSucceeds(setDoc(pollRef, {
         title: "समुदाय के लिए अगला कार्यक्रम?",
