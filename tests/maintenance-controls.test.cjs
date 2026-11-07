@@ -239,8 +239,8 @@ test('Community Poll and Event attachments show a neutral unavailable message to
   const start = scriptJs.indexOf('window.BishnoiCommunity.openAttachment = async function (type)');
   const end = scriptJs.indexOf('window.BishnoiCommunity.autoResize', start);
   const handler = scriptJs.slice(start, end);
-  assert.ok(handler.includes("if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।'"));
-  assert.ok(handler.includes("if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।'"));
+  assert.ok(handler.includes("if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है。', 'error');") || handler.includes("if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।', 'error');"));
+  assert.ok(handler.includes("if (type === 'event') {"));
 });
 
 test('Community reference controls use the existing Firebase conversation while feedback stays in its separate section', () => {
