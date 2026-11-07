@@ -5,16 +5,22 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function googleSignedIn() {
+      return signedIn()
+        && request.auth.token.firebase.get('sign_in_provider', '') == 'google.com'
+        && request.auth.token.firebase.identities['google.com'] != null;
+    }
+
     function mediaEditor() {
       let rolePath = /databases/(default)/documents/roles/$(request.auth.uid);
-      return signedIn()
+      return googleSignedIn()
         && firestore.exists(rolePath)
         && firestore.get(rolePath).data.role == 'editor'
         && firestore.get(rolePath).data.get('permissions', {}).get('media', false) == true;
     }
 
     function mediaOwner() {
-      return signedIn() && (
+      return googleSignedIn() && (
         request.auth.uid == '8YRBWWMKG2OUW6cmzZkGbFgOqyp2'
         || request.auth.uid == 'rdP0ZXzSP9fGzmJshEVvbOfb31g2'
         || (

@@ -103,6 +103,10 @@
     .studio-nav-item:hover{background:#edf5ed;border-color:#b7cdb9}
     .studio-nav-active{background:#143622!important;color:#fff!important;border-color:#143622!important;box-shadow:0 4px 12px rgba(20,54,34,.14)}
     #ownerStudioPageContent>section,#ownerStudioPageContent>div,#pane_exam>section,#pane_exam>div{scroll-margin-top:90px}
+    body:not(.studio-authorized) > :not(#adminAuthLock):not(#toastNotification) {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
     #ownerStudioPageContent .rounded-3xl{border-radius:20px}
     #ownerStudioPageContent .shadow-sm{box-shadow:0 5px 18px rgba(20,54,34,.045)}
     #ownerStudioPageContent input:not([type=checkbox]):not([type=radio]),#ownerStudioPageContent select,#ownerStudioPageContent textarea{border-color:#cbd5cc;color:#17251c;background-color:#fff}
@@ -1513,6 +1517,22 @@ async function claimPendingEditorInvitation(user) {
           window.location.href = "index.html";
           return;
         }
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          const signInProvider = tokenResult?.claims?.firebase?.sign_in_provider || '';
+          if (signInProvider !== 'google.com') {
+            const message = document.getElementById('adminAuthLockMessage');
+            if (message) message.textContent = 'कृपया Owner Studio के लिए Google खाते से लॉगिन करें।';
+            await auth.signOut();
+            window.location.replace('index.html');
+            return;
+          }
+        } catch (authCheckError) {
+          console.error('Google session verification failed:', authCheckError);
+          await auth.signOut();
+          window.location.replace('index.html');
+          return;
+        }
         if (studioInitializedUid === user.uid || studioVerificationInProgress) return;
         studioVerificationInProgress = true;
         const verificationTimer = window.setTimeout(() => {
@@ -1540,9 +1560,15 @@ async function claimPendingEditorInvitation(user) {
           const role = roleData.role;
 
           // Check if Super Owner or Trusted Editor
-          if (user.uid !== SUPER_OWNER_UID && user.uid !== RECOVERED_OWNER_UID && role !== 'owner' && role !== 'editor') {
-            alert("⚠️ पहुंच वर्जित! आपके खाते को व्यवस्थापक अधिकार प्राप्त नहीं हैं।");
-            window.location.href = "index.html";
+          const hasEditorPermission = role === 'editor' &&
+            ['media', 'quizDrafts', 'examReview', 'notifications', 'reports']
+              .some(permission => roleData.permissions?.[permission] === true);
+          const hasOwnerAccess = user.uid === SUPER_OWNER_UID ||
+            user.uid === RECOVERED_OWNER_UID || role === 'owner';
+          if (!hasOwnerAccess && !hasEditorPermission) {
+            const lockMessage = document.getElementById('adminAuthLockMessage');
+            if (lockMessage) lockMessage.textContent = 'इस Google खाते को Owner Studio की अनुमति नहीं है।';
+            window.setTimeout(() => window.location.replace('index.html'), 900);
             return;
           }
 
@@ -1654,6 +1680,7 @@ if (environmentEl) {
           }
           studioInitializedUid = user.uid;
           window.clearTimeout(verificationTimer);
+          document.body.classList.add('studio-authorized');
           document.getElementById('adminAuthLock')?.classList.add('hidden');
 
           // Initialize only the listeners granted to this account.
