@@ -54,7 +54,7 @@ test('Exam visibility settings do not read a missing mock master toggle or write
 });
 
 test('Exam portal shows each four-stage action once and removes the duplicate legacy cards', () => {
-  const portalMarkup = portalHtml.split('<script')[0];
+  const portalMarkup = portalHtml;
   for (const id of ['journeyRegistration', 'journeyAdmit', 'journeyLiveExam', 'journeyResults']) {
     assert.equal((portalMarkup.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, id + ' should appear once');
   }
@@ -256,10 +256,10 @@ test('Community message sending prevents duplicate rapid submissions and always 
 
 
 test('notification center keeps Firebase feeds, read history, unread badge, and non-blocking toast behavior', () => {
-  assert.match(scriptJs, /function showNotificationToast\\(item, sourceKey\\)/);
-  assert.match(scriptJs, /function toastNewSnapshotItems\\(snapshot, feedKey, sourceKey\\)/);
-  assert.match(scriptJs, /toastNewSnapshotItems\\(snapshot, 'personal', 'private'\\)/);
-  assert.match(scriptJs, /toastNewSnapshotItems\\(snapshot, 'global', 'global'\\)/);
+  assert.match(scriptJs, /function showNotificationToast\(item, sourceKey\)/);
+  assert.match(scriptJs, /function toastNewSnapshotItems\(snapshot, feedKey, sourceKey\)/);
+  assert.match(scriptJs, /toastNewSnapshotItems\(snapshot, 'personal', 'private'\)/);
+  assert.match(scriptJs, /toastNewSnapshotItems\(snapshot, 'global', 'global'\)/);
   assert.match(scriptJs, /bishnoi_seen_notifications_v2_/);
   assert.match(scriptJs, /userNotificationReads/);
   assert.match(scriptJs, /notificationReads/);
@@ -268,8 +268,8 @@ test('notification center keeps Firebase feeds, read history, unread badge, and 
   assert.match(scriptJs, /item\.lifetime === 'permanent'/);
   assert.match(scriptJs, /स्थायी सूचना/);
   assert.match(scriptJs, /lifetime === 'permanent' && !isOwnerForNotification/);
-  assert.match(scriptJs, /unseen\\.length > 99 \\? '99\\+'/);
-  assert.match(scriptJs, /section\\.classList\\.toggle\\('notification-panel-open', shouldOpen\\)/);
+  assert.match(scriptJs, /unseen\.length > 99 \? '99\+'/);
+  assert.match(scriptJs, /section\.classList\.toggle\('notification-panel-open', shouldOpen\)/);
   const indexHtml = readFileSync(path.join(root, 'index.html'), 'utf8');
   assert.match(indexHtml, /id="notificationToastContainer"/);
   assert.match(indexHtml, /id="publicNotificationsList"/);
