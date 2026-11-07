@@ -485,16 +485,39 @@ service cloud.firestore {
         )
       );
 
+      // A student's instant Daily Quiz result is written atomically with
+      // their own quizAttempts document. Keep the result schema aligned with
+      // script.js and reject detached/extra-field result writes.
       allow create: if canReviewExam() || (
         signedIn()
         && request.resource.data.get('uid', '') == request.auth.uid
         && request.resource.data.get('mode', '') == 'quiz'
         && request.resource.data.get('status', '') == 'published'
         && request.resource.data.keys().hasOnly([
-          'uid', 'sourceCollection', 'sourceSubmissionId',
-          'mode', 'name', 'rollNumber', 'score', 'total',
+          'uid', 'studentPhone', 'studentIdentityKey',
+          'sourceCollection', 'sourceSubmissionId', 'mode',
+          'name', 'rollNumber', 'score', 'total', 'maxMarks',
+          'totalQuestions', 'attempted', 'correct', 'incorrect',
           'status', 'feedback', 'publishedAt', 'publishedBy'
         ])
+        && request.resource.data.get('sourceCollection', '') == 'quizAttempts'
+        && request.resource.data.get('sourceSubmissionId', '') is string
+        && request.resource.data.get('sourceSubmissionId', '') != ''
+        && existsAfter(/databases/$(database)/documents/quizAttempts/$(request.resource.data.get('sourceSubmissionId', '')))
+        && getAfter(/databases/$(database)/documents/quizAttempts/$(request.resource.data.get('sourceSubmissionId', ''))).data.get('uid', '') == request.auth.uid
+        && getAfter(/databases/$(database)/documents/quizAttempts/$(request.resource.data.get('sourceSubmissionId', ''))).data.get('mode', '') == 'quiz'
+        && request.resource.data.get('score', null) is number
+        && request.resource.data.get('total', null) is number
+        && request.resource.data.get('total', 0) > 0
+        && request.resource.data.get('score', 0) <= request.resource.data.get('total', 0)
+        && request.resource.data.get('maxMarks', null) is number
+        && request.resource.data.get('maxMarks', 0) == request.resource.data.get('total', 0)
+        && request.resource.data.get('totalQuestions', null) is number
+        && request.resource.data.get('attempted', null) is number
+        && request.resource.data.get('correct', null) is number
+        && request.resource.data.get('incorrect', null) is number
+        && request.resource.data.get('publishedBy', '') == 'system'
+        && request.resource.data.get('publishedAt', null) is timestamp
       );
 
       allow update, delete: if canReviewExam();
