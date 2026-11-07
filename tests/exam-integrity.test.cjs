@@ -167,7 +167,8 @@ test('exam portal synchronizes fixed slot names and hides legacy custom cards wi
   assert.ok(portal.includes('legacyCards.replaceChildren()'));
 });
 test('community Event uses neutral unavailable copy while public poll voting remains enabled', () => {
-  assert.ok(script.includes("if (type === 'event') return notify('इवेंट सुविधा अभी उपलब्ध नहीं है।', 'error');"));
+  assert.ok(script.includes("if (type === 'event') {"));
+  assert.ok(script.includes("if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।', 'error');"));
   assert.ok(script.includes('window.BishnoiCommunity.votePoll'));
   assert.ok(script.includes('transaction.set(voteRef'));
 });
