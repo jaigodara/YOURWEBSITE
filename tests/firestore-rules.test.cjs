@@ -220,6 +220,85 @@ test("Firestore security rules regression suite", async (t) => {
       await assertSucceeds(getDoc(doc(studentDb, "publishedResults/main-result")));
     });
 
+    await t.test("दैनिक क्विज़ का वास्तविक result payload उसी batch में बने quiz attempt के साथ स्वीकार होता है", async () => {
+      await reset();
+      const db = googleStudentContext(STUDENT).firestore();
+      const attemptId = "daily-quiz-attempt";
+      const batch = writeBatch(db);
+      batch.set(doc(db, "quizAttempts", attemptId), {
+        uid: STUDENT,
+        mode: "quiz",
+        answers: { q1: "A" },
+        submittedAt: serverTimestamp(),
+      });
+      batch.set(doc(db, "publishedResults", "quizAttempts_" + attemptId), {
+        uid: STUDENT,
+        studentPhone: "",
+        studentIdentityKey: "uid:" + STUDENT,
+        sourceCollection: "quizAttempts",
+        sourceSubmissionId: attemptId,
+        mode: "quiz",
+        name: "परीक्षण विद्यार्थी",
+        rollNumber: "JAMBH-2026-00001",
+        score: 1,
+        total: 1,
+        maxMarks: 1,
+        totalQuestions: 1,
+        attempted: 1,
+        correct: 1,
+        incorrect: 0,
+        status: "published",
+        feedback: "",
+        publishedAt: serverTimestamp(),
+        publishedBy: "system",
+      });
+      await assertSucceeds(batch.commit());
+    });
+
+    await t.test("दैनिक क्विज़ का result किसी अलग attempt के बिना या अतिरिक्त fields के साथ नहीं बनाया जा सकता", async () => {
+      await reset();
+      const db = googleStudentContext(STUDENT).firestore();
+      await assertFails(setDoc(doc(db, "publishedResults", "detached-result"), {
+        uid: STUDENT,
+        sourceCollection: "quizAttempts",
+        sourceSubmissionId: "missing-attempt",
+        mode: "quiz",
+        score: 10,
+        total: 10,
+        maxMarks: 10,
+        totalQuestions: 10,
+        attempted: 10,
+        correct: 10,
+        incorrect: 0,
+        status: "published",
+        publishedAt: serverTimestamp(),
+        publishedBy: "system",
+      }));
+      const attemptId = "daily-quiz-extra-field";
+      const batch = writeBatch(db);
+      batch.set(doc(db, "quizAttempts", attemptId), {
+        uid: STUDENT, mode: "quiz", answers: {}, submittedAt: serverTimestamp(),
+      });
+      batch.set(doc(db, "publishedResults", "quizAttempts_" + attemptId), {
+        uid: STUDENT,
+        sourceCollection: "quizAttempts",
+        sourceSubmissionId: attemptId,
+        mode: "quiz",
+        score: 1,
+        total: 1,
+        maxMarks: 1,
+        totalQuestions: 1,
+        attempted: 1,
+        correct: 1,
+        incorrect: 0,
+        status: "published",
+        publishedAt: serverTimestamp(),
+        publishedBy: "system",
+        isOwner: true,
+      });
+      await assertFails(batch.commit());
+    });
+
     await t.test("प्रवेश-पत्र रिलीज़ से पहले निजी रहता है और per-card release के बाद खुलता है", async () => {
       await reset();
       await env.withSecurityRulesDisabled(async (ctx) => {

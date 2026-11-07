@@ -3339,7 +3339,8 @@ window.renderExamVisibility = function renderExamVisibility() {
 
   window.BishnoiCommunity.openAttachment = async function (type) {
     ['communityEmojiPicker', 'communityAttachMenu'].forEach(id => byId(id)?.classList.add('hidden'));
-    if (!requireUser() || !state.isOwner) return notify('यह सुविधा केवल Owner के लिए उपलब्ध है।', 'error');
+    if (!requireUser()) return;
+    if (!state.isOwner) return notify('यह सुविधा अभी उपलब्ध नहीं है।', 'error');
     if (type === 'event') {
       const maintenance = state.maintenance || {};
       const sectionMode = (maintenance.sections || {}).community || 'off';
