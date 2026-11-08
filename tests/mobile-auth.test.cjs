@@ -39,6 +39,16 @@ function harness(options = {}) {
       displayName: "Test Student",
       providerData: providers.map(item => ({ ...item })),
       getIdToken: async () => "test-token",
+      getIdTokenResult: async () => {
+        const googleProvider = user.providerData.find(item => item.providerId === "google.com");
+        return {
+          claims: {
+            email: user.email,
+            email_verified: !!googleProvider,
+            firebase: { identities: googleProvider ? { "google.com": [googleProvider.email || user.email] } : {} }
+          }
+        };
+      },
       linkWithPopup: async () => {
         calls.linkedPopup++;
         if (options.linkError) throw options.linkError;
@@ -189,7 +199,8 @@ test("mobile registration creates hidden-email account, links Google, and writes
   const user = h.authInstance.currentUser;
   assert.equal(h.documents.get("users/" + user.uid).mobile, "9876543210");
   assert.equal(h.documents.get("users/" + user.uid).gmailVerified, true);
-  assert.equal(h.documents.get("users/" + user.uid).email, "student@gmail.com");
+  assert.equal(h.documents.get("users/" + user.uid).email, "919876543210@jambh-login.app");
+  assert.equal(h.window.BishnoiAuth ? h.documents.get("users/" + user.uid).gmailVerified : false, true);
   assert.deepEqual(h.documents.get("mobileIndex/9876543210"), { uid: user.uid });
   h.dom.window.close();
 });

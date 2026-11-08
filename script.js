@@ -6931,18 +6931,27 @@ const digits = String(value || '').replace(/\D/g, '');
       user = linked.user || user;
       const googleEmail = googleEmailForUser(user, linked);
       if (!googleEmail) throw Object.assign(new Error('Google खाते का ईमेल नहीं मिला।'), { code: 'auth/google-email-missing' });
-      await user.getIdToken?.(true);
+      const tokenResult = await user.getIdTokenResult(true);
+      const tokenClaims = tokenResult?.claims || {};
+      const authEmail = tokenClaims.email || user.email || '';
+      const hasVerifiedGoogleIdentity = tokenClaims.email_verified === true
+        && !!tokenClaims.firebase?.identities?.['google.com'];
+      if (!hasVerifiedGoogleIdentity || !authEmail) {
+        throw Object.assign(new Error('Firebase token does not contain a verified Google identity.'), {
+          code: 'auth/verified-google-claim-missing'
+        });
+      }
       await state.db.collection('users').doc(user.uid).set({
         fullName: details.fullName,
         mobile: details.mobile,
-        // Firestore rules require email to match request.auth.token.email.
-        email: user.email || googleEmail,
+        // Firestore rules require email to match the authenticated token email.
+        email: authEmail,
         gmailVerified: true,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
       await state.db.collection('mobileIndex').doc(details.mobile).set({ uid: user.uid });
       state.user = user;
-      state.profile = { fullName: details.fullName, mobile: details.mobile, email: googleEmail, gmailVerified: true };
+      state.profile = { fullName: details.fullName, mobile: details.mobile, email: googleEmail, googleEmail, authEmail, gmailVerified: true };
       registrationRetry = null;
       window.__bishnoiRegistrationInProgress = false;
       renderAuthState();
