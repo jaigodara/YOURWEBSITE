@@ -1518,7 +1518,7 @@ async function claimPendingEditorInvitation(user) {
           return;
         }
         try {
-          const tokenResult = await user.getIdTokenResult();
+          const tokenResult = await user.getIdTokenResult(true);
           const signInProvider = tokenResult?.claims?.firebase?.sign_in_provider || '';
           if (signInProvider !== 'google.com') {
             const message = document.getElementById('adminAuthLockMessage');
@@ -1697,6 +1697,8 @@ if (environmentEl) {
             loadMaintenanceSettings();
             loadExamVisibilitySettings();
             loadCustomExamRegistry();
+            loadBulkCustomExamOptions();
+            loadCustomExamArchiveOptions();
             loadAdmitCardSettings();
             loadExamSessionQueue();
           }
@@ -2022,13 +2024,12 @@ initializeOwnerStudioRouteVisibility();
          async function refreshStudioAnalytics() {
       try {
         if (!isPrimaryOwner()) {
-          const dSnap = await db.collection('draftQueue').get();
-          document.getElementById('statUsers').innerText = '—';
-          document.getElementById('statQuizzes').innerText = '—';
-          document.getElementById('statDrafts').innerText = dSnap.size;
-          document.getElementById('statPosts').innerText = '—';
-          return;
-        }
+           document.getElementById('statUsers').innerText = '—';
+           document.getElementById('statQuizzes').innerText = '—';
+           document.getElementById('statDrafts').innerText = '—';
+           document.getElementById('statPosts').innerText = '—';
+           return;
+         }
         const [uSnap, qSnap, dSnap, pSnap] = await Promise.all([
           db.collection('users').get(),
           db.collection('quizAttempts').get(),
@@ -2045,7 +2046,8 @@ initializeOwnerStudioRouteVisibility();
     }
 
     function listenDraftQueue() {
-      db.collection('draftQueue').orderBy('createdAt', 'desc').onSnapshot(snap => {
+       if (!isPrimaryOwner()) return;
+      db.collection('draftQueue'.orderBy('createdAt', 'desc').onSnapshot(snap => {
         draftItemsList = [];
         const box = document.getElementById('draftReviewListBox');
         if (!box) return;
@@ -3176,6 +3178,12 @@ async function saveBulkQuestionDrafts() {
     async function loadBulkCustomExamOptions() {
       const select = document.getElementById('bulkCustomExamId');
       if (!select || !db) return;
+      if (!isPrimaryOwner()) {
+        select.replaceChildren(new Option('कस्टम परीक्षा विकल्प केवल Owner के लिए हैं', ''));
+        select.disabled = true;
+        return;
+      }
+      select.disabled = false;
       let previous = select.value;
       try {
         const savedDraft = JSON.parse(localStorage.getItem(BULK_QUESTION_DRAFT_KEY) || 'null');
@@ -7240,6 +7248,12 @@ async function removeTrustedEditor(uid) {
     async function loadCustomExamArchiveOptions() {
       const select = document.getElementById('archiveCustomExamId');
       if (!select || !db) return;
+      if (!isPrimaryOwner()) {
+        select.replaceChildren(new Option('आर्काइव विकल्प केवल Owner के लिए हैं', ''));
+        select.disabled = true;
+        return;
+      }
+      select.disabled = false;
       const previous = select.value;
       try {
         const snap = await db.collection('customExams').limit(100).get();
