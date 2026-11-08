@@ -7,8 +7,11 @@ service cloud.firestore {
     }
 
     function googleSignedIn() {
+      // Require a verified Google identity linked to this Firebase account.
+      // Do not require it to be the current sign-in provider: members may use
+      // the linked mobile/password credential after Google verification.
       return signedIn()
-        && request.auth.token.firebase.get('sign_in_provider', '') == 'google.com'
+        && request.auth.token.email_verified == true
         && request.auth.token.firebase.identities['google.com'] != null;
     }
 

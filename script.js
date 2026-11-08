@@ -19,8 +19,43 @@ traceStartup('script:enter');
  * secret. AI and proctor uploads must go through your own authenticated server.
  * ========================================================================== */
 "use strict";
+
 window.BishnoiAuth = window.BishnoiAuth || {};
 window.BishnoiApp = window.BishnoiApp || {};
+
+// Calm, touch-friendly login sheet without changing the site's existing theme.
+(function installAuthMobilePolish() {
+  const apply = () => {
+    if (document.getElementById('bishnoism-auth-mobile-polish')) return;
+    const style = document.createElement('style');
+    style.id = 'bishnoism-auth-mobile-polish';
+    style.textContent = `
+      #authModal { align-items: flex-end !important; padding: 0 !important; backdrop-filter: blur(7px); }
+      #authModal > div {
+        width: min(100%, 440px) !important; max-width: 440px !important;
+        max-height: min(90dvh, 760px) !important; overflow-y: auto !important;
+        margin: 0 auto !important; padding: 22px 20px max(22px, env(safe-area-inset-bottom)) !important;
+        border-radius: 26px 26px 0 0 !important; box-shadow: 0 -12px 42px rgba(15,35,22,.18) !important;
+        overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+      }
+      #authModal input:not([type=checkbox]), #authModal select { min-height: 48px; font-size: 16px; border-radius: 13px; }
+      #authModal button { min-height: 44px; }
+      #authModal #authSubmitBtn, #authModal button[onclick*="signInWithGoogle"] { min-height: 50px; border-radius: 14px; }
+      #authModal #authStatus[data-kind="error"] { color: #8f2f1b; background: #fff3ed; border: 1px solid #f0c8b8; }
+      #authModal #authStatus[data-kind="success"] { color: #14532d; background: #eff8ef; border: 1px solid #cce7d0; }
+      #authModal button:disabled { opacity: .65; cursor: wait; }
+      @media (min-width: 640px) {
+        #authModal { align-items: center !important; padding: 16px !important; }
+        #authModal > div { border-radius: 26px !important; padding-bottom: 22px !important; }
+      }
+      @media (prefers-reduced-motion: reduce) { #authModal *, #authModal *::before, #authModal *::after { transition: none !important; animation: none !important; } }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
+  else apply();
+})();
+
 
 function showEarlyHindiToast() {
   try {
@@ -755,9 +790,14 @@ notify(
       if (user) {
         try {
           const tokenResult = await user.getIdTokenResult();
-          const signInProvider = tokenResult?.claims?.firebase?.sign_in_provider || '';
-          if (signInProvider !== 'google.com') {
-            console.warn('Bishnoism requires Google sign-in; ending a non-Google session.');
+          const firebaseClaims = tokenResult?.claims?.firebase || {};
+          const hasLinkedGoogle = !!firebaseClaims.identities?.['google.com'];
+          const emailVerified = tokenResult?.claims?.email_verified === true;
+          // A member may sign in with the linked mobile/password credential.
+          // The account must still have a verified Google identity; the current
+          // sign-in provider can legitimately be "password" in that case.
+          if (!hasLinkedGoogle || !emailVerified) {
+            console.warn('Bishnoism requires a verified, Google-linked account; ending an unlinked session.');
             await state.auth.signOut();
             return;
           }
@@ -933,6 +973,9 @@ notify(
       'auth/invalid-credential': 'मोबाइल नंबर या पासवर्ड गलत है।',
       'auth/too-many-requests': 'बहुत अधिक प्रयास हुए हैं। कुछ देर बाद दोबारा प्रयास करें।',
       'auth/operation-not-allowed': 'यह लॉगिन तरीका Firebase में चालू नहीं है।',
+      'auth/api-key-not-valid': 'Firebase API key स्वीकार नहीं हुई। Firebase Console में bishnoi-platform की Web API key और API restrictions जाँचें।',
+      'auth/invalid-api-key': 'Firebase API key गलत या निष्क्रिय है। Firebase Console में Web API key जाँचें।',
+      'auth/app-not-authorized': 'यह वेबसाइट Firebase Authentication के Authorized domains में जोड़नी होगी।',
       'auth/unauthorized-domain': 'Firebase Authentication में इस वेबसाइट का domain जोड़ें।',
       'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।',
       'auth/popup-blocked': 'Google पॉप-अप ब्लॉक हुआ है। इस वेबसाइट के लिए अनुमति दें।',
@@ -6980,11 +7023,23 @@ const digits = String(value || '').replace(/\D/g, '');
   }
 
   authApi.signInWithGoogle = async function () {
-    if (!state.auth || !window.firebase?.auth) return setAuthMessage('Google लॉगिन अभी उपलब्ध नहीं है।', 'error');
+    if (!state.auth || !state.db || !window.firebase?.auth) {
+      return setAuthMessage('लॉगिन सेवा अभी तैयार नहीं है। पेज को एक बार रीफ्रेश करके फिर प्रयास करें।', 'error');
+    }
+    const googleButton = byId('authModal')?.querySelector('button[onclick*="signInWithGoogle"]');
+    const originalLabel = googleButton?.textContent || '';
+    if (googleButton?.disabled) return;
+    if (googleButton) {
+      googleButton.disabled = true;
+      googleButton.textContent = 'Google से सुरक्षित लॉगिन हो रहा है…';
+    }
+    let authenticatedUser = null;
     try {
+      await window.__bishnoiAuthPersistenceReady;
       const result = await signInWithGoogleCredential();
       const user = result?.user;
       if (!user) return setAuthMessage('Google लॉगिन पूरा नहीं हुआ। दोबारा प्रयास करें।', 'error');
+      authenticatedUser = user;
       const email = googleEmailForUser(user, result) || user.email || '';
       const userRef = state.db.collection('users').doc(user.uid);
       const profileSnap = await userRef.get();
@@ -7003,20 +7058,27 @@ const digits = String(value || '').replace(/\D/g, '');
       if (!state.profile.mobile) {
         showAuthModal();
         setAuthView('authLinkMobileView');
-        setAuthMessage('आप Google से लॉगिन हो गए हैं। चाहें तो अब मोबाइल नंबर और पासवर्ड जोड़ सकते हैं।', 'info');
+        setAuthMessage('Google लॉगिन सफल हुआ। मोबाइल नंबर और पासवर्ड जोड़ना वैकल्पिक है।', 'info');
       } else {
         setAuthMessage('Google लॉगिन सफल हुआ।', 'success');
       }
     } catch (error) {
       console.error('Google लॉगिन विफल:', error);
-      const messages = {
-        'auth/popup-blocked': 'Google पॉप-अप ब्लॉक हुआ है। इस वेबसाइट के लिए पॉप-अप अनुमति दें।',
-        'auth/popup-closed-by-user': 'Google सत्यापन पूरा नहीं हुआ। दोबारा प्रयास करें।',
-        'auth/cancelled-popup-request': 'Google लॉगिन रद्द हुआ। दोबारा प्रयास करें।',
-        'auth/network-request-failed': 'इंटरनेट कनेक्शन जाँचकर फिर प्रयास करें।',
-        'auth/credential-already-in-use': 'यह Google खाता किसी दूसरे खाते से जुड़ा है। उसी खाते से लॉगिन करें।'
-      };
-      setAuthMessage(messages[error.code] || authErrorMessage(error), 'error');
+      if (authenticatedUser) {
+        setAuthMessage(
+          error?.code === 'permission-denied'
+            ? 'Google लॉगिन हो गया है, लेकिन प्रोफ़ाइल सहेजने की अनुमति नहीं मिली। Firestore rules और users/{uid} की अनुमति जाँचें।'
+            : 'Google लॉगिन हो गया है, लेकिन प्रोफ़ाइल लोड/सहेजी नहीं जा सकी। इंटरनेट और Firebase Firestore जाँचें।',
+          'error'
+        );
+      } else {
+        setAuthMessage(authErrorMessage(error), 'error');
+      }
+    } finally {
+      if (googleButton) {
+        googleButton.disabled = false;
+        googleButton.textContent = originalLabel;
+      }
     }
   };
   authApi.startForgotPassword = function () {

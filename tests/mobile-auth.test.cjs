@@ -113,7 +113,10 @@ function harness(options = {}) {
     const pathKey = collectionName + "/" + id;
     return {
       id,
-      get: async () => snapshot(pathKey),
+      get: async () => {
+        if (options.profileGetError) throw options.profileGetError;
+        return snapshot(pathKey);
+      },
       set: async (data, config = {}) => {
         documents.set(pathKey, config.merge ? { ...(documents.get(pathKey) || {}), ...data } : { ...data });
       },
@@ -270,4 +273,29 @@ test("all inline auth click handlers resolve to public BishnoiAuth functions", (
   assert.ok(paths.length >= 8);
   for (const method of paths) assert.equal(typeof h.window.BishnoiAuth[method], "function", method + " must resolve");
   h.dom.window.close();
+});
+
+test("Google login reports Firestore profile-sync errors without pretending Firebase Auth failed", async () => {
+  const h = harness({ profileGetError: Object.assign(new Error("permission denied"), { code: "permission-denied" }) });
+  const user = h.makeUser("student@gmail.com", [{ providerId: "google.com", email: "student@gmail.com" }]);
+  h.authInstance.signInWithPopup = async () => {
+    h.calls.googlePopups++;
+    h.authInstance.currentUser = user;
+    return { user, additionalUserInfo: { isNewUser: false, profile: { email: "student@gmail.com" } } };
+  };
+  await h.window.BishnoiAuth.signInWithGoogle();
+  assert.equal(h.authInstance.currentUser, user);
+  assert.match(h.window.document.getElementById("authStatus").textContent, /Google लॉगिन हो गया है/);
+  h.dom.window.close();
+});
+
+test("linked Google identity, not the current provider label, gates an authenticated session", () => {
+  const rules = readFileSync(path.join(root, "firestore.rules"), "utf8");
+  assert.match(source, /firebaseClaims\.identities\?\.\['google\.com'\]/);
+  assert.match(source, /emailVerified = tokenResult\?\.claims\?\.email_verified === true/);
+  const helper = rules.match(/function googleSignedIn\(\) \{([\s\S]*?)\n    \}/);
+  assert.ok(helper, "Firestore must define googleSignedIn()");
+  assert.match(helper[1], /email_verified == true/);
+  assert.match(helper[1], /identities\['google\.com'\] != null/);
+  assert.doesNotMatch(helper[1], /sign_in_provider/);
 });
