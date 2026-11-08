@@ -7842,7 +7842,7 @@ pre,code{overflow-wrap:anywhere}
     const titleInput = document.getElementById('ownerCommunityPollTitle');
     const optionsInput = document.getElementById('ownerCommunityPollOptions');
     const title = String(titleInput?.value || '').trim();
-    const labels = String(optionsInput?.value || '').split(/\\r?\\n/).map(value => value.trim()).filter(Boolean);
+    const labels = String(optionsInput?.value || '').split(/\r?\n/).map(value => value.trim()).filter(Boolean);
 
     if (title.length < 4 || title.length > 180 || labels.length < 2 || labels.length > 6 || labels.some(label => label.length > 80)) {
       showToast('प्रश्न 4–180 अक्षरों में और 2–6 विकल्प (हर विकल्प अलग पंक्ति में) लिखें।');
