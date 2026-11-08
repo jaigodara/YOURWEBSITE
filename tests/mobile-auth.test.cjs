@@ -307,5 +307,6 @@ test("linked Google identity, not the current provider label, gates an authentic
   const helper = rules.match(/function googleSignedIn\(\) \{([\s\S]*?)\n    \}/);
   assert.ok(helper, "Firestore must define googleSignedIn()");
   assert.match(helper[1], /identities\['google\.com'\] != null/);
-  assert.doesNotMatch(helper[1], /email_verified|sign_in_provider/);
+  const helperCode = helper[1].replace(/\/\/.*$/gm, "");
+  assert.doesNotMatch(helperCode, /email_verified|sign_in_provider/);
 });
