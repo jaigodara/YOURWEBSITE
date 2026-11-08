@@ -2047,7 +2047,7 @@ initializeOwnerStudioRouteVisibility();
 
     function listenDraftQueue() {
        if (!isPrimaryOwner()) return;
-      db.collection('draftQueue'.orderBy('createdAt', 'desc').onSnapshot(snap => {
+      db.collection('draftQueue').orderBy('createdAt', 'desc').onSnapshot(snap => {
         draftItemsList = [];
         const box = document.getElementById('draftReviewListBox');
         if (!box) return;
