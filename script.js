@@ -674,13 +674,17 @@ notify(
       const snap = await profileRef.get();
       if (snap.exists) {
         state.profile = snap.data();
+        const linkedGoogleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
+        if (linkedGoogleData?.email) state.profile.googleEmail = linkedGoogleData.email;
         if (!state.profile.verificationStatus) {
           const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
           // Keep verificationStatus server/Owner-managed. Writing it from a
           // member profile update is intentionally blocked by Firestore rules.
           await profileRef.set({
             displayName: state.profile.displayName || state.profile.fullName || user.displayName || '',
-            email: googleData?.email || state.profile.email || user.email || null,
+            // Firestore rules compare email with the Firebase ID-token email.
+            // Keep the Google provider's contact email in memory only.
+            email: user.email || state.profile.email || null,
             ...(googleData && state.profile.gmailVerified !== true ? { gmailVerified: true } : {}),
             updatedAt: serverTimestamp()
           }, { merge: true });
@@ -691,7 +695,7 @@ notify(
         state.profile = {
           displayName: user.displayName || '',
           fullName: user.displayName || '',
-          email: googleData?.email || user.email || null,
+          email: user.email || null,
           gmailVerified: !!googleData,
           verificationStatus: 'unverified',
           authProvider: user.providerData?.[0]?.providerId || 'unknown',
@@ -844,7 +848,8 @@ notify(
           await presenceRef.set({
             // The document path already binds this record to user.uid.
             // Do not rewrite the immutable uid field on an existing profile.
-            email: googleData?.email || user.email || null,
+            // Keep this equal to the Firebase ID-token email claim.
+            email: user.email || null,
             displayName: user.displayName || null,
             ...(googleData ? { gmailVerified: true } : {}),
             presenceStatus: 'online',
@@ -6930,7 +6935,8 @@ const digits = String(value || '').replace(/\D/g, '');
       await state.db.collection('users').doc(user.uid).set({
         fullName: details.fullName,
         mobile: details.mobile,
-        email: googleEmail,
+        // Firestore rules require email to match request.auth.token.email.
+        email: user.email || googleEmail,
         gmailVerified: true,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -7042,20 +7048,30 @@ const digits = String(value || '').replace(/\D/g, '');
       const user = result?.user;
       if (!user) return setAuthMessage('Google लॉगिन पूरा नहीं हुआ। दोबारा प्रयास करें।', 'error');
       authenticatedUser = user;
-      const email = googleEmailForUser(user, result) || user.email || '';
+      const googleEmail = googleEmailForUser(user, result) || user.email || '';
+      const tokenResult = await user.getIdTokenResult(true);
+      const tokenClaims = tokenResult?.claims || {};
+      const authEmail = tokenClaims.email || user.email || '';
+      const hasVerifiedGoogleIdentity = tokenClaims.email_verified === true
+        && !!tokenClaims.firebase?.identities?.['google.com'];
+      if (!hasVerifiedGoogleIdentity || !authEmail) {
+        throw Object.assign(new Error('Firebase token does not contain a verified Google identity.'), {
+          code: 'auth/verified-google-claim-missing'
+        });
+      }
       const userRef = state.db.collection('users').doc(user.uid);
       const profileSnap = await userRef.get();
       const old = profileSnap.exists ? profileSnap.data() || {} : {};
-      if (!profileSnap.exists || old.gmailVerified !== true || !old.email) {
-        await user.getIdToken?.(true);
+      if (!profileSnap.exists || old.gmailVerified !== true || old.email !== authEmail) {
         await userRef.set({
           fullName: old.fullName || user.displayName || '',
-          email,
+          // The rules require this field to equal the authenticated token email.
+          email: authEmail,
           gmailVerified: true,
           ...(!profileSnap.exists ? { createdAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
         }, { merge: true });
       }
-      state.profile = { ...old, email, gmailVerified: true };
+      state.profile = { ...old, email: googleEmail || authEmail, googleEmail, authEmail, gmailVerified: true };
       authApi.closeAuthModal();
       if (!state.profile.mobile) {
         showAuthModal();
@@ -7176,7 +7192,7 @@ const digits = String(value || '').replace(/\D/g, '');
       await user.getIdToken?.(true);
       const userRef = state.db.collection('users').doc(user.uid);
       const batch = state.db.batch();
-      batch.set(userRef, { mobile, email: googleEmailForUser(user) || user.email || '', gmailVerified: true }, { merge: true });
+      batch.set(userRef, { mobile, email: user.email || '', gmailVerified: true }, { merge: true });
       batch.set(state.db.collection('mobileIndex').doc(mobile), { uid: user.uid });
       await batch.commit();
       state.profile = { ...(state.profile || {}), mobile, gmailVerified: true };
@@ -7445,7 +7461,7 @@ window.toggleAuthPassword = function (id, button) {
       const displayName = name || state.profile?.displayName || state.profile?.fullName || state.user.displayName || '';
       const profileUpdate = {
         displayName, location,
-        email: googleEmailForUser(state.user) || state.profile?.email || state.user.email || null,
+        email: state.user.email || state.profile?.authEmail || state.profile?.email || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       await state.db.collection('users').doc(state.user.uid).set(profileUpdate, { merge: true });
