@@ -676,14 +676,15 @@ notify(
         state.profile = snap.data();
         if (!state.profile.verificationStatus) {
           const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
+          // Keep verificationStatus server/Owner-managed. Writing it from a
+          // member profile update is intentionally blocked by Firestore rules.
           await profileRef.set({
-            verificationStatus: 'unverified',
             displayName: state.profile.displayName || state.profile.fullName || user.displayName || '',
             email: googleData?.email || state.profile.email || user.email || null,
             ...(googleData && state.profile.gmailVerified !== true ? { gmailVerified: true } : {}),
             updatedAt: serverTimestamp()
           }, { merge: true });
-          state.profile = { ...state.profile, verificationStatus: 'unverified', ...(googleData ? { gmailVerified: true } : {}) };
+          state.profile = { ...state.profile, ...(googleData ? { gmailVerified: true } : {}) };
         }
       } else {
         const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
@@ -841,7 +842,8 @@ notify(
           const presenceRef = state.db.collection('users').doc(user.uid);
           const googleData = (user.providerData || []).find(item => item && item.providerId === 'google.com');
           await presenceRef.set({
-            uid: user.uid,
+            // The document path already binds this record to user.uid.
+            // Do not rewrite the immutable uid field on an existing profile.
             email: googleData?.email || user.email || null,
             displayName: user.displayName || null,
             ...(googleData ? { gmailVerified: true } : {}),
