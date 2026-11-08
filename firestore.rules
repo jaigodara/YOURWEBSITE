@@ -10,8 +10,10 @@ service cloud.firestore {
       // Require a verified Google identity linked to this Firebase account.
       // Do not require it to be the current sign-in provider: members may use
       // the linked mobile/password credential after Google verification.
+      // Linked-provider identity is the trusted proof. The primary Firebase
+      // email may be a hidden mobile-login address, so email_verified is not
+      // required for accounts that have Google linked.
       return signedIn()
-        && request.auth.token.email_verified == true
         && request.auth.token.firebase.identities['google.com'] != null;
     }
 
@@ -97,7 +99,6 @@ service cloud.firestore {
     function gmailVerifiedStudent() {
       let p = /databases/$(database)/documents/users/$(request.auth.uid);
       return googleSignedIn()
-        && request.auth.token.email_verified == true
         && exists(p)
         && get(p).data.get('gmailVerified', false) == true;
     }
@@ -238,7 +239,7 @@ service cloud.firestore {
         )
         && (
           request.resource.data.get('gmailVerified', false) != true
-          || (googleSignedIn() && request.auth.token.email_verified == true
+          || (googleSignedIn()
             && request.resource.data.get('email', '') == request.auth.token.email)
         )
         && (
@@ -279,7 +280,6 @@ service cloud.firestore {
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['gmailVerified'])
           || (
             googleSignedIn()
-            && request.auth.token.email_verified == true
             && request.resource.data.get('gmailVerified', false) == true
             && request.resource.data.get('email', '') == request.auth.token.email
           )

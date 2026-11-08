@@ -21,16 +21,17 @@ test("Firestore security rules regression suite", async (t) => {
   });
 
   const googleStudentContext = (uid) => env.authenticatedContext(uid, {
-    email: "student-test@example.com",
-    email_verified: true,
+    // The account's primary Firebase email is the hidden mobile-login email.
+    email: "919876543210@jambh-login.app",
+    email_verified: false,
     firebase: {
       sign_in_provider: "google.com",
       identities: { "google.com": ["student-test@example.com"] },
     },
   });
   const googleOwnerContext = () => env.authenticatedContext(OWNER, {
-    email: "owner-test@example.com",
-    email_verified: true,
+    email: "owner-hidden@jambh-login.app",
+    email_verified: false,
     firebase: {
       sign_in_provider: "google.com",
       identities: { "google.com": ["owner-test@example.com"] },
@@ -97,7 +98,7 @@ test("Firestore security rules regression suite", async (t) => {
       });
       const db = googleStudentContext(STUDENT).firestore();
       await assertSucceeds(updateDoc(doc(db, "users", STUDENT), {
-        gmailVerified: true, email: "student-test@example.com",
+        gmailVerified: true, email: "919876543210@jambh-login.app",
       }));
       await assertFails(updateDoc(doc(db, "users", STUDENT), { gmailVerified: false }));
     });
@@ -109,7 +110,7 @@ test("Firestore security rules regression suite", async (t) => {
       });
       const db = env.authenticatedContext("new-student").firestore();
       await assertFails(updateDoc(doc(db, "users", "new-student"), {
-        gmailVerified: true, email: "student-test@example.com",
+        gmailVerified: true, email: "919876543210@jambh-login.app",
       }));
     });
 

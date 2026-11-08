@@ -794,14 +794,13 @@ notify(
       state.profile = null;
       if (user) {
         try {
-          const tokenResult = await user.getIdTokenResult();
+          // The Firebase identities claim proves Google is linked. The primary
+          // account email can be a hidden mobile-login address, so email_verified
+          // is not a valid requirement for this linked-provider check.
+          const tokenResult = await user.getIdTokenResult(true);
           const firebaseClaims = tokenResult?.claims?.firebase || {};
           const hasLinkedGoogle = !!firebaseClaims.identities?.['google.com'];
-          const emailVerified = tokenResult?.claims?.email_verified === true;
-          // A member may sign in with the linked mobile/password credential.
-          // The account must still have a verified Google identity; the current
-          // sign-in provider can legitimately be "password" in that case.
-          if (!hasLinkedGoogle || !emailVerified) {
+          if (!hasLinkedGoogle) {
             console.warn('Bishnoism requires a verified, Google-linked account; ending an unlinked session.');
             await state.auth.signOut();
             return;
@@ -3624,6 +3623,11 @@ window.renderExamVisibility = function renderExamVisibility() {
   };
   window.BishnoiCommunity.loadReactions = async function (postId, host) {
     if (!postId || !host) return;
+    // Reaction documents are private to signed-in members; avoid denied guest reads.
+    if (!state.user && !state.auth?.currentUser) {
+      host.querySelectorAll('[data-reaction-count]').forEach(count => { count.textContent = '—'; });
+      return;
+    }
     try {
       const snapshot = await collection('posts').doc(postId).collection('reactions').get(), counts = new Map([['like', 0], ['dislike', 0]]);
       let own = ''; snapshot.docs.forEach(doc => { const type = String(doc.data()?.reaction || ''); if (counts.has(type)) counts.set(type, counts.get(type) + 1); if (state.user?.uid === doc.id) own = type; });
@@ -6934,10 +6938,9 @@ const digits = String(value || '').replace(/\D/g, '');
       const tokenResult = await user.getIdTokenResult(true);
       const tokenClaims = tokenResult?.claims || {};
       const authEmail = tokenClaims.email || user.email || '';
-      const hasVerifiedGoogleIdentity = tokenClaims.email_verified === true
-        && !!tokenClaims.firebase?.identities?.['google.com'];
-      if (!hasVerifiedGoogleIdentity || !authEmail) {
-        throw Object.assign(new Error('Firebase token does not contain a verified Google identity.'), {
+      const hasLinkedGoogleIdentity = !!tokenClaims.firebase?.identities?.['google.com'];
+      if (!hasLinkedGoogleIdentity || !authEmail) {
+        throw Object.assign(new Error('Firebase token does not contain a linked Google identity.'), {
           code: 'auth/verified-google-claim-missing'
         });
       }
@@ -7061,10 +7064,9 @@ const digits = String(value || '').replace(/\D/g, '');
       const tokenResult = await user.getIdTokenResult(true);
       const tokenClaims = tokenResult?.claims || {};
       const authEmail = tokenClaims.email || user.email || '';
-      const hasVerifiedGoogleIdentity = tokenClaims.email_verified === true
-        && !!tokenClaims.firebase?.identities?.['google.com'];
-      if (!hasVerifiedGoogleIdentity || !authEmail) {
-        throw Object.assign(new Error('Firebase token does not contain a verified Google identity.'), {
+      const hasLinkedGoogleIdentity = !!tokenClaims.firebase?.identities?.['google.com'];
+      if (!hasLinkedGoogleIdentity || !authEmail) {
+        throw Object.assign(new Error('Firebase token does not contain a linked Google identity.'), {
           code: 'auth/verified-google-claim-missing'
         });
       }

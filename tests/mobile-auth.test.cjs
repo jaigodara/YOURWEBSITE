@@ -303,10 +303,9 @@ test("Google login reports Firestore profile-sync errors without pretending Fire
 test("linked Google identity, not the current provider label, gates an authenticated session", () => {
   const rules = readFileSync(path.join(root, "firestore.rules"), "utf8");
   assert.match(source, /firebaseClaims\.identities\?\.\['google\.com'\]/);
-  assert.match(source, /emailVerified = tokenResult\?\.claims\?\.email_verified === true/);
+  assert.doesNotMatch(source, /tokenClaims\.email_verified/);
   const helper = rules.match(/function googleSignedIn\(\) \{([\s\S]*?)\n    \}/);
   assert.ok(helper, "Firestore must define googleSignedIn()");
-  assert.match(helper[1], /email_verified == true/);
   assert.match(helper[1], /identities\['google\.com'\] != null/);
-  assert.doesNotMatch(helper[1], /sign_in_provider/);
+  assert.doesNotMatch(helper[1], /email_verified|sign_in_provider/);
 });
