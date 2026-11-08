@@ -163,7 +163,10 @@ service cloud.firestore {
         && request.resource.data.get('email', '') is string
         && request.resource.data.get('email', '').size() <= 254;
 
-      allow update, delete: if examOwner();
+      // Only the Super Owner can modify or remove role documents.
+      // Ordinary Owners may manage editor invitations, but cannot promote
+      // another account to Owner or change the Super Owner's role.
+      allow update, delete: if superOwner();
     }
 
     match /pending_editors/{inviteId} {
@@ -685,7 +688,35 @@ service cloud.firestore {
     }
 
     match /feedbacks/{id} {
-      allow create: if signedIn();
+      // Members may submit feedback only for themselves and with bounded text.
+      // Keep this schema aligned with the feedback form in the client.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'uid', 'name', 'displayName', 'email', 'message', 'body', 'createdAt'
+        ])
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && (request.resource.data.keys().hasAny(['message'])
+          || request.resource.data.keys().hasAny(['body']))
+        && (
+          (!request.resource.data.keys().hasAny(['message'])
+            || (request.resource.data.message is string
+              && request.resource.data.message.size() > 0
+              && request.resource.data.message.size() <= 2000))
+        )
+        && (
+          (!request.resource.data.keys().hasAny(['body'])
+            || (request.resource.data.body is string
+              && request.resource.data.body.size() > 0
+              && request.resource.data.body.size() <= 2000))
+        )
+        && (!request.resource.data.keys().hasAny(['name'])
+          || (request.resource.data.name is string && request.resource.data.name.size() <= 120))
+        && (!request.resource.data.keys().hasAny(['displayName'])
+          || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120))
+        && (!request.resource.data.keys().hasAny(['email'])
+          || (request.resource.data.email is string && request.resource.data.email.size() <= 254))
+        && (!request.resource.data.keys().hasAny(['createdAt'])
+          || request.resource.data.createdAt is timestamp);
       allow read, update, delete: if owner();
     }
 
@@ -1005,7 +1036,36 @@ service cloud.firestore {
     }
 
     match /visitorLogs/{id} {
-      allow create: if true;
+      // Anonymous visit logging is retained, but only bounded, non-sensitive
+      // analytics fields are accepted. Reads and changes remain Owner-only.
+      allow create: if request.resource.data.keys().hasOnly([
+          'uid', 'sessionId', 'page', 'path', 'referrer', 'userAgent',
+          'device', 'platform', 'source', 'createdAt', 'timestamp', 'visitedAt'
+        ])
+        && (!request.resource.data.keys().hasAny(['uid'])
+          || request.resource.data.uid is string && request.resource.data.uid.size() <= 128)
+        && (!request.resource.data.keys().hasAny(['sessionId'])
+          || request.resource.data.sessionId is string && request.resource.data.sessionId.size() <= 128)
+        && (!request.resource.data.keys().hasAny(['page'])
+          || request.resource.data.page is string && request.resource.data.page.size() <= 200)
+        && (!request.resource.data.keys().hasAny(['path'])
+          || request.resource.data.path is string && request.resource.data.path.size() <= 500)
+        && (!request.resource.data.keys().hasAny(['referrer'])
+          || request.resource.data.referrer is string && request.resource.data.referrer.size() <= 1000)
+        && (!request.resource.data.keys().hasAny(['userAgent'])
+          || request.resource.data.userAgent is string && request.resource.data.userAgent.size() <= 500)
+        && (!request.resource.data.keys().hasAny(['device'])
+          || request.resource.data.device is string && request.resource.data.device.size() <= 100)
+        && (!request.resource.data.keys().hasAny(['platform'])
+          || request.resource.data.platform is string && request.resource.data.platform.size() <= 100)
+        && (!request.resource.data.keys().hasAny(['source'])
+          || request.resource.data.source is string && request.resource.data.source.size() <= 100)
+        && (!request.resource.data.keys().hasAny(['createdAt'])
+          || request.resource.data.createdAt is timestamp)
+        && (!request.resource.data.keys().hasAny(['timestamp'])
+          || request.resource.data.timestamp is timestamp)
+        && (!request.resource.data.keys().hasAny(['visitedAt'])
+          || request.resource.data.visitedAt is timestamp);
       allow read, update, delete: if owner();
     }
 
